@@ -1,0 +1,10 @@
+{
+  "accepted": true,
+  "archive_built": false,
+  "candidate_inventory_exact": true,
+  "map_files": 1364,
+  "schema_version": 1,
+  "secrets_printed": false,
+  "selected_run_hashes_match_full_ledgers": 208,
+  "source_inventory_bindings_verified": 67
+}

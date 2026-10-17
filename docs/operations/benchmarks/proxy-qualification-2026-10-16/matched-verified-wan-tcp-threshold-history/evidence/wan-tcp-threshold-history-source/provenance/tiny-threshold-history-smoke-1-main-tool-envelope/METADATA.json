@@ -1,0 +1,21 @@
+{
+  "accepted": false,
+  "exit_code": 1,
+  "final_tool_result": {
+    "chunk_id": "bb10a3",
+    "output": "",
+    "wall_time_seconds": 12.042592637
+  },
+  "initial_tool_result": {
+    "chunk_id": "4d5358",
+    "output": "",
+    "wall_time_seconds": 1.001736882
+  },
+  "invocation_sha256": "adaffc1692c55a097e1f2fb09bfe0857aaf7c2bd5c86502ead69f05313c02742",
+  "native_session_id": 99917,
+  "note": "Only exact native tool metadata returned to the executor is recorded; no transcript hash is claimed.",
+  "retry": false,
+  "schema_version": 1,
+  "source_manifest_sha256": "0f5c39f6af76a338c08e5f35727c899424e3cbad73f0f776f0985d5997948c49",
+  "transcript_available": false
+}

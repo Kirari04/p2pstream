@@ -1,0 +1,17 @@
+{
+  "all_placement": "loose",
+  "archive_planned": false,
+  "bindings_verified": 16,
+  "mapped_bytes": 317108,
+  "mapped_files": 70,
+  "omitted_payloads_scanned_or_hashed": false,
+  "omitted_workspace_roots": 5,
+  "phase": "exact-frozen-selection",
+  "qualification_accepted": false,
+  "schema_version": 1,
+  "secret_scan_accepted": true,
+  "secret_scan_executed": true,
+  "secret_scan_hits": 0,
+  "source_bytes_copied": false,
+  "values_printed": 0
+}

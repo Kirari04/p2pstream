@@ -704,6 +704,33 @@ retransmission delta. These discrete owner-local samples establish no sole
 cause, production fix, parity, release readiness, or WAN gate clearance. See
 the [TCP-state evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-state/README.md).
 
+The next qualification-only observer retains the first sampled slow-start
+threshold change from socket binding, with bounded synchronous observations of
+existing raw writes. Its audited build and focused contracts pass, but both
+small WAN attempts remain rejected. The first exposed two runner validation
+defects; their correction passed 85 cases without changing the binaries or
+timed workload. The second completed all 32 transfers with natural process
+joins, but H2 failed final raw closure with one failed write recorded during
+teardown. Neither arm observed a threshold transition at the 4 MiB smoke size.
+
+Two failed after-captures contained no congestion-control identity. Comparing
+that absence with the baseline incorrectly reported an algorithm change. A
+separate correction passes 106 contracts and still rejects the retained H2
+closure for its actual failed write. Source review finds that intentional
+cancellation of an active TLS write is compatible with the evidence; it does
+not establish a production shutdown defect or the cause of the WAN slowdown.
+Two deterministic local TLS/Yamux cancellation schedules then pass normally
+and under the race detector, with natural joins and unchanged inputs. They use
+synthetic TCP snapshots over `net.Pipe`; they do not reproduce the kernel
+capture failure or establish the exact WAN interleaving. No sustained run or
+runtime change follows from these results. See the
+[threshold-history evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-threshold-history/CURRENT-STATUS.md)
+and the [validator and cancellation follow-up](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-tcp-threshold-followup/README.md).
+Further WAN execution needs an independently justified candidate addressing the
+remaining raw-write error while preserving bounded cancellation and all fixed
+gates. The original WAN, HAProxy, and remaining
+pressure, cancellation, capacity, and integration gates remain open.
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

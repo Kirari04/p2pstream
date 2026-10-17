@@ -1,0 +1,16 @@
+{
+  "accepted": true,
+  "case_count": 85,
+  "endpoint_execution": false,
+  "go_execution": false,
+  "issue": null,
+  "post_checks": {
+    "checkpoint_unchanged": true,
+    "contract_unchanged": true,
+    "expected_cases_unchanged": true,
+    "owned_process_helper_unchanged": true,
+    "python_unchanged": true
+  },
+  "schema_version": 1,
+  "wan_traffic": false
+}

@@ -1,0 +1,17 @@
+{
+  "argv": [
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "test",
+    "-json",
+    "-p=1",
+    "-overlay=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1/overlay.json",
+    "-tags=p2pstream_qualification",
+    "-count=1",
+    "-timeout=60s",
+    "-run=^TestQualificationTCPThresholdHistorySessionCloseCancellation$",
+    "-v",
+    "./internal/agent"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source",
+  "timeout_seconds": 600
+}

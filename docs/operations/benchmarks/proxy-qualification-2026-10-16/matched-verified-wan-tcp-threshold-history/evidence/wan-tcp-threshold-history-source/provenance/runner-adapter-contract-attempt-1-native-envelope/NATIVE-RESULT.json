@@ -1,0 +1,21 @@
+{
+  "chunk_id": "aeab0e",
+  "command": [
+    "/usr/bin/python3.14",
+    "-I",
+    "-B",
+    "tmp/continuation-20261016/wan-tcp-threshold-history-source/review/runner-adapter-contract-invocation-source-1/run-contract.py",
+    "tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/runner-adapter-contract-attempt-1"
+  ],
+  "exit_code": 0,
+  "forced_intervention": false,
+  "full_native_tool_response_observed": true,
+  "native_tool": "exec_command",
+  "original_token_count": 0,
+  "output": "",
+  "records_ledger_sha256": "8dbc7bc05629496af95ffecfa0165cd8c3a2856cf74dfe5b4a26407cff20d5f5",
+  "schema_version": 1,
+  "session_id": null,
+  "wall_time_seconds": 0.438593968,
+  "workdir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream"
+}

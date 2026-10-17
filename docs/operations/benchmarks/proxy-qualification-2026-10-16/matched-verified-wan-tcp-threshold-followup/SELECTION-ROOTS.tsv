@@ -1,0 +1,17 @@
+category	placement	rule	state	source
+validator-correction-source	loose	tree	frozen-accepted-contract106	tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1
+validator-contract-invocation	loose	tree	frozen-executed	tmp/continuation-20261016/wan-tcp-threshold-history-source/review/failed-capture-contract-invocation-source-1
+validator-contract-result	loose	tree	frozen-accepted106	tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/failed-capture-contract-attempt-1/records
+validator-contract-native	loose	tree	frozen-natural0	tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/failed-capture-contract-attempt-1-native-envelope
+validator-handoff	loose	tree	frozen-complete	tmp/continuation-20261016/wan-tcp-threshold-history-source/handoff/validator-unavailable-capture-correction-20261017
+cancellation-reproduction-source	loose	tree	frozen-accepted-normal-and-race	tmp/continuation-20261016/wan-tcp-threshold-history-source/close-race-reproduction-source-1
+cancellation-invocation-source	loose	tree	frozen-accepted-normal-and-race	tmp/continuation-20261016/wan-tcp-threshold-history-source/review/close-race-reproduction-invocation-source-1
+model-policy-history	loose	file	frozen-preserved	tmp/continuation-20261016/wan-tcp-threshold-history-source/handoff/MODEL-POLICY-2026-10-17.md
+model-policy-refinement	loose	file	frozen-preserved	tmp/continuation-20261016/wan-tcp-threshold-history-source/handoff/MODEL-POLICY-REFINEMENT-2026-10-17.json
+astra-escalation	loose	file	frozen-preserved	tmp/continuation-20261016/wan-tcp-threshold-history-source/handoff/ASTRA-CLOSE-ESCALATION-2026-10-17.json
+history-publication-receipt	loose	file	frozen-published-cutoff	tmp/continuation-20261016/wan-tcp-threshold-history-evidence-export/verification-receipts/TRACKED-PUBLICATION-1.json
+cancellation-test-records	loose	tree	frozen-natural-pass-normal-and-race	tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/records
+cancellation-native-envelope	loose	tree	frozen-natural-pass-normal-and-race	tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/close-race-reproduction-attempt-1-native-envelope
+cancellation-top-final	loose	file	frozen-natural-pass-normal-and-race	tmp/continuation-20261016/wan-tcp-threshold-history-source/runner-source-1/runs/close-race-reproduction-attempt-1/FINAL
+final-astra-result-review	loose	tree	frozen-accepted-for-bounded-scope	tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/close-race-reproduction-attempt-1-astra-review
+final-coordinator-cutoff	loose	tree	frozen-accepted-for-bounded-scope	tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/followup-main-cutoff-review-1

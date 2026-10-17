@@ -1,0 +1,29 @@
+{
+  "archive_built_at_source_freeze": false,
+  "coordinator_review_sha256": "3e0edacfae25d448b46f386973b520c6dcd0108bc6a1bb3a0e74cbc8df1e3450",
+  "coordinator_review_source": "Exact review supplied by coordinating Astra in task message, 2026-10-17",
+  "cutoff_id": "history-through-tiny2-before-failed-capture106-and-local-cancellation",
+  "included_terminal_run_ledgers": {
+    "tiny1": "7d18e0427115df2b00f0e3fe13752dd7c9dd278998122e8cb6350968925caeb0",
+    "tiny2": "5e5c7c1d0ae91caff4379fc1bc13fce227ea9a9337247452f54060f17550163f"
+  },
+  "outside_cutoff": [
+    "Mutable main review log",
+    "Later failed-capture 106 contracts and validator correction",
+    "Local active-write cancellation tests and related source",
+    "Any future supplement, WAN retry, sustained observation or runtime fix"
+  ],
+  "prior_source_proposal_ledger_sha256": "7148ae8def184d2c6b5915fc277ca951e17d14bb303ee4e451653afe3e9e0343",
+  "qualification_accepted": false,
+  "schema_version": 1,
+  "scope": "Immutable source/build/runner history and both rejected tiny WAN attempts",
+  "tracked_writes_at_source_freeze": false,
+  "unchanged_inputs": {
+    "ALLOWLIST.tsv": "46fbeb4f1263d47730352145c06b48aa4de16215c952653ea82a87eee191a6fd",
+    "PACKAGE-MAP.tsv": "826aa4509fa49d9ce64e62c912875baae428c8021c2180bc968c5d5d44c95975",
+    "SECRET-SCAN-BINDING.json": "173516a4c4b726580b4a3492291042e414a9e151d8670a7ecca3196bfeae6ad4",
+    "SECRET-SCAN-INPUT-ALLOWLIST.tsv": "0deb57437fb2fd0e98fd6d3ed736f957891f7888212ea031d8db594c38ffca83",
+    "SECRET-SCAN.json": "fc88beb09363e2583ac882a31a3064c69dd9d2bdd35df78162b8e952ed0b00a4",
+    "verify-evidence-package.py": "6a5b197efa32477ab9a797117e7ac93b1cdfe7f5ad6a48404502a011ed26a158"
+  }
+}

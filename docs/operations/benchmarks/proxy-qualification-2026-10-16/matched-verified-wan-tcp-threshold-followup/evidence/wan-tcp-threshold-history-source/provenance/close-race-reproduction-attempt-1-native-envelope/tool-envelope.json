@@ -1,0 +1,29 @@
+{
+  "endpoint_binary_builds": false,
+  "forced_intervention": false,
+  "full_native_tool_responses_observed": true,
+  "invocation_manifest_sha256": "ebe0e35fe7dd8658bff8fa60f824e944406f181c1c951f778293b68f86083a0a",
+  "native_exit_status": 0,
+  "native_session_id": 17787,
+  "observed_native_results": [
+    {
+      "chunk_id": "7d161d",
+      "original_token_count": 0,
+      "output": "",
+      "session_id": 17787,
+      "wall_time_seconds": 1.001366959
+    },
+    {
+      "chunk_id": "0121dd",
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": "",
+      "wall_time_seconds": 9.398e-06
+    }
+  ],
+  "records_ledger_sha256": "3e54bedee7b93e71880495b2bd4f4c19b49ebcf4449666ddf6ec15ce4996fec6",
+  "runtime_fix_claimed": false,
+  "schema_version": 1,
+  "source_manifest_sha256": "faeff7a78235271a8a0748d27dc739a81d20896e7251f004a1de97db191a3f06",
+  "wan_traffic": false
+}

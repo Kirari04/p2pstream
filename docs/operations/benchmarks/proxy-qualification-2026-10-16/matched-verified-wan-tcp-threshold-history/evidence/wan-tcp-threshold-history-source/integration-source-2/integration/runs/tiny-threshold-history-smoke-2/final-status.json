@@ -1,0 +1,28 @@
+{
+  "accepted": false,
+  "diagnostic": "wan-below-tls-server-growth",
+  "diagnostic_only": true,
+  "finished_unix_nano": 1792228526722581317,
+  "fresh_outer_topology_per_started_arm": true,
+  "h1": {
+    "accepted": true,
+    "continuation_status": 0,
+    "safe_to_continue": true,
+    "status": 0
+  },
+  "h2": {
+    "accepted": false,
+    "started": true,
+    "status": 1
+  },
+  "order": [
+    "h1",
+    "h2"
+  ],
+  "performance_result": false,
+  "pre_post_hashes_equal": true,
+  "same_binaries_both_arms": true,
+  "same_verified_certificate_both_arms": true,
+  "schema_version": 1,
+  "size_mode": "small"
+}

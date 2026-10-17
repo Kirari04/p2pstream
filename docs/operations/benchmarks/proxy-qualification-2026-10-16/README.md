@@ -410,6 +410,25 @@ retransmission delta. These discrete owner-local samples establish no sole
 cause, production fix, parity, release readiness, or WAN gate clearance. See
 the [TCP-state evidence](matched-verified-wan-tcp-state/README.md).
 
+The first-threshold-history follow-up retains bounded observations from socket
+binding, but both small WAN attempts remain rejected. Runner corrections passed
+85 cases, then the second attempt completed 32 exact transfers with natural
+process joins while H2 failed final raw closure during teardown. Neither arm
+observed a threshold transition at the 4 MiB smoke size. A separate 106-case
+validator correction distinguishes unavailable TCP captures from actual
+congestion-control changes and preserves rejection of H2's failed raw write.
+Intentional cancellation of an active TLS write is compatible with the source
+and evidence; no production lifecycle defect or WAN cause is established.
+Two local TLS/Yamux cancellation schedules pass normal and race checks with
+natural joins. Their synthetic TCP snapshots do not reproduce the kernel
+capture failure or establish the exact WAN ordering.
+See the [threshold-history package](matched-verified-wan-tcp-threshold-history/CURRENT-STATUS.md)
+and the [validator and cancellation follow-up](matched-verified-wan-tcp-threshold-followup/README.md).
+A justified candidate addressing the remaining raw-write error without weakening
+cancellation or fixed gates is required before more WAN traffic.
+No sustained observation, runtime fix,
+performance gate clearance, parity, or release readiness follows.
+
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response
 matrix that passes all 12 throughput and tail gates with exact conservation. Its

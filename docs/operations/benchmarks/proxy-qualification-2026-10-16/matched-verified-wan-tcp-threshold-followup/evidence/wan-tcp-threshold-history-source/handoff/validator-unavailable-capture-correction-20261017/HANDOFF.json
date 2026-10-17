@@ -1,0 +1,39 @@
+{
+  "active2_changed": false,
+  "active_process": false,
+  "all_cases_passed": true,
+  "all_five_postchecks_true": true,
+  "build_or_producer_changed": false,
+  "case_count": 106,
+  "constraint": "Only healthy validated captured endpoints establish comparable CC identity. Exact retained raw_control-before-getsockopt unavailable shape can parse in sticky inconclusive/positive provider-error failure context. Other unavailable shapes still reject explicitly.",
+  "contract_attempt": "runner-source-1/runs/failed-capture-contract-attempt-1",
+  "forced_cleanup": false,
+  "inherited_cases": 85,
+  "invocation": "review/failed-capture-contract-invocation-source-1",
+  "invocation_manifest_sha256": "78eb68ceeead6d40e8784f413bdbefc6354e7f92bfb9d08da36355c1957a19cd",
+  "materialization": false,
+  "native_outer_ledger_sha256": "e4786776346e33caeb60f883effacf4e16275e79d191a8c1df77efb715d34744",
+  "natural_direct_and_group_status": 0,
+  "new_cases": 21,
+  "next_decision_owner": "parent Astra; teardown design/reproducer remains separate and no further source/traffic action authorized",
+  "original_tiny2_disposition": "failed; full final closure still rejects lane4 outside write error",
+  "original_tiny2_run_ledger_sha256": "5e5c7c1d0ae91caff4379fc1bc13fce227ea9a9337247452f54060f17550163f",
+  "package": "validator-capture-source-1",
+  "package_manifest_sha256": "10fb785112ba9a678e4592defe9251cab7b8077225150bb052140b999fb76b5e",
+  "records_ledger_sha256": "8bc0352f71dc740df42a263ec1645646b9834a2550167e30f3781b591fadb307",
+  "result_sha256": "a33e0711147464e022d33a03fbe0112474915e6f07fa03a69778064f38ce0cf4",
+  "runner2_changed": false,
+  "runtime_changed_paths": [
+    "integration/validate-tcp-state.py"
+  ],
+  "runtime_fix_claimed": false,
+  "schema_version": 1,
+  "status": "validator-only correction and bounded contracts complete; no downstream application",
+  "unchanged_dependencies": [
+    "integration/validate-raw-write-activity.py",
+    "integration/validate-sender-wait-snapshot.py",
+    "integration/contracts/test-tcp-state-validator.py"
+  ],
+  "validator_sha256": "4a7addc3981eb892f364e85932b82856afcc1283139105b6d4d228ead2c4fa2c",
+  "wan_execution": false
+}

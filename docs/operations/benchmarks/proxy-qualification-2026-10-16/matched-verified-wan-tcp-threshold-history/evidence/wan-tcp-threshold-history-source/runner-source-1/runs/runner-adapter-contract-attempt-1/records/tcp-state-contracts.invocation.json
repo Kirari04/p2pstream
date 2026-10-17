@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/usr/bin/python3.14",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-runner-source-2/integration/contracts/test-tcp-state-validator.py"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-runner-source-2",
+  "timeout_seconds": 60
+}

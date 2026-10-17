@@ -1,0 +1,10 @@
+{
+  "error": "Python SyntaxError: unexpected character after line continuation character on line4",
+  "execution_effect": "Python parsing failed before execution; no envelope directory/files or test process created by that command",
+  "native_chunk_id": "0c6229",
+  "native_exit_status": 1,
+  "phase": "native-envelope metadata preparation only",
+  "resolution": "Corrected metadata writer; no Go execution repeated",
+  "schema_version": 1,
+  "test_rerun": false
+}

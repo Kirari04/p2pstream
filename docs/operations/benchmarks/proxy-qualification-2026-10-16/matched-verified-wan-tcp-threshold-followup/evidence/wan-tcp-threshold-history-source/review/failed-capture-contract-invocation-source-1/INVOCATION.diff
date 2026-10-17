@@ -1,0 +1,27 @@
+--- runner-adapter-contract-invocation-source-1/run-contract.py
++++ failed-capture-contract-invocation-source-1/run-contract.py
+@@ -12,17 +12,17 @@
+ import traceback
+ 
+ REPO = Path("/home/user/.codex/worktrees/astra-proxy-performance/p2pstream")
+-CHECKPOINT = REPO / "tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-runner-source-2"
+-CHECKPOINT_SHA = "a4176af4c1d9b6594d7ec786688d4792b3e326d799ef3ec03338fbc4c2fe70a5"
+-CONTRACT = CHECKPOINT / "integration/contracts/test-tcp-state-validator.py"
+-CONTRACT_SHA = "ef63d7db6c3078a4484571a721b4f565113a898d9d1d4a971fd9f80fee504c9b"
++CHECKPOINT = REPO / "tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1"
++CHECKPOINT_SHA = "10fb785112ba9a678e4592defe9251cab7b8077225150bb052140b999fb76b5e"
++CONTRACT = CHECKPOINT / "integration/contracts/test-failed-capture-validator.py"
++CONTRACT_SHA = "4d34030265f3dacee2cdb513d7a786d1cbc1d0a69779054ae3211ba0a3dab056"
+ OWNED_HELPER = REPO / "tmp/continuation-20261016/wan-sender-wait-build-source/review/source-checkpoint-3/run-audited-build.py"
+ OWNED_HELPER_SHA = "8d40407691bc70d6341f9932d7e6d8345ccb06e181ceaed4a5cdf3491e234440"
+ PYTHON = Path("/usr/bin/python3.14")
+ PYTHON_SHA = "52e0a13e60a981d8c4b6478be2ba5176f69da07948a056bf49cf6f077e30cb41"
+-EXPECTED_CASE_COUNT = 85
+-EXPECTED_CASES = Path(__file__).resolve().with_name("EXPECTED-CONTRACT-CASES.json")
+-EXPECTED_CASES_SHA = "6bf925c562064e1cf789a38b65c58a2bbc5c63bd3bb1cc1a517293a75137a45c"
++EXPECTED_CASE_COUNT = 106
++EXPECTED_CASES = CHECKPOINT / "EXPECTED-CONTRACT-CASES.json"
++EXPECTED_CASES_SHA = "d38f81ece2a1fc17cc15babd7ed9f10572dd535f1d1b676d4f8ab30555325af1"
+ 
+ def sha(path: Path) -> str:
+     digest = hashlib.sha256()

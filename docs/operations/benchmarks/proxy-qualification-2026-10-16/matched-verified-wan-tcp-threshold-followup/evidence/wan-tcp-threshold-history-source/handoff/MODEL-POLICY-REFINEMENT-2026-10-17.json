@@ -1,0 +1,16 @@
+{
+  "policy": "Resolve latest available family from live orchestrator catalog before delegation; no hardcoded version pins or silent older fallback. Latest Sol for most implementation/investigation/testing; latest Astra for difficult tasks and important architecture/risk/review; latest Luna only quick simple searches. High effort for implementation/review. No recursive worker spawning.",
+  "escalation": "Coordinator escalates repeated Sol stalls, unsuccessful cycles, or little progress on difficult work to latest available Astra. Handoff includes context, findings, every failed attempt, remaining questions, artifacts, and owned process identities; no duplicated workloads or discarded evidence.",
+  "fallback": "If family unavailable disclose and choose latest available Astra or Sol; if delegation unavailable disclose and proceed locally.",
+  "catalog_observation": {
+    "source": "live orchestrator_capabilities, 2026-10-17",
+    "provider": "codex",
+    "latest_sol": "gpt-6.1-sol",
+    "latest_astra": "gpt-6-astra",
+    "latest_luna": "gpt-6-luna",
+    "meaning": "Observed resolutions, not future pins. Existing active workers match latest Sol."
+  },
+  "supersedes": "Numeric model pins in historical MODEL-POLICY-2026-10-17.md; historical file and its evidence-plan-2 binding preserved.",
+  "current_assessment": "Runner successor is making concrete progress; independent source review ready. No escalation trigger observed in this bounded adapter fix.",
+  "propagation": "Sent to wan_implementation_61, wan_review_61, wan_evidence_61. Retired superseded workers not resumed."
+}

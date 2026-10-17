@@ -1,0 +1,46 @@
+{
+  "automation_handoff": "Earlier Sol testworker turn was rejected by automated review before work; no test execution or failed runtime attempt has been replaced or hidden. This package implements the bounded local source task only.",
+  "decision": "Focused cancellation reproduction and separate validator accuracy correction only; no production shutdown change or unchanged WAN retry justified.",
+  "fixed_gates": "No changes to no-error, resource, ownership, natural-closure, performance or final-evidence gates.",
+  "limitations": [
+    "Uses existing synthetic TCP snapshot fixtures and net.Pipe. Does not reproduce a kernel RawConn.Control error.",
+    "Explicit GoAway is a chosen header-only test stimulus, not attribution of the preserved WAN 34-byte record.",
+    "Forcing physical close completion while the observer remains active intentionally preserves existing close_race/ambiguous/invalid flags, which differ from tiny2 scheduling.",
+    "Session.Close return plus retirement proves existing send/receive/publisher completion-channel contract and Close waiting for ping replies; it is not runtime enumeration of every goroutine.",
+    "No performance, throughput, congestion-control-change or WAN-causality claim.",
+    "Source-only; not yet compiled or tested."
+  ],
+  "open_questions": [
+    "Exact tiny2 plaintext frame and scheduling remain unknown.",
+    "Observer contribution to overlap remains unmeasured.",
+    "A guaranteed error-free close would need an established bounded shutdown protocol, not this test fixture."
+  ],
+  "preserved_result": "tiny-threshold-history-smoke-2 stays rejected; natural process joins and exact transfers do not override final raw error gate.",
+  "production_fix_threshold": "Require a demonstrated lifecycle contract violation: failure to join, retained ownership/resources after closure, or post-retirement activity. Expected interrupted control writes are insufficient.",
+  "rejected_workarounds": [
+    "Waiting for send completion before physical close can deadlock a blocked peer.",
+    "Locks across observation/write/Close change cancellation semantics.",
+    "Snapshot drains, GoAway alone, endpoint stop-order swaps or idle sleeps do not prove quiescence.",
+    "Qualification-only drain barriers or repeat-until-pass runs would change or select the evidence."
+  ],
+  "schema_version": 1,
+  "source_findings": [
+    "Yamux Session.Close closes its transport before joining send/receive loops, ping-reply worker and aggregate publisher.",
+    "Go 1.26.6 TLS Close intentionally interrupts an active TLS Write by closing its underlying connection.",
+    "Synchronous before/after TCP observation prolongs the TLS Write call. Perturbation is possible, causality is unproven.",
+    "Terminal agent-drain precedes stop-file cancellation and does not stop control producers or establish a no-future-write boundary."
+  ],
+  "tests": [
+    {
+      "barrier": "Raw Write waits for physical Close; after-capture waits until body Close has returned.",
+      "expected": "Raw write returns 0/error; failed after-capture retained; history inconclusive; natural Session.Close and fixture joins.",
+      "schedule": "blocked_raw_write_interrupted_by_close"
+    },
+    {
+      "barrier": "Peer consumes the full explicit GoAway header and underlying Write returns; after-capture is held while body Close returns.",
+      "expected": "Raw write remains full success; after-capture failure remains unusable; natural Session.Close and fixture joins.",
+      "schedule": "completed_raw_write_before_after_capture"
+    }
+  ],
+  "validator_scope": "Independent worker owns correcting failed/uncaptured congestion-control comparison; no overlap in this package."
+}

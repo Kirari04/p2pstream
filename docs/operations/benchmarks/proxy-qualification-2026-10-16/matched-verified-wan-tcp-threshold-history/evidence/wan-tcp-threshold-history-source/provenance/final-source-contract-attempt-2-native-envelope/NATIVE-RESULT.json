@@ -1,0 +1,25 @@
+{
+  "final_contract_invocation_manifest_sha256": "45a9234926e537140105c1e14cd80b5de672d3951cfc8525bc473e7f117debaa",
+  "forced_intervention": false,
+  "full_native_tool_responses_observed": true,
+  "native_session_id": 95511,
+  "native_tool": "exec_command/write_stdin",
+  "observed_results": [
+    {
+      "chunk_id": "45c31c",
+      "original_token_count": 0,
+      "output": "",
+      "session_id": 95511,
+      "wall_time_seconds": 1.000493636
+    },
+    {
+      "chunk_id": "ae980b",
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": "",
+      "wall_time_seconds": 9.849e-06
+    }
+  ],
+  "records_ledger_sha256": "46e52313fc3bf87a06569f3946204a6f43d76dea6e7883ef2282b892d064ace7",
+  "schema_version": 1
+}

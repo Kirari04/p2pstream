@@ -1,0 +1,83 @@
+{
+  "accepted": false,
+  "arms": {
+    "h1": {
+      "continuation_status": 1,
+      "runner_status": 0,
+      "safe_to_continue": false,
+      "started": true,
+      "transfer_processes_passed": 16,
+      "transfer_rows": 16,
+      "validation_status": 1
+    },
+    "h2": {
+      "started": false,
+      "status": 125
+    }
+  },
+  "classification": "history_owner_generation_join_failed",
+  "diagnostic": "wan-tcp-threshold-history-tiny-smoke-result-review",
+  "failure": {
+    "issues": [
+      "threshold_history owner generation is not positive",
+      "threshold_history.last_equal.owner_generation differs from the enclosing raw owner"
+    ],
+    "selected_sequences": [
+      9,
+      11,
+      14,
+      15
+    ],
+    "terminal_owner_count": 5,
+    "terminal_validation_sha256": "127887c28d9d9b0f0864f81903af0b0605c97ccad4827f2caf5bdc646c07f8a3",
+    "validation_stderr_sha256": "8d2978f8e6bca9cd0b178364726cc6b378e3b4a32986b22f856b958ce0530680"
+  },
+  "final_status": {
+    "accepted": false,
+    "performance_result": false,
+    "pre_post_hashes_equal": true,
+    "sha256": "7cce8ba09e745a729c39e4d7550f8c8b873b18d2504fcfaa4f2ccc2d94b337f0",
+    "size_mode": "small"
+  },
+  "launcher": {
+    "direct_status": 1,
+    "natural_group_join": true,
+    "path": "tmp/continuation-20261016/wan-tcp-threshold-history-source/provenance/tiny-threshold-history-smoke-1-launch",
+    "records_ledger_sha256": "cf04cb0d53a0a219bc24de97912493de2ba324dd852bf105a3d48f700c08cf9b",
+    "result_sha256": "a7b212a3710757e7ad2b1cc5a0a034e7d27469f3146fff479d04c4c51f2fa0da",
+    "source_pre_post_accepted": true
+  },
+  "lifecycle": {
+    "coordinator_direct_child_joined": true,
+    "coordinator_group_joined": true,
+    "forced_cleanup": false,
+    "h1_runner_status": 0,
+    "h1_unit_inactive_dead_not_found": true,
+    "kill_attempted": false,
+    "term_attempted": false,
+    "timed_out": false
+  },
+  "limitations": [
+    "H1 completed all 16 transfer processes, but selected and terminal history-owner generation joins failed validation.",
+    "H2 was withheld by the existing continuation gate.",
+    "This failed 4 MiB diagnostic is not performance or causal evidence and must not be accepted as a qualification result."
+  ],
+  "run": {
+    "bytes": 9421218,
+    "file_count": 145,
+    "path": "tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-1/integration/runs/tiny-threshold-history-smoke-1",
+    "run_sha256sums_sha256": "7d18e0427115df2b00f0e3fe13752dd7c9dd278998122e8cb6350968925caeb0"
+  },
+  "schema_version": 1,
+  "scope": {
+    "causal_claim": false,
+    "endpoint_execution": true,
+    "performance_evidence": false,
+    "retry": false,
+    "wan_traffic": true
+  },
+  "source": {
+    "checkpoint_manifest_sha256": "0f5c39f6af76a338c08e5f35727c899424e3cbad73f0f776f0985d5997948c49",
+    "invocation_sha256": "adaffc1692c55a097e1f2fb09bfe0857aaf7c2bd5c86502ead69f05313c02742"
+  }
+}

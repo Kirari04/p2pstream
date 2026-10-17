@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/usr/bin/bash",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/review/tiny-threshold-history-smoke-launch-source-2/INVOCATION.sh"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-1",
+  "timeout_seconds": 3600
+}

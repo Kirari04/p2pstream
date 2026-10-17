@@ -1,0 +1,5 @@
+# Open evidence gaps
+
+Both tiny runs remain failed/rejected. No sustained threshold-history result exists. Tiny2 has no first transition observed at 4 MiB; its late H2 histories include inconclusive close/finalization observations. Exact concurrent close timestamps and TLS close_notify attribution are not established. Failed after-capture empty congestion-control text does not prove an algorithm change; the mature outside raw-write error is independently disqualifying.
+
+The original current-production 96-transfer experiment failed two download pairs near 0.811. HAProxy parity and pressure/capacity qualification remain open. Successful source/contracts and this selected package do not clear any causal, floor, transition, parity, performance or production-fix gate. The immutable coordinator review is retained in WAN-ASTRA-REVIEW.md. Later failed-capture 106 contracts and local cancellation tests are outside this cutoff and require a separate supplement; the mutable main review log is not bound.

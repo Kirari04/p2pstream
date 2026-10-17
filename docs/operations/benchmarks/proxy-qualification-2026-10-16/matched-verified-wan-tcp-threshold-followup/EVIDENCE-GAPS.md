@@ -1,0 +1,5 @@
+# Interpretation limits
+
+The reproduction uses synthetic TCP snapshots and net.Pipe. Its GoAway header is a chosen stimulus and does not identify the preserved WAN 34-byte record. It does not reproduce the kernel RawConn.Control failure. Exact tiny2 scheduling, close timestamps, frame identity and observer contribution remain unmeasured. Session.Close completion and fixture retirement establish the existing completion-channel contract, not runtime enumeration of every goroutine.
+
+The original current-production 96-transfer experiment failed two download pairs near 0.811; HAProxy parity and pressure/capacity qualification remain open. Both tiny WAN attempts remain failed/rejected. Neither the validator correction nor the local cancellation pass supplies sustained throughput, WAN clearance, parity, performance, causal, floor, transition or production-fix evidence. The production-fix threshold remains a demonstrated lifecycle contract violation, such as failure to join, retained ownership/resources after closure or post-retirement activity.

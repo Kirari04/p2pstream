@@ -1,0 +1,22 @@
+{
+  "astra_review_sha256": "f57848431cca1450e7938233287f87ef8c9fb20b6d338129b45ef2b02fce33d6",
+  "decision": "Accept scoped validator and local cancellation evidence; retain rejected tiny2 and all fixed gates. No production fix or further unchanged WAN run is justified.",
+  "limits": [
+    "Local TLS/Yamux tests use net.Pipe and synthetic TCP snapshots, not kernel RawConn.Control reproduction.",
+    "Exact tiny2 ordering and record identity remain unobserved.",
+    "The final raw write error remains a rejection even with natural joins and exact transfers.",
+    "No runtime changes, throughput gains, WAN gate clearance or modern-proxy parity established."
+  ],
+  "model_policy": "Resolve latest Sol/Astra from live catalog; no recursive delegation; coordinating Astra escalates difficult stalled Sol work with full preserved handoff. Numeric IDs are observations, not pins.",
+  "next_prerequisite": "An independently justified candidate or relevant changed condition addressing the final raw-write error, preserving bounded cancellation and ownership, with local verification and a frozen experiment before additional WAN traffic. No contract violation is established by current evidence.",
+  "publication_scope": "Separate loose supplement to frozen history cutoff; preserve metadata preparation failure and tool rejection as execution history, not runtime findings.",
+  "reviewed": {
+    "forced_cleanup": false,
+    "natural_join": true,
+    "normal_named_tests": 3,
+    "race_named_tests": 3,
+    "source_pre_post_equal": true,
+    "validator_contracts": 106
+  },
+  "schema_version": 1
+}
