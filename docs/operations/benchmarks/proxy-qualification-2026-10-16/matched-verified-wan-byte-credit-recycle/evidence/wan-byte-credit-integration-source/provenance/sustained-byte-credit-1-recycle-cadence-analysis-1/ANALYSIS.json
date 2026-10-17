@@ -1,0 +1,488 @@
+{
+  "clock_scope": {
+    "adjacent_spacings": "Each spacing subtracts two serialized Unix labels from one process only. No receiver/peer timestamp subtraction. Serialization removes time.Time monotonic data, so results are coarse cadence evidence, not validation-quality durations or absolute transit latency."
+  },
+  "cohort_accepted": false,
+  "comparisons": [
+    {
+      "h2_minus_h1_copy_span_ns": 794180778,
+      "h2_minus_h1_downstream_write_total_ns": 347116183,
+      "h2_minus_h1_inter_read_gap_total_ns": 348229325,
+      "h2_minus_h1_upstream_read_total_ns": 445951453,
+      "h2_minus_h1_wall_ns": 802727558,
+      "h2_minus_h1_zero_flag_normal_peer_handler_wall_spacing_sum_ns": 607442188,
+      "h2_minus_h1_zero_flag_normal_receiver_completion_wall_spacing_sum_ns": 608118966,
+      "h2_minus_h1_zero_flag_normal_receiver_eligibility_wall_spacing_sum_ns": 607890212,
+      "sequence": 9
+    },
+    {
+      "h2_minus_h1_copy_span_ns": 5295758183,
+      "h2_minus_h1_downstream_write_total_ns": 358168431,
+      "h2_minus_h1_inter_read_gap_total_ns": 358969968,
+      "h2_minus_h1_upstream_read_total_ns": 4936788215,
+      "h2_minus_h1_wall_ns": 5213286321,
+      "h2_minus_h1_zero_flag_normal_peer_handler_wall_spacing_sum_ns": 5424525536,
+      "h2_minus_h1_zero_flag_normal_receiver_completion_wall_spacing_sum_ns": 5424223197,
+      "h2_minus_h1_zero_flag_normal_receiver_eligibility_wall_spacing_sum_ns": 5423797315,
+      "sequence": 11
+    }
+  ],
+  "conditioning_clean_sequences": [
+    9,
+    11
+  ],
+  "diagnostic": "wan-byte-credit-recycle-cadence-static-analysis",
+  "endpoint_or_traffic": false,
+  "input_sha256": {
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/net/http/h2_bundle.go": "6541e350500d6b3525d99dce470034c7756bd5c931fd507f9f0352280a16c31e",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/audited-byte-credit-build-receipt.json": "93c91824df93bdfd78efc50dbc22b3c028b2e87ac4c88b77600c30207df0daff",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/server/proxy_copy_attribution.go": "313a165c3b8931a75ed5fd5d82da5d6173257b1f092756c5b15de21892b4c0dd",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/server/public_routing.go": "3172fb9bcdaf0d3a5fc3695a96357b263d354dfc3178149ceda265319db9936c",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/server/reverse_proxy_buffer_pool.go": "56f347fb67cc31aa7b620e9a984a317109f3103705f9c1f336d276ab85c4e6a6",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/tunnel/growing_conn.go": "c4db48b961c8a893acd5865dd0866dbd3b003966681363d84a732fa985fa0baf",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/tunnel/protocol.go": "1e08892fa46ec0a6824e02fa1b33d92a01aa722bd4705adbdcf3d46127ee539b",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/tunnel/qualification_growth_trace.go": "84e222e812aa61537cc166a867cc596967605b8e517f3ff7333b1e1d6be6f325",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/internal/tunnel/yamux.go": "bd23c7c38c1bd11c4d20e6650ca328bcb364d8cb1994a33e30edbf5dc5df0fd0",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/third_party/yamux/aggregate_window.go": "799081a7c4ba7decc9f9e6996b0df487b9794166e02553a637550c89871fb04b",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/third_party/yamux/qualification_byte_credit_trace.go": "b90a750abb975c6be45d4dd2c867334ef65f3dfa5669c63e5896e8878e0323ec",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/third_party/yamux/stream.go": "a00ba3673aa312f98edd780f6ab01f3a8583da4461d2b0f33882b28934f119d9",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/source/third_party/yamux/stream_window_update_send_qualification.go": "9d0bc3db1dfb990e5b66b0696514c20244c60849475e02b0cc0be8f464365752",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/final-status.json": "47142501c443618268cd4b502e6225ed80cb902869f04738f2afb993b07de3ad",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/attestation.json": "848dc7d6c4642152a3ce44c6398b254e60bb79258bd3f12bec66a3e49fd53c37",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.jsonl": "cdee461585c63075f0e165b98a27cb94c745f5ca37b72970fbb39b48e7aadffc",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.sender-wait-controls/sequence-11-post-capacity.json": "f59f9439b35b64ea5d612d72b80c338898d383a10ff1e56afe972a4c505443bd",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.sender-wait-controls/sequence-11-post-sender.json": "39b9b7b2115a8e2f804838a4b59f96596da873d44e4cfea5b649a51233dd9d80",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.sender-wait-controls/sequence-9-post-capacity.json": "23268303f47bc054a03f7314258b06dccc58732a7fdf93713ee0b4fc73bb0332",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.sender-wait-controls/sequence-9-post-sender.json": "07945b87d525e97e227267c096599e2669625d891947e86cdabc260ca41860b9",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/attestation.json": "f8d2948864a96c9dd2bb08834c637d028fe0e75f5a79a58b9bb410a88a11315f",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.jsonl": "c29fa76816a5b44dbbb0854fe7babad533bb430328a4663994d6a049e86d4c08",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-controls/sequence-11-post-capacity.json": "a0460bab3a7e9bd112ea537d895dd179ce07f9e6f1d759842fb8de578e148e9e",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-controls/sequence-11-post-sender.json": "6e551ec13612842cd33d0c6d40b680326b128118ea656a4cee29df1a1c980afa",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-controls/sequence-9-post-capacity.json": "046cfc60c1b0e13c6c71edcd1ea914a305d9b1ef581a7258badb5080c79544f3",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-controls/sequence-9-post-sender.json": "12e525f8f0ac28b518f73fb0344e78935b09f9df2823d77b21905d39c40e89c6",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-trace-analysis-1/ANALYSIS.json": "87f6845272331cc57d50df42b369c68dcb74120d98ac1ffb3de9eeb5fcb37a8a",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-trace-analysis-1/SHA256SUMS.txt": "276df2c138160d1f9c4e20ab44090a2488a69f8475e8054656e2c56e57398486"
+  },
+  "interpretation": {
+    "minimal_missing_measurement": "If a further discriminator is required before any runtime change, extend only the qualification-tagged selected-stream observer with fixed per-stream accumulators (no per-read ring): monotonic time inside Stream.Read before bytes become consumable, monotonic time outside Stream.Read from the prior return to the next entry, successful-read bytes/count, and maximum outside gap, snapshotted and reset only at each accepted positive WINDOW_UPDATE. Join the snapshot to the existing receiver ordinal/delta/cumulative record. This falsifies public-consumer/backpressure (outside-Read excess) versus inbound-data/feedback (inside-Read excess) while preserving transport transit as unclassified and leaving production policy unchanged.",
+    "not_supported": [
+      "No absolute receiver-to-peer transit latency, because endpoint timestamps are never subtracted.",
+      "No monotonic adjacent-record duration: serialized Unix labels support ordering/coarse cadence only.",
+      "No per-update separation of time waiting for inbound DATA from time outside Stream.Read while ReverseProxy writes to the public client.",
+      "No absence of transient buffering; buffered_at_eligibility describes only the exact eligibility snapshot.",
+      "No runtime policy, growth threshold, rounding, or 30-second reuse-timeout change."
+    ],
+    "runtime_change_supported": false,
+    "supported": [
+      "For clean sequences 9 and 11, exact zero-flag normal-update eligibility-to-eligibility and completion-to-completion cadence changes closely match peer handler-entry cadence changes. Conditional on the serialized wall labels, the retained evidence does not show material cadence expansion after receiver publication.",
+      "For these exact rows, the successful growth/forced-record chain plus aligned target values reconstructs maxReceiveWindow at each eligibility point. Most zero-flag normal updates end with an empty receive buffer, and all satisfy the exact quarter-window threshold.",
+      "H2 downstream Write/inter-read-gap time is higher, but inter-read gap overlaps the sequential Write and must not be added to it. Sequence 11 excess is predominantly inside upstream Read, not downstream Write."
+    ]
+  },
+  "intervals": [
+    {
+      "adjacent_forced_peer_wall_spacing": {
+        "count": 12,
+        "max_ns": 79823705,
+        "median_ns": 76782689,
+        "min_ns": 621698,
+        "sum_ns": 819298723
+      },
+      "adjacent_forced_receiver_wall_spacing": {
+        "count": 12,
+        "max_ns": 79772876,
+        "median_ns": 76705865,
+        "min_ns": 595678,
+        "sum_ns": 818298623
+      },
+      "adjacent_zero_flag_normal_peer_handler_wall_spacing": {
+        "count": 67,
+        "max_ns": 403659871,
+        "median_ns": 109363208,
+        "min_ns": 748675,
+        "sum_ns": 7892992152
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_completion_wall_spacing": {
+        "count": 67,
+        "max_ns": 127609,
+        "median_ns": 631,
+        "min_ns": -106746,
+        "sum_ns": -80203
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_eligibility_wall_spacing": {
+        "count": 67,
+        "max_ns": 202284,
+        "median_ns": -6804,
+        "min_ns": -253362,
+        "sum_ns": -723673
+      },
+      "adjacent_zero_flag_normal_receiver_completion_wall_spacing": {
+        "count": 67,
+        "max_ns": 403747753,
+        "median_ns": 109383176,
+        "min_ns": 735599,
+        "sum_ns": 7893072355
+      },
+      "adjacent_zero_flag_normal_receiver_eligibility_wall_spacing": {
+        "count": 67,
+        "max_ns": 403639251,
+        "median_ns": 109386012,
+        "min_ns": 783693,
+        "sum_ns": 7893715825
+      },
+      "arm": "h1",
+      "completion_to_next_zero_flag_normal_eligibility_wall_gap": {
+        "count": 67,
+        "max_ns": 403594024,
+        "median_ns": 109347768,
+        "min_ns": 715470,
+        "sum_ns": 7889898943
+      },
+      "copy": {
+        "downstream_write": {
+          "bytes": 268435456,
+          "calls": 8558,
+          "max_ns": 215428,
+          "span_ns": 8642388954,
+          "total_ns": 323427295
+        },
+        "inter_read_gap": {
+          "bytes": 0,
+          "calls": 8557,
+          "max_ns": 218805,
+          "span_ns": 8642352192,
+          "total_ns": 329010236
+        },
+        "upstream_read": {
+          "bytes": 268435456,
+          "calls": 8558,
+          "max_ns": 80482455,
+          "span_ns": 8642389825,
+          "total_ns": 8313379589
+        }
+      },
+      "copy_handler_elapsed_ns": 8804963283,
+      "forced_records": 12,
+      "normal_nonzero_flag_count": 1,
+      "normal_quarter_threshold_verified_count": 67,
+      "normal_records": 68,
+      "rate_Bps": 29911232.40359053,
+      "receiver_records": 80,
+      "sequence": 9,
+      "wall_seconds": 8.974403073,
+      "zero_flag_normal_buffer_at_eligibility": {
+        "count": 67,
+        "max_ns": 304940,
+        "median_ns": 0,
+        "min_ns": 0,
+        "sum_ns": 985158,
+        "zero_count": 53
+      }
+    },
+    {
+      "adjacent_forced_peer_wall_spacing": {
+        "count": 13,
+        "max_ns": 152659004,
+        "median_ns": 76916403,
+        "min_ns": 196963,
+        "sum_ns": 1029509132
+      },
+      "adjacent_forced_receiver_wall_spacing": {
+        "count": 13,
+        "max_ns": 152575322,
+        "median_ns": 76764347,
+        "min_ns": 69105,
+        "sum_ns": 1027654468
+      },
+      "adjacent_zero_flag_normal_peer_handler_wall_spacing": {
+        "count": 62,
+        "max_ns": 403928928,
+        "median_ns": 153635011,
+        "min_ns": 466697,
+        "sum_ns": 7838861060
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_completion_wall_spacing": {
+        "count": 62,
+        "max_ns": 789935,
+        "median_ns": -2980,
+        "min_ns": -746611,
+        "sum_ns": -749509
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_eligibility_wall_spacing": {
+        "count": 62,
+        "max_ns": 783343,
+        "median_ns": -6988,
+        "min_ns": -707184,
+        "sum_ns": -1412532
+      },
+      "adjacent_zero_flag_normal_receiver_completion_wall_spacing": {
+        "count": 62,
+        "max_ns": 403138993,
+        "median_ns": 153629841,
+        "min_ns": 993531,
+        "sum_ns": 7839610569
+      },
+      "adjacent_zero_flag_normal_receiver_eligibility_wall_spacing": {
+        "count": 62,
+        "max_ns": 403145585,
+        "median_ns": 153630187,
+        "min_ns": 1058868,
+        "sum_ns": 7840273592
+      },
+      "arm": "h1",
+      "completion_to_next_zero_flag_normal_eligibility_wall_gap": {
+        "count": 62,
+        "max_ns": 403095779,
+        "median_ns": 153579408,
+        "min_ns": 973041,
+        "sum_ns": 7836795544
+      },
+      "copy": {
+        "downstream_write": {
+          "bytes": 268435456,
+          "calls": 9043,
+          "max_ns": 264794,
+          "span_ns": 8645049199,
+          "total_ns": 360527912
+        },
+        "inter_read_gap": {
+          "bytes": 0,
+          "calls": 9042,
+          "max_ns": 269544,
+          "span_ns": 8644846306,
+          "total_ns": 366389518
+        },
+        "upstream_read": {
+          "bytes": 268435456,
+          "calls": 9043,
+          "max_ns": 79963696,
+          "span_ns": 8645016145,
+          "total_ns": 8278626627
+        }
+      },
+      "copy_handler_elapsed_ns": 8888206796,
+      "forced_records": 13,
+      "normal_nonzero_flag_count": 1,
+      "normal_quarter_threshold_verified_count": 62,
+      "normal_records": 63,
+      "rate_Bps": 29611922.290366814,
+      "receiver_records": 76,
+      "sequence": 11,
+      "wall_seconds": 9.065114158,
+      "zero_flag_normal_buffer_at_eligibility": {
+        "count": 62,
+        "max_ns": 106496,
+        "median_ns": 0,
+        "min_ns": 0,
+        "sum_ns": 1028446,
+        "zero_count": 38
+      }
+    },
+    {
+      "adjacent_forced_peer_wall_spacing": {
+        "count": 13,
+        "max_ns": 159384008,
+        "median_ns": 77663447,
+        "min_ns": 412602,
+        "sum_ns": 1006361724
+      },
+      "adjacent_forced_receiver_wall_spacing": {
+        "count": 13,
+        "max_ns": 159300807,
+        "median_ns": 77593621,
+        "min_ns": 231009,
+        "sum_ns": 1004653774
+      },
+      "adjacent_zero_flag_normal_peer_handler_wall_spacing": {
+        "count": 68,
+        "max_ns": 405066626,
+        "median_ns": 117130008,
+        "min_ns": 790125,
+        "sum_ns": 8500434340
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_completion_wall_spacing": {
+        "count": 68,
+        "max_ns": 484491,
+        "median_ns": -5099,
+        "min_ns": -639924,
+        "sum_ns": -756981
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_eligibility_wall_spacing": {
+        "count": 68,
+        "max_ns": 479321,
+        "median_ns": -7168,
+        "min_ns": -521673,
+        "sum_ns": -1171697
+      },
+      "adjacent_zero_flag_normal_receiver_completion_wall_spacing": {
+        "count": 68,
+        "max_ns": 404911685,
+        "median_ns": 117072903,
+        "min_ns": 804223,
+        "sum_ns": 8501191321
+      },
+      "adjacent_zero_flag_normal_receiver_eligibility_wall_spacing": {
+        "count": 68,
+        "max_ns": 404838694,
+        "median_ns": 117048876,
+        "min_ns": 852226,
+        "sum_ns": 8501606037
+      },
+      "arm": "h2",
+      "completion_to_next_zero_flag_normal_eligibility_wall_gap": {
+        "count": 68,
+        "max_ns": 404795299,
+        "median_ns": 117002902,
+        "min_ns": 779284,
+        "sum_ns": 8497675607
+      },
+      "copy": {
+        "downstream_write": {
+          "bytes": 268435456,
+          "calls": 8476,
+          "max_ns": 567934,
+          "span_ns": 9436596042,
+          "total_ns": 670543478
+        },
+        "inter_read_gap": {
+          "bytes": 0,
+          "calls": 8475,
+          "max_ns": 569307,
+          "span_ns": 9436454547,
+          "total_ns": 677239561
+        },
+        "upstream_read": {
+          "bytes": 268435456,
+          "calls": 8476,
+          "max_ns": 80190198,
+          "span_ns": 9436570603,
+          "total_ns": 8759331042
+        }
+      },
+      "copy_handler_elapsed_ns": 9600326699,
+      "forced_records": 13,
+      "normal_nonzero_flag_count": 1,
+      "normal_quarter_threshold_verified_count": 68,
+      "normal_records": 69,
+      "rate_Bps": 27455443.333126925,
+      "receiver_records": 82,
+      "sequence": 9,
+      "wall_seconds": 9.777130631,
+      "zero_flag_normal_buffer_at_eligibility": {
+        "count": 68,
+        "max_ns": 194454,
+        "median_ns": 0,
+        "min_ns": 0,
+        "sum_ns": 987630,
+        "zero_count": 50
+      }
+    },
+    {
+      "adjacent_forced_peer_wall_spacing": {
+        "count": 11,
+        "max_ns": 79091571,
+        "median_ns": 76672750,
+        "min_ns": 533286,
+        "sum_ns": 692405540
+      },
+      "adjacent_forced_receiver_wall_spacing": {
+        "count": 11,
+        "max_ns": 79018038,
+        "median_ns": 76622953,
+        "min_ns": 502186,
+        "sum_ns": 691263719
+      },
+      "adjacent_zero_flag_normal_peer_handler_wall_spacing": {
+        "count": 105,
+        "max_ns": 401975603,
+        "median_ns": 154304893,
+        "min_ns": 983170,
+        "sum_ns": 13263386596
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_completion_wall_spacing": {
+        "count": 105,
+        "max_ns": 633922,
+        "median_ns": 2065,
+        "min_ns": -605697,
+        "sum_ns": -447170
+      },
+      "adjacent_zero_flag_normal_peer_minus_receiver_eligibility_wall_spacing": {
+        "count": 105,
+        "max_ns": 706372,
+        "median_ns": 1634,
+        "min_ns": -663288,
+        "sum_ns": -684311
+      },
+      "adjacent_zero_flag_normal_receiver_completion_wall_spacing": {
+        "count": 105,
+        "max_ns": 401897060,
+        "median_ns": 154299954,
+        "min_ns": 1076472,
+        "sum_ns": 13263833766
+      },
+      "adjacent_zero_flag_normal_receiver_eligibility_wall_spacing": {
+        "count": 105,
+        "max_ns": 401883994,
+        "median_ns": 154307058,
+        "min_ns": 1099387,
+        "sum_ns": 13264070907
+      },
+      "arm": "h2",
+      "completion_to_next_zero_flag_normal_eligibility_wall_gap": {
+        "count": 105,
+        "max_ns": 401818357,
+        "median_ns": 154271138,
+        "min_ns": 1059399,
+        "sum_ns": 13258672894
+      },
+      "copy": {
+        "downstream_write": {
+          "bytes": 268435456,
+          "calls": 8337,
+          "max_ns": 574567,
+          "span_ns": 13940820227,
+          "total_ns": 718696343
+        },
+        "inter_read_gap": {
+          "bytes": 0,
+          "calls": 8336,
+          "max_ns": 576150,
+          "span_ns": 13940649956,
+          "total_ns": 725359486
+        },
+        "upstream_read": {
+          "bytes": 268435456,
+          "calls": 8337,
+          "max_ns": 80286463,
+          "span_ns": 13940774328,
+          "total_ns": 13215414842
+        }
+      },
+      "copy_handler_elapsed_ns": 14102201595,
+      "forced_records": 11,
+      "normal_nonzero_flag_count": 1,
+      "normal_quarter_threshold_verified_count": 105,
+      "normal_records": 106,
+      "rate_Bps": 18800106.94438794,
+      "receiver_records": 117,
+      "sequence": 11,
+      "wall_seconds": 14.278400479,
+      "zero_flag_normal_buffer_at_eligibility": {
+        "count": 105,
+        "max_ns": 163840,
+        "median_ns": 0,
+        "min_ns": 0,
+        "sum_ns": 2433624,
+        "zero_count": 65
+      }
+    }
+  ],
+  "offline_only": true,
+  "schema_version": 1,
+  "source_conclusions": [
+    "ReverseProxy uses a fixed 32KiB buffer and performs the response-body Read and downstream ResponseWriter Write sequentially.",
+    "Each successful Yamux Stream.Read consumes buffered bytes and immediately checks receive credit; a normal positive WINDOW_UPDATE is eligible only when delta is at least maxReceiveWindow/4.",
+    "The retained copy attribution measures every upstream Read, downstream Write, and the gap from one Read return to the next Read call with monotonic time.Time.Sub aggregates, but retains no per-read record joined to a WINDOW_UPDATE ordinal.",
+    "A Go HTTP/2 handler write waits for the scheduled DATA write result; therefore its observed write time includes local HTTP/2 scheduling, flow-control, and socket-write backpressure."
+  ]
+}

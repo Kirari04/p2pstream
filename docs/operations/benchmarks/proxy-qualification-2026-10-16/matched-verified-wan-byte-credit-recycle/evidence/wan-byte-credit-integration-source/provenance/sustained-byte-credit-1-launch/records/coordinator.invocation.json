@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/usr/bin/bash",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/review/sustained-launch-source-1/INVOCATION.sh"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6",
+  "timeout_seconds": 3600
+}

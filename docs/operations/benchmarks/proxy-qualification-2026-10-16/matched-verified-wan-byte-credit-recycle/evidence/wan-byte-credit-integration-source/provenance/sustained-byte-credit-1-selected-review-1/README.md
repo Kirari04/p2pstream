@@ -1,0 +1,9 @@
+# Sustained byte-credit selected-interval review
+
+This is a read-only analysis of the frozen `sustained-byte-credit-1` run. It executes no endpoint, traffic, test, build, or retry. The run remains rejected: both arms failed the independent throughput floor and each arm lost required upstream-origin reuse after an idle age above the fixed 30-second policy.
+
+All eight selected intervals are internally valid observations. Sender, raw-write, byte-credit, and server-growth checks have exact conservation, zero trace defects, and zero growth-ring drops. The slowest valid selected rows are H1 sequence 14 (22.408983 MB/s) and H2 sequence 11 (18.800107 MB/s). Their physical DATA-write envelopes total 10.524302218s and 11.869507314s; contained raw-write activity totals 10.406462547s and 11.754603357s. Across all selected rows, contained raw activity is 98.268%–99.032% of the physical envelope. This localizes measured occupancy below TLS without identifying TCP/poller backpressure, kernel behavior, delivery, or peer consumption.
+
+The exact byte-credit trace has 645 joined receiver/peer updates and 138 byte-zero waits without drops, ambiguity, overflow, terminal waits, or retry-zero defects. Receiver and peer local sections are microsecond-scale. At conditioning-clean sequences 9 and 11, the H2 byte-zero excess is +714.781ms and +873.756ms and is concentrated in wait ranges containing normal-read credit rather than forced growth. Pre-eligibility consumption cadence and cross-process transit remain unmeasured; observer durations are not added.
+
+The reuse evidence matches the fixed policy boundary. Four revisits at 25.089–27.628s retained the origin connection; four at 30.916–31.252s used a new origin connection with zero httptrace idle time. No idle-timeout or runtime change is supported. `REPORT.json` retains raw nanosecond timestamps, complete tunnel tuples, origin identities, lanes, selected timing/conservation data, and exact frozen input hashes.

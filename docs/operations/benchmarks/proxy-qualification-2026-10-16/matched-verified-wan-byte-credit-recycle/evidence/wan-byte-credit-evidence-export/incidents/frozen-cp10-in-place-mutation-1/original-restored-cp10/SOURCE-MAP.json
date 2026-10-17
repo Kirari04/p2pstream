@@ -1,0 +1,36 @@
+{
+  "files": [
+    {
+      "changed_from_checkpoint_9": false,
+      "path": "overlay/internal/agent/proxy_qualification_wan_sender_wait_test.go",
+      "sha256": "d2161f69b60920c1a29ef813832b1912c8d34a54dde027292b27c403ab2b092b"
+    },
+    {
+      "changed_from_checkpoint_9": true,
+      "path": "overlay/internal/agent/proxy_qualification_credit_snapshot_enabled_test.go",
+      "sha256": "1f5f15bb92878edb6dd18161c559a35365e817adf2dfc58735b9d934320c7637"
+    },
+    {
+      "changed_from_checkpoint_9": false,
+      "path": "overlay/internal/agent/proxy_qualification_credit_snapshot_disabled_test.go",
+      "sha256": "57efb203f043684546e3c0450f2877e9c68bc3af5af774dc2890356233fd948d"
+    },
+    {
+      "changed_from_checkpoint_9": false,
+      "path": "overlay/internal/server/proxy_qualification_wan_sender_wait_growth_enabled_test.go",
+      "sha256": "6787b8eceaec82cdd0c8345da9d0b57801e4dd075924b0c4ec9e56f670033cc7"
+    }
+  ],
+  "predecessor_manifest_sha256": "d5a466968e987dcf4e673c18f7d676ea052378708a37ea7929ecf1b4bd61e91a",
+  "reconstruction_patches": {
+    "agent-authenticated-owner.patch": {
+      "path": "patches/agent-authenticated-owner.patch",
+      "sha256": "902faeed0819969cf411ea0cfdbf7a29ffaef9b10534d15172b4ab081e10e584"
+    },
+    "agent-credit-snapshot.patch": {
+      "path": "patches/agent-credit-snapshot.patch",
+      "sha256": "ec709e7b8824a16fdbf3f62fbcfd2b2a81098f192e54de4ecc97f2caa66c0457"
+    }
+  },
+  "schema_version": 1
+}

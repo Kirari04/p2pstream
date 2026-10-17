@@ -1,0 +1,210 @@
+{
+  "accepted": true,
+  "issues": [],
+  "mode": "pair",
+  "schema_version": 1,
+  "selected": {
+    "allocation_charged_bytes": 270385152,
+    "durations": {
+      "credit_wait_total": {
+        "count": 21,
+        "max_nanoseconds": 161042119,
+        "total_nanoseconds": 1027368242
+      },
+      "data_call_total": {
+        "count": 9089,
+        "max_nanoseconds": 157701505,
+        "total_nanoseconds": 7592785899
+      },
+      "data_completion_select_total": {
+        "count": 9089,
+        "max_nanoseconds": 157700954,
+        "total_nanoseconds": 7572933122
+      },
+      "data_enqueue_select_total": {
+        "count": 9089,
+        "max_nanoseconds": 50708,
+        "total_nanoseconds": 19852777
+      },
+      "physical_write_total": {
+        "count": 9089,
+        "max_nanoseconds": 157684502,
+        "total_nanoseconds": 7521355901
+      }
+    },
+    "enqueue_publication_races": 0,
+    "frames": 9089,
+    "lane": 3,
+    "payload_bytes": 268435686,
+    "raw_write_activity": {
+      "accepted": true,
+      "bools": {
+        "ambiguous": false,
+        "bound": true,
+        "close_observed": false,
+        "complete": true,
+        "enabled": true,
+        "multiple_streams": false,
+        "overflow": false,
+        "reset_performed": true,
+        "session_joined": false,
+        "stream_observed": true
+      },
+      "classes": {
+        "contained": {
+          "buckets": {
+            "duration": {
+              "count": 25169,
+              "max_nanoseconds": 157646929,
+              "total_nanoseconds": 7407534452
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 25169,
+              "max_nanoseconds": 157646929,
+              "total_nanoseconds": 7407534452
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 269098472,
+            "calls": 25169,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 269098472,
+            "success_calls": 25169,
+            "success_written_bytes": 269098472,
+            "written_bytes": 269098472
+          }
+        },
+        "outside": {
+          "buckets": {
+            "duration": {
+              "count": 13,
+              "max_nanoseconds": 42963,
+              "total_nanoseconds": 203414
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 13,
+              "max_nanoseconds": 42963,
+              "total_nanoseconds": 203414
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 466,
+            "calls": 13,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 466,
+            "success_calls": 13,
+            "success_written_bytes": 466,
+            "written_bytes": 466
+          }
+        },
+        "straddling": {
+          "buckets": {
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          }
+        }
+      },
+      "durations": {
+        "contained_raw_duration": {
+          "count": 9089,
+          "max_nanoseconds": 157659513,
+          "total_nanoseconds": 7407534452
+        },
+        "envelope_duration": {
+          "count": 9089,
+          "max_nanoseconds": 157684502,
+          "total_nanoseconds": 7521355901
+        },
+        "residual_duration": {
+          "count": 9089,
+          "max_nanoseconds": 72420,
+          "total_nanoseconds": 113821449
+        }
+      },
+      "ints": {
+        "active_envelopes": 0,
+        "active_raw_writes": 0,
+        "boundary_active_raw_writes": 0,
+        "boundary_outside_completions": 0,
+        "envelope_count": 9089,
+        "envelope_overlaps": 0,
+        "envelope_payload_bytes": 268435686,
+        "envelope_wire_bytes": 268544754,
+        "envelope_zero_raw_calls": 0,
+        "generation": 3,
+        "lane": 3,
+        "maximum_active_raw_writes": 1,
+        "observed_stream_id": 6,
+        "owner_generation_changes": 0,
+        "schema_version": 1
+      },
+      "issues": []
+    },
+    "stream_id": 6,
+    "wire_bytes": 268544754
+  },
+  "selected_lane": 3,
+  "sequence": 11
+}

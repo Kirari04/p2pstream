@@ -1,0 +1,11 @@
+--- a/internal/agent/proxy_qualification_credit_snapshot_enabled_test.go
++++ b/internal/agent/proxy_qualification_credit_snapshot_enabled_test.go
+@@ -717,7 +717,7 @@
+ 	if !owner.terminalConsumed {
+ 		t.Fatal("terminal drain did not mark its one-shot transition consumed")
+ 	}
+-	externalQualificationWANSenderWaitTestTransition(t, owner, "15", "terminal", false)
++	externalQualificationWANSenderWaitTestTransition(t, owner, "15", "pre", false)
+ }
+ 
+ func TestExternalQualificationWANSenderWaitTerminalFailureSticky(t *testing.T) {

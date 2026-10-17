@@ -1,0 +1,18 @@
+{
+  "accepted": false,
+  "issues": [
+    "terminal envelope request failed",
+    "terminal envelope response is not an object",
+    "terminal sender counter cardinality is not five",
+    "raw-write history cardinality is not nine snapshots across five lanes",
+    "raw-write history does not contain nine records for every lane",
+    "raw-write final record 4.raw_write_activity unexpectedly observed a DATA stream",
+    "raw-write final record 4.raw_write_activity.envelope_count is nonzero",
+    "raw-write final record 4.raw_write_activity.envelope_payload_bytes is nonzero",
+    "raw-write final record 4.raw_write_activity.envelope_wire_bytes is nonzero",
+    "raw-write final record 4.raw_write_activity DATA envelope durations are nonzero",
+    "raw-write final record 4.raw_write_activity contained raw-write class is nonzero"
+  ],
+  "mode": "final-closure",
+  "schema_version": 1
+}

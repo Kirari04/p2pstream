@@ -666,6 +666,23 @@ timing remain unmeasured. No production defect, runtime fix or policy change is
 established, and the original WAN and remaining qualification gates stay open.
 See the [below-TLS/server-growth evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-below-tls-server-growth/README.md).
 
+The byte-credit recycle follow-up completes another 32 exact status-200
+transfers with the requested H1/H2 protocol and natural cleanup, but both arms
+remain rejected and `inconclusive-upstream-reuse`. H1 fails the steady download
+floor at 22.408983 MB/s; H2 fails at 27.455443 MB/s retained and 18.800107 MB/s
+steady. All eight selected byte-credit, sender, raw-write and server-growth
+joins pass exact conservation and closure. In the two conditioning-clean rows,
+H2 byte-zero wait exceeds H1 by 714.781 ms and 873.756 ms, concentrated in
+ranges containing normal-read credit. Individual receiver/peer local sections
+are microsecond-scale, with receiver totals about 4–6 ms, so they do not explain
+the excess. A same-endpoint cadence supplement shows no material
+post-publication cadence expansion under its coarse wall-label comparison and
+places the remaining difference before receiver eligibility; it cannot split
+inbound DATA from consumer or HTTP/2 backpressure, and cross-process transit
+remains unmeasured. The result establishes no cause, runtime fix, timeout or
+window policy change, or WAN gate clearance. See the
+[byte-credit recycle evidence](benchmarks/proxy-qualification-2026-10-16/matched-verified-wan-byte-credit-recycle/README.md).
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

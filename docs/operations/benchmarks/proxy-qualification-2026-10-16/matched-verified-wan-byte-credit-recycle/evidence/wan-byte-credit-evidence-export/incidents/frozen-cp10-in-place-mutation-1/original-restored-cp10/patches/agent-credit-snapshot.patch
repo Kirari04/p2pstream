@@ -1,0 +1,601 @@
+--- a/internal/agent/proxy_qualification_credit_snapshot_enabled_test.go
++++ b/internal/agent/proxy_qualification_credit_snapshot_enabled_test.go
+@@ -3,11 +3,16 @@
+ package agent
+ 
+ import (
++	"bytes"
++	"crypto/sha256"
+ 	"encoding/json"
++	"errors"
+ 	"fmt"
++	"net"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"sort"
++	"strings"
+ 	"testing"
+ 	"time"
+ 
+@@ -16,7 +21,7 @@
+ 	"p2pstream/internal/tunnel"
+ )
+ 
+-const externalQualificationCreditSnapshotSchemaVersion = 1
++const externalQualificationCreditSnapshotSchemaVersion = 2
+ 
+ type externalQualificationCreditStreamSnapshot struct {
+ 	ID                      uint32 `json:"id"`
+@@ -88,20 +93,42 @@
+ 	DroppedEvents    uint64                                     `json:"dropped_events"`
+ 	Events           []externalQualificationGrowthEvent         `json:"events"`
+ 	SendCounters     []externalQualificationSendCounterSnapshot `json:"send_counters"`
++	ByteCreditTraces []externalQualificationByteCreditTrace     `json:"byte_credit_traces,omitempty"`
++}
++
++type externalQualificationWANSenderWaitFailureResponse struct {
++	SchemaVersion         int                                  `json:"schema_version"`
++	Accepted              bool                                 `json:"accepted"`
++	Invalid               bool                                 `json:"invalid"`
++	Error                 string                               `json:"error"`
++	Snapshot              *externalQualificationGrowthResponse `json:"snapshot,omitempty"`
++	OmittedSnapshotBytes  int                                  `json:"omitted_snapshot_bytes,omitempty"`
++	OmittedSnapshotSHA256 string                               `json:"omitted_snapshot_sha256,omitempty"`
++}
++
++type externalQualificationByteCreditTrace struct {
++	Lane            int                                        `json:"lane"`
++	Aggregate       bool                                       `json:"aggregate"`
++	SessionIdentity string                                     `json:"session_identity"`
++	LocalAddress    string                                     `json:"local_address"`
++	RemoteAddress   string                                     `json:"remote_address"`
++	Trace           yamux.QualificationByteCreditTraceSnapshot `json:"trace"`
+ }
+ 
+ type externalQualificationSendCounterSnapshot struct {
+-	Lane                              int    `json:"lane"`
+-	SessionIdentity                   string `json:"session_identity"`
+-	LocalAddress                      string `json:"local_address"`
+-	RemoteAddress                     string `json:"remote_address"`
+-	Enabled                           bool   `json:"enabled"`
+-	ReservedDataFrames                uint64 `json:"reserved_data_frames"`
+-	ReservedPayloadBytes              uint64 `json:"reserved_payload_bytes"`
+-	ReservedAllocationChargedBytes    uint64 `json:"reserved_allocation_charged_bytes"`
+-	ByteCreditZeroObservations        uint64 `json:"byte_credit_zero_observations"`
+-	StreamAllocationZeroObservations  uint64 `json:"stream_allocation_zero_observations"`
+-	SessionAllocationZeroObservations uint64 `json:"session_allocation_zero_observations"`
++	Lane                              int                                    `json:"lane"`
++	SessionIdentity                   string                                 `json:"session_identity"`
++	LocalAddress                      string                                 `json:"local_address"`
++	RemoteAddress                     string                                 `json:"remote_address"`
++	Enabled                           bool                                   `json:"enabled"`
++	ReservedDataFrames                uint64                                 `json:"reserved_data_frames"`
++	ReservedPayloadBytes              uint64                                 `json:"reserved_payload_bytes"`
++	ReservedAllocationChargedBytes    uint64                                 `json:"reserved_allocation_charged_bytes"`
++	ByteCreditZeroObservations        uint64                                 `json:"byte_credit_zero_observations"`
++	StreamAllocationZeroObservations  uint64                                 `json:"stream_allocation_zero_observations"`
++	SessionAllocationZeroObservations uint64                                 `json:"session_allocation_zero_observations"`
++	Timing                            yamux.QualificationAggregateSendTiming `json:"timing"`
++	RawWriteActivity                  yamux.QualificationRawWriteActivity    `json:"raw_write_activity"`
+ }
+ 
+ func writeExternalQualificationCreditSnapshot(w http.ResponseWriter, registry *externalQualificationSessionRegistry) {
+@@ -143,7 +170,25 @@
+ }
+ 
+ func writeExternalQualificationGrowthSnapshot(w http.ResponseWriter, registry *externalQualificationSessionRegistry) {
++	result, err := externalQualificationGrowthSnapshot(registry, false)
++	if err != nil {
++		http.Error(w, err.Error(), http.StatusServiceUnavailable)
++		return
++	}
++	w.Header().Set("Content-Type", "application/json")
++	_ = json.NewEncoder(w).Encode(result)
++}
++
++// externalQualificationGrowthSnapshot drains the byte-credit observer only for
++// the authenticated, globally ordered sender-wait action. The older generic
++// diagnostic route retains its exact response shape and destructive scope.
++func externalQualificationGrowthSnapshot(registry *externalQualificationSessionRegistry, includeByteCredit bool) (externalQualificationGrowthResponse, error) {
+ 	observed := copyExternalQualificationCreditSessions(registry)
++	if includeByteCredit {
++		if err := validateExternalQualificationByteCreditSessions(observed); err != nil {
++			return externalQualificationGrowthResponse{}, err
++		}
++	}
+ 	lanes := make(map[*yamux.Session]int, len(observed))
+ 	for _, entry := range observed {
+ 		lanes[entry.session] = entry.lane
+@@ -156,6 +201,10 @@
+ 		Events:        make([]externalQualificationGrowthEvent, 0, len(drain.Events)),
+ 		SendCounters:  make([]externalQualificationSendCounterSnapshot, 0, len(observed)),
+ 	}
++	if includeByteCredit {
++		result.ByteCreditTraces = make([]externalQualificationByteCreditTrace, 0, len(observed))
++	}
++	byteCreditInvalid := false
+ 	for _, entry := range observed {
+ 		counter := entry.session.DrainQualificationAggregateSendCounters()
+ 		localAddress, remoteAddress := externalQualificationSessionAddresses(entry.session)
+@@ -168,7 +217,23 @@
+ 			ByteCreditZeroObservations:        counter.ByteCreditZeroObservations,
+ 			StreamAllocationZeroObservations:  counter.StreamAllocationZeroObservations,
+ 			SessionAllocationZeroObservations: counter.SessionAllocationZeroObservations,
++			Timing:                            counter.Timing,
++			RawWriteActivity:                  entry.session.DrainQualificationRawWriteActivity(),
+ 		})
++		if includeByteCredit {
++			localAddress, remoteAddress := externalQualificationSessionAddresses(entry.session)
++			trace := entry.session.DrainQualificationByteCreditTrace()
++			if entry.lane != len(result.ByteCreditTraces) || !entry.aggregate ||
++				!externalQualificationByteCreditAddressValid(localAddress) ||
++				!externalQualificationByteCreditAddressValid(remoteAddress) ||
++				!externalQualificationByteCreditTraceHealthy(trace) {
++				byteCreditInvalid = true
++			}
++			result.ByteCreditTraces = append(result.ByteCreditTraces, externalQualificationByteCreditTrace{
++				Lane: entry.lane, Aggregate: entry.aggregate, SessionIdentity: fmt.Sprintf("%p", entry.session),
++				LocalAddress: localAddress, RemoteAddress: remoteAddress, Trace: trace,
++			})
++		}
+ 	}
+ 	for _, event := range drain.Events {
+ 		lane := -1
+@@ -186,8 +251,79 @@
+ 			DenialActiveAfterOutcome: event.DenialActiveAfterOutcome, Outcome: event.Outcome,
+ 		})
+ 	}
+-	w.Header().Set("Content-Type", "application/json")
+-	_ = json.NewEncoder(w).Encode(result)
++	if byteCreditInvalid {
++		return result, errors.New("WAN byte-credit agent trace set is invalid")
++	}
++	return result, nil
++}
++
++func validateExternalQualificationByteCreditSessions(observed []externalQualificationCreditObservedSession) error {
++	if len(observed) != 5 {
++		return fmt.Errorf("WAN byte-credit agent session cardinality is %d, want 5", len(observed))
++	}
++	identities := make(map[string]struct{}, len(observed))
++	for index, entry := range observed {
++		if entry.lane != index || !entry.aggregate || entry.session == nil {
++			return fmt.Errorf("WAN byte-credit agent session lane %d ownership is invalid", index)
++		}
++		identity := fmt.Sprintf("%p", entry.session)
++		localAddress, remoteAddress := externalQualificationSessionAddresses(entry.session)
++		if _, duplicate := identities[identity]; duplicate || identity == "" ||
++			!externalQualificationByteCreditAddressValid(localAddress) ||
++			!externalQualificationByteCreditAddressValid(remoteAddress) {
++			return fmt.Errorf("WAN byte-credit agent session lane %d identity is invalid", index)
++		}
++		identities[identity] = struct{}{}
++	}
++	return nil
++}
++
++func externalQualificationWANSenderWaitFailurePayload(result externalQualificationGrowthResponse, cause error) ([]byte, error) {
++	failure := externalQualificationWANSenderWaitFailureResponse{
++		SchemaVersion: 1, Accepted: false, Invalid: true, Error: cause.Error(),
++	}
++	if result.SchemaVersion != 0 {
++		raw, err := json.Marshal(result)
++		if err != nil {
++			return nil, fmt.Errorf("encode rejected WAN byte-credit agent snapshot: %w", err)
++		}
++		failure.Snapshot = &result
++		encoded, err := json.Marshal(failure)
++		if err != nil {
++			return nil, fmt.Errorf("encode WAN byte-credit agent failure: %w", err)
++		}
++		if len(encoded)+1 <= externalQualificationWANSenderWaitMaxResponse {
++			return encoded, nil
++		}
++		sum := sha256.Sum256(raw)
++		failure.Snapshot = nil
++		failure.OmittedSnapshotBytes = len(raw)
++		failure.OmittedSnapshotSHA256 = fmt.Sprintf("%x", sum[:])
++	}
++	encoded, err := json.Marshal(failure)
++	if err != nil {
++		return nil, fmt.Errorf("encode WAN byte-credit agent failure metadata: %w", err)
++	}
++	if len(encoded)+1 > externalQualificationWANSenderWaitMaxResponse {
++		return nil, errors.New("WAN byte-credit agent failure metadata exceeds fixed response bound")
++	}
++	return encoded, nil
++}
++
++func externalQualificationByteCreditAddressValid(value string) bool {
++	trimmed := strings.TrimSpace(value)
++	return trimmed != "" && trimmed == value && trimmed != "yamux:local" && trimmed != "yamux:remote"
++}
++
++func externalQualificationByteCreditTraceHealthy(trace yamux.QualificationByteCreditTraceSnapshot) bool {
++	return trace.SchemaVersion == yamux.QualificationByteCreditTraceSchemaVersion && trace.Enabled &&
++		trace.Complete && trace.ResetPerformed && !trace.Ambiguous && !trace.Overflow && !trace.OrphanOverflow &&
++		trace.ActiveReceiverPublications == 0 && trace.ActivePeerWaits == 0 &&
++		trace.DroppedReceiverRecords == 0 && trace.DroppedPeerRecords == 0 && trace.DroppedWaitRecords == 0 &&
++		trace.ReceiverRecords != nil && trace.PeerRecords != nil && trace.WaitRecords != nil &&
++		len(trace.ReceiverRecords) <= yamux.QualificationByteCreditTraceRecordLimit &&
++		len(trace.PeerRecords) <= yamux.QualificationByteCreditTraceRecordLimit &&
++		len(trace.WaitRecords) <= yamux.QualificationByteCreditTraceRecordLimit
+ }
+ 
+ func externalQualificationSessionAddresses(session *yamux.Session) (string, string) {
+@@ -240,3 +376,375 @@
+ 		t.Fatalf("growth snapshot = %+v", got)
+ 	}
+ }
++
++func TestExternalQualificationWANSenderWaitFailurePayloadPreservesOrHashesSnapshot(t *testing.T) {
++	small := externalQualificationGrowthResponse{
++		SchemaVersion:    externalQualificationCreditSnapshotSchemaVersion,
++		Events:           []externalQualificationGrowthEvent{},
++		SendCounters:     []externalQualificationSendCounterSnapshot{},
++		ByteCreditTraces: []externalQualificationByteCreditTrace{},
++	}
++	encoded, err := externalQualificationWANSenderWaitFailurePayload(small, errors.New("trace health failed"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var preserved externalQualificationWANSenderWaitFailureResponse
++	if err := json.Unmarshal(encoded, &preserved); err != nil {
++		t.Fatal(err)
++	}
++	if preserved.Accepted || !preserved.Invalid || preserved.Snapshot == nil || preserved.OmittedSnapshotBytes != 0 || preserved.OmittedSnapshotSHA256 != "" {
++		t.Fatalf("preserved failure = %+v", preserved)
++	}
++	smallRaw, err := json.Marshal(small)
++	if err != nil {
++		t.Fatal(err)
++	}
++	preservedRaw, err := json.Marshal(preserved.Snapshot)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(preservedRaw, smallRaw) {
++		t.Fatalf("preserved snapshot differs: got %q want %q", preservedRaw, smallRaw)
++	}
++	large := small
++	large.Events = []externalQualificationGrowthEvent{{Outcome: strings.Repeat("x", externalQualificationWANSenderWaitMaxResponse)}}
++	largeRaw, err := json.Marshal(large)
++	if err != nil {
++		t.Fatal(err)
++	}
++	largeSum := sha256.Sum256(largeRaw)
++	encoded, err = externalQualificationWANSenderWaitFailurePayload(large, errors.New("trace health failed"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	var omitted externalQualificationWANSenderWaitFailureResponse
++	if err := json.Unmarshal(encoded, &omitted); err != nil {
++		t.Fatal(err)
++	}
++	if omitted.Snapshot != nil || omitted.OmittedSnapshotBytes != len(largeRaw) || omitted.OmittedSnapshotSHA256 != fmt.Sprintf("%x", largeSum[:]) {
++		t.Fatalf("omitted failure = %+v", omitted)
++	}
++}
++
++const externalQualificationWANSenderWaitMaxResponse = 4 << 20
++
++var externalQualificationWANSenderWaitSequenceOrder = [...]string{"9", "11", "14", "15"}
++
++func (owner *externalQualificationWANSenderWaitOwner) serveDrainHTTP(w http.ResponseWriter, r *http.Request, sessions *externalQualificationSessionRegistry) {
++	if !owner.authorized(r) {
++		http.Error(w, "WAN sender-wait authorization failed", http.StatusUnauthorized)
++		return
++	}
++	query := r.URL.Query()
++	if r.Method != http.MethodGet || len(query) != 2 || len(query["wan_sender_wait_snapshot"]) != 1 ||
++		len(query["sequence"]) != 1 || query["wan_sender_wait_snapshot"][0] != "drain" {
++		http.Error(w, "invalid WAN sender-wait action", http.StatusBadRequest)
++		return
++	}
++	sequence := query["sequence"][0]
++	if _, configured := owner.sequences[sequence]; !configured {
++		http.Error(w, "WAN sender-wait sequence is unavailable", http.StatusConflict)
++		return
++	}
++	encoded, err := owner.drain(sequence, sessions)
++	if err != nil {
++		status := http.StatusServiceUnavailable
++		if errors.Is(err, errExternalQualificationWANSenderWaitState) {
++			status = http.StatusConflict
++		}
++		if len(encoded) != 0 {
++			w.Header().Set("Content-Type", "application/json")
++			w.WriteHeader(status)
++			_, _ = w.Write(encoded)
++			_, _ = w.Write([]byte{'\n'})
++		} else {
++			http.Error(w, err.Error(), status)
++		}
++		return
++	}
++	w.Header().Set("Content-Type", "application/json")
++	_, _ = w.Write(encoded)
++	_, _ = w.Write([]byte{'\n'})
++}
++
++var errExternalQualificationWANSenderWaitState = errors.New("WAN sender-wait agent phase is unavailable")
++
++func (owner *externalQualificationWANSenderWaitOwner) drainPhase(sequence string) (string, string, string, bool) {
++	before, configured := owner.state[sequence]
++	expected := ""
++	if owner.nextSequence < len(externalQualificationWANSenderWaitSequenceOrder) {
++		expected = externalQualificationWANSenderWaitSequenceOrder[owner.nextSequence]
++	}
++	phase := "pre"
++	valid := configured && sequence == expected && before == "unstarted" && owner.activeSequence == ""
++	if before == "measuring" {
++		phase = "post"
++		valid = configured && sequence == expected && owner.activeSequence == sequence
++	}
++	if before == "complete" && sequence == externalQualificationWANSenderWaitSequenceOrder[len(externalQualificationWANSenderWaitSequenceOrder)-1] &&
++		owner.activeSequence == "" && owner.nextSequence == len(externalQualificationWANSenderWaitSequenceOrder) && !owner.terminalConsumed {
++		phase = "terminal"
++		valid = configured
++		for _, ordered := range externalQualificationWANSenderWaitSequenceOrder {
++			valid = valid && owner.state[ordered] == "complete"
++		}
++	}
++	return phase, before, expected, valid
++}
++
++func (owner *externalQualificationWANSenderWaitOwner) commitDrain(sequence, phase string) {
++	switch phase {
++	case "pre":
++		owner.state[sequence] = "measuring"
++		owner.activeSequence = sequence
++	case "post":
++		owner.state[sequence] = "complete"
++		owner.activeSequence = ""
++		owner.nextSequence++
++	case "terminal":
++		owner.terminalConsumed = true
++	}
++}
++
++func (owner *externalQualificationWANSenderWaitOwner) drain(sequence string, sessions *externalQualificationSessionRegistry) ([]byte, error) {
++	owner.mu.Lock()
++	defer owner.mu.Unlock()
++	phase, before, expected, valid := owner.drainPhase(sequence)
++	if !valid {
++		return nil, fmt.Errorf("%w: sequence %s from state %s, active %s, next %s", errExternalQualificationWANSenderWaitState, sequence, before, owner.activeSequence, expected)
++	}
++	result, err := externalQualificationGrowthSnapshot(sessions, true)
++	if err != nil {
++		owner.state[sequence] = "invalid"
++		failure, encodeErr := externalQualificationWANSenderWaitFailurePayload(result, err)
++		if encodeErr != nil {
++			return nil, encodeErr
++		}
++		return failure, err
++	}
++	encoded, err := json.Marshal(result)
++	if err != nil || len(encoded)+1 > externalQualificationWANSenderWaitMaxResponse {
++		owner.state[sequence] = "invalid"
++		if err != nil {
++			return nil, fmt.Errorf("encode WAN byte-credit agent response: %w", err)
++		}
++		cause := fmt.Errorf("WAN byte-credit agent response is %d bytes, exceeds fixed %d-byte bound", len(encoded)+1, externalQualificationWANSenderWaitMaxResponse)
++		failure, failureErr := externalQualificationWANSenderWaitFailurePayload(result, cause)
++		if failureErr != nil {
++			return nil, failureErr
++		}
++		return failure, cause
++	}
++	owner.commitDrain(sequence, phase)
++	return encoded, nil
++}
++
++func TestExternalQualificationWANSenderWaitControl(t *testing.T) {
++	bearer := strings.Repeat("a1", 32)
++	owner, err := newExternalQualificationWANSenderWaitOwner("1", bearer, externalQualificationWANSenderWaitSequences)
++	if err != nil || owner == nil {
++		t.Fatalf("create owner: owner=%v err=%v", owner, err)
++	}
++	for name, authorization := range map[string]string{
++		"missing": "", "raw": bearer, "wrong": "Bearer " + strings.Repeat("b2", 32),
++	} {
++		t.Run(name, func(t *testing.T) {
++			request := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence=9", nil)
++			request.Header.Set("Authorization", authorization)
++			recorder := httptest.NewRecorder()
++			owner.serveDrainHTTP(recorder, request, newExternalQualificationSessionRegistry(5))
++			if recorder.Code != http.StatusUnauthorized {
++				t.Fatalf("status=%d, want %d", recorder.Code, http.StatusUnauthorized)
++			}
++		})
++	}
++	request := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence=9", nil)
++	request.Header.Set("Authorization", "Bearer "+bearer)
++	recorder := httptest.NewRecorder()
++	extra := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence=9&extra=1", nil)
++	extra.Header.Set("Authorization", "Bearer "+bearer)
++	extraRecorder := httptest.NewRecorder()
++	owner.serveDrainHTTP(extraRecorder, extra, newExternalQualificationSessionRegistry(5))
++	if extraRecorder.Code != http.StatusBadRequest {
++		t.Fatalf("extra query status=%d, want %d", extraRecorder.Code, http.StatusBadRequest)
++	}
++	outOfOrder := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence=11", nil)
++	outOfOrder.Header.Set("Authorization", "Bearer "+bearer)
++	outOfOrderRecorder := httptest.NewRecorder()
++	owner.serveDrainHTTP(outOfOrderRecorder, outOfOrder, newExternalQualificationSessionRegistry(5))
++	if outOfOrderRecorder.Code != http.StatusConflict {
++		t.Fatalf("out-of-order status=%d, want %d", outOfOrderRecorder.Code, http.StatusConflict)
++	}
++	owner.serveDrainHTTP(recorder, request, newExternalQualificationSessionRegistry(5))
++	if recorder.Code != http.StatusServiceUnavailable {
++		t.Fatalf("empty session set status=%d, want %d", recorder.Code, http.StatusServiceUnavailable)
++	}
++	var failure externalQualificationWANSenderWaitFailureResponse
++	if err := json.NewDecoder(recorder.Body).Decode(&failure); err != nil {
++		t.Fatalf("decode bounded failure response: %v", err)
++	}
++	if failure.SchemaVersion != 1 || failure.Accepted || !failure.Invalid || failure.Error == "" || failure.Snapshot != nil {
++		t.Fatalf("failure response = %+v", failure)
++	}
++	retryRecorder := httptest.NewRecorder()
++	owner.serveDrainHTTP(retryRecorder, request, newExternalQualificationSessionRegistry(5))
++	if retryRecorder.Code != http.StatusConflict {
++		t.Fatalf("retry status=%d, want %d", retryRecorder.Code, http.StatusConflict)
++	}
++	for _, invalid := range [][3]string{
++		{"", bearer, externalQualificationWANSenderWaitSequences},
++		{"1", strings.Repeat("A1", 32), externalQualificationWANSenderWaitSequences},
++		{"1", bearer, "9,11,13"},
++	} {
++		if got, err := newExternalQualificationWANSenderWaitOwner(invalid[0], invalid[1], invalid[2]); err == nil || got != nil {
++			t.Fatalf("invalid configuration accepted: %#v", invalid)
++		}
++	}
++}
++
++func externalQualificationWANSenderWaitTestRequest(owner *externalQualificationWANSenderWaitOwner, bearer, sequence string) *httptest.ResponseRecorder {
++	request := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence="+sequence, nil)
++	request.Header.Set("Authorization", "Bearer "+bearer)
++	recorder := httptest.NewRecorder()
++	owner.serveDrainHTTP(recorder, request, newExternalQualificationSessionRegistry(5))
++	return recorder
++}
++
++func externalQualificationWANSenderWaitTestTransition(t *testing.T, owner *externalQualificationWANSenderWaitOwner, sequence, wantPhase string, wantValid bool) {
++	t.Helper()
++	phase, _, _, valid := owner.drainPhase(sequence)
++	if phase != wantPhase || valid != wantValid {
++		t.Fatalf("sequence %s phase=%q valid=%v, want phase=%q valid=%v", sequence, phase, valid, wantPhase, wantValid)
++	}
++	if valid {
++		owner.commitDrain(sequence, phase)
++	}
++}
++
++func newExternalQualificationWANSenderWaitHealthySessions(t *testing.T) *externalQualificationSessionRegistry {
++	t.Helper()
++	registry := newExternalQualificationSessionRegistry(5)
++	for lane := 0; lane < 5; lane++ {
++		clientConn, serverConn := net.Pipe()
++		t.Cleanup(func() { _ = clientConn.Close() })
++		t.Cleanup(func() { _ = serverConn.Close() })
++		config, err := tunnel.NewNegotiatedControlYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes, tunnel.NegotiatedControlStreamLimit)
++		if lane > 0 {
++			config, err = tunnel.NewAggregateYamuxConfig(nil, tunnel.DefaultMaxStreamWindowSizeBytes, 4)
++		}
++		if err != nil {
++			t.Fatalf("lane %d config: %v", lane, err)
++		}
++		peer, err := yamux.Server(serverConn, config)
++		if err != nil {
++			t.Fatalf("lane %d server: %v", lane, err)
++		}
++		t.Cleanup(func() { _ = peer.Close() })
++		client, err := yamux.Client(clientConn, config)
++		if err != nil {
++			t.Fatalf("lane %d client: %v", lane, err)
++		}
++		t.Cleanup(func() { _ = client.Close() })
++		registry.observe(tunnelSessionObservation{Lane: lane, Aggregate: true, Connected: true, Session: client})
++	}
++	return registry
++}
++
++func externalQualificationWANSenderWaitHealthyRequest(t *testing.T, owner *externalQualificationWANSenderWaitOwner, sessions *externalQualificationSessionRegistry, bearer, sequence string) externalQualificationGrowthResponse {
++	t.Helper()
++	request := httptest.NewRequest(http.MethodGet, "/?wan_sender_wait_snapshot=drain&sequence="+sequence, nil)
++	request.Header.Set("Authorization", "Bearer "+bearer)
++	recorder := httptest.NewRecorder()
++	owner.serveDrainHTTP(recorder, request, sessions)
++	if recorder.Code != http.StatusOK {
++		t.Fatalf("sequence %s status=%d body=%q", sequence, recorder.Code, recorder.Body.String())
++	}
++	var response externalQualificationGrowthResponse
++	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
++		t.Fatalf("decode sequence %s response: %v", sequence, err)
++	}
++	if response.SchemaVersion != externalQualificationCreditSnapshotSchemaVersion || len(response.SendCounters) != 5 || len(response.ByteCreditTraces) != 5 {
++		t.Fatalf("sequence %s response schema=%d send=%d byte=%d", sequence, response.SchemaVersion, len(response.SendCounters), len(response.ByteCreditTraces))
++	}
++	return response
++}
++
++func TestExternalQualificationWANSenderWaitTerminalHTTP(t *testing.T) {
++	bearer := strings.Repeat("a1", 32)
++	owner, err := newExternalQualificationWANSenderWaitOwner("1", bearer, externalQualificationWANSenderWaitSequences)
++	if err != nil || owner == nil {
++		t.Fatalf("create owner: owner=%v err=%v", owner, err)
++	}
++	sessions := newExternalQualificationWANSenderWaitHealthySessions(t)
++	responseCount := 0
++	for _, sequence := range externalQualificationWANSenderWaitSequenceOrder {
++		for range 2 {
++			externalQualificationWANSenderWaitHealthyRequest(t, owner, sessions, bearer, sequence)
++			responseCount++
++		}
++	}
++	terminal := externalQualificationWANSenderWaitHealthyRequest(t, owner, sessions, bearer, "15")
++	responseCount++
++	if responseCount != 9 || !owner.terminalConsumed || terminal.ByteCreditTraces == nil {
++		t.Fatalf("terminal responses=%d consumed=%v byte-traces-nil=%v", responseCount, owner.terminalConsumed, terminal.ByteCreditTraces == nil)
++	}
++	replay := externalQualificationWANSenderWaitTestRequest(owner, bearer, "15")
++	if replay.Code != http.StatusConflict {
++		t.Fatalf("terminal replay status=%d, want %d", replay.Code, http.StatusConflict)
++	}
++}
++
++func TestExternalQualificationWANSenderWaitTerminalControl(t *testing.T) {
++	bearer := strings.Repeat("a1", 32)
++	owner, err := newExternalQualificationWANSenderWaitOwner("1", bearer, externalQualificationWANSenderWaitSequences)
++	if err != nil || owner == nil {
++		t.Fatalf("create owner: owner=%v err=%v", owner, err)
++	}
++	externalQualificationWANSenderWaitTestTransition(t, owner, "15", "pre", false)
++	for index, sequence := range externalQualificationWANSenderWaitSequenceOrder {
++		externalQualificationWANSenderWaitTestTransition(t, owner, sequence, "pre", true)
++		probe := "15"
++		if sequence == "15" {
++			probe = "9"
++		}
++		externalQualificationWANSenderWaitTestTransition(t, owner, probe, "pre", false)
++		externalQualificationWANSenderWaitTestTransition(t, owner, sequence, "post", true)
++		if owner.nextSequence != index+1 || owner.activeSequence != "" || owner.state[sequence] != "complete" {
++			t.Fatalf("sequence %s did not complete exactly once: next=%d active=%q state=%q", sequence, owner.nextSequence, owner.activeSequence, owner.state[sequence])
++		}
++	}
++	externalQualificationWANSenderWaitTestTransition(t, owner, "15", "terminal", true)
++	if !owner.terminalConsumed {
++		t.Fatal("terminal drain did not mark its one-shot transition consumed")
++	}
++	externalQualificationWANSenderWaitTestTransition(t, owner, "15", "pre", false)
++}
++
++func TestExternalQualificationWANSenderWaitTerminalFailureSticky(t *testing.T) {
++	bearer := strings.Repeat("a1", 32)
++	owner, err := newExternalQualificationWANSenderWaitOwner("1", bearer, externalQualificationWANSenderWaitSequences)
++	if err != nil || owner == nil {
++		t.Fatalf("create owner: owner=%v err=%v", owner, err)
++	}
++	for _, sequence := range externalQualificationWANSenderWaitSequenceOrder {
++		externalQualificationWANSenderWaitTestTransition(t, owner, sequence, "pre", true)
++		externalQualificationWANSenderWaitTestTransition(t, owner, sequence, "post", true)
++	}
++	failed := externalQualificationWANSenderWaitTestRequest(owner, bearer, "15")
++	if failed.Code != http.StatusServiceUnavailable {
++		t.Fatalf("failed terminal status=%d, want %d", failed.Code, http.StatusServiceUnavailable)
++	}
++	var payload externalQualificationWANSenderWaitFailureResponse
++	if err := json.NewDecoder(failed.Body).Decode(&payload); err != nil {
++		t.Fatalf("decode failed terminal response: %v", err)
++	}
++	if payload.Accepted || !payload.Invalid || payload.Error == "" {
++		t.Fatalf("failed terminal payload=%+v", payload)
++	}
++	if owner.state["15"] != "invalid" || owner.terminalConsumed {
++		t.Fatalf("failed terminal state=%q consumed=%v", owner.state["15"], owner.terminalConsumed)
++	}
++	if got := externalQualificationWANSenderWaitTestRequest(owner, bearer, "15"); got.Code != http.StatusConflict {
++		t.Fatalf("failed terminal retry status=%d, want %d", got.Code, http.StatusConflict)
++	}
++}

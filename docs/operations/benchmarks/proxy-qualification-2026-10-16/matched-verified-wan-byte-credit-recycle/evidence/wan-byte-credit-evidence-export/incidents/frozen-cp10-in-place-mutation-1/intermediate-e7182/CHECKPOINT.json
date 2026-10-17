@@ -1,0 +1,33 @@
+{
+  "correction": "after terminal consumption, drainPhase returns the default pre phase with valid false; only the stale helper expectation changed from terminal to pre",
+  "execution": {
+    "build": false,
+    "endpoints": false,
+    "go_tests": false,
+    "traffic": false
+  },
+  "focused_test_roots": [
+    "TestExternalQualificationWANSenderWaitControl",
+    "TestExternalQualificationWANSenderWaitTerminalHTTP",
+    "TestExternalQualificationWANSenderWaitTerminalControl",
+    "TestExternalQualificationWANSenderWaitTerminalFailureSticky"
+  ],
+  "inputs": {
+    "adapter_checkpoint_9_manifest_sha256": "d5a466968e987dcf4e673c18f7d676ea052378708a37ea7929ecf1b4bd61e91a",
+    "failed_build_attempt_3_final_json_sha256": "74238ed65b0b1fc2e43de77da7be999efe67b36b6d32aa50d52ae5fbf29c8600",
+    "failed_build_attempt_3_final_marker_sha256": "37a40f08d8548dba289b9b0bb35bcf63b359f6d37ee86044ebc6b6da080b9ec1",
+    "failed_build_attempt_3_outer_ledger_sha256": "1a2196c9c3462100069a08e36b0ba0352eb7cd6a329673ab0a404e59cd17866a",
+    "failed_build_attempt_3_outer_tool_json_sha256": "ffebcd0720c01e4e30fbee47d8b5af454080b9deaa69f944f1a32fb003228ad2",
+    "failed_build_attempt_3_records_ledger_sha256": "43844c6dc6177a7769dd26ade4fe65e9d8e545f32f41b07bd8752175cd2e3dec"
+  },
+  "overlay_sha256": {
+    "agent_common": "d2161f69b60920c1a29ef813832b1912c8d34a54dde027292b27c403ab2b092b",
+    "agent_disabled": "57efb203f043684546e3c0450f2877e9c68bc3af5af774dc2890356233fd948d",
+    "agent_tagged": "1f5f15bb92878edb6dd18161c559a35365e817adf2dfc58735b9d934320c7637",
+    "server_tagged": "6787b8eceaec82cdd0c8345da9d0b57801e4dd075924b0c4ec9e56f670033cc7"
+  },
+  "runtime_source_unchanged_from_checkpoint_9": true,
+  "schema_version": 1,
+  "source_only_delta": true,
+  "status": "source_only_terminal_transition_test_expectation_corrected_unexecuted"
+}

@@ -1,0 +1,210 @@
+{
+  "accepted": true,
+  "issues": [],
+  "mode": "pair",
+  "schema_version": 1,
+  "selected": {
+    "allocation_charged_bytes": 4206592,
+    "durations": {
+      "credit_wait_total": {
+        "count": 3,
+        "max_nanoseconds": 479375371,
+        "total_nanoseconds": 560219671
+      },
+      "data_call_total": {
+        "count": 149,
+        "max_nanoseconds": 96077,
+        "total_nanoseconds": 3920523
+      },
+      "data_completion_select_total": {
+        "count": 149,
+        "max_nanoseconds": 90566,
+        "total_nanoseconds": 3697980
+      },
+      "data_enqueue_select_total": {
+        "count": 149,
+        "max_nanoseconds": 11683,
+        "total_nanoseconds": 222543
+      },
+      "physical_write_total": {
+        "count": 149,
+        "max_nanoseconds": 74905,
+        "total_nanoseconds": 3077874
+      }
+    },
+    "enqueue_publication_races": 0,
+    "frames": 149,
+    "lane": 3,
+    "payload_bytes": 4194517,
+    "raw_write_activity": {
+      "accepted": true,
+      "bools": {
+        "ambiguous": false,
+        "bound": true,
+        "close_observed": false,
+        "complete": true,
+        "enabled": true,
+        "multiple_streams": false,
+        "overflow": false,
+        "reset_performed": true,
+        "session_joined": false,
+        "stream_observed": true
+      },
+      "classes": {
+        "contained": {
+          "buckets": {
+            "duration": {
+              "count": 397,
+              "max_nanoseconds": 44056,
+              "total_nanoseconds": 1564991
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 397,
+              "max_nanoseconds": 44056,
+              "total_nanoseconds": 1564991
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 4205039,
+            "calls": 397,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 4205039,
+            "success_calls": 397,
+            "success_written_bytes": 4205039,
+            "written_bytes": 4205039
+          }
+        },
+        "outside": {
+          "buckets": {
+            "duration": {
+              "count": 3,
+              "max_nanoseconds": 21201,
+              "total_nanoseconds": 41832
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 3,
+              "max_nanoseconds": 21201,
+              "total_nanoseconds": 41832
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 114,
+            "calls": 3,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 114,
+            "success_calls": 3,
+            "success_written_bytes": 114,
+            "written_bytes": 114
+          }
+        },
+        "straddling": {
+          "buckets": {
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          }
+        }
+      },
+      "durations": {
+        "contained_raw_duration": {
+          "count": 149,
+          "max_nanoseconds": 55909,
+          "total_nanoseconds": 1564991
+        },
+        "envelope_duration": {
+          "count": 149,
+          "max_nanoseconds": 74905,
+          "total_nanoseconds": 3077874
+        },
+        "residual_duration": {
+          "count": 149,
+          "max_nanoseconds": 29567,
+          "total_nanoseconds": 1512883
+        }
+      },
+      "ints": {
+        "active_envelopes": 0,
+        "active_raw_writes": 0,
+        "boundary_active_raw_writes": 0,
+        "boundary_outside_completions": 0,
+        "envelope_count": 149,
+        "envelope_overlaps": 0,
+        "envelope_payload_bytes": 4194517,
+        "envelope_wire_bytes": 4196305,
+        "envelope_zero_raw_calls": 0,
+        "generation": 5,
+        "lane": 3,
+        "maximum_active_raw_writes": 1,
+        "observed_stream_id": 6,
+        "owner_generation_changes": 0,
+        "schema_version": 1
+      },
+      "issues": []
+    },
+    "stream_id": 6,
+    "wire_bytes": 4196305
+  },
+  "selected_lane": 3,
+  "sequence": 15
+}

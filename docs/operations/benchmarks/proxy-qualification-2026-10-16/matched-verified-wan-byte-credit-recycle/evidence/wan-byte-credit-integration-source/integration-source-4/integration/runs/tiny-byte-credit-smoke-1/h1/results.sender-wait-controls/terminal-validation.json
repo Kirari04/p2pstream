@@ -1,0 +1,12 @@
+{
+  "accepted": false,
+  "closure_valid": false,
+  "issues": [
+    "terminal envelope request failed",
+    "terminal envelope response is not an object",
+    "terminal sender counter cardinality is not five"
+  ],
+  "mode": "terminal",
+  "schema_version": 1,
+  "sequence": 15
+}

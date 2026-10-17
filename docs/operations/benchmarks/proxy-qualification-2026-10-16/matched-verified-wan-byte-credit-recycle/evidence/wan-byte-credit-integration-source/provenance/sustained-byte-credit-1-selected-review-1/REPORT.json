@@ -1,0 +1,1727 @@
+{
+  "arms": {
+    "h1": {
+      "attestation_accepted": false,
+      "classification": "inconclusive-upstream-reuse",
+      "conditioning_issues": [
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 29911232.40359053,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 22408983.167917103,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 33637723.08935259,
+          "samples": 4
+        }
+      },
+      "integrity_issues": [],
+      "natural_endpoint_and_namespace_statuses": true,
+      "performance_issues": [
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "raw_write_final_closure_valid": true,
+      "row_count": 16,
+      "sender_terminal_closure_valid": true,
+      "validation_issues": [
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained",
+        "steady download phase failed independent 29700000 B/s floor"
+      ]
+    },
+    "h2": {
+      "attestation_accepted": false,
+      "classification": "inconclusive-upstream-reuse",
+      "conditioning_issues": [
+        "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "download_phase_classification": {
+        "retained-warmup": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 27455443.333126925,
+          "samples": 1
+        },
+        "steady": {
+          "all_at_or_above_floor": false,
+          "gating": true,
+          "minimum_bytes_per_second": 18800106.94438794,
+          "samples": 3
+        },
+        "warmup": {
+          "all_at_or_above_floor": true,
+          "gating": true,
+          "minimum_bytes_per_second": 33887642.07660634,
+          "samples": 4
+        }
+      },
+      "integrity_issues": [],
+      "natural_endpoint_and_namespace_statuses": true,
+      "performance_issues": [
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "raw_write_final_closure_valid": true,
+      "row_count": 16,
+      "sender_terminal_closure_valid": true,
+      "validation_issues": [
+        "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained",
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ]
+    }
+  },
+  "assertions": {
+    "all_eight_selected_intervals_exact_and_accepted": true,
+    "contained_raw_fraction_max": 0.9903193996212065,
+    "contained_raw_fraction_min": 0.982677819166298,
+    "four_revisits_above_30s_replaced": true,
+    "four_revisits_below_30s_retained": true,
+    "no_revisit_exactly_at_limit": true
+  },
+  "conditioning_valid": false,
+  "configured_upstream_idle_limit_ns": 30000000000,
+  "diagnostic": "wan-byte-credit-sustained-selected-review",
+  "endpoint_or_traffic_execution": false,
+  "findings": [
+    "The run is not an accepted matched performance cohort: each arm independently failed the throughput floor and each arm lost required upstream-origin reuse after an idle age above the fixed 30 second policy.",
+    "The four selected diagnostic intervals per arm remain internally valid observational records: sender, raw-write, byte-credit, and server-growth validators accepted them with empty issues and exact conservation.",
+    "Across all eight selected intervals, contained raw-write duration accounts for 98.268% to 99.032% of the physical DATA-write envelope duration; this localizes most measured physical-envelope occupancy to the below-TLS raw Write interval, but does not identify kernel wait, delivery time, or the identity of ciphertext produced by a concurrent TLS writer.",
+    "Exact byte-zero waits total 0 to 1.741 seconds. Receiver eligibility-to-completion and peer handler-to-notify local sections are microsecond-scale; the clean H2 excess at sequences 9 and 11 is concentrated in waits whose applied ranges include normal_read credit, not forced growth. This excludes the measured post-eligibility local sections and a growth-only explanation, while leaving pre-eligibility consumption cadence and cross-process transit unmeasured.",
+    "H1 sequence 14 is a valid same-origin retained revisit and the slowest selected H1 row; its physical envelope is 10.524302218 seconds and contained raw-write occupancy is 10.406462547 seconds. H2 sequence 11 is the slowest selected H2 row and a valid first-post-close visit; its corresponding values are 11.869507314 and 11.754603357 seconds.",
+    "H2 sequences 11 and 15 share lane 3, generation 5, stream 6. Sequence 15 has zero byte-zero waits after retained stream history but still records a 7.580787571 second physical envelope and 7.471679040 seconds of contained raw-write occupancy. This separates usable byte credit from below-TLS occupancy without proving which is causal for WAN throughput.",
+    "The exact reuse transitions are consistent with the configured 30 second idle expiry: all four 25.089 to 27.628 second revisits retain the origin connection, while all four 30.916 to 31.252 second revisits create a new origin connection and report httptrace idle time zero. No idle-timeout change or runtime fix follows from this result."
+  ],
+  "frozen_inputs": {
+    "byte_credit_trace_analysis": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-trace-analysis-1/ANALYSIS.json",
+      "sha256": "87f6845272331cc57d50df42b369c68dcb74120d98ac1ffb3de9eeb5fcb37a8a"
+    },
+    "byte_credit_trace_analysis_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-trace-analysis-1/SHA256SUMS.txt",
+      "sha256": "276df2c138160d1f9c4e20ab44090a2488a69f8475e8054656e2c56e57398486"
+    },
+    "freeze_review": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-result-review/REVIEW.json",
+      "sha256": "723c1a49337d3ec708b43f161bece8c6b11935bea3b7a91d882733d5511b6ffc"
+    },
+    "freeze_root_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-result-review/SHA256SUMS.txt",
+      "sha256": "d86fda3f8873d15c5846fbf46c30473abec5d818ef236afcc9c5d9e5feb1f641"
+    },
+    "full_run_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-result-review/RUN-SHA256SUMS.txt",
+      "sha256": "ed6caa87a355b1b18cd2d7976c673cf47c05bce9192a192f0010ef06d19ada07"
+    },
+    "launcher_records_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-launch/records/SHA256SUMS.txt",
+      "sha256": "a3450da1107701af9ebb3ad7f4aca2d76265d8399de9ffb172d256c2de2e2b5e"
+    },
+    "launcher_result": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-launch/records/RESULT.json",
+      "sha256": "0cfccd1cd8c750a9b2b0e6827464f194685c845505d469c990a615e2eb32860d"
+    },
+    "main_tool_envelope_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-main-tool-envelope/SHA256SUMS.txt",
+      "sha256": "bdd48249e6c763f215f8845b37126f06817ecbd6ec974cdecea4ba7bc147054e"
+    }
+  },
+  "limitations": [
+    "Conditioning failures make cross-arm and phase performance attribution inconclusive; selected records are observational only.",
+    "Duration totals from distinct observers are not additive and no cross-process timestamp subtraction is used.",
+    "Raw-write activity is temporal occupancy inside the DATA physical envelope, not a call-stack proof that every raw write contains DATA ciphertext.",
+    "Raw conn.Write duration includes TLS and TCP/poller effects but does not isolate kernel TCP backpressure, packet delivery, congestion behavior, or peer consumption.",
+    "The byte-credit observer begins at receiver eligibility; the interval before eligibility and frame transit to the peer are unmeasured.",
+    "Server growth records describe observed current/proposed receive-window state and outcomes; they do not by themselves establish that window growth caused or prevented a sender stall."
+  ],
+  "performance_passed": false,
+  "rerun_performed": false,
+  "reuse_evidence": [
+    {
+      "actual_idle_age_ns": 26055108989,
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:39453|10.212.0.2:48408",
+      "current_got_conn_unix_ns": 1792214379126533236,
+      "current_got_conn_utc": "2026-10-17T05:19:39.126533236Z",
+      "current_request_started_unix_ns": 1792214379126451517,
+      "current_request_started_utc": "2026-10-17T05:19:39.126451517Z",
+      "expired_before_got_conn": false,
+      "httptrace_idle_time_ns": 26055109619,
+      "httptrace_reused": true,
+      "httptrace_was_idle": true,
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:34720",
+      "origin_identity_retained": true,
+      "prior_handler_return_to_current_start_ns": 26054992643,
+      "prior_handler_return_unix_ns": 1792214353071458874,
+      "prior_handler_return_utc": "2026-10-17T05:19:13.071458874Z",
+      "prior_origin_connection_id": "10.212.0.2:34720",
+      "prior_put_idle_to_current_start_ns": 26055027270,
+      "prior_put_idle_unix_ns": 1792214353071424247,
+      "prior_put_idle_utc": "2026-10-17T05:19:13.071424247Z",
+      "prior_request_started_unix_ns": 1792214344266502004,
+      "prior_request_started_utc": "2026-10-17T05:19:04.266502004Z",
+      "prior_sequence": 9,
+      "sequence": 13,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:39453",
+      "tunnel_remote_address": "10.212.0.2:48408",
+      "validator_satisfied": true
+    },
+    {
+      "actual_idle_age_ns": 27627562826,
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:39453|10.212.0.2:48432",
+      "current_got_conn_unix_ns": 1792214388890556068,
+      "current_got_conn_utc": "2026-10-17T05:19:48.890556068Z",
+      "current_request_started_unix_ns": 1792214388890464830,
+      "current_request_started_utc": "2026-10-17T05:19:48.890464830Z",
+      "expired_before_got_conn": false,
+      "httptrace_idle_time_ns": 27627563166,
+      "httptrace_reused": true,
+      "httptrace_was_idle": true,
+      "lane_position": 2,
+      "observed_origin_connection_id": "10.212.0.2:53394",
+      "origin_identity_retained": true,
+      "prior_handler_return_to_current_start_ns": 27627450977,
+      "prior_handler_return_unix_ns": 1792214361263013853,
+      "prior_handler_return_utc": "2026-10-17T05:19:21.263013853Z",
+      "prior_origin_connection_id": "10.212.0.2:53394",
+      "prior_put_idle_to_current_start_ns": 27627471588,
+      "prior_put_idle_unix_ns": 1792214361262993242,
+      "prior_put_idle_utc": "2026-10-17T05:19:21.262993242Z",
+      "prior_request_started_unix_ns": 1792214353699642083,
+      "prior_request_started_utc": "2026-10-17T05:19:13.699642083Z",
+      "prior_sequence": 10,
+      "sequence": 14,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:39453",
+      "tunnel_remote_address": "10.212.0.2:48432",
+      "validator_satisfied": true
+    },
+    {
+      "actual_idle_age_ns": 30915823195,
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:39453|10.212.0.2:48410",
+      "current_got_conn_unix_ns": 1792214401617500550,
+      "current_got_conn_utc": "2026-10-17T05:20:01.617500550Z",
+      "current_request_started_unix_ns": 1792214401535346409,
+      "current_request_started_utc": "2026-10-17T05:20:01.535346409Z",
+      "expired_before_got_conn": true,
+      "httptrace_idle_time_ns": 0,
+      "httptrace_reused": false,
+      "httptrace_was_idle": false,
+      "lane_position": 3,
+      "observed_origin_connection_id": "10.212.0.2:36056",
+      "origin_identity_retained": false,
+      "prior_handler_return_to_current_start_ns": 30833594539,
+      "prior_handler_return_unix_ns": 1792214370701751870,
+      "prior_handler_return_utc": "2026-10-17T05:19:30.701751870Z",
+      "prior_origin_connection_id": "10.212.0.2:33082",
+      "prior_put_idle_to_current_start_ns": 30833669054,
+      "prior_put_idle_unix_ns": 1792214370701677355,
+      "prior_put_idle_utc": "2026-10-17T05:19:30.701677355Z",
+      "prior_request_started_unix_ns": 1792214361813548250,
+      "prior_request_started_utc": "2026-10-17T05:19:21.813548250Z",
+      "prior_sequence": 11,
+      "sequence": 15,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:39453",
+      "tunnel_remote_address": "10.212.0.2:48410",
+      "validator_satisfied": false
+    },
+    {
+      "actual_idle_age_ns": 31068630531,
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:39453|10.212.0.2:48420",
+      "current_got_conn_unix_ns": 1792214409837559249,
+      "current_got_conn_utc": "2026-10-17T05:20:09.837559249Z",
+      "current_request_started_unix_ns": 1792214409756052167,
+      "current_request_started_utc": "2026-10-17T05:20:09.756052167Z",
+      "expired_before_got_conn": true,
+      "httptrace_idle_time_ns": 0,
+      "httptrace_reused": false,
+      "httptrace_was_idle": false,
+      "lane_position": 4,
+      "observed_origin_connection_id": "10.212.0.2:54126",
+      "origin_identity_retained": false,
+      "prior_handler_return_to_current_start_ns": 30987104863,
+      "prior_handler_return_unix_ns": 1792214378768947304,
+      "prior_handler_return_utc": "2026-10-17T05:19:38.768947304Z",
+      "prior_origin_connection_id": "10.212.0.2:41032",
+      "prior_put_idle_to_current_start_ns": 30987123449,
+      "prior_put_idle_unix_ns": 1792214378768928718,
+      "prior_put_idle_utc": "2026-10-17T05:19:38.768928718Z",
+      "prior_request_started_unix_ns": 1792214371319970843,
+      "prior_request_started_utc": "2026-10-17T05:19:31.319970843Z",
+      "prior_sequence": 12,
+      "sequence": 16,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:39453",
+      "tunnel_remote_address": "10.212.0.2:48420",
+      "validator_satisfied": false
+    },
+    {
+      "actual_idle_age_ns": 31252490421,
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46017|10.212.0.2:34760",
+      "current_got_conn_unix_ns": 1792214533276891062,
+      "current_got_conn_utc": "2026-10-17T05:22:13.276891062Z",
+      "current_request_started_unix_ns": 1792214533195118732,
+      "current_request_started_utc": "2026-10-17T05:22:13.195118732Z",
+      "expired_before_got_conn": true,
+      "httptrace_idle_time_ns": 0,
+      "httptrace_reused": false,
+      "httptrace_was_idle": false,
+      "lane_position": 1,
+      "observed_origin_connection_id": "10.212.0.2:41334",
+      "origin_identity_retained": false,
+      "prior_handler_return_to_current_start_ns": 31170663555,
+      "prior_handler_return_unix_ns": 1792214502024455177,
+      "prior_handler_return_utc": "2026-10-17T05:21:42.024455177Z",
+      "prior_origin_connection_id": "10.212.0.2:44836",
+      "prior_put_idle_to_current_start_ns": 31170718091,
+      "prior_put_idle_unix_ns": 1792214502024400641,
+      "prior_put_idle_utc": "2026-10-17T05:21:42.024400641Z",
+      "prior_request_started_unix_ns": 1792214492424138268,
+      "prior_request_started_utc": "2026-10-17T05:21:32.424138268Z",
+      "prior_sequence": 9,
+      "sequence": 13,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:46017",
+      "tunnel_remote_address": "10.212.0.2:34760",
+      "validator_satisfied": false
+    },
+    {
+      "actual_idle_age_ns": 31243056756,
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46017|10.212.0.2:34756",
+      "current_got_conn_unix_ns": 1792214541261514878,
+      "current_got_conn_utc": "2026-10-17T05:22:21.261514878Z",
+      "current_request_started_unix_ns": 1792214541179489877,
+      "current_request_started_utc": "2026-10-17T05:22:21.179489877Z",
+      "expired_before_got_conn": true,
+      "httptrace_idle_time_ns": 0,
+      "httptrace_reused": false,
+      "httptrace_was_idle": false,
+      "lane_position": 2,
+      "observed_origin_connection_id": "10.212.0.2:53626",
+      "origin_identity_retained": false,
+      "prior_handler_return_to_current_start_ns": 31160991717,
+      "prior_handler_return_unix_ns": 1792214510018498160,
+      "prior_handler_return_utc": "2026-10-17T05:21:50.018498160Z",
+      "prior_origin_connection_id": "10.212.0.2:41040",
+      "prior_put_idle_to_current_start_ns": 31161031755,
+      "prior_put_idle_unix_ns": 1792214510018458122,
+      "prior_put_idle_utc": "2026-10-17T05:21:50.018458122Z",
+      "prior_request_started_unix_ns": 1792214502673913657,
+      "prior_request_started_utc": "2026-10-17T05:21:42.673913657Z",
+      "prior_sequence": 10,
+      "sequence": 14,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:46017",
+      "tunnel_remote_address": "10.212.0.2:34756",
+      "validator_satisfied": false
+    },
+    {
+      "actual_idle_age_ns": 25089437554,
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46017|10.212.0.2:34786",
+      "current_got_conn_unix_ns": 1792214549838206245,
+      "current_got_conn_utc": "2026-10-17T05:22:29.838206245Z",
+      "current_request_started_unix_ns": 1792214549838057456,
+      "current_request_started_utc": "2026-10-17T05:22:29.838057456Z",
+      "expired_before_got_conn": false,
+      "httptrace_idle_time_ns": 25089437705,
+      "httptrace_reused": true,
+      "httptrace_was_idle": true,
+      "lane_position": 3,
+      "observed_origin_connection_id": "10.212.0.2:54312",
+      "origin_identity_retained": true,
+      "prior_handler_return_to_current_start_ns": 25089217015,
+      "prior_handler_return_unix_ns": 1792214524748840441,
+      "prior_handler_return_utc": "2026-10-17T05:22:04.748840441Z",
+      "prior_origin_connection_id": "10.212.0.2:54312",
+      "prior_put_idle_to_current_start_ns": 25089288765,
+      "prior_put_idle_unix_ns": 1792214524748768691,
+      "prior_put_idle_utc": "2026-10-17T05:22:04.748768691Z",
+      "prior_request_started_unix_ns": 1792214510646644777,
+      "prior_request_started_utc": "2026-10-17T05:21:50.646644777Z",
+      "prior_sequence": 11,
+      "sequence": 15,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:46017",
+      "tunnel_remote_address": "10.212.0.2:34786",
+      "validator_satisfied": true
+    },
+    {
+      "actual_idle_age_ns": 25495614257,
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "connection_key": "*server.agentTunnelStreamConn|10.211.0.1:46017|10.212.0.2:34772",
+      "current_got_conn_unix_ns": 1792214558296564965,
+      "current_got_conn_utc": "2026-10-17T05:22:38.296564965Z",
+      "current_request_started_unix_ns": 1792214558296347973,
+      "current_request_started_utc": "2026-10-17T05:22:38.296347973Z",
+      "expired_before_got_conn": false,
+      "httptrace_idle_time_ns": 25495614217,
+      "httptrace_reused": true,
+      "httptrace_was_idle": true,
+      "lane_position": 4,
+      "observed_origin_connection_id": "10.212.0.2:38844",
+      "origin_identity_retained": true,
+      "prior_handler_return_to_current_start_ns": 25495375743,
+      "prior_handler_return_unix_ns": 1792214532800972230,
+      "prior_handler_return_utc": "2026-10-17T05:22:12.800972230Z",
+      "prior_origin_connection_id": "10.212.0.2:38844",
+      "prior_put_idle_to_current_start_ns": 25495397265,
+      "prior_put_idle_unix_ns": 1792214532800950708,
+      "prior_put_idle_utc": "2026-10-17T05:22:12.800950708Z",
+      "prior_request_started_unix_ns": 1792214525446014553,
+      "prior_request_started_utc": "2026-10-17T05:22:05.446014553Z",
+      "prior_sequence": 12,
+      "sequence": 16,
+      "tunnel_connection_type": "*server.agentTunnelStreamConn",
+      "tunnel_local_address": "10.211.0.1:46017",
+      "tunnel_remote_address": "10.212.0.2:34772",
+      "validator_satisfied": true
+    }
+  ],
+  "review_complete": true,
+  "run_accepted": false,
+  "run_disposition": {
+    "coordinator_status": 1,
+    "final_status_accepted": false,
+    "h1_continuation_status": 0,
+    "h1_safe_to_continue": true,
+    "h1_status": 1,
+    "h2_started": true,
+    "h2_status": 1,
+    "pre_post_hashes_equal": true,
+    "same_binaries_both_arms": true,
+    "same_verified_certificate_both_arms": true
+  },
+  "run_root": "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1",
+  "schema_version": 1,
+  "selected_intervals": [
+    {
+      "allocation_charged_bytes": 270360576,
+      "arm": "h1",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 79919712,
+        "delta_bytes_sum": 285801170,
+        "forced_growth_records": 12,
+        "issues": [],
+        "joined_records": 80,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 68,
+        "peer_handler_to_notify_observed": {
+          "count": 80,
+          "max_ns": 16131,
+          "p50_ns": 2520,
+          "p95_ns": 10560,
+          "sum_ns": 300203
+        },
+        "peer_records": 80,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 80,
+          "max_ns": 263953,
+          "p50_ns": 35869,
+          "p95_ns": 144912,
+          "sum_ns": 4274227
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 1318500,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 2955727,
+        "receiver_records": 80,
+        "sender_byte_zero_wait": {
+          "count": 17,
+          "max_nanoseconds": 241211317,
+          "total_nanoseconds": 950003022
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 5,
+          "normal_read": 11,
+          "stale": 1
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 387899809,
+          "normal_read": 562088071,
+          "stale": 1263
+        },
+        "wait_records": 17,
+        "wait_wake_to_retry_observed": {
+          "count": 17,
+          "max_ns": 2876,
+          "p50_ns": 1273,
+          "p95_ns": 2876,
+          "sum_ns": 24507
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-first-post-close-visit",
+      "frames": 8595,
+      "measurement_stage": "retained-warmup",
+      "payload_bytes": 268435686,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269079520,
+        "contained_calls": 24577,
+        "contained_duration_ns": {
+          "count": 8595,
+          "max_nanoseconds": 155732902,
+          "total_nanoseconds": 7313741565
+        },
+        "contained_fraction_of_envelope": 0.9848310826214693,
+        "contained_written_bytes": 269079520,
+        "envelope_duration_ns": {
+          "count": 8595,
+          "max_nanoseconds": 155752080,
+          "total_nanoseconds": 7426391890
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 13,
+        "residual_duration_ns": {
+          "count": 8595,
+          "max_nanoseconds": 558145,
+          "total_nanoseconds": 112650325
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 2,
+        "lane": 1,
+        "local_address": "10.211.0.1:39453",
+        "origin_connection_id": "10.212.0.2:34720",
+        "remote_address": "10.212.0.2:48408",
+        "session_identity": "0x348540e1b88",
+        "stream_id": 6
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 23,
+          "max_nanoseconds": 241211317,
+          "total_nanoseconds": 1029922734
+        },
+        "data_call_total": {
+          "count": 8595,
+          "max_nanoseconds": 155767660,
+          "total_nanoseconds": 7498447017
+        },
+        "data_completion_select_total": {
+          "count": 8595,
+          "max_nanoseconds": 155767369,
+          "total_nanoseconds": 7478679332
+        },
+        "data_enqueue_select_total": {
+          "count": 8595,
+          "max_nanoseconds": 42333,
+          "total_nanoseconds": 19767685
+        },
+        "physical_write_total": {
+          "count": 8595,
+          "max_nanoseconds": 155752080,
+          "total_nanoseconds": 7426391890
+        }
+      },
+      "sequence": 9,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 21626880,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 12,
+          "no_proposal": 92
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 364,
+        "proposed_bytes_max": 21626880,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 104
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29911232.40359053,
+      "wall_seconds": 8.974403073,
+      "wire_bytes": 268538826
+    },
+    {
+      "allocation_charged_bytes": 270385152,
+      "arm": "h1",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 160025051,
+        "delta_bytes_sum": 291977371,
+        "forced_growth_records": 13,
+        "issues": [],
+        "joined_records": 76,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 63,
+        "peer_handler_to_notify_observed": {
+          "count": 76,
+          "max_ns": 14879,
+          "p50_ns": 3166,
+          "p95_ns": 11292,
+          "sum_ns": 312345
+        },
+        "peer_records": 76,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 76,
+          "max_ns": 161233,
+          "p50_ns": 38144,
+          "p95_ns": 137116,
+          "sum_ns": 4140249
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 1307214,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 2833035,
+        "receiver_records": 76,
+        "sender_byte_zero_wait": {
+          "count": 19,
+          "max_nanoseconds": 161042119,
+          "total_nanoseconds": 867343191
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 5,
+          "normal_read": 10,
+          "stale": 4
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 384598197,
+          "normal_read": 482715416,
+          "stale": 5151
+        },
+        "wait_records": 19,
+        "wait_wake_to_retry_observed": {
+          "count": 19,
+          "max_ns": 2775,
+          "p50_ns": 1122,
+          "p95_ns": 2775,
+          "sum_ns": 26819
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-first-post-close-visit",
+      "frames": 9089,
+      "measurement_stage": "steady",
+      "payload_bytes": 268435686,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269098472,
+        "contained_calls": 25169,
+        "contained_duration_ns": {
+          "count": 9089,
+          "max_nanoseconds": 157659513,
+          "total_nanoseconds": 7407534452
+        },
+        "contained_fraction_of_envelope": 0.9848668976048764,
+        "contained_written_bytes": 269098472,
+        "envelope_duration_ns": {
+          "count": 9089,
+          "max_nanoseconds": 157684502,
+          "total_nanoseconds": 7521355901
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 13,
+        "residual_duration_ns": {
+          "count": 9089,
+          "max_nanoseconds": 72420,
+          "total_nanoseconds": 113821449
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 3,
+        "lane": 3,
+        "local_address": "10.211.0.1:39453",
+        "origin_connection_id": "10.212.0.2:33082",
+        "remote_address": "10.212.0.2:48410",
+        "session_identity": "0x348560c6588",
+        "stream_id": 6
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 21,
+          "max_nanoseconds": 161042119,
+          "total_nanoseconds": 1027368242
+        },
+        "data_call_total": {
+          "count": 9089,
+          "max_nanoseconds": 157701505,
+          "total_nanoseconds": 7592785899
+        },
+        "data_completion_select_total": {
+          "count": 9089,
+          "max_nanoseconds": 157700954,
+          "total_nanoseconds": 7572933122
+        },
+        "data_enqueue_select_total": {
+          "count": 9089,
+          "max_nanoseconds": 50708,
+          "total_nanoseconds": 19852777
+        },
+        "physical_write_total": {
+          "count": 9089,
+          "max_nanoseconds": 157684502,
+          "total_nanoseconds": 7521355901
+        }
+      },
+      "sequence": 11,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 25559040,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 13,
+          "no_proposal": 95
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 2,
+        "proposed_bytes_max": 25559040,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 108
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 29611922.290366814,
+      "wall_seconds": 9.065114158,
+      "wire_bytes": 268544754
+    },
+    {
+      "allocation_charged_bytes": 268460032,
+      "arm": "h1",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 79728787,
+        "delta_bytes_sum": 285407581,
+        "forced_growth_records": 12,
+        "issues": [],
+        "joined_records": 99,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 87,
+        "peer_handler_to_notify_observed": {
+          "count": 99,
+          "max_ns": 17774,
+          "p50_ns": 2825,
+          "p95_ns": 11773,
+          "sum_ns": 383597
+        },
+        "peer_records": 99,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 99,
+          "max_ns": 315093,
+          "p50_ns": 36170,
+          "p95_ns": 135173,
+          "sum_ns": 5393433
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 1771349,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 3622084,
+        "receiver_records": 99,
+        "sender_byte_zero_wait": {
+          "count": 18,
+          "max_nanoseconds": 240263094,
+          "total_nanoseconds": 948453202
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 5,
+          "normal_read": 10,
+          "stale": 3
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 384527160,
+          "normal_read": 563898118,
+          "stale": 3757
+        },
+        "wait_records": 18,
+        "wait_wake_to_retry_observed": {
+          "count": 18,
+          "max_ns": 3065,
+          "p50_ns": 1443,
+          "p95_ns": 3065,
+          "sum_ns": 25137
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-valid-revisit",
+      "frames": 8202,
+      "measurement_stage": "steady",
+      "payload_bytes": 268435671,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269074855,
+        "contained_calls": 24580,
+        "contained_duration_ns": {
+          "count": 8202,
+          "max_nanoseconds": 158273794,
+          "total_nanoseconds": 10406462547
+        },
+        "contained_fraction_of_envelope": 0.9888030894059223,
+        "contained_written_bytes": 269074855,
+        "envelope_duration_ns": {
+          "count": 8202,
+          "max_nanoseconds": 158293853,
+          "total_nanoseconds": 10524302218
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 15,
+        "residual_duration_ns": {
+          "count": 8202,
+          "max_nanoseconds": 61019,
+          "total_nanoseconds": 117839671
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 5,
+        "lane": 2,
+        "local_address": "10.211.0.1:39453",
+        "origin_connection_id": "10.212.0.2:53394",
+        "remote_address": "10.212.0.2:48432",
+        "session_identity": "0x34856039608",
+        "stream_id": 6
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 21,
+          "max_nanoseconds": 240263094,
+          "total_nanoseconds": 1028181989
+        },
+        "data_call_total": {
+          "count": 8202,
+          "max_nanoseconds": 158316436,
+          "total_nanoseconds": 10592453740
+        },
+        "data_completion_select_total": {
+          "count": 8202,
+          "max_nanoseconds": 158313661,
+          "total_nanoseconds": 10574023109
+        },
+        "data_enqueue_select_total": {
+          "count": 8202,
+          "max_nanoseconds": 27594,
+          "total_nanoseconds": 18430631
+        },
+        "physical_write_total": {
+          "count": 8202,
+          "max_nanoseconds": 158293853,
+          "total_nanoseconds": 10524302218
+        }
+      },
+      "sequence": 14,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 21626880,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 12,
+          "no_proposal": 132
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 3,
+        "proposed_bytes_max": 21626880,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 144
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 22408983.167917103,
+      "wall_seconds": 11.978921756,
+      "wire_bytes": 268534095
+    },
+    {
+      "allocation_charged_bytes": 269221888,
+      "arm": "h1",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 79994272,
+        "delta_bytes_sum": 290461474,
+        "forced_growth_records": 10,
+        "issues": [],
+        "joined_records": 68,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 58,
+        "peer_handler_to_notify_observed": {
+          "count": 68,
+          "max_ns": 18445,
+          "p50_ns": 2435,
+          "p95_ns": 11973,
+          "sum_ns": 255623
+        },
+        "peer_records": 68,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 68,
+          "max_ns": 161895,
+          "p50_ns": 35063,
+          "p95_ns": 124101,
+          "sum_ns": 3289716
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 1109437,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 2180279,
+        "receiver_records": 68,
+        "sender_byte_zero_wait": {
+          "count": 19,
+          "max_nanoseconds": 242046418,
+          "total_nanoseconds": 790169228
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 4,
+          "normal_read": 12,
+          "stale": 3
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 292508403,
+          "normal_read": 497638713,
+          "stale": 3657
+        },
+        "wait_records": 19,
+        "wait_wake_to_retry_observed": {
+          "count": 19,
+          "max_ns": 2515,
+          "p50_ns": 1332,
+          "p95_ns": 2515,
+          "sum_ns": 25631
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-invalid-revisit",
+      "frames": 8464,
+      "measurement_stage": "steady",
+      "payload_bytes": 268435686,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269080654,
+        "contained_calls": 24700,
+        "contained_duration_ns": {
+          "count": 8464,
+          "max_nanoseconds": 70084783,
+          "total_nanoseconds": 6349544735
+        },
+        "contained_fraction_of_envelope": 0.982677819166298,
+        "contained_written_bytes": 269080654,
+        "envelope_duration_ns": {
+          "count": 8464,
+          "max_nanoseconds": 70103649,
+          "total_nanoseconds": 6461471513
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 12,
+        "residual_duration_ns": {
+          "count": 8464,
+          "max_nanoseconds": 71480,
+          "total_nanoseconds": 111926778
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 3,
+        "lane": 3,
+        "local_address": "10.211.0.1:39453",
+        "origin_connection_id": "10.212.0.2:36056",
+        "remote_address": "10.212.0.2:48410",
+        "session_identity": "0x348560c6588",
+        "stream_id": 8
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 21,
+          "max_nanoseconds": 242046418,
+          "total_nanoseconds": 870163500
+        },
+        "data_call_total": {
+          "count": 8464,
+          "max_nanoseconds": 70123368,
+          "total_nanoseconds": 6530568307
+        },
+        "data_completion_select_total": {
+          "count": 8464,
+          "max_nanoseconds": 70120633,
+          "total_nanoseconds": 6512012866
+        },
+        "data_enqueue_select_total": {
+          "count": 8464,
+          "max_nanoseconds": 29518,
+          "total_nanoseconds": 18555441
+        },
+        "physical_write_total": {
+          "count": 8464,
+          "max_nanoseconds": 70103649,
+          "total_nanoseconds": 6461471513
+        }
+      },
+      "sequence": 15,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 25231360,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 10,
+          "no_proposal": 80
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 0,
+        "proposed_bytes_max": 25231360,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 90
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 34436537.50193525,
+      "wall_seconds": 7.795076842,
+      "wire_bytes": 268537254
+    },
+    {
+      "allocation_charged_bytes": 268820480,
+      "arm": "h2",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 80559956,
+        "delta_bytes_sum": 289493227,
+        "forced_growth_records": 13,
+        "issues": [],
+        "joined_records": 82,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 69,
+        "peer_handler_to_notify_observed": {
+          "count": 82,
+          "max_ns": 17273,
+          "p50_ns": 3036,
+          "p95_ns": 12625,
+          "sum_ns": 370912
+        },
+        "peer_records": 82,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 82,
+          "max_ns": 208515,
+          "p50_ns": 39347,
+          "p95_ns": 136475,
+          "sum_ns": 4609093
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 1547543,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 3061550,
+        "receiver_records": 82,
+        "sender_byte_zero_wait": {
+          "count": 23,
+          "max_nanoseconds": 241527903,
+          "total_nanoseconds": 1664783845
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 5,
+          "normal_read": 14,
+          "stale": 4
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 471719424,
+          "normal_read": 1193041265,
+          "stale": 3487
+        },
+        "wait_records": 23,
+        "wait_wake_to_retry_observed": {
+          "count": 23,
+          "max_ns": 44026,
+          "p50_ns": 1583,
+          "p95_ns": 4008,
+          "sum_ns": 79427
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-first-post-close-visit",
+      "frames": 8566,
+      "measurement_stage": "retained-warmup",
+      "payload_bytes": 268435686,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269081548,
+        "contained_calls": 24685,
+        "contained_duration_ns": {
+          "count": 8566,
+          "max_nanoseconds": 160271392,
+          "total_nanoseconds": 7405566313
+        },
+        "contained_fraction_of_envelope": 0.9849277792409158,
+        "contained_written_bytes": 269081548,
+        "envelope_duration_ns": {
+          "count": 8566,
+          "max_nanoseconds": 160290931,
+          "total_nanoseconds": 7518892724
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 14,
+        "residual_duration_ns": {
+          "count": 8566,
+          "max_nanoseconds": 70207,
+          "total_nanoseconds": 113326411
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 3,
+        "lane": 1,
+        "local_address": "10.211.0.1:46017",
+        "origin_connection_id": "10.212.0.2:44836",
+        "remote_address": "10.212.0.2:34760",
+        "session_identity": "0x507f3ed0108",
+        "stream_id": 6
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 26,
+          "max_nanoseconds": 241527903,
+          "total_nanoseconds": 1745343801
+        },
+        "data_call_total": {
+          "count": 8566,
+          "max_nanoseconds": 160307072,
+          "total_nanoseconds": 7590814689
+        },
+        "data_completion_select_total": {
+          "count": 8566,
+          "max_nanoseconds": 160302924,
+          "total_nanoseconds": 7571462826
+        },
+        "data_enqueue_select_total": {
+          "count": 8566,
+          "max_nanoseconds": 37603,
+          "total_nanoseconds": 19351863
+        },
+        "physical_write_total": {
+          "count": 8566,
+          "max_nanoseconds": 160290931,
+          "total_nanoseconds": 7518892724
+        }
+      },
+      "sequence": 9,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 25231360,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 13,
+          "no_proposal": 101
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 364,
+        "proposed_bytes_max": 25231360,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 114
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 27455443.333126925,
+      "wall_seconds": 9.777130631,
+      "wire_bytes": 268538478
+    },
+    {
+      "allocation_charged_bytes": 269037568,
+      "arm": "h2",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 79612505,
+        "delta_bytes_sum": 282140233,
+        "forced_growth_records": 11,
+        "issues": [],
+        "joined_records": 117,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 106,
+        "peer_handler_to_notify_observed": {
+          "count": 117,
+          "max_ns": 12835,
+          "p50_ns": 3046,
+          "p95_ns": 10351,
+          "sum_ns": 466889
+        },
+        "peer_records": 117,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 117,
+          "max_ns": 203746,
+          "p50_ns": 36902,
+          "p95_ns": 129922,
+          "sum_ns": 5975377
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 2072328,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 3903049,
+        "receiver_records": 117,
+        "sender_byte_zero_wait": {
+          "count": 24,
+          "max_nanoseconds": 240739537,
+          "total_nanoseconds": 1741099113
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 4,
+          "normal_read": 18,
+          "stale": 2
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 311173453,
+          "normal_read": 1429903608,
+          "stale": 1412
+        },
+        "wait_records": 24,
+        "wait_wake_to_retry_observed": {
+          "count": 24,
+          "max_ns": 2605,
+          "p50_ns": 1643,
+          "p95_ns": 2565,
+          "sum_ns": 36803
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-first-post-close-visit",
+      "frames": 8371,
+      "measurement_stage": "steady",
+      "payload_bytes": 268435686,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269069484,
+        "contained_calls": 24243,
+        "contained_duration_ns": {
+          "count": 8371,
+          "max_nanoseconds": 159339740,
+          "total_nanoseconds": 11754603357
+        },
+        "contained_fraction_of_envelope": 0.9903193996212065,
+        "contained_written_bytes": 269069484,
+        "envelope_duration_ns": {
+          "count": 8371,
+          "max_nanoseconds": 159364709,
+          "total_nanoseconds": 11869507314
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 18,
+        "residual_duration_ns": {
+          "count": 8371,
+          "max_nanoseconds": 63793,
+          "total_nanoseconds": 114903957
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 5,
+        "lane": 3,
+        "local_address": "10.211.0.1:46017",
+        "origin_connection_id": "10.212.0.2:54312",
+        "remote_address": "10.212.0.2:34786",
+        "session_identity": "0x507f3e44588",
+        "stream_id": 6
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 27,
+          "max_nanoseconds": 240739537,
+          "total_nanoseconds": 1820711618
+        },
+        "data_call_total": {
+          "count": 8371,
+          "max_nanoseconds": 159402142,
+          "total_nanoseconds": 11937706066
+        },
+        "data_completion_select_total": {
+          "count": 8371,
+          "max_nanoseconds": 159401511,
+          "total_nanoseconds": 11918391816
+        },
+        "data_enqueue_select_total": {
+          "count": 8371,
+          "max_nanoseconds": 28224,
+          "total_nanoseconds": 19314250
+        },
+        "physical_write_total": {
+          "count": 8371,
+          "max_nanoseconds": 159364709,
+          "total_nanoseconds": 11869507314
+        }
+      },
+      "sequence": 11,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 17432576,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 11,
+          "no_proposal": 164
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 2,
+        "proposed_bytes_max": 17432576,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 175
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 18800106.94438794,
+      "wall_seconds": 14.278400479,
+      "wire_bytes": 268536138
+    },
+    {
+      "allocation_charged_bytes": 268550144,
+      "arm": "h2",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 79603916,
+        "delta_bytes_sum": 291593446,
+        "forced_growth_records": 9,
+        "issues": [],
+        "joined_records": 71,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 62,
+        "peer_handler_to_notify_observed": {
+          "count": 71,
+          "max_ns": 26772,
+          "p50_ns": 2555,
+          "p95_ns": 11994,
+          "sum_ns": 283003
+        },
+        "peer_records": 71,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 71,
+          "max_ns": 147216,
+          "p50_ns": 34708,
+          "p95_ns": 116296,
+          "sum_ns": 3243944
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 1067295,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 2176649,
+        "receiver_records": 71,
+        "sender_byte_zero_wait": {
+          "count": 18,
+          "max_nanoseconds": 240953369,
+          "total_nanoseconds": 792411851
+        },
+        "wait_range_kind_counts": {
+          "forced_growth": 2,
+          "normal_read": 14,
+          "stale": 2
+        },
+        "wait_range_kind_entry_to_wake_ns": {
+          "forced_growth": 148014086,
+          "normal_read": 644384042,
+          "stale": 1013
+        },
+        "wait_records": 18,
+        "wait_wake_to_retry_observed": {
+          "count": 18,
+          "max_ns": 2335,
+          "p50_ns": 1062,
+          "p95_ns": 2335,
+          "sum_ns": 22071
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-invalid-revisit",
+      "frames": 8236,
+      "measurement_stage": "steady",
+      "payload_bytes": 268435686,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269075146,
+        "contained_calls": 24574,
+        "contained_duration_ns": {
+          "count": 8236,
+          "max_nanoseconds": 71642052,
+          "total_nanoseconds": 6515329217
+        },
+        "contained_fraction_of_envelope": 0.9839242918050124,
+        "contained_written_bytes": 269075146,
+        "envelope_duration_ns": {
+          "count": 8236,
+          "max_nanoseconds": 71660367,
+          "total_nanoseconds": 6621779004
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 13,
+        "residual_duration_ns": {
+          "count": 8236,
+          "max_nanoseconds": 71278,
+          "total_nanoseconds": 106449787
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 2,
+        "lane": 2,
+        "local_address": "10.211.0.1:46017",
+        "origin_connection_id": "10.212.0.2:53626",
+        "remote_address": "10.212.0.2:34756",
+        "session_identity": "0x507f402a588",
+        "stream_id": 8
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 22,
+          "max_nanoseconds": 240953369,
+          "total_nanoseconds": 872015767
+        },
+        "data_call_total": {
+          "count": 8236,
+          "max_nanoseconds": 71681779,
+          "total_nanoseconds": 6687554041
+        },
+        "data_completion_select_total": {
+          "count": 8236,
+          "max_nanoseconds": 71680076,
+          "total_nanoseconds": 6670090094
+        },
+        "data_enqueue_select_total": {
+          "count": 8236,
+          "max_nanoseconds": 33345,
+          "total_nanoseconds": 17463947
+        },
+        "physical_write_total": {
+          "count": 8236,
+          "max_nanoseconds": 71660367,
+          "total_nanoseconds": 6621779004
+        }
+      },
+      "sequence": 14,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 23789568,
+        "current_bytes_min": 524288,
+        "outcome_counts": {
+          "grown": 9,
+          "no_proposal": 81
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 4,
+        "proposed_bytes_max": 23789568,
+        "proposed_bytes_min": 524288,
+        "selected_event_count": 90
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33573122.69457403,
+      "wall_seconds": 7.995546272,
+      "wire_bytes": 268534518
+    },
+    {
+      "allocation_charged_bytes": 268439552,
+      "arm": "h2",
+      "byte_credit": {
+        "accepted": true,
+        "allocation_credit_wait_total_ns": 0,
+        "delta_bytes_sum": 272757405,
+        "forced_growth_records": 1,
+        "issues": [],
+        "joined_records": 52,
+        "limitations": [
+          "Unix timestamps validate only local ordering/containment; monotonic time.Time.Sub-derived duration fields supply segment conservation.",
+          "No timestamp arithmetic is performed across endpoints.",
+          "Receiver kind normal_read means the non-forced publication path; SYN/ACK flags separately identify initial/open positive updates, so kind alone does not claim consumed-byte recycling.",
+          "Positive initial/open updates use the same per-stream relative ordinal and cumulative convention at both endpoints and are included in the exact ordered join.",
+          "The interval before receiver eligibility and cross-process frame transit remain unmeasured."
+        ],
+        "normal_read_records": 51,
+        "peer_handler_to_notify_observed": {
+          "count": 52,
+          "max_ns": 9488,
+          "p50_ns": 2485,
+          "p95_ns": 4168,
+          "sum_ns": 137585
+        },
+        "peer_records": 52,
+        "receiver_eligibility_to_completion_result_observed": {
+          "count": 52,
+          "max_ns": 103271,
+          "p50_ns": 33715,
+          "p95_ns": 82260,
+          "sum_ns": 2001402
+        },
+        "receiver_eligibility_to_enqueue_observed_ns_sum": 769074,
+        "receiver_enqueue_to_completion_result_observed_ns_sum": 1232328,
+        "receiver_records": 52,
+        "sender_byte_zero_wait": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "wait_range_kind_counts": {},
+        "wait_range_kind_entry_to_wake_ns": {},
+        "wait_records": 0,
+        "wait_wake_to_retry_observed": {
+          "count": 0,
+          "max_ns": 0,
+          "p50_ns": 0,
+          "p95_ns": 0,
+          "sum_ns": 0
+        }
+      },
+      "checks": {
+        "byte_credit_accepted": true,
+        "byte_join_counts_exact": true,
+        "byte_relative_ordinals_contiguous": true,
+        "byte_trace_integrity": true,
+        "data_call_conservation": true,
+        "growth_drop_free": true,
+        "identity_join_exact": true,
+        "physical_envelope_exact": true,
+        "raw_activity_accepted": true,
+        "raw_count_conservation": true,
+        "raw_duration_conservation": true,
+        "raw_unambiguous_complete_reset": true,
+        "sender_validation_accepted": true,
+        "server_growth_accepted": true
+      },
+      "conditioning_role": "selected-valid-revisit",
+      "frames": 8193,
+      "measurement_stage": "steady",
+      "payload_bytes": 268435671,
+      "raw_write_activity": {
+        "contained_attempt_bytes": 269074659,
+        "contained_calls": 24576,
+        "contained_duration_ns": {
+          "count": 8193,
+          "max_nanoseconds": 561853305,
+          "total_nanoseconds": 7471679040
+        },
+        "contained_fraction_of_envelope": 0.9856072301224492,
+        "contained_written_bytes": 269074659,
+        "envelope_duration_ns": {
+          "count": 8193,
+          "max_nanoseconds": 561880377,
+          "total_nanoseconds": 7580787571
+        },
+        "issues": [],
+        "maximum_active_raw_writes": 1,
+        "outside_calls": 10,
+        "residual_duration_ns": {
+          "count": 8193,
+          "max_nanoseconds": 55458,
+          "total_nanoseconds": 109108531
+        },
+        "straddling_calls": 0
+      },
+      "selected_identity": {
+        "generation": 5,
+        "lane": 3,
+        "local_address": "10.211.0.1:46017",
+        "origin_connection_id": "10.212.0.2:54312",
+        "remote_address": "10.212.0.2:34786",
+        "session_identity": "0x507f3e44588",
+        "stream_id": 6
+      },
+      "sender_durations_ns": {
+        "credit_wait_total": {
+          "count": 0,
+          "max_nanoseconds": 0,
+          "total_nanoseconds": 0
+        },
+        "data_call_total": {
+          "count": 8193,
+          "max_nanoseconds": 561914233,
+          "total_nanoseconds": 7646946729
+        },
+        "data_completion_select_total": {
+          "count": 8193,
+          "max_nanoseconds": 561912249,
+          "total_nanoseconds": 7629015639
+        },
+        "data_enqueue_select_total": {
+          "count": 8193,
+          "max_nanoseconds": 42202,
+          "total_nanoseconds": 17931090
+        },
+        "physical_write_total": {
+          "count": 8193,
+          "max_nanoseconds": 561880377,
+          "total_nanoseconds": 7580787571
+        }
+      },
+      "sequence": 15,
+      "server_receive_growth": {
+        "accepted": true,
+        "current_bytes_max": 21889024,
+        "current_bytes_min": 17432576,
+        "outcome_counts": {
+          "grown": 1,
+          "no_proposal": 91
+        },
+        "post_dropped_events": 0,
+        "pre_prior_dropped_events": 0,
+        "pre_prior_event_count": 0,
+        "proposed_bytes_max": 21889024,
+        "proposed_bytes_min": 17432576,
+        "selected_event_count": 92
+      },
+      "transfer_direction": "download",
+      "useful_transfer_bytes_per_second": 33558500.1375688,
+      "wall_seconds": 7.999030198,
+      "wire_bytes": 268533987
+    }
+  ],
+  "source_files": {
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/attestation.json": "848dc7d6c4642152a3ce44c6398b254e60bb79258bd3f12bec66a3e49fd53c37",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.jsonl": "cdee461585c63075f0e165b98a27cb94c745f5ca37b72970fbb39b48e7aadffc",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.sender-wait-records.jsonl": "1d2ee0db0da409d9872b5f85a49973d5bf608a50981c01e58fab850db0171c0f",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.summary.json": "316f0757b7433885473bcfadb308bda906cf28665b8c6805df9e78a47d77c5c3",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/attestation.json": "f8d2948864a96c9dd2bb08834c637d028fe0e75f5a79a58b9bb410a88a11315f",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.jsonl": "c29fa76816a5b44dbbb0854fe7babad533bb430328a4663994d6a049e86d4c08",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.sender-wait-records.jsonl": "3e8c531a4e893ced8fa8deb1692f69c6453cdae272ca49c3f1e4f2e11e68e015",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.summary.json": "e46c58ede796471ffee28af994d67d83a40a3db4a3ac97f5ba648a795e8aa5c3"
+  }
+}

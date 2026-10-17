@@ -1,0 +1,11 @@
+{
+  "coordinator_direct_status": 1,
+  "coordinator_started": true,
+  "coordinator_succeeded": false,
+  "evidence_complete": true,
+  "issue": null,
+  "natural_group_join": true,
+  "output_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1",
+  "schema_version": 1,
+  "source_pre_post_accepted": true
+}

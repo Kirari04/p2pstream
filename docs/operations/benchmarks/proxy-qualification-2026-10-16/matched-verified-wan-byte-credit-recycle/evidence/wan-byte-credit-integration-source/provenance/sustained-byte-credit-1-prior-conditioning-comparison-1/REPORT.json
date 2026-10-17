@@ -1,0 +1,390 @@
+{
+  "comparisons": [
+    {
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 26055108989,
+        "current_start_to_got_conn_ns": 81719,
+        "intervening_wall_seconds": {
+          "10": 7.681473128,
+          "11": 9.065114158,
+          "12": 7.6262825979999995
+        },
+        "intervening_wall_total_ns": 24372869884,
+        "non_wall_interval_ns": 1682157386,
+        "observed_origin_connection_id": "10.212.0.2:34720",
+        "prior_origin_connection_id": "10.212.0.2:34720",
+        "prior_put_idle_to_current_start_ns": 26055027270,
+        "satisfied": true
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": 1143082847,
+        "intervening_wall_total_ns": 1144461981,
+        "non_wall_interval_ns": -1370968,
+        "prior_put_idle_to_current_start_ns": 1143091013
+      },
+      "prior": {
+        "actual_idle_age_ns": 24912026142,
+        "current_start_to_got_conn_ns": 89885,
+        "intervening_wall_seconds": {
+          "10": 7.679020785,
+          "11": 7.866898851,
+          "12": 7.682488267
+        },
+        "intervening_wall_total_ns": 23228407903,
+        "non_wall_interval_ns": 1683528354,
+        "observed_origin_connection_id": "10.212.0.2:40250",
+        "prior_origin_connection_id": "10.212.0.2:40250",
+        "prior_put_idle_to_current_start_ns": 24911936257,
+        "satisfied": true
+      },
+      "prior_sequence": 9,
+      "sequence": 13
+    },
+    {
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 27627562826,
+        "current_start_to_got_conn_ns": 91238,
+        "intervening_wall_seconds": {
+          "11": 9.065114158,
+          "12": 7.6262825979999995,
+          "13": 9.351397952
+        },
+        "intervening_wall_total_ns": 26042794708,
+        "non_wall_interval_ns": 1584676880,
+        "observed_origin_connection_id": "10.212.0.2:53394",
+        "prior_origin_connection_id": "10.212.0.2:53394",
+        "prior_put_idle_to_current_start_ns": 27627471588,
+        "satisfied": true
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": 2876845821,
+        "intervening_wall_total_ns": 2911234220,
+        "non_wall_interval_ns": -34349364,
+        "prior_put_idle_to_current_start_ns": 2876884856
+      },
+      "prior": {
+        "actual_idle_age_ns": 24750717005,
+        "current_start_to_got_conn_ns": 130273,
+        "intervening_wall_seconds": {
+          "11": 7.866898851,
+          "12": 7.682488267,
+          "13": 7.58217337
+        },
+        "intervening_wall_total_ns": 23131560488,
+        "non_wall_interval_ns": 1619026244,
+        "observed_origin_connection_id": "10.212.0.2:38318",
+        "prior_origin_connection_id": "10.212.0.2:38318",
+        "prior_put_idle_to_current_start_ns": 24750586732,
+        "satisfied": true
+      },
+      "prior_sequence": 10,
+      "sequence": 14
+    },
+    {
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 30915823195,
+        "current_start_to_got_conn_ns": 82154141,
+        "intervening_wall_seconds": {
+          "12": 7.6262825979999995,
+          "13": 9.351397952,
+          "14": 11.978921756
+        },
+        "intervening_wall_total_ns": 28956602306,
+        "non_wall_interval_ns": 1877066748,
+        "observed_origin_connection_id": "10.212.0.2:36056",
+        "prior_origin_connection_id": "10.212.0.2:33082",
+        "prior_put_idle_to_current_start_ns": 30833669054,
+        "satisfied": false
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": 4944079727,
+        "intervening_wall_total_ns": 4822905428,
+        "non_wall_interval_ns": 39114521,
+        "prior_put_idle_to_current_start_ns": 4862019949
+      },
+      "prior": {
+        "actual_idle_age_ns": 25971743468,
+        "current_start_to_got_conn_ns": 94363,
+        "intervening_wall_seconds": {
+          "12": 7.682488267,
+          "13": 7.58217337,
+          "14": 8.869035241
+        },
+        "intervening_wall_total_ns": 24133696878,
+        "non_wall_interval_ns": 1837952227,
+        "observed_origin_connection_id": "10.212.0.2:42194",
+        "prior_origin_connection_id": "10.212.0.2:42194",
+        "prior_put_idle_to_current_start_ns": 25971649105,
+        "satisfied": true
+      },
+      "prior_sequence": 11,
+      "sequence": 15
+    },
+    {
+      "arm": "h1",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 31068630531,
+        "current_start_to_got_conn_ns": 81507082,
+        "intervening_wall_seconds": {
+          "13": 9.351397952,
+          "14": 11.978921756,
+          "15": 7.795076842
+        },
+        "intervening_wall_total_ns": 29125396550,
+        "non_wall_interval_ns": 1861726899,
+        "observed_origin_connection_id": "10.212.0.2:54126",
+        "prior_origin_connection_id": "10.212.0.2:41032",
+        "prior_put_idle_to_current_start_ns": 30987123449,
+        "satisfied": false
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": 5103493815,
+        "intervening_wall_total_ns": 4977530014,
+        "non_wall_interval_ns": 44541493,
+        "prior_put_idle_to_current_start_ns": 5022071507
+      },
+      "prior": {
+        "actual_idle_age_ns": 25965136716,
+        "current_start_to_got_conn_ns": 84774,
+        "intervening_wall_seconds": {
+          "13": 7.58217337,
+          "14": 8.869035241,
+          "15": 7.696657925
+        },
+        "intervening_wall_total_ns": 24147866536,
+        "non_wall_interval_ns": 1817185406,
+        "observed_origin_connection_id": "10.212.0.2:58068",
+        "prior_origin_connection_id": "10.212.0.2:58068",
+        "prior_put_idle_to_current_start_ns": 25965051942,
+        "satisfied": true
+      },
+      "prior_sequence": 12,
+      "sequence": 16
+    },
+    {
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 31252490421,
+        "current_start_to_got_conn_ns": 81772330,
+        "intervening_wall_seconds": {
+          "10": 7.522432653,
+          "11": 14.278400479,
+          "12": 7.533203688
+        },
+        "intervening_wall_total_ns": 29334036820,
+        "non_wall_interval_ns": 1836681271,
+        "observed_origin_connection_id": "10.212.0.2:41334",
+        "prior_origin_connection_id": "10.212.0.2:44836",
+        "prior_put_idle_to_current_start_ns": 31170718091,
+        "satisfied": false
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": 4528761717,
+        "intervening_wall_total_ns": 4273828342,
+        "non_wall_interval_ns": 173298050,
+        "prior_put_idle_to_current_start_ns": 4447126392
+      },
+      "prior": {
+        "actual_idle_age_ns": 26723728704,
+        "current_start_to_got_conn_ns": 137005,
+        "intervening_wall_seconds": {
+          "10": 7.589057411,
+          "11": 9.755015508,
+          "12": 7.716135559
+        },
+        "intervening_wall_total_ns": 25060208478,
+        "non_wall_interval_ns": 1663383221,
+        "observed_origin_connection_id": "10.212.0.2:49762",
+        "prior_origin_connection_id": "10.212.0.2:49762",
+        "prior_put_idle_to_current_start_ns": 26723591699,
+        "satisfied": true
+      },
+      "prior_sequence": 9,
+      "sequence": 13
+    },
+    {
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 31243056756,
+        "current_start_to_got_conn_ns": 82025001,
+        "intervening_wall_seconds": {
+          "11": 14.278400479,
+          "12": 7.533203688,
+          "13": 7.567599766
+        },
+        "intervening_wall_total_ns": 29379203933,
+        "non_wall_interval_ns": 1781827822,
+        "observed_origin_connection_id": "10.212.0.2:53626",
+        "prior_origin_connection_id": "10.212.0.2:41040",
+        "prior_put_idle_to_current_start_ns": 31161031755,
+        "satisfied": false
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": 4668556332,
+        "intervening_wall_total_ns": 4465308460,
+        "non_wall_interval_ns": 121327825,
+        "prior_put_idle_to_current_start_ns": 4586636285
+      },
+      "prior": {
+        "actual_idle_age_ns": 26574500424,
+        "current_start_to_got_conn_ns": 104954,
+        "intervening_wall_seconds": {
+          "11": 9.755015508,
+          "12": 7.716135559,
+          "13": 7.442744406
+        },
+        "intervening_wall_total_ns": 24913895473,
+        "non_wall_interval_ns": 1660499997,
+        "observed_origin_connection_id": "10.212.0.2:37972",
+        "prior_origin_connection_id": "10.212.0.2:37972",
+        "prior_put_idle_to_current_start_ns": 26574395470,
+        "satisfied": true
+      },
+      "prior_sequence": 10,
+      "sequence": 14
+    },
+    {
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 25089437554,
+        "current_start_to_got_conn_ns": 148789,
+        "intervening_wall_seconds": {
+          "12": 7.533203688,
+          "13": 7.567599766,
+          "14": 7.995546272
+        },
+        "intervening_wall_total_ns": 23096349726,
+        "non_wall_interval_ns": 1992939039,
+        "observed_origin_connection_id": "10.212.0.2:54312",
+        "prior_origin_connection_id": "10.212.0.2:54312",
+        "prior_put_idle_to_current_start_ns": 25089288765,
+        "satisfied": true
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": -1626666883,
+        "intervening_wall_total_ns": -1767536319,
+        "non_wall_interval_ns": 140813547,
+        "prior_put_idle_to_current_start_ns": -1626722772
+      },
+      "prior": {
+        "actual_idle_age_ns": 26716104437,
+        "current_start_to_got_conn_ns": 92900,
+        "intervening_wall_seconds": {
+          "12": 7.716135559,
+          "13": 7.442744406,
+          "14": 9.70500608
+        },
+        "intervening_wall_total_ns": 24863886045,
+        "non_wall_interval_ns": 1852125492,
+        "observed_origin_connection_id": "10.212.0.2:55910",
+        "prior_origin_connection_id": "10.212.0.2:55910",
+        "prior_put_idle_to_current_start_ns": 26716011537,
+        "satisfied": true
+      },
+      "prior_sequence": 11,
+      "sequence": 15
+    },
+    {
+      "arm": "h2",
+      "configured_idle_limit_ns": 30000000000,
+      "current": {
+        "actual_idle_age_ns": 25495614257,
+        "current_start_to_got_conn_ns": 216992,
+        "intervening_wall_seconds": {
+          "13": 7.567599766,
+          "14": 7.995546272,
+          "15": 7.999030198
+        },
+        "intervening_wall_total_ns": 23562176236,
+        "non_wall_interval_ns": 1933221029,
+        "observed_origin_connection_id": "10.212.0.2:38844",
+        "prior_origin_connection_id": "10.212.0.2:38844",
+        "prior_put_idle_to_current_start_ns": 25495397265,
+        "satisfied": true
+      },
+      "current_minus_prior": {
+        "actual_idle_age_ns": -1218193257,
+        "intervening_wall_total_ns": -1280374596,
+        "non_wall_interval_ns": 62088518,
+        "prior_put_idle_to_current_start_ns": -1218286078
+      },
+      "prior": {
+        "actual_idle_age_ns": 26713807514,
+        "current_start_to_got_conn_ns": 124171,
+        "intervening_wall_seconds": {
+          "13": 7.442744406,
+          "14": 9.70500608,
+          "15": 7.694800346
+        },
+        "intervening_wall_total_ns": 24842550832,
+        "non_wall_interval_ns": 1871132511,
+        "observed_origin_connection_id": "10.212.0.2:52626",
+        "prior_origin_connection_id": "10.212.0.2:52626",
+        "prior_put_idle_to_current_start_ns": 26713683343,
+        "satisfied": true
+      },
+      "prior_sequence": 12,
+      "sequence": 16
+    }
+  ],
+  "current_run": "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1",
+  "diagnostic": "wan-byte-credit-prior-conditioning-comparison",
+  "endpoint_or_traffic_execution": false,
+  "findings": [
+    "The prior sustained-below-tls-2 cohort retained all eight required revisits at 24.750717005 to 26.723728704 seconds. The current cohort retained four revisits at 25.089437554 to 27.627562826 seconds and lost four at 30.915823195 to 31.252490421 seconds.",
+    "For each of the four changed outcomes, the prior put-idle to current request-start interval is below 30 seconds in the prior run and above 30 seconds in the current run. Expiry therefore occurs before the new connection GotConn delay and is not an artifact of adding connection establishment time to the reported idle age.",
+    "The sum of the three intervening measured transfer wall durations increased by 4.273828342 to 4.977530014 seconds for the four changed lanes. The remaining non-wall interval changed by less than 0.2 seconds. This directly accounts for the policy-boundary crossing at the harness level.",
+    "This comparison explains why conditioning differs from the prior valid sustained cohort. It does not explain why the intervening transfers were slower and does not support changing the 30-second policy, rerunning the cohort, or changing runtime behavior."
+  ],
+  "frozen_inputs": {
+    "current_freeze_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-result-review/SHA256SUMS.txt",
+      "sha256": "d86fda3f8873d15c5846fbf46c30473abec5d818ef236afcc9c5d9e5feb1f641"
+    },
+    "current_run_ledger": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-result-review/RUN-SHA256SUMS.txt",
+      "sha256": "ed6caa87a355b1b18cd2d7976c673cf47c05bce9192a192f0010ef06d19ada07"
+    },
+    "current_selected_review": {
+      "path": "tmp/continuation-20261016/wan-byte-credit-integration-source/provenance/sustained-byte-credit-1-selected-review-1/SHA256SUMS.txt",
+      "sha256": "c871ed12af37626d34da15bdc04a9c37f1eb34efe132f1f7e300908ce360d2ad"
+    },
+    "prior_freeze_ledger": {
+      "path": "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/server-growth/review/sustained-below-tls-2-result-freeze-1/SHA256SUMS.txt",
+      "sha256": "aaa1ad1d7bb8de83e9cd1d9765f309129f98be55915ea573d239468b951e9eef"
+    },
+    "prior_run_ledger": {
+      "path": "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/server-growth/review/sustained-below-tls-2-result-freeze-1/RUN-SHA256SUMS.txt",
+      "sha256": "54dee8f761e2711e72ee5584ed3cb0ac53d971e3743087bfcef7db2b69209405"
+    }
+  },
+  "limitations": [
+    "The two runs use different diagnostic overlays and occurred at different times; this is a request-timeline comparison, not a controlled performance comparison.",
+    "Measured transfer wall duration includes all work observed by the load client and is not a component-level cause.",
+    "No cross-process clock subtraction is introduced beyond same-run server httptrace/request timestamps already validated by each attestation."
+  ],
+  "prior_run": "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2",
+  "rerun_performed": false,
+  "review_complete": true,
+  "schema_version": 1,
+  "source_files": {
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/attestation.json": "75c14bc1425d44956d48a650d0f710d4d88b96d8727cf93ecbd218766e18b467",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h1/results.jsonl": "170f8ba9bbbbd6c84a40160ff4750260425cfa4bbaeceaf2340b56c7d2655c3c",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h2/attestation.json": "e0c8efb3867f1e37c306b7425f1bbc30619be1f411b24ac8d8d0995ed6473411",
+    "tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/final-integration-source/integration/runs/sustained-below-tls-2/h2/results.jsonl": "d7dd196ada03d8daef8259b8f460336391e4d40cc3c399ba1be014ab988c33d1",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/attestation.json": "848dc7d6c4642152a3ce44c6398b254e60bb79258bd3f12bec66a3e49fd53c37",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h1/results.jsonl": "cdee461585c63075f0e165b98a27cb94c745f5ca37b72970fbb39b48e7aadffc",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/attestation.json": "f8d2948864a96c9dd2bb08834c637d028fe0e75f5a79a58b9bb410a88a11315f",
+    "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/results.jsonl": "c29fa76816a5b44dbbb0854fe7babad533bb430328a4663994d6a049e86d4c08"
+  }
+}

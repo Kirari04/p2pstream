@@ -1,0 +1,93 @@
+{
+  "accepted_as_performance_result": false,
+  "arms": {
+    "h1": {
+      "accepted": false,
+      "attestation_sha256": "848dc7d6c4642152a3ce44c6398b254e60bb79258bd3f12bec66a3e49fd53c37",
+      "classification": "inconclusive-upstream-reuse",
+      "conditioning_issues": [
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "integrity_issues": [],
+      "natural_endpoint_and_namespace_statuses": true,
+      "performance_issues": [
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "raw_write_final_closure_valid": true,
+      "sender_terminal_closure_valid": true,
+      "validation_issues": [
+        "sequence 15 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 16 fully evidenced reuse/idle/origin conditioning was not retained",
+        "steady download phase failed independent 29700000 B/s floor"
+      ]
+    },
+    "h2": {
+      "accepted": false,
+      "attestation_sha256": "f8d2948864a96c9dd2bb08834c637d028fe0e75f5a79a58b9bb410a88a11315f",
+      "classification": "inconclusive-upstream-reuse",
+      "conditioning_issues": [
+        "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained"
+      ],
+      "integrity_issues": [],
+      "natural_endpoint_and_namespace_statuses": true,
+      "performance_issues": [
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ],
+      "raw_write_final_closure_valid": true,
+      "sender_terminal_closure_valid": true,
+      "validation_issues": [
+        "sequence 13 fully evidenced reuse/idle/origin conditioning was not retained",
+        "sequence 14 fully evidenced reuse/idle/origin conditioning was not retained",
+        "retained-warmup download phase failed independent 29700000 B/s floor",
+        "steady download phase failed independent 29700000 B/s floor"
+      ]
+    }
+  },
+  "evidence_complete": true,
+  "export_exclusions": [
+    "tls/private.test.key.pem",
+    "tls/public.test.key.pem",
+    "h1/readiness.json",
+    "h2/readiness.json",
+    "private bearer/auth/log material and full run tree; export selection requires separate safety allowlist"
+  ],
+  "file_count": 271,
+  "final_status": {
+    "accepted": false,
+    "diagnostic": "wan-below-tls-server-growth",
+    "diagnostic_only": true,
+    "finished_unix_nano": 1792214566971078639,
+    "fresh_outer_topology_per_started_arm": true,
+    "h1": {
+      "accepted": false,
+      "continuation_status": 0,
+      "safe_to_continue": true,
+      "status": 1
+    },
+    "h2": {
+      "accepted": false,
+      "started": true,
+      "status": 1
+    },
+    "order": [
+      "h1",
+      "h2"
+    ],
+    "performance_result": true,
+    "pre_post_hashes_equal": true,
+    "same_binaries_both_arms": true,
+    "same_verified_certificate_both_arms": true,
+    "schema_version": 1,
+    "size_mode": "sustained"
+  },
+  "final_status_sha256": "47142501c443618268cd4b502e6225ed80cb902869f04738f2afb993b07de3ad",
+  "launcher_records_ledger_sha256": "a3450da1107701af9ebb3ad7f4aca2d76265d8399de9ffb172d256c2de2e2b5e",
+  "launcher_result_sha256": "0cfccd1cd8c750a9b2b0e6827464f194685c845505d469c990a615e2eb32860d",
+  "run_ledger_sha256": "ed6caa87a355b1b18cd2d7976c673cf47c05bce9192a192f0010ef06d19ada07",
+  "run_root": "tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1",
+  "schema_version": 1,
+  "total_bytes": 16912412
+}

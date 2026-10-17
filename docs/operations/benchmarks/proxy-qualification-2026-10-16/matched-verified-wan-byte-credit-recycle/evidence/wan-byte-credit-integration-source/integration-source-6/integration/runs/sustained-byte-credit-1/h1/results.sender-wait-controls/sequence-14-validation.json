@@ -1,0 +1,210 @@
+{
+  "accepted": true,
+  "issues": [],
+  "mode": "pair",
+  "schema_version": 1,
+  "selected": {
+    "allocation_charged_bytes": 268460032,
+    "durations": {
+      "credit_wait_total": {
+        "count": 21,
+        "max_nanoseconds": 240263094,
+        "total_nanoseconds": 1028181989
+      },
+      "data_call_total": {
+        "count": 8202,
+        "max_nanoseconds": 158316436,
+        "total_nanoseconds": 10592453740
+      },
+      "data_completion_select_total": {
+        "count": 8202,
+        "max_nanoseconds": 158313661,
+        "total_nanoseconds": 10574023109
+      },
+      "data_enqueue_select_total": {
+        "count": 8202,
+        "max_nanoseconds": 27594,
+        "total_nanoseconds": 18430631
+      },
+      "physical_write_total": {
+        "count": 8202,
+        "max_nanoseconds": 158293853,
+        "total_nanoseconds": 10524302218
+      }
+    },
+    "enqueue_publication_races": 0,
+    "frames": 8202,
+    "lane": 2,
+    "payload_bytes": 268435671,
+    "raw_write_activity": {
+      "accepted": true,
+      "bools": {
+        "ambiguous": false,
+        "bound": true,
+        "close_observed": false,
+        "complete": true,
+        "enabled": true,
+        "multiple_streams": false,
+        "overflow": false,
+        "reset_performed": true,
+        "session_joined": false,
+        "stream_observed": true
+      },
+      "classes": {
+        "contained": {
+          "buckets": {
+            "duration": {
+              "count": 24580,
+              "max_nanoseconds": 158262031,
+              "total_nanoseconds": 10406462547
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 24580,
+              "max_nanoseconds": 158262031,
+              "total_nanoseconds": 10406462547
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 269074855,
+            "calls": 24580,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 269074855,
+            "success_calls": 24580,
+            "success_written_bytes": 269074855,
+            "written_bytes": 269074855
+          }
+        },
+        "outside": {
+          "buckets": {
+            "duration": {
+              "count": 15,
+              "max_nanoseconds": 30649,
+              "total_nanoseconds": 131014
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 15,
+              "max_nanoseconds": 30649,
+              "total_nanoseconds": 131014
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 522,
+            "calls": 15,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 522,
+            "success_calls": 15,
+            "success_written_bytes": 522,
+            "written_bytes": 522
+          }
+        },
+        "straddling": {
+          "buckets": {
+            "duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "error_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "short_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            },
+            "success_duration": {
+              "count": 0,
+              "max_nanoseconds": 0,
+              "total_nanoseconds": 0
+            }
+          },
+          "scalars": {
+            "attempt_bytes": 0,
+            "calls": 0,
+            "error_attempt_bytes": 0,
+            "error_calls": 0,
+            "error_written_bytes": 0,
+            "short_attempt_bytes": 0,
+            "short_calls": 0,
+            "short_written_bytes": 0,
+            "success_attempt_bytes": 0,
+            "success_calls": 0,
+            "success_written_bytes": 0,
+            "written_bytes": 0
+          }
+        }
+      },
+      "durations": {
+        "contained_raw_duration": {
+          "count": 8202,
+          "max_nanoseconds": 158273794,
+          "total_nanoseconds": 10406462547
+        },
+        "envelope_duration": {
+          "count": 8202,
+          "max_nanoseconds": 158293853,
+          "total_nanoseconds": 10524302218
+        },
+        "residual_duration": {
+          "count": 8202,
+          "max_nanoseconds": 61019,
+          "total_nanoseconds": 117839671
+        }
+      },
+      "ints": {
+        "active_envelopes": 0,
+        "active_raw_writes": 0,
+        "boundary_active_raw_writes": 0,
+        "boundary_outside_completions": 0,
+        "envelope_count": 8202,
+        "envelope_overlaps": 0,
+        "envelope_payload_bytes": 268435671,
+        "envelope_wire_bytes": 268534095,
+        "envelope_zero_raw_calls": 0,
+        "generation": 5,
+        "lane": 2,
+        "maximum_active_raw_writes": 1,
+        "observed_stream_id": 6,
+        "owner_generation_changes": 0,
+        "schema_version": 1
+      },
+      "issues": []
+    },
+    "stream_id": 6,
+    "wire_bytes": 268534095
+  },
+  "selected_lane": 2,
+  "sequence": 14
+}

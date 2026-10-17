@@ -1,0 +1,1 @@
+Tiny2 bounded semantic review. Accepted integrity, ownership, exact selected joins, zero-drop growth capture, raw temporal-envelope conservation, and five-session terminal closure in both arms. The 4 MiB run is observational and supports no throughput or WAN causal claim.

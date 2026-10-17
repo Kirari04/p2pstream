@@ -1,0 +1,106 @@
+{
+  "accepted": true,
+  "checks": {
+    "app_namespaces_match": true,
+    "cpu_affinity_match": true,
+    "finite_memory_max": true,
+    "inner_net_is_nested": true,
+    "inner_user_is_nested": true,
+    "local_pid_match": true,
+    "memory_high_unbounded": true,
+    "mount_matches_outer": true,
+    "namespaces_match_owned_runner": true,
+    "namespaces_match_state": true,
+    "no_memory_events": true,
+    "nonce_match": true,
+    "outer_cgroup_matches_parent": true,
+    "outer_cgroup_namespace_unchanged": true,
+    "outer_private_user_pid_mount_net": true,
+    "outer_python_parent_is_one": true,
+    "outer_shell_pid_is_one": true,
+    "pid_matches_outer": true,
+    "role_match": true,
+    "runner_cgroup_matches_outer": true,
+    "runner_hash_match": true,
+    "same_pid_as_preexec": true,
+    "same_start_ticks_as_preexec": true,
+    "server_binary_hash_match": true,
+    "server_cmdline_match": true,
+    "server_exe_match": true,
+    "server_ready_hash_match": true,
+    "start_ticks_match": true,
+    "swap_disabled": true
+  },
+  "host_process": {
+    "host_cmdline": [
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/bin/current-server-wan-byte-credit-audited.test",
+      "-test.run",
+      "^TestExternalProxyQualificationServerProcess$",
+      "-test.timeout",
+      "4397s"
+    ],
+    "host_cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "host_exe": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/combined-build-source/runs/audited-build-attempt-5/bin/current-server-wan-byte-credit-audited.test",
+    "host_namespaces": {
+      "cgroup": "cgroup:[4026531835]",
+      "mnt": "mnt:[4026532935]",
+      "net": "net:[4026533521]",
+      "pid": "pid:[4026532936]",
+      "user": "user:[4026533520]"
+    },
+    "host_nspgid": [
+      1885098,
+      182
+    ],
+    "host_nspid": [
+      1885098,
+      182
+    ],
+    "host_pid": 1885098,
+    "host_start_ticks": 5197992,
+    "nonce": "7f3f917c-495e-4c05-80f6-42ef97ec6d24",
+    "role": "server"
+  },
+  "phase": "application",
+  "schema_version": 1,
+  "scope": {
+    "members": [
+      1885098
+    ],
+    "memory_current_bytes": 14168064,
+    "memory_events": {
+      "high": 0,
+      "low": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_group_kill": 0,
+      "oom_kill": 0,
+      "sock_throttled": 0
+    },
+    "memory_high_bytes": "max",
+    "memory_max_bytes": 4294967296,
+    "memory_peak_bytes": 14172160,
+    "memory_swap_max_bytes": 0,
+    "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-1884502-7f3f917c.scope"
+  },
+  "state": {
+    "runner_namespaces": {
+      "cgroup": "cgroup:[4026531835]",
+      "mnt": "mnt:[4026532935]",
+      "net": "net:[4026533521]",
+      "pid": "pid:[4026532936]",
+      "user": "user:[4026533520]"
+    },
+    "runner_sha256": "a672ab078d424a59d795c522a40f96da815b8aaa55af6f21fce4eed07a63b1ad",
+    "schema_version": 1,
+    "server_binary_sha256": "f5ea1077c3742c4c2aa88bded626418867c8c2ba1c659bcb40b2bfe9ad1df428",
+    "server_local_pid": 182,
+    "server_ready_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/integration-source-6/integration/runs/sustained-byte-credit-1/h2/proxy-agent-growth.LIjvnk/current-server-aggregate-v1-h2-1-server.ready.json",
+    "server_ready_sha256": "cdb514a88308ab02713033bf033730eec2a3834623af2f31cba5a5b2b3be854d"
+  }
+}

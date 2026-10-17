@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "command_stdout_complete": true,
+  "command_stdout": "",
+  "initial": {"chunk_id":"ad7bb4","session_id":73497,"wall_time_seconds":1.001244125,"output":"","running":true},
+  "intermediate": [
+    {"chunk_id":"56919a","session_id":73497,"wall_time_seconds":10.001363789,"output":"","running":true},
+    {"chunk_id":"6697d1","session_id":73497,"wall_time_seconds":10.000450527,"output":"","running":true}
+  ],
+  "final": {"chunk_id":"7fb0e2","exit_code":1,"wall_time_seconds":0.000014558,"output":""},
+  "interpretation": "Native tool envelope exit 1 matches the saved launcher/coordinator status 1. This metadata records only returned tool fields; no unreturned transcript is reconstructed."
+}

@@ -372,6 +372,23 @@ timing remain absent. They establish no production defect, runtime fix, policy
 change or WAN gate clearance. See the
 [below-TLS/server-growth evidence](matched-verified-wan-below-tls-server-growth/README.md).
 
+The byte-credit recycle follow-up completes another 32 exact status-200
+transfers with the requested H1/H2 protocol and natural cleanup, but both arms
+remain rejected and `inconclusive-upstream-reuse`. H1 fails the steady download
+floor at 22.408983 MB/s; H2 fails at 27.455443 MB/s retained and 18.800107 MB/s
+steady. All eight selected byte-credit, sender, raw-write and server-growth
+joins pass exact conservation and closure. In the two conditioning-clean rows,
+H2 byte-zero wait exceeds H1 by 714.781 ms and 873.756 ms, concentrated in
+ranges containing normal-read credit. Individual receiver/peer local sections
+are microsecond-scale, with receiver totals about 4–6 ms, so they do not explain
+the excess. A same-endpoint cadence supplement shows no material
+post-publication cadence expansion under its coarse wall-label comparison and
+places the remaining difference before receiver eligibility; it cannot split
+inbound DATA from consumer or HTTP/2 backpressure, and cross-process transit
+remains unmeasured. The result establishes no cause, runtime fix, timeout or
+window policy change, or WAN gate clearance. See the
+[byte-credit recycle evidence](matched-verified-wan-byte-credit-recycle/README.md).
+
 The earlier final-runtime checkpoint
 `dc738e9000e60cd7ce3a0279127486f3bc05067a` has a low-latency tiny-response
 matrix that passes all 12 throughput and tail gates with exact conservation. Its

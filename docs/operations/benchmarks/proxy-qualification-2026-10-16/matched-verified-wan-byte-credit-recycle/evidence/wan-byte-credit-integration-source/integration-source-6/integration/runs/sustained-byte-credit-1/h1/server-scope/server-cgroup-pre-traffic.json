@@ -1,0 +1,20 @@
+{
+  "members": [
+    1881840
+  ],
+  "memory_current_bytes": 17268736,
+  "memory_events": {
+    "high": 0,
+    "low": 0,
+    "max": 0,
+    "oom": 0,
+    "oom_group_kill": 0,
+    "oom_kill": 0,
+    "sock_throttled": 0
+  },
+  "memory_high_bytes": "max",
+  "memory_max_bytes": 4294967296,
+  "memory_peak_bytes": 17272832,
+  "memory_swap_max_bytes": 0,
+  "path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h1-1881247-a1ac591b.scope"
+}
