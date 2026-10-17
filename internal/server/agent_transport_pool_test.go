@@ -533,7 +533,10 @@ func TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStream
 }
 
 func TestAgentTransportPoolSeparatesAgentsAndRouteTargets(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	defer upstream.Close()
 	app := NewApp(nil, nil)
+	t.Cleanup(app.AgentTransports.closeAll)
 	first, firstFake := newFakeYamuxAgent(t, 7, "agent-7")
 	defer firstFake.close()
 	second, secondFake := newFakeYamuxAgent(t, 8, "agent-8")
@@ -541,29 +544,36 @@ func TestAgentTransportPoolSeparatesAgentsAndRouteTargets(t *testing.T) {
 
 	target := publicRouteTargetConfig{
 		ID:                            70,
-		URL:                           "http://upstream.test:9000",
+		URL:                           upstream.URL,
 		UpstreamResponseHeaderTimeout: time.Second,
 	}
 	firstTransport := app.agentTargetTransport(first, target)
 	secondAgentTransport := app.agentTargetTransport(second, target)
-	if firstTransport == secondAgentTransport {
-		t.Fatal("different agents shared a pooled transport")
-	}
 
 	secondTarget := target
 	secondTarget.ID = 71
-	secondTarget.URL = "http://upstream.test:9000"
+	secondTarget.URL = upstream.URL
 	secondTargetTransport := app.agentTargetTransport(first, secondTarget)
-	if firstTransport == secondTargetTransport {
-		t.Fatal("different route target ids shared a pooled transport")
-	}
 
 	timeoutTarget := target
 	timeoutTarget.UpstreamResponseHeaderTimeout = 2 * time.Second
 	timeoutTransport := app.agentTargetTransport(first, timeoutTarget)
-	if firstTransport == timeoutTransport {
-		t.Fatal("different route target timeout config shared a pooled transport")
+	// Factories hold no lease or pool entry; exercise their actual requests
+	// before asserting isolation, rather than comparing wrapper addresses.
+	for _, rt := range []http.RoundTripper{firstTransport, secondAgentTransport, secondTargetTransport, timeoutTransport} {
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
+		resp, err := rt.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
+	firstFake.waitOpenRequestCount(t, 3)
+	secondFake.waitOpenRequestCount(t, 1)
 
 	if got := app.AgentTransports.len(); got != 4 {
 		t.Fatalf("agent transport pool len = %d, want 4", got)

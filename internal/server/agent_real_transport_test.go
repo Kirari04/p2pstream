@@ -156,13 +156,27 @@ func (f *realAgentProxyFixture) roundTrip(ctx context.Context, path string, trac
 
 func TestRealAgentParallelTunnelsSurvivePrimaryLoss(t *testing.T) {
 	f := newRealAgentProxyFixture(t, 4, 2<<20, 0)
-	for range 8 {
+	warmed := make(map[int]bool)
+	for sequence := range 8 {
 		if n, err := f.roundTrip(t.Context(), "/api", nil); err != nil || n != 2 {
 			t.Fatalf("proxy: %d, %v", n, err)
 		}
+		if sequence < 4 {
+			f.app.AgentTransports.mu.Lock()
+			for key := range f.app.AgentTransports.entries {
+				warmed[key.TunnelLane] = true
+			}
+			f.app.AgentTransports.mu.Unlock()
+			// Retiring the warmup entry exercises every lane while retaining
+			// the production policy for the subsequent serial requests.
+			f.app.AgentTransports.closeAll()
+		}
 	}
-	if got := f.app.AgentTransports.len(); got != 4 {
-		t.Fatalf("pooled lanes=%d, want 4", got)
+	if len(warmed) != 4 || !realAgentAggregateLaneShape(f.agent, 4) {
+		t.Fatalf("warmed lanes=%v, want all four connected bulk lanes", warmed)
+	}
+	if got := f.app.AgentTransports.len(); got != 1 {
+		t.Fatalf("serial same-target pooled entries=%d, want 1", got)
 	}
 	initial := f.agent
 	_ = initial.Session.Close()
