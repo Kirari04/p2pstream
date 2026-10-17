@@ -1,0 +1,95 @@
+=== RUN   TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy
+--- PASS: TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy (0.00s)
+=== RUN   TestResolvedClientIdentityFeedsPolicyAndRateLimit
+--- PASS: TestResolvedClientIdentityFeedsPolicyAndRateLimit (0.00s)
+=== RUN   TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer
+--- PASS: TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer (0.00s)
+=== RUN   TestResolvedClientIdentityFeedsGeneratedForwardingHeaders
+--- PASS: TestResolvedClientIdentityFeedsGeneratedForwardingHeaders (0.00s)
+=== RUN   TestForwardingHeadersStripConfiguredAndCommonClientIPClaims
+=== RUN   TestForwardingHeadersStripConfiguredAndCommonClientIPClaims/direct_request_with_disabled_source
+=== RUN   TestForwardingHeadersStripConfiguredAndCommonClientIPClaims/unresolved_trusted_request
+=== RUN   TestForwardingHeadersStripConfiguredAndCommonClientIPClaims/resolved_trusted_request
+--- PASS: TestForwardingHeadersStripConfiguredAndCommonClientIPClaims (0.00s)
+    --- PASS: TestForwardingHeadersStripConfiguredAndCommonClientIPClaims/direct_request_with_disabled_source (0.00s)
+    --- PASS: TestForwardingHeadersStripConfiguredAndCommonClientIPClaims/unresolved_trusted_request (0.00s)
+    --- PASS: TestForwardingHeadersStripConfiguredAndCommonClientIPClaims/resolved_trusted_request (0.00s)
+=== RUN   TestResolvedIdentityContextOwnershipAndPrecedence
+--- PASS: TestResolvedIdentityContextOwnershipAndPrecedence (0.00s)
+=== RUN   TestResolvedIdentityContextPreservesParentCancellationAndLifetime
+--- PASS: TestResolvedIdentityContextPreservesParentCancellationAndLifetime (0.00s)
+=== RUN   TestResolvedIdentityContextConcurrentReadersAreIsolated
+--- PASS: TestResolvedIdentityContextConcurrentReadersAreIsolated (0.00s)
+=== RUN   TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders
+--- PASS: TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders (0.00s)
+=== RUN   TestClientIdentityResolverDisabledSourceDoesNotTrustPeer
+--- PASS: TestClientIdentityResolverDisabledSourceDoesNotTrustPeer (0.00s)
+=== RUN   TestClientIdentityResolverSingleIPIsStrict
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/valid_ipv4
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/valid_ipv6
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/missing
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/comma_list
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/repeated
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/ip_with_port
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/bracketed_ipv6
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/zone
+=== RUN   TestClientIdentityResolverSingleIPIsStrict/empty
+--- PASS: TestClientIdentityResolverSingleIPIsStrict (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/valid_ipv4 (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/valid_ipv6 (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/missing (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/comma_list (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/repeated (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/ip_with_port (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/bracketed_ipv6 (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/zone (0.00s)
+    --- PASS: TestClientIdentityResolverSingleIPIsStrict/empty (0.00s)
+=== RUN   TestClientIdentityResolverTrustedChainWalksRightToLeft
+--- PASS: TestClientIdentityResolverTrustedChainWalksRightToLeft (0.00s)
+=== RUN   TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources
+--- PASS: TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources (0.00s)
+=== RUN   TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop
+--- PASS: TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop (0.00s)
+=== RUN   TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput
+=== RUN   TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/all_trusted
+=== RUN   TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/too_many_hops
+=== RUN   TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/too_many_bytes
+=== RUN   TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/empty_hop
+--- PASS: TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput (0.00s)
+    --- PASS: TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/all_trusted (0.00s)
+    --- PASS: TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/too_many_hops (0.00s)
+    --- PASS: TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/too_many_bytes (0.00s)
+    --- PASS: TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput/empty_hop (0.00s)
+=== RUN   TestClientIdentityResolverOverlappingSourcesRequireAgreement
+=== RUN   TestClientIdentityResolverOverlappingSourcesRequireAgreement/agree
+=== RUN   TestClientIdentityResolverOverlappingSourcesRequireAgreement/conflict
+=== RUN   TestClientIdentityResolverOverlappingSourcesRequireAgreement/one_source_missing
+--- PASS: TestClientIdentityResolverOverlappingSourcesRequireAgreement (0.00s)
+    --- PASS: TestClientIdentityResolverOverlappingSourcesRequireAgreement/agree (0.00s)
+    --- PASS: TestClientIdentityResolverOverlappingSourcesRequireAgreement/conflict (0.00s)
+    --- PASS: TestClientIdentityResolverOverlappingSourcesRequireAgreement/one_source_missing (0.00s)
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/empty_name
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/duplicate_name
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/invalid_header
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/invalid_mode
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/no_prefixes
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/bad_byte_cap
+=== RUN   TestClientIdentityResolverRejectsInvalidConfiguration/bad_hop_cap
+--- PASS: TestClientIdentityResolverRejectsInvalidConfiguration (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/empty_name (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/duplicate_name (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/invalid_header (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/invalid_mode (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/no_prefixes (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/bad_byte_cap (0.00s)
+    --- PASS: TestClientIdentityResolverRejectsInvalidConfiguration/bad_hop_cap (0.00s)
+=== RUN   TestClientIdentityContextHelpers
+--- PASS: TestClientIdentityContextHelpers (0.00s)
+=== RUN   TestClientIdentityResolverAttachesAllConfiguredHeaderNames
+--- PASS: TestClientIdentityResolverAttachesAllConfiguredHeaderNames (0.00s)
+=== RUN   TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy
+--- PASS: TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy (0.00s)
+=== RUN   TestManagementLoginClientKeyRejectsUnknownTrustedIdentity
+--- PASS: TestManagementLoginClientKeyRejectsUnknownTrustedIdentity (0.00s)
+PASS

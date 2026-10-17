@@ -1,0 +1,1912 @@
+{
+  "retained": true,
+  "failed_cases": [],
+  "case_count": 28,
+  "sample_count": 560,
+  "results": {
+    "configured-untrusted/background/resolve": {
+      "baseline_median_ns_per_op": 441.5,
+      "candidate_median_ns_per_op": 282.15,
+      "median_time_ratio": 0.6390713476783692,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6354096896628713,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.6372304199772985,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.6366939146230699,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6391423357664233,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6455097906819717,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6302801244997777,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6456148181209551,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.6508152173913042,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6345499886647018,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.636157680108745,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "configured-untrusted/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 527.25,
+      "candidate_median_ns_per_op": 361.45,
+      "median_time_ratio": 0.6855381697486961,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6604858149452995,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.6785849413545213,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.675603726944286,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6676669167291822,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6848644578313252,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6808550889141127,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.690376569037657,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7157612853863811,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7505716463414634,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7287426288757847,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "configured-untrusted/deadline/resolve": {
+      "baseline_median_ns_per_op": 445.8,
+      "candidate_median_ns_per_op": 281.75,
+      "median_time_ratio": 0.6320098698968147,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6374745417515275,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.6321220278151638,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.6331000225784601,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6943387782501679,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6125734174461606,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6265865063460253,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6412042237699392,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.6466998191681737,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.62673844773441,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.631672203765227,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "configured-untrusted/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 536.4000000000001,
+      "candidate_median_ns_per_op": 353.95000000000005,
+      "median_time_ratio": 0.6598620432513049,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6555700204575041,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.6560347952156579,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.6668558456299659,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6639556377079482,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6549935149156938,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6722992215682552,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6729583255466268,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.6411016210563012,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6773884740570554,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6638497652582159,
+          "bytes_saved": 104,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "conflicting-sources/background/resolve": {
+      "baseline_median_ns_per_op": 952.2,
+      "candidate_median_ns_per_op": 724.6,
+      "median_time_ratio": 0.7609745851711825,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7529276453366792,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.749796665311102,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7652322113336174,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7577917242846506,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.71201171875,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7943125935428694,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.7474964234620887,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.757380733476351,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.770424660487174,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.759493670886076,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "conflicting-sources/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 1088.5,
+      "candidate_median_ns_per_op": 859.9,
+      "median_time_ratio": 0.7899862195682131,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7840992647058824,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7809394760614273,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.8235996326905417,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7905116279069767,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7876838235294118,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7881040892193308,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.7450777202072538,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8009963768115942,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.8059590316573557,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7855178735105408,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "conflicting-sources/deadline/resolve": {
+      "baseline_median_ns_per_op": 932.5999999999999,
+      "candidate_median_ns_per_op": 721.45,
+      "median_time_ratio": 0.7735899635427838,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7550846555212437,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.772071490094746,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7735869331614013,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.759175788795879,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7674321503131525,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.8290380740269382,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8022525449426033,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7930147846582387,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7761674718196457,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7587482820594144,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "conflicting-sources/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 1086.0,
+      "candidate_median_ns_per_op": 862.0,
+      "median_time_ratio": 0.7937384898710865,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7940795559666974,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8036968576709796,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7761904761904762,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7078969243557772,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7732191163210099,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7807550644567219,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8435801312089972,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8091160220994476,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.8223866790009251,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7869090909090909,
+          "bytes_saved": 168,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "direct/background/resolve": {
+      "baseline_median_ns_per_op": 334.1,
+      "candidate_median_ns_per_op": 269.0,
+      "median_time_ratio": 0.8051481592337623,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8151687070767394,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8004189108318372,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.8110377924415116,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.8024580335731414,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.8094667465548232,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7880755608028335,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8084914182475158,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7954679223072395,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7970059880239521,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.8013678263455248,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "direct/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 378.2,
+      "candidate_median_ns_per_op": 303.15,
+      "median_time_ratio": 0.8015600211528292,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8260524225575854,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7778641783307414,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.786013619696176,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.798785318193821,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.8094224114985361,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.793521200948117,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8095872170439414,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8054743555673665,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.8569525839104954,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7985251514353436,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "direct/deadline/resolve": {
+      "baseline_median_ns_per_op": 334.0,
+      "candidate_median_ns_per_op": 267.9,
+      "median_time_ratio": 0.8020958083832335,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8380408653846153,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7003438243850832,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7831397080726838,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7833955759839126,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.805272618334332,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7908438061041293,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8008398320335933,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8251349730053991,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.872749099639856,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7921029015854023,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "direct/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 380.1,
+      "candidate_median_ns_per_op": 303.35,
+      "median_time_ratio": 0.7980794527755853,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7948038176033935,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8130168044811951,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7915017154922143,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7901170351105332,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7993680884676145,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7815256875973016,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8031019978969506,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8269997342545841,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7953293098924167,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7850957753870375,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "four-disabled-headers/background/resolve": {
+      "baseline_median_ns_per_op": 474.35,
+      "candidate_median_ns_per_op": 262.8,
+      "median_time_ratio": 0.5540212922947191,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.5503925312964141,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.5429883138564273,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.516656692599242,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.5602487135506004,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.5536013400335008,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.5541815133095787,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.5655216284987277,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.5610273827212906,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.5545415959252972,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.5473923841059603,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "four-disabled-headers/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 574.4000000000001,
+      "candidate_median_ns_per_op": 361.25,
+      "median_time_ratio": 0.62891713091922,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6138698630136986,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.6272727272727273,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.5465960665658094,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.622848200312989,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6327348788565452,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6974489795918368,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6336842105263157,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.6413902053712479,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6266643307638402,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6204417051874679,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "four-disabled-headers/deadline/resolve": {
+      "baseline_median_ns_per_op": 470.65,
+      "candidate_median_ns_per_op": 262.75,
+      "median_time_ratio": 0.5582704769998937,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.5603171202056996,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.5565310492505353,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.5850929054054054,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.5508727117922521,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.5633479440617825,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.5606578385305425,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.5575577697689209,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.5655807972567509,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.5480059084194978,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.5978791092258748,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "four-disabled-headers/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 579.25,
+      "candidate_median_ns_per_op": 363.3,
+      "median_time_ratio": 0.627190332326284,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6277474942852118,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.5971873430436967,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.5958422000327386,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6195558615940782,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6254945811113023,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6038639365918097,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6357938718662953,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.6344463971880492,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6284626038781164,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6300467856523999,
+          "bytes_saved": 200,
+          "allocations_saved": 5
+        }
+      ],
+      "passed": true
+    },
+    "invalid-peer/background/resolve": {
+      "baseline_median_ns_per_op": 368.5,
+      "candidate_median_ns_per_op": 302.05,
+      "median_time_ratio": 0.819674355495251,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8278109722976643,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8346927678085916,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.8150257662055872,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7805383022774328,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.8101129639591178,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.8031728959397688,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8384804591418421,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8447339847991314,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.8249250068175621,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.8182311448724905,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "invalid-peer/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 413.1,
+      "candidate_median_ns_per_op": 335.75,
+      "median_time_ratio": 0.8127572016460904,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8410740203193033,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.815990159901599,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.8177159590043924,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.8088482808367395,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.8064516129032258,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.8106915154487494,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8186012627489073,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8247098646034816,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.8074127906976745,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7788416627744045,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "invalid-peer/deadline/resolve": {
+      "baseline_median_ns_per_op": 374.25,
+      "candidate_median_ns_per_op": 303.45000000000005,
+      "median_time_ratio": 0.8108216432865732,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.724112961622013,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8188444924406049,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.818889187013684,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7807500655651717,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.8234336859235152,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.8863757317722193,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8136326751420071,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7866225839267549,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.8442224622030238,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7929319371727748,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "invalid-peer/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 410.65,
+      "candidate_median_ns_per_op": 335.1,
+      "median_time_ratio": 0.8160233775721418,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8443522810441572,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8128841898205066,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.8028846153846154,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.8072318592719276,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.8223140495867769,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.8049853372434017,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.7366345311130588,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.8202954710583676,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.805806294218102,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.8053562888570063,
+          "bytes_saved": 48,
+          "allocations_saved": 2
+        }
+      ],
+      "passed": true
+    },
+    "trusted-chain/background/resolve": {
+      "baseline_median_ns_per_op": 750.3499999999999,
+      "candidate_median_ns_per_op": 546.8499999999999,
+      "median_time_ratio": 0.7287932298260811,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7297912205567451,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7696175731110229,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7152953727163621,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.735881726158764,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7019104946349123,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7197846567967698,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.73918317832592,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7048593350383632,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7230478249121859,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6730415593968371,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-chain/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 880.4000000000001,
+      "candidate_median_ns_per_op": 663.45,
+      "median_time_ratio": 0.7535779191276692,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.7518405255408314,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.8040073698756334,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7443890274314214,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.739406779661017,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7617084621550442,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7583668775158137,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.8299567493740041,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7281270252754375,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7535010816349766,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7436790650634902,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-chain/deadline/resolve": {
+      "baseline_median_ns_per_op": 752.65,
+      "candidate_median_ns_per_op": 539.9000000000001,
+      "median_time_ratio": 0.7173320932704446,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.704818515239661,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7757615894039736,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7092698497140577,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7240683438719226,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7187416688882965,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7167645488521088,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.7450745473908413,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7287822878228782,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6519990248659191,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7175471197239183,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-chain/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 877.45,
+      "candidate_median_ns_per_op": 670.4,
+      "median_time_ratio": 0.764032138583395,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.8173262274634312,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7407651715039577,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.730359744480556,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7584657912923289,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7778414955843561,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7630828867859992,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.7519936204146731,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.7817786922725194,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7672531992687386,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.7606274153216641,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-single/background/resolve": {
+      "baseline_median_ns_per_op": 594.15,
+      "candidate_median_ns_per_op": 390.04999999999995,
+      "median_time_ratio": 0.6564840528486072,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6097986364357063,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7005410889414948,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.6806594153636982,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6562983330469153,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6344626357594424,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.65140250084488,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6538267451640033,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.6617720674119807,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6596497137083194,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6327002477291495,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-single/background/resolve-and-read": {
+      "baseline_median_ns_per_op": 715.9,
+      "candidate_median_ns_per_op": 502.04999999999995,
+      "median_time_ratio": 0.7012850956837546,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.639245283018868,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.712215909090909,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.7081771484103846,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7114646966898708,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7045615026126253,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6762501703229323,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6662182160635006,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.682069244240873,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7084272829763246,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.711595221363317,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-single/deadline/resolve": {
+      "baseline_median_ns_per_op": 599.1,
+      "candidate_median_ns_per_op": 394.79999999999995,
+      "median_time_ratio": 0.658988482724086,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6599475581776466,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.6542372881355932,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.6332229058211074,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.6598006644518273,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.7026165716202616,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.6441048034934498,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.6651974911001864,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.5721486175115208,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.6532106966445239,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6119828815977176,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    },
+    "trusted-single/deadline/resolve-and-read": {
+      "baseline_median_ns_per_op": 714.6500000000001,
+      "candidate_median_ns_per_op": 501.5,
+      "median_time_ratio": 0.7017421115231232,
+      "pairs": [
+        {
+          "pair": 1,
+          "time_ratio": 0.6956582437526176,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 2,
+          "time_ratio": 0.7091661907481439,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 3,
+          "time_ratio": 0.6972489875715682,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 4,
+          "time_ratio": 0.7219573752103197,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 5,
+          "time_ratio": 0.6767375694350359,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 6,
+          "time_ratio": 0.7143870601589104,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 7,
+          "time_ratio": 0.7223405766226388,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 8,
+          "time_ratio": 0.5931558935361216,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 9,
+          "time_ratio": 0.7171359841516909,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        },
+        {
+          "pair": 10,
+          "time_ratio": 0.6671569938486226,
+          "bytes_saved": 120,
+          "allocations_saved": 6
+        }
+      ],
+      "passed": true
+    }
+  }
+}

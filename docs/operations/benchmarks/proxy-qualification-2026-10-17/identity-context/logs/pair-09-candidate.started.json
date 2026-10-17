@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "/usr/bin/env",
+    "-C",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "taskset",
+    "-c",
+    "8",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+    "-test.run=^$",
+    "-test.bench=^BenchmarkResolvedIdentityContext$",
+    "-test.benchmem",
+    "-test.benchtime=150ms",
+    "-test.count=1",
+    "-test.timeout=90s"
+  ],
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "deadline_seconds": 120,
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "schema_version": 1,
+  "state": "running",
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

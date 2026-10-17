@@ -1,0 +1,515 @@
+{
+  "retained": true,
+  "case_count": 28,
+  "samples": 560,
+  "natural_commands": 26,
+  "tests": {
+    "correctness-baseline": {
+      "top_level_passes": 21,
+      "all_pass_records": 47,
+      "names": [
+        "TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy",
+        "TestResolvedClientIdentityFeedsPolicyAndRateLimit",
+        "TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer",
+        "TestResolvedClientIdentityFeedsGeneratedForwardingHeaders",
+        "TestForwardingHeadersStripConfiguredAndCommonClientIPClaims",
+        "TestResolvedIdentityContextOwnershipAndPrecedence",
+        "TestResolvedIdentityContextPreservesParentCancellationAndLifetime",
+        "TestResolvedIdentityContextConcurrentReadersAreIsolated",
+        "TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders",
+        "TestClientIdentityResolverDisabledSourceDoesNotTrustPeer",
+        "TestClientIdentityResolverSingleIPIsStrict",
+        "TestClientIdentityResolverTrustedChainWalksRightToLeft",
+        "TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources",
+        "TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop",
+        "TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput",
+        "TestClientIdentityResolverOverlappingSourcesRequireAgreement",
+        "TestClientIdentityResolverRejectsInvalidConfiguration",
+        "TestClientIdentityContextHelpers",
+        "TestClientIdentityResolverAttachesAllConfiguredHeaderNames",
+        "TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy",
+        "TestManagementLoginClientKeyRejectsUnknownTrustedIdentity"
+      ]
+    },
+    "correctness-candidate": {
+      "top_level_passes": 21,
+      "all_pass_records": 47,
+      "names": [
+        "TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy",
+        "TestResolvedClientIdentityFeedsPolicyAndRateLimit",
+        "TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer",
+        "TestResolvedClientIdentityFeedsGeneratedForwardingHeaders",
+        "TestForwardingHeadersStripConfiguredAndCommonClientIPClaims",
+        "TestResolvedIdentityContextOwnershipAndPrecedence",
+        "TestResolvedIdentityContextPreservesParentCancellationAndLifetime",
+        "TestResolvedIdentityContextConcurrentReadersAreIsolated",
+        "TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders",
+        "TestClientIdentityResolverDisabledSourceDoesNotTrustPeer",
+        "TestClientIdentityResolverSingleIPIsStrict",
+        "TestClientIdentityResolverTrustedChainWalksRightToLeft",
+        "TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources",
+        "TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop",
+        "TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput",
+        "TestClientIdentityResolverOverlappingSourcesRequireAgreement",
+        "TestClientIdentityResolverRejectsInvalidConfiguration",
+        "TestClientIdentityContextHelpers",
+        "TestClientIdentityResolverAttachesAllConfiguredHeaderNames",
+        "TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy",
+        "TestManagementLoginClientKeyRejectsUnknownTrustedIdentity"
+      ]
+    },
+    "correctness-candidate-race": {
+      "top_level_passes": 21,
+      "all_pass_records": 47,
+      "names": [
+        "TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy",
+        "TestResolvedClientIdentityFeedsPolicyAndRateLimit",
+        "TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer",
+        "TestResolvedClientIdentityFeedsGeneratedForwardingHeaders",
+        "TestForwardingHeadersStripConfiguredAndCommonClientIPClaims",
+        "TestResolvedIdentityContextOwnershipAndPrecedence",
+        "TestResolvedIdentityContextPreservesParentCancellationAndLifetime",
+        "TestResolvedIdentityContextConcurrentReadersAreIsolated",
+        "TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders",
+        "TestClientIdentityResolverDisabledSourceDoesNotTrustPeer",
+        "TestClientIdentityResolverSingleIPIsStrict",
+        "TestClientIdentityResolverTrustedChainWalksRightToLeft",
+        "TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources",
+        "TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop",
+        "TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput",
+        "TestClientIdentityResolverOverlappingSourcesRequireAgreement",
+        "TestClientIdentityResolverRejectsInvalidConfiguration",
+        "TestClientIdentityContextHelpers",
+        "TestClientIdentityResolverAttachesAllConfiguredHeaderNames",
+        "TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy",
+        "TestManagementLoginClientKeyRejectsUnknownTrustedIdentity"
+      ]
+    }
+  },
+  "results": {
+    "configured-untrusted/background/resolve": {
+      "baseline_median_ns": 441.5,
+      "candidate_median_ns": 282.15,
+      "median_time_ratio": 0.6390713476783692,
+      "max_pair_time_ratio": 0.6508152173913042,
+      "bytes_saved_range": [
+        104,
+        104
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "configured-untrusted/background/resolve-and-read": {
+      "baseline_median_ns": 527.25,
+      "candidate_median_ns": 361.45,
+      "median_time_ratio": 0.6855381697486961,
+      "max_pair_time_ratio": 0.7505716463414634,
+      "bytes_saved_range": [
+        104,
+        104
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "configured-untrusted/deadline/resolve": {
+      "baseline_median_ns": 445.8,
+      "candidate_median_ns": 281.75,
+      "median_time_ratio": 0.6320098698968147,
+      "max_pair_time_ratio": 0.6943387782501679,
+      "bytes_saved_range": [
+        104,
+        104
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "configured-untrusted/deadline/resolve-and-read": {
+      "baseline_median_ns": 536.4000000000001,
+      "candidate_median_ns": 353.95000000000005,
+      "median_time_ratio": 0.6598620432513049,
+      "max_pair_time_ratio": 0.6773884740570554,
+      "bytes_saved_range": [
+        104,
+        104
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "conflicting-sources/background/resolve": {
+      "baseline_median_ns": 952.2,
+      "candidate_median_ns": 724.6,
+      "median_time_ratio": 0.7609745851711825,
+      "max_pair_time_ratio": 0.7943125935428694,
+      "bytes_saved_range": [
+        168,
+        168
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "conflicting-sources/background/resolve-and-read": {
+      "baseline_median_ns": 1088.5,
+      "candidate_median_ns": 859.9,
+      "median_time_ratio": 0.7899862195682131,
+      "max_pair_time_ratio": 0.8235996326905417,
+      "bytes_saved_range": [
+        168,
+        168
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "conflicting-sources/deadline/resolve": {
+      "baseline_median_ns": 932.5999999999999,
+      "candidate_median_ns": 721.45,
+      "median_time_ratio": 0.7735899635427838,
+      "max_pair_time_ratio": 0.8290380740269382,
+      "bytes_saved_range": [
+        168,
+        168
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "conflicting-sources/deadline/resolve-and-read": {
+      "baseline_median_ns": 1086.0,
+      "candidate_median_ns": 862.0,
+      "median_time_ratio": 0.7937384898710865,
+      "max_pair_time_ratio": 0.8435801312089972,
+      "bytes_saved_range": [
+        168,
+        168
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "direct/background/resolve": {
+      "baseline_median_ns": 334.1,
+      "candidate_median_ns": 269.0,
+      "median_time_ratio": 0.8051481592337623,
+      "max_pair_time_ratio": 0.8151687070767394,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "direct/background/resolve-and-read": {
+      "baseline_median_ns": 378.2,
+      "candidate_median_ns": 303.15,
+      "median_time_ratio": 0.8015600211528292,
+      "max_pair_time_ratio": 0.8569525839104954,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "direct/deadline/resolve": {
+      "baseline_median_ns": 334.0,
+      "candidate_median_ns": 267.9,
+      "median_time_ratio": 0.8020958083832335,
+      "max_pair_time_ratio": 0.872749099639856,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "direct/deadline/resolve-and-read": {
+      "baseline_median_ns": 380.1,
+      "candidate_median_ns": 303.35,
+      "median_time_ratio": 0.7980794527755853,
+      "max_pair_time_ratio": 0.8269997342545841,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "four-disabled-headers/background/resolve": {
+      "baseline_median_ns": 474.35,
+      "candidate_median_ns": 262.8,
+      "median_time_ratio": 0.5540212922947191,
+      "max_pair_time_ratio": 0.5655216284987277,
+      "bytes_saved_range": [
+        200,
+        200
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "four-disabled-headers/background/resolve-and-read": {
+      "baseline_median_ns": 574.4000000000001,
+      "candidate_median_ns": 361.25,
+      "median_time_ratio": 0.62891713091922,
+      "max_pair_time_ratio": 0.6974489795918368,
+      "bytes_saved_range": [
+        200,
+        200
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "four-disabled-headers/deadline/resolve": {
+      "baseline_median_ns": 470.65,
+      "candidate_median_ns": 262.75,
+      "median_time_ratio": 0.5582704769998937,
+      "max_pair_time_ratio": 0.5978791092258748,
+      "bytes_saved_range": [
+        200,
+        200
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "four-disabled-headers/deadline/resolve-and-read": {
+      "baseline_median_ns": 579.25,
+      "candidate_median_ns": 363.3,
+      "median_time_ratio": 0.627190332326284,
+      "max_pair_time_ratio": 0.6357938718662953,
+      "bytes_saved_range": [
+        200,
+        200
+      ],
+      "allocations_saved_range": [
+        5,
+        5
+      ],
+      "accepted": true
+    },
+    "invalid-peer/background/resolve": {
+      "baseline_median_ns": 368.5,
+      "candidate_median_ns": 302.05,
+      "median_time_ratio": 0.819674355495251,
+      "max_pair_time_ratio": 0.8447339847991314,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "invalid-peer/background/resolve-and-read": {
+      "baseline_median_ns": 413.1,
+      "candidate_median_ns": 335.75,
+      "median_time_ratio": 0.8127572016460904,
+      "max_pair_time_ratio": 0.8410740203193033,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "invalid-peer/deadline/resolve": {
+      "baseline_median_ns": 374.25,
+      "candidate_median_ns": 303.45000000000005,
+      "median_time_ratio": 0.8108216432865732,
+      "max_pair_time_ratio": 0.8863757317722193,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "invalid-peer/deadline/resolve-and-read": {
+      "baseline_median_ns": 410.65,
+      "candidate_median_ns": 335.1,
+      "median_time_ratio": 0.8160233775721418,
+      "max_pair_time_ratio": 0.8443522810441572,
+      "bytes_saved_range": [
+        48,
+        48
+      ],
+      "allocations_saved_range": [
+        2,
+        2
+      ],
+      "accepted": true
+    },
+    "trusted-chain/background/resolve": {
+      "baseline_median_ns": 750.3499999999999,
+      "candidate_median_ns": 546.8499999999999,
+      "median_time_ratio": 0.7287932298260811,
+      "max_pair_time_ratio": 0.7696175731110229,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-chain/background/resolve-and-read": {
+      "baseline_median_ns": 880.4000000000001,
+      "candidate_median_ns": 663.45,
+      "median_time_ratio": 0.7535779191276692,
+      "max_pair_time_ratio": 0.8299567493740041,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-chain/deadline/resolve": {
+      "baseline_median_ns": 752.65,
+      "candidate_median_ns": 539.9000000000001,
+      "median_time_ratio": 0.7173320932704446,
+      "max_pair_time_ratio": 0.7757615894039736,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-chain/deadline/resolve-and-read": {
+      "baseline_median_ns": 877.45,
+      "candidate_median_ns": 670.4,
+      "median_time_ratio": 0.764032138583395,
+      "max_pair_time_ratio": 0.8173262274634312,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-single/background/resolve": {
+      "baseline_median_ns": 594.15,
+      "candidate_median_ns": 390.04999999999995,
+      "median_time_ratio": 0.6564840528486072,
+      "max_pair_time_ratio": 0.7005410889414948,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-single/background/resolve-and-read": {
+      "baseline_median_ns": 715.9,
+      "candidate_median_ns": 502.04999999999995,
+      "median_time_ratio": 0.7012850956837546,
+      "max_pair_time_ratio": 0.712215909090909,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-single/deadline/resolve": {
+      "baseline_median_ns": 599.1,
+      "candidate_median_ns": 394.79999999999995,
+      "median_time_ratio": 0.658988482724086,
+      "max_pair_time_ratio": 0.7026165716202616,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    },
+    "trusted-single/deadline/resolve-and-read": {
+      "baseline_median_ns": 714.6500000000001,
+      "candidate_median_ns": 501.5,
+      "median_time_ratio": 0.7017421115231232,
+      "max_pair_time_ratio": 0.7223405766226388,
+      "bytes_saved_range": [
+        120,
+        120
+      ],
+      "allocations_saved_range": [
+        6,
+        6
+      ],
+      "accepted": true
+    }
+  },
+  "commands_sha256": "d5dfe54d11cda019ecfd0c1112eaa8cb7b10b9e06edc770ac00bcc870a922dd9",
+  "all_samples_sha256": "92dd49172eecfed2b05fe981e48231bd862e2d020ee16aeaf46ed749a7a1bc4d",
+  "results_sha256": "dcece305c35c0e56a8c4e1c9ddc29cdddc60a5be1b4cd79b48fcdba90ad93bb7",
+  "frozen_inputs_sha256": "e4d60fc7e90fab4c30c3d27d5ebc5d9adf93802e49df8ed3ac89a00e5655384f"
+}

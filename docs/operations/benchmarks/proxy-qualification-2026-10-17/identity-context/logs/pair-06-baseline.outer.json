@@ -1,0 +1,44 @@
+{
+  "accepted_cleanup": true,
+  "adopted_descendants": [],
+  "argv": [
+    "/usr/bin/env",
+    "-C",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "taskset",
+    "-c",
+    "8",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+    "-test.run=^$",
+    "-test.bench=^BenchmarkResolvedIdentityContext$",
+    "-test.benchmem",
+    "-test.benchtime=150ms",
+    "-test.count=1",
+    "-test.timeout=90s"
+  ],
+  "artifact_bytes": 1854597917,
+  "artifact_rejection_threshold_bytes": 4294967296,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 7.243577415996697,
+  "failure_reason": "",
+  "forced": false,
+  "owned_identities": [
+    {
+      "pgid": 2857572,
+      "pid": 2857572,
+      "ppid": 2853148,
+      "sid": 2857572,
+      "start_ticks": 9491445,
+      "state": "R"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 0,
+  "stderr_bytes": 0,
+  "stdout_bytes": 4224,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

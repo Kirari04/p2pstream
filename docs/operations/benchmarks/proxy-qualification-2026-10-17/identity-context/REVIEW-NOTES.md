@@ -1,0 +1,7 @@
+# Review notes
+
+The coordinating root reviewed the isolated production patch before execution and reported no source blocker. The reviewed request-owned context stores only Resolve's fresh result and the immutable resolver header list. Getter copies and existing setter shadowing remain observable API contracts; all unrelated context values and cancellation propagate through the embedded parent. No pooling, trust parsing, sanitization, recorder, event, transaction, admission or transport changes are included.
+
+The root also reviewed the finite runner and required the existing accepted Linux child-subreaper supervisor, durable failure/cleanup records, complete source-set/hash guards, per-benchmark executable identity checks, reviewed plan/runner/frozen identities, and artifact/log bounds. Those changes were completed before the exact b664871b7c57c662143ad8f458fdcb4a615235d7ac202319e36a09b810010e7d reviewed manifest was launched by the root. The predeclared screen criteria were unchanged.
+
+The separate saved-result verifier reconstructs every timing sample from original logs using token splitting rather than the screen parser's regular expression, checks all source/log/audit/binary bindings, and independently reapplies the original gates. Its accepted result is in independent-verification.json. These notes summarize reviewer assessment; raw runtime evidence is in commands.json, logs/, all-samples.json and results.json.

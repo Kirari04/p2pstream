@@ -1,0 +1,25 @@
+{
+  "source_head": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "existing_source_files": 430,
+  "identical_overlay": "internal/server/client_identity_context_test.go",
+  "source_files_each_variant": {
+    "baseline": 431,
+    "candidate": 431
+  },
+  "sole_existing_source_difference": "internal/server/client_identity.go",
+  "baseline_runtime_sha256": "66f30fa07d3e35b24690d66f1d6b438e1c46b9ce569bf712181166facbda2d29",
+  "candidate_runtime_sha256": "a62ee2f50e0fb8aae3b842cf979441b804ce1f3f998164c46819cefbbd410ed3",
+  "overlay_sha256": "f2bcebc1e54bf955851dff90d43a783f69b92bea0b1c8e1304d5d4065bf81f85",
+  "patch_sha256": "1bb0fa5ad6d1b073e8a73fcc1510b54d31bc8934418049a2fb53475c300cfa00",
+  "approved_manifest_sha256": "b664871b7c57c662143ad8f458fdcb4a615235d7ac202319e36a09b810010e7d",
+  "normal_binary_sha256": {
+    "baseline": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6",
+    "candidate": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  "candidate_race_binary_sha256": "cecda94565b83edc5d15b1364e4ea3b5b2a9292e2125e9273ec512b7bee4cf12",
+  "go_executable_sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+  "raw_stream_bytes": 106553,
+  "natural_command_count": 26,
+  "screen_accepted": true,
+  "production_source_modified_during_screen": false
+}

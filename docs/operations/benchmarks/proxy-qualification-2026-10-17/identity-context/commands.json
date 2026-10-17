@@ -1,0 +1,1508 @@
+[
+  {
+    "name": "build-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8-11",
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-c",
+      "-o",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "./internal/server"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "4",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/build-baseline.stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "logs/build-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/build-baseline.outer.json",
+    "outer_sha256": "4847dd35ad99c463e6995bcf878d309cbf56ccc5325d84bc43e00af774287fa8",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": null
+  },
+  {
+    "name": "correctness-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8-11",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^(TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders|TestClientIdentityResolverDisabledSourceDoesNotTrustPeer|TestClientIdentityResolverSingleIPIsStrict|TestClientIdentityResolverTrustedChainWalksRightToLeft|TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources|TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop|TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput|TestClientIdentityResolverOverlappingSourcesRequireAgreement|TestClientIdentityResolverRejectsInvalidConfiguration|TestClientIdentityContextHelpers|TestClientIdentityResolverAttachesAllConfiguredHeaderNames|TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy|TestResolvedClientIdentityFeedsPolicyAndRateLimit|TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer|TestResolvedClientIdentityFeedsGeneratedForwardingHeaders|TestForwardingHeadersStripConfiguredAndCommonClientIPClaims|TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy|TestManagementLoginClientKeyRejectsUnknownTrustedIdentity|TestResolvedIdentityContextOwnershipAndPrecedence|TestResolvedIdentityContextPreservesParentCancellationAndLifetime|TestResolvedIdentityContextConcurrentReadersAreIsolated)$",
+      "-test.v",
+      "-test.count=1",
+      "-test.timeout=180s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "4",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/correctness-baseline.stdout.log",
+        "sha256": "a5dc99bd7639690c6eb60cd816fdef030bdf2584b2bba642176dbbd102bf60b1",
+        "bytes": 7345
+      },
+      "stderr": {
+        "path": "logs/correctness-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/correctness-baseline.outer.json",
+    "outer_sha256": "235daaba69377a176e7c956cc5b9fc9a831b2c7c171682d299db51c7caa34285",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": null
+  },
+  {
+    "name": "build-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8-11",
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-c",
+      "-o",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "./internal/server"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "4",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/build-candidate.stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "logs/build-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/build-candidate.outer.json",
+    "outer_sha256": "22e27ae13a08df01090f95b36e9439460822d79a14efd6b5abee52137eab48f8",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": null
+  },
+  {
+    "name": "correctness-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8-11",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^(TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders|TestClientIdentityResolverDisabledSourceDoesNotTrustPeer|TestClientIdentityResolverSingleIPIsStrict|TestClientIdentityResolverTrustedChainWalksRightToLeft|TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources|TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop|TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput|TestClientIdentityResolverOverlappingSourcesRequireAgreement|TestClientIdentityResolverRejectsInvalidConfiguration|TestClientIdentityContextHelpers|TestClientIdentityResolverAttachesAllConfiguredHeaderNames|TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy|TestResolvedClientIdentityFeedsPolicyAndRateLimit|TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer|TestResolvedClientIdentityFeedsGeneratedForwardingHeaders|TestForwardingHeadersStripConfiguredAndCommonClientIPClaims|TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy|TestManagementLoginClientKeyRejectsUnknownTrustedIdentity|TestResolvedIdentityContextOwnershipAndPrecedence|TestResolvedIdentityContextPreservesParentCancellationAndLifetime|TestResolvedIdentityContextConcurrentReadersAreIsolated)$",
+      "-test.v",
+      "-test.count=1",
+      "-test.timeout=180s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "4",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/correctness-candidate.stdout.log",
+        "sha256": "a5dc99bd7639690c6eb60cd816fdef030bdf2584b2bba642176dbbd102bf60b1",
+        "bytes": 7345
+      },
+      "stderr": {
+        "path": "logs/correctness-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/correctness-candidate.outer.json",
+    "outer_sha256": "1623bbf9d2415c568f716a4c467f0ee73228e59d0ae61d4059a0e2a20a816a32",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": null
+  },
+  {
+    "name": "build-candidate-race",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8-11",
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-mod=readonly",
+      "-p=2",
+      "-race",
+      "-c",
+      "-o",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate-race.test",
+      "./internal/server"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "4",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/build-candidate-race.stdout.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      },
+      "stderr": {
+        "path": "logs/build-candidate-race.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/build-candidate-race.outer.json",
+    "outer_sha256": "23fa06447f13de98867cdd227f2148895a679f25f9a9de19563d21296e19957a",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": null
+  },
+  {
+    "name": "correctness-candidate-race",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8-11",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate-race.test",
+      "-test.run=^(TestClientIdentityResolverDirectPeerIgnoresSpoofedHeaders|TestClientIdentityResolverDisabledSourceDoesNotTrustPeer|TestClientIdentityResolverSingleIPIsStrict|TestClientIdentityResolverTrustedChainWalksRightToLeft|TestClientIdentityResolverTrustedChainSharesOnlySameHeaderChainSources|TestClientIdentityResolverCloudFrontDoesNotTrustCloudflareSingleIPAsXFFHop|TestClientIdentityResolverTrustedChainRejectsAllTrustedAndCapsInput|TestClientIdentityResolverOverlappingSourcesRequireAgreement|TestClientIdentityResolverRejectsInvalidConfiguration|TestClientIdentityContextHelpers|TestClientIdentityResolverAttachesAllConfiguredHeaderNames|TestPublicProxyContextUsesOneSnapshotForIdentityAndPolicy|TestResolvedClientIdentityFeedsPolicyAndRateLimit|TestUnknownTrustedIdentityDoesNotFallBackToProxyPeer|TestResolvedClientIdentityFeedsGeneratedForwardingHeaders|TestForwardingHeadersStripConfiguredAndCommonClientIPClaims|TestManagementClientIdentityMiddlewareTrustsOnlyConfiguredProxy|TestManagementLoginClientKeyRejectsUnknownTrustedIdentity|TestResolvedIdentityContextOwnershipAndPrecedence|TestResolvedIdentityContextPreservesParentCancellationAndLifetime|TestResolvedIdentityContextConcurrentReadersAreIsolated)$",
+      "-test.v",
+      "-test.count=1",
+      "-test.timeout=180s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "4",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/correctness-candidate-race.stdout.log",
+        "sha256": "a5dc99bd7639690c6eb60cd816fdef030bdf2584b2bba642176dbbd102bf60b1",
+        "bytes": 7345
+      },
+      "stderr": {
+        "path": "logs/correctness-candidate-race.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/correctness-candidate-race.outer.json",
+    "outer_sha256": "69fadf94e0d39ffc22b6dc1d1f17b98f83ebd9d5dde383ea071be1bd298a54d6",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": null
+  },
+  {
+    "name": "pair-01-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-01-baseline.stdout.log",
+        "sha256": "dea7749b08da0e4a9cb282bd630216a24eb5ce776048af310bbddc7f59f22d9b",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-01-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-01-baseline.outer.json",
+    "outer_sha256": "dc71e330aa0b5a5b125c4714de78ddb43f886da799837b5cb69e04efe76cb26f",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-01-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-01-candidate.stdout.log",
+        "sha256": "1c2e1e11fb742fb35cf33dded702df58965eeb4cb86aa82dc4cd9dfc942324f6",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-01-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-01-candidate.outer.json",
+    "outer_sha256": "8ea2619a458ba477996be79f7f7595b5e033bde299e9c6c5e24f3b5fd8891d07",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-02-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-02-candidate.stdout.log",
+        "sha256": "df22001f0979dc96b337e5c076662f724117527a071ccbdbd9bc3b5f00ecb634",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-02-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-02-candidate.outer.json",
+    "outer_sha256": "1e97a6867035b8e54a2d716d631e4bb8128217128245baec6cc322679bd30afd",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-02-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-02-baseline.stdout.log",
+        "sha256": "f4c5a392d6becc4397d7eac1b6c03b52f6df763d2e7f43277b8586fe509f9afe",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-02-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-02-baseline.outer.json",
+    "outer_sha256": "a028859618180dd4838c9c9da8e09576800d253e1913c01106c7a6a20969a0a6",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-03-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-03-baseline.stdout.log",
+        "sha256": "59b29115988d7f6ef9b2bf6b554c88502da3f46641b91e272b0e281ccbf8e15d",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-03-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-03-baseline.outer.json",
+    "outer_sha256": "ec9fba89846fffd1ab20f8139ded5523561bcbb8d0b29202b554276ffa9e9f16",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-03-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-03-candidate.stdout.log",
+        "sha256": "50761bee7ba8ee9334e4e3739158183b264ab60b5528e8b1dfee7d518c38f6ef",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-03-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-03-candidate.outer.json",
+    "outer_sha256": "da4322298619e0e9e301e953dd4e5512538fe2ca72bad8b10c4dd1076b8fa1c7",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-04-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-04-candidate.stdout.log",
+        "sha256": "aaaff53d3eb1fa2bd3a982cdc539e4467de1019a8ff6863e146f0d519b286e35",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-04-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-04-candidate.outer.json",
+    "outer_sha256": "29fa0ea74389ff99ea50f2c5dbba0f23fa8841cd62483fabfa7a8a7ce38ffc98",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-04-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-04-baseline.stdout.log",
+        "sha256": "88038669f7fc037e019a8ffe50cbd172a4b8a3e0c97c5fe483d2c7efffece545",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-04-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-04-baseline.outer.json",
+    "outer_sha256": "ed1d8a0ccf88f47bffca483e077a47318213b373d9556c6a0cbaa2749fabcfbf",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-05-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-05-baseline.stdout.log",
+        "sha256": "9f3f4bfc781fa99a069c6e82a50a8bd6434346d37d6705ce46e376b3880dcf88",
+        "bytes": 4222
+      },
+      "stderr": {
+        "path": "logs/pair-05-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-05-baseline.outer.json",
+    "outer_sha256": "590fcc80ce895108d53f6f89b8eb2c4de452f30eaf05e0bbaee5ca254499d054",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-05-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-05-candidate.stdout.log",
+        "sha256": "1205c4fa9fd10be9aa9ca219fff95c8d5758f3e27a74a914b53c5d887616fff6",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-05-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-05-candidate.outer.json",
+    "outer_sha256": "293c9a0f3c67226df2fc7ab75292c4da928508df0815f3a1c5b648a718c01c7c",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-06-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-06-candidate.stdout.log",
+        "sha256": "f67907986e4bb600966fc75fdc100824b1b968394e4651f5692ade37c891f7df",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-06-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-06-candidate.outer.json",
+    "outer_sha256": "c46738405b586434cc6ce9a7d3f1d7592143fd80def19c874cd8845af3e29cfe",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-06-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-06-baseline.stdout.log",
+        "sha256": "aa27cdacd62aca23596093be84bc493a8d9b26ed5ea02c6b12d3237cac4a49b5",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-06-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-06-baseline.outer.json",
+    "outer_sha256": "9ef368d6de5ca55e1c6b94fe5cd11c21a4fb49b482eded910c7d5f14c23bd234",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-07-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-07-baseline.stdout.log",
+        "sha256": "e3daf27a958dc6ee131006d2582378362bcd48a7626e7275307832a65a8c774f",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-07-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-07-baseline.outer.json",
+    "outer_sha256": "be0238f808765b816271184fb1136f4a1bde9ff230be15227cd5a6acf0a70f7b",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-07-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-07-candidate.stdout.log",
+        "sha256": "5181c5f7d1f794f3a87f4d464f6c8ccd58ffa815913cd858cc7a681ef52d7418",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-07-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-07-candidate.outer.json",
+    "outer_sha256": "a8c99c0228ca5e6ece5e069c512408c4021a2f0545ae1fdc4ce4ec51b845203e",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-08-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-08-candidate.stdout.log",
+        "sha256": "8532d1dbf4770425171f9f6eea4aca436b607548c8bade8a92ac148e141376e4",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-08-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-08-candidate.outer.json",
+    "outer_sha256": "6806d0c8060fb4145768278d29969be0b548282e6cfa0dd8dae5038e1bc466b4",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-08-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-08-baseline.stdout.log",
+        "sha256": "90b0b5512ad47dbc8655e33bde84a3ae281297417ad415744a1436f3f6524530",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-08-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-08-baseline.outer.json",
+    "outer_sha256": "b8afe893da00b61e3320575114592d23a0954f652ed668616dc609e8975cb65c",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-09-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-09-baseline.stdout.log",
+        "sha256": "bfd1fa5d71ca0aa212bc1770dbd6efcb7def502c0176b89f7c6d8a0f10cae34a",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-09-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-09-baseline.outer.json",
+    "outer_sha256": "f14a644bfc7a7ebd9055622a007d47b682d7298ee61092eb9f5481b3a97297c6",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  },
+  {
+    "name": "pair-09-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-09-candidate.stdout.log",
+        "sha256": "0a50a59b0f4e422e38e831a0f80f9c684da7769c4fbdae31edb078320246e070",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-09-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-09-candidate.outer.json",
+    "outer_sha256": "d6ebc4726779b38265127a7d2e4b5ba47757e15a8e3e305b5acdf7646922f01a",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-10-candidate",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/candidate.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/candidate",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-10-candidate.stdout.log",
+        "sha256": "34578b7ac5676a844c1615b873a392cdb30c3223362245b147a2def74cbc4da0",
+        "bytes": 4228
+      },
+      "stderr": {
+        "path": "logs/pair-10-candidate.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-10-candidate.outer.json",
+    "outer_sha256": "61d864b7c7985a4684142d3d41841832e3ef318a2dee2d00e400efe0e95b7040",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "ac0901b5919486734b96db8902c98b89d6996d98b9116e1b93da51d83784629b"
+  },
+  {
+    "name": "pair-10-baseline",
+    "argv": [
+      "/usr/bin/env",
+      "-C",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+      "taskset",
+      "-c",
+      "8",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/bin/baseline.test",
+      "-test.run=^$",
+      "-test.bench=^BenchmarkResolvedIdentityContext$",
+      "-test.benchmem",
+      "-test.benchtime=150ms",
+      "-test.count=1",
+      "-test.timeout=90s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/baseline",
+    "environment": {
+      "CGO_ENABLED": "1",
+      "GOAMD64": "v1",
+      "GOARCH": "amd64",
+      "GOCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-build-cache",
+      "GOENV": "off",
+      "GOFLAGS": "",
+      "GOMAXPROCS": "1",
+      "GOMODCACHE": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/module-cache",
+      "GONOPROXY": "",
+      "GONOSUMDB": "",
+      "GOOS": "linux",
+      "GOPRIVATE": "",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOTMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-early-share-dependencies-20261017/go-tmp",
+      "GOTOOLCHAIN": "local",
+      "GOWORK": "off",
+      "TMPDIR": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-cpu-followup-20261017/runtime-tmp",
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "logs": {
+      "stdout": {
+        "path": "logs/pair-10-baseline.stdout.log",
+        "sha256": "3c099765d06857ac1efa589f6f76d3295e2713faeffef85880a05b80b1fe9833",
+        "bytes": 4224
+      },
+      "stderr": {
+        "path": "logs/pair-10-baseline.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "bytes": 0
+      }
+    },
+    "outer_audit": "logs/pair-10-baseline.outer.json",
+    "outer_sha256": "8ca81479223b3937c2d4cd87ac3837d67ca804ecf40bb7731df686005991b8a1",
+    "accepted_cleanup": true,
+    "error": null,
+    "expected_executable_sha256": "0fb66ed068b32e0e870c209ff63f4493c655fd4679644a84c257f225fbee8ba6"
+  }
+]
