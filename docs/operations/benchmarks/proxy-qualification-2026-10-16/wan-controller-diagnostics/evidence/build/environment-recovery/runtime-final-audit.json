@@ -1,0 +1,124 @@
+{
+  "adopted_descendants": [
+    {
+      "exit_code": 0,
+      "pgid": 2530768,
+      "pid": 2531439,
+      "ppid": 2530767,
+      "sid": 2530768,
+      "start_ticks": 7716738,
+      "state": "Z",
+      "term_signal": null,
+      "wait_error": null,
+      "wait_status": 0
+    }
+  ],
+  "adopted_identity_origin": "not identified by frozen outer audit; no attribution",
+  "all_frozen_plan_derivative_and_binary_hashes_unchanged": true,
+  "artifact_bytes": 94972620,
+  "completed_arms": 0,
+  "completed_transfer_rows": 0,
+  "controller_selection_sidecar_exists": false,
+  "environment_recovery_record_unchanged": "58a6aadce8e70cf9f8c1a46a2f347196d1606cf5e1703d4226dda16e1ff7d807",
+  "finished_unix": 1792239696.8453274,
+  "first_failure": "unexpected adopted descendant; frozen ANY-adoption rejection rule",
+  "interpretation": "inconclusive; no valid CUBIC bracket/Reno arm, no controller dependence result, HyStart attribution, production recommendation or qualification/HAProxy clearance",
+  "matching_endpoint_processes": [],
+  "mature_supervisor_cleanup": {
+    "entry_status": 143,
+    "forced_supervisor_cleanup": true,
+    "invalidates_success": true,
+    "runner": {
+      "group_joined": true,
+      "kill_status": null,
+      "pid": 2531109,
+      "term_status": 0,
+      "wait_status": 124
+    },
+    "schema_version": 1,
+    "scope_launcher": {
+      "pid": null,
+      "wait_status": null
+    },
+    "sentinel_release_status": 0,
+    "unit": {
+      "show": "LoadState=not-found\nActiveState=inactive\nSubState=dead",
+      "show_status": 0,
+      "stop_status": null
+    }
+  },
+  "namespace_after": [],
+  "namespace_before": [],
+  "original_failed_runtime_ledger_unchanged": "2872d86dbc351819162c286743fbc97fa14ab49b0ddd40b886d3fc2fa9d93c2e",
+  "outer_forced": true,
+  "outer_remaining_owned": [],
+  "outer_status": 124,
+  "post_hashes_exist": false,
+  "proc_namespace_reads_unavailable": 1304,
+  "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "recorded_metrics": null,
+  "recorded_namespace_ids": {
+    "mnt": [
+      "mnt:[4026533534]"
+    ],
+    "net": [
+      "net:[4026533859]",
+      "net:[4026533921]",
+      "net:[4026534048]",
+      "net:[4026534171]"
+    ],
+    "pid": [
+      "pid:[4026533858]"
+    ],
+    "user": [
+      "user:[4026533533]",
+      "user:[4026534047]"
+    ]
+  },
+  "recovery_commands_sha256": "8b8c7ba6a0764aeb48397b4062dd260d07d7e8e84c562669362bf60672a3150d",
+  "recovery_runner_sha256": "be2d995bdb2aef7e62f315304ee294d6281ce49a195079bae9c9c9a479a8183e",
+  "remaining_namespace_member_processes": [],
+  "remaining_recorded_pid_start_identities": [],
+  "runner_namespace_unchanged": true,
+  "runtime_elapsed_seconds": 6.583968639373779,
+  "scope_cgroup_exists": false,
+  "scope_cgroup_path": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-senderwait-h2-2530769-8588799b.scope",
+  "scope_join": {
+    "launcher_alive_same_identity": false,
+    "launcher_group_joined": true,
+    "sentinel_alive_same_identity": false,
+    "sentinel_group_joined": true
+  },
+  "scope_unit_query": {
+    "argv": [
+      "systemctl",
+      "--user",
+      "show",
+      "p2p-senderwait-h2-2530769-8588799b.scope",
+      "--property=LoadState,ActiveState,SubState"
+    ],
+    "status": 0,
+    "stderr": "",
+    "stdout": "LoadState=not-found\nActiveState=inactive\nSubState=dead\n"
+  },
+  "screen_final": {
+    "accepted": false,
+    "artifact_bytes": 94969379,
+    "artifact_rejection_threshold_bytes": 268435456,
+    "artifact_tree_check_seconds": 1.0,
+    "completed_arms": 0,
+    "failure": "RuntimeError: outer command invalid; durable outer audit: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0.outer.json",
+    "schema_version": 1,
+    "stopped": true,
+    "stream_check_seconds": 0.05,
+    "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+  },
+  "source_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "status": "invalid arm0; stopped without retry; no completed transfer or comparison",
+  "tracked_status": "",
+  "unlaunched_arms": [
+    1,
+    2
+  ],
+  "validation_attestation_exists": false
+}

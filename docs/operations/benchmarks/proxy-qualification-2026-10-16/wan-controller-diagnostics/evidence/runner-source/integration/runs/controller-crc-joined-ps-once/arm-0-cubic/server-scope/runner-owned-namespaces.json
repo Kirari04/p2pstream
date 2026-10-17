@@ -1,0 +1,14 @@
+{
+  "namespaces": {
+    "cgroup": "cgroup:[4026531835]",
+    "mnt": "mnt:[4026533533]",
+    "net": "net:[4026534047]",
+    "pid": "pid:[4026533534]",
+    "user": "user:[4026534046]"
+  },
+  "nspid": [
+    47
+  ],
+  "pid": 1,
+  "schema_version": 1
+}

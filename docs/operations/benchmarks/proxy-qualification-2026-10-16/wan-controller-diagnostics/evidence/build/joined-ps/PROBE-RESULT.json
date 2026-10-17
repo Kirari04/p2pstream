@@ -1,0 +1,105 @@
+{
+  "accepted": true,
+  "scope": "one paired no-WAN helper-join regression",
+  "results": {
+    "old": {
+      "audit": {
+        "accepted_cleanup": false,
+        "adopted_descendants": [
+          {
+            "exit_code": 0,
+            "pgid": 2540758,
+            "pid": 2540759,
+            "ppid": 2540757,
+            "sid": 2540758,
+            "start_ticks": 7778888,
+            "state": "Z",
+            "term_signal": null,
+            "wait_error": null,
+            "wait_status": 0
+          }
+        ],
+        "argv": [
+          "/usr/bin/python3",
+          "-I",
+          "-B",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/old-query.py"
+        ],
+        "artifact_bytes": 95099239,
+        "artifact_rejection_threshold_bytes": 268435456,
+        "artifact_tree_check_seconds": 1.0,
+        "elapsed_seconds": 0.9034997100097826,
+        "failure_reason": "unexpected adopted descendant",
+        "forced": true,
+        "owned_identities": [
+          {
+            "pgid": 2540758,
+            "pid": 2540758,
+            "ppid": 2540757,
+            "sid": 2540758,
+            "start_ticks": 7778886,
+            "state": "R"
+          },
+          {
+            "pgid": 2540758,
+            "pid": 2540759,
+            "ppid": 2540757,
+            "sid": 2540758,
+            "start_ticks": 7778888,
+            "state": "Z"
+          }
+        ],
+        "ownership_mode": "linux-child-subreaper",
+        "per_stream_rejection_threshold_bytes": 1048576,
+        "remaining_owned": [],
+        "schema_version": 1,
+        "status": 0,
+        "stderr_bytes": 0,
+        "stdout_bytes": 10,
+        "stream_check_seconds": 0.05,
+        "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+      },
+      "supervisor_error": "outer command invalid; durable outer audit: /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/old.outer.json"
+    },
+    "fixed": {
+      "audit": {
+        "accepted_cleanup": true,
+        "adopted_descendants": [],
+        "argv": [
+          "/usr/bin/python3",
+          "-I",
+          "-B",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/fixed-query.py"
+        ],
+        "artifact_bytes": 95101234,
+        "artifact_rejection_threshold_bytes": 268435456,
+        "artifact_tree_check_seconds": 1.0,
+        "elapsed_seconds": 0.8223689879960148,
+        "failure_reason": "",
+        "forced": false,
+        "owned_identities": [
+          {
+            "pgid": 2540780,
+            "pid": 2540780,
+            "ppid": 2540757,
+            "sid": 2540780,
+            "start_ticks": 7778978,
+            "state": "R"
+          }
+        ],
+        "ownership_mode": "linux-child-subreaper",
+        "per_stream_rejection_threshold_bytes": 1048576,
+        "remaining_owned": [],
+        "schema_version": 1,
+        "status": 0,
+        "stderr_bytes": 0,
+        "stdout_bytes": 10,
+        "stream_check_seconds": 0.05,
+        "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+      },
+      "supervisor_error": null
+    }
+  },
+  "source_record_sha256": "83dacdb85a74130730a6ced36905343470616ca56b2adba10b01248f25c62c00",
+  "source_unchanged": true
+}

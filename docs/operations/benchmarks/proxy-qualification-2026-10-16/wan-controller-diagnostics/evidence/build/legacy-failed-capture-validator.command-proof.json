@@ -1,0 +1,41 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "taskset",
+    "-c",
+    "8-11",
+    "env",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "30s",
+    "python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-failed-capture-validator.py"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+  "exit_status": 0,
+  "finished_unix": 1792238466.4404151,
+  "forced": false,
+  "name": "legacy-failed-capture-validator",
+  "outer_audit_sha256": "6965aa496a443a04c4987051807b3496b8e64464f00800b74a2def81ee6c7d80",
+  "output_bytes": 9222,
+  "owned_identities": [
+    {
+      "pgid": 2510698,
+      "pid": 2510698,
+      "ppid": 2510627,
+      "sid": 2510698,
+      "start_ticks": 7602149,
+      "state": "S"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792238465.8920352,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 9222,
+  "stdout_sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
+}

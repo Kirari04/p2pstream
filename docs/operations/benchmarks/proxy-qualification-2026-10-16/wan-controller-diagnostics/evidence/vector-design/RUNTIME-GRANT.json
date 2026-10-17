@@ -1,0 +1,17 @@
+{
+  "scope": "one fresh whole-retained-vector CUBIC/Reno/CUBIC diagnostic; max48 transfers; prospective thresholds unchanged; no retry",
+  "time_unix": 1792241252.2150433,
+  "source_sha256": "3df8c3f32d1b6e94c84d467b929d66284cc51f605d701cff956b9c545c7b0095",
+  "plan_sha256": "0f5753a7530129cad56a003456dd463ae8686b4681d1d2d4008ed88ad7228025",
+  "offline_proof_sha256": "28d141a2aeec8afea2155acf398eb75d7999e1e5b8c7d4911ae63709c5c31676",
+  "accepted_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "frozen_parent_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "all_inputs_and_binaries_match": true,
+  "frozen_input_count": 540,
+  "build_verifier": {
+    "accepted": true,
+    "diagnostic": "controller-screen-build-tuple",
+    "reviewed_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+    "source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "scope": "single joined-ps correction and fixed-path derivative; compiled source/binaries/build receipt and strict adoption/performance gates unchanged",
+  "historical_adoptee_attribution": "strong timing/group inference, exact historical command identity unavailable",
+  "parent_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "build_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "files": [
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm-joined-ps.sh",
+      "sha256": "7e3578c19ff0041118ddbbcf88bc03d43b3c6ebb0bf496cb3dba9fef60eda6b1"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-joined-ps.py",
+      "sha256": "cb7abac504c3d74b5aa65361d5e542b6cf9635c3a94f1fc3ba32eac75faa21cf"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/COMMANDS-joined-ps.json",
+      "sha256": "f4d615ea784edd84097f6c50869522fec920eea61ca80f75b5167eae38a4edf3"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/DERIVATIVE.diff",
+      "sha256": "10bcc162e9a84d4b32ae34b52d3710cff1890be2b1d9f49db9f5b6e588175280"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/fake-bin/ps",
+      "sha256": "128f9d1c84015a72c8bbfd49311eee59103e435ac401c43de13426d7279b7fc0"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/old-query.py",
+      "sha256": "56214274e0e9e9fe7d0abfb8d06aabcc880f57949c3a3a4cccfe260a2c744bcb"
+    },
+    {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/joined-ps/fixed-query.py",
+      "sha256": "947bae713e51b1ab42e6e719c5f8bfe215e93b9495aedac0c3ad98c56f4750cd"
+    }
+  ]
+}

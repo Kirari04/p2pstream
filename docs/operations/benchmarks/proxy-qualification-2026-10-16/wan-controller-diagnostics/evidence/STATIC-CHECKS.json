@@ -1,0 +1,29 @@
+{
+  "status": "corrected source-only static syntax/hash/diff checks passed; no continuation execution",
+  "python_ast_files": 8,
+  "bash_syntax_files": 2,
+  "gofmt": "compilation source unchanged since Go1.26.6 parser/formatter check",
+  "base_file_count": 460,
+  "result_source_files": 462,
+  "changed_compilation_paths": [
+    "test-source/internal/agent/qualification_controller_screen_qualification.go",
+    "test-source/internal/agent/qualification_controller_screen_qualification_test.go",
+    "test-source/internal/agent/qualification_raw_write_qualification.go"
+  ],
+  "tracked_changes": false,
+  "builds": 0,
+  "tests": 0,
+  "wan_transfers": 0,
+  "historical_local_attempt": {
+    "commands": 5,
+    "natural_zero": 4,
+    "failed_python_contract_commands": 1,
+    "go_tests": 0,
+    "builds": 0
+  },
+  "continuation_reused_proofs": 4,
+  "continuation_fresh_commands": 7,
+  "total_artifact_bytes": 10820208,
+  "future_task_artifact_rejection_threshold_bytes": 268435456,
+  "byte_threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

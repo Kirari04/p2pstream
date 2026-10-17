@@ -1,0 +1,198 @@
+//go:build linux && p2pstream_qualification
+
+package agent
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"syscall"
+
+	"golang.org/x/sys/unix"
+)
+
+// Only the disposable qualification process reads these variables. No request,
+// header, management API, or ordinary-build path selects a controller.
+const qualificationControllerEnv = "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER"
+const qualificationControllerNamespaceEnv = "P2PSTREAM_QUALIFICATION_CONTROLLER_NETNS"
+const qualificationControllerParentNamespaceEnv = "P2PSTREAM_QUALIFICATION_CONTROLLER_PARENT_NETNS"
+
+type qualificationControllerBinding struct {
+	Lane        int    `json:"lane"`
+	Generation  uint64 `json:"generation"`
+	Local       string `json:"local_address"`
+	Remote      string `json:"remote_address"`
+	Requested   string `json:"requested"`
+	Readback    string `json:"readback"`
+	ExplicitSet bool   `json:"explicit_set"`
+	BeforeTLS   bool   `json:"before_tls"`
+}
+
+type qualificationControllerScreen struct {
+	mu              sync.Mutex
+	Requested       string                             `json:"requested"`
+	Namespace       string                             `json:"namespace"`
+	ParentNamespace string                             `json:"parent_namespace"`
+	Available       []string                           `json:"available"`
+	Allowed         []string                           `json:"allowed"`
+	Default         string                             `json:"default"`
+	Bindings        [5]*qualificationControllerBinding `json:"bindings"`
+}
+
+func qualificationControllerEnum(value string) bool { return value == "cubic" || value == "reno" }
+
+func qualificationControllerRead(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, 257))
+	if err != nil {
+		return "", err
+	}
+	if len(data) == 0 || len(data) > 256 {
+		return "", errors.New("controller preflight input exceeds bound")
+	}
+	return strings.TrimSpace(string(data)), nil
+}
+
+func qualificationControllerSetup() (*qualificationControllerScreen, error) {
+	selected := os.Getenv(qualificationControllerEnv)
+	if selected == "" {
+		return nil, nil
+	}
+	if !qualificationControllerEnum(selected) {
+		return nil, errors.New("controller screen requires exact cubic or reno")
+	}
+	current, err := os.Readlink("/proc/self/ns/net")
+	if err != nil {
+		return nil, err
+	}
+	expected, parent := os.Getenv(qualificationControllerNamespaceEnv), os.Getenv(qualificationControllerParentNamespaceEnv)
+	if expected == "" || parent == "" || current != expected || current == parent {
+		return nil, errors.New("controller screen is outside its disposable agent namespace")
+	}
+	s := &qualificationControllerScreen{Requested: selected, Namespace: current, ParentNamespace: parent}
+	available, err := qualificationControllerRead("/proc/sys/net/ipv4/tcp_available_congestion_control")
+	if err != nil {
+		return nil, err
+	}
+	allowed, err := qualificationControllerRead("/proc/sys/net/ipv4/tcp_allowed_congestion_control")
+	if err != nil {
+		return nil, err
+	}
+	s.Available, s.Allowed = strings.Fields(available), strings.Fields(allowed)
+	for _, set := range [][]string{s.Available, s.Allowed} {
+		for _, name := range []string{"cubic", "reno"} {
+			found := false
+			for _, entry := range set {
+				found = found || entry == name
+			}
+			if !found {
+				return nil, errors.New("both controllers must already be available and allowed")
+			}
+		}
+	}
+	s.Default, err = qualificationControllerRead("/proc/sys/net/ipv4/tcp_congestion_control")
+	if err != nil {
+		return nil, err
+	}
+	if s.Default != "cubic" {
+		return nil, errors.New("unchanged lane zero requires namespace default cubic")
+	}
+	return s, nil
+}
+
+// The injectable syscall boundary is used by focused tests; the production
+// qualification path always supplies unix.SetsockoptString/GetsockoptString.
+func qualificationControllerApply(raw syscall.RawConn, lane int, requested string, set func(int, int, int, string) error, get func(int, int, int) (string, error)) (string, error) {
+	if !qualificationControllerEnum(requested) || lane < 0 || lane > 4 || raw == nil {
+		return "", errors.New("invalid controller selector, lane or raw binding")
+	}
+	want := requested
+	if lane == 0 {
+		want = "cubic"
+	}
+	var readback string
+	var callErr error
+	err := raw.Control(func(fd uintptr) {
+		if lane > 0 {
+			callErr = set(int(fd), unix.IPPROTO_TCP, unix.TCP_CONGESTION, want)
+			if callErr != nil {
+				return
+			}
+		}
+		readback, callErr = get(int(fd), unix.IPPROTO_TCP, unix.TCP_CONGESTION)
+	})
+	if err != nil {
+		return "", err
+	}
+	if callErr != nil {
+		return "", callErr
+	}
+	if readback != want {
+		return "", fmt.Errorf("controller readback %q differs from requested %q", readback, want)
+	}
+	return readback, nil
+}
+
+func (s *qualificationControllerScreen) bind(raw syscall.RawConn, owner *qualificationRawWriteOwner, local, remote string) error {
+	if s == nil {
+		return nil
+	}
+	if owner == nil || owner.generation == 0 || owner.lane < 0 || owner.lane > 4 || local == "" || remote == "" {
+		return errors.New("missing intended controller owner/lane binding")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Bindings[owner.lane] != nil {
+		return errors.New("duplicate controller lane binding")
+	}
+	got, err := qualificationControllerApply(raw, owner.lane, s.Requested, unix.SetsockoptString, unix.GetsockoptString)
+	if err != nil {
+		return err
+	}
+	want := s.Requested
+	if owner.lane == 0 {
+		want = "cubic"
+	}
+	s.Bindings[owner.lane] = &qualificationControllerBinding{Lane: owner.lane, Generation: owner.generation, Local: local, Remote: remote, Requested: want, Readback: got, ExplicitSet: owner.lane > 0, BeforeTLS: true}
+	return nil
+}
+
+func (s *qualificationControllerScreen) write(path string) error {
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, b := range s.Bindings {
+		if b == nil {
+			return errors.New("controller screen lacks an intended bound lane")
+		}
+	}
+	data, err := json.Marshal(struct {
+		SchemaVersion int `json:"schema_version"`
+		*qualificationControllerScreen
+	}{1, s})
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(filepath.Dir(filepath.Dir(path)), "controller-selection.json"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	if _, err = f.Write(data); err == nil {
+		err = f.Sync()
+	}
+	if e := f.Close(); err == nil {
+		err = e
+	}
+	return err
+}

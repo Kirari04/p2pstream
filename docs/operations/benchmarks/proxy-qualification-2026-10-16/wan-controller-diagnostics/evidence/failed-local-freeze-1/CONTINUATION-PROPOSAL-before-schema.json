@@ -1,0 +1,428 @@
+{
+  "status": "source-only proposal; receipt/verifier schema direction required; do not execute",
+  "schema_gap": "current verifier assumes build/<name> logs and cannot enforce reused/fresh proof origins",
+  "minimal_extension": "plan per-command proof origin/directory plus exact hashes for reused command proof/audit/logs; receipt explicit reused_proofs list; verifier binds origins, directories and hashes while preserving natural-zero/source/settings/binary gates",
+  "fresh_output_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+  "fresh_output_must_not_exist": true,
+  "reused_proofs": [
+    {
+      "name": "preflight",
+      "origin": "reused-original-freeze",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "command": {
+        "name": "preflight",
+        "argv": [
+          "taskset",
+          "-c",
+          "8-11",
+          "env",
+          "GOMAXPROCS=2",
+          "GOENV=off",
+          "GOWORK=off",
+          "GOFLAGS=",
+          "GOTOOLCHAIN=local",
+          "GOPROXY=off",
+          "GOSUMDB=off",
+          "timeout",
+          "--signal=TERM",
+          "--kill-after=5s",
+          "20s",
+          "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+          "env",
+          "-json",
+          "GOENV",
+          "GOWORK",
+          "GOFLAGS",
+          "GOROOT",
+          "GOVERSION",
+          "GOAMD64",
+          "GOARCH",
+          "GOOS",
+          "CGO_ENABLED",
+          "GOTOOLCHAIN"
+        ],
+        "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+        "max_output_bytes": 65536,
+        "max_stdout_bytes": 65536,
+        "max_stderr_bytes": 65536,
+        "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+      },
+      "files": [
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.command-proof.json",
+          "sha256": "a9eb388a656ec6641ef32f97eb21da93afe94c03b6ec2d6944752ba24b25c3a8"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.outer.json",
+          "sha256": "df0d4257ccc370c1bb29aee0a0a0bcc68e54b855c93e30ce3893e9b94941dde8"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.started.json",
+          "sha256": "5b534c08f5416519ebfec4292436abfe0eca42555176297f764afa5ea2507017"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stdout.log",
+          "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/preflight.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "name": "legacy-tcp-state-validator",
+      "origin": "reused-original-freeze",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "command": {
+        "name": "legacy-tcp-state-validator",
+        "argv": [
+          "taskset",
+          "-c",
+          "8-11",
+          "env",
+          "PYTHONDONTWRITEBYTECODE=1",
+          "timeout",
+          "--signal=TERM",
+          "--kill-after=5s",
+          "30s",
+          "python3",
+          "-I",
+          "-B",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-tcp-state-validator.py"
+        ],
+        "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+        "max_output_bytes": 2097152,
+        "max_stdout_bytes": 2097152,
+        "max_stderr_bytes": 2097152,
+        "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+      },
+      "files": [
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.command-proof.json",
+          "sha256": "4055ac5dca3d73feeca4c2d897646ef00d0f5d9b09b261da4117d2efbf2f7b67"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.outer.json",
+          "sha256": "91e5a1c7e13a696f4ef71f1d5cc2c1bbf5a033a2863ea04654c843c85305d53e"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.started.json",
+          "sha256": "97963e234c3d19db63f100c7e9fba42265701858bcb4d304fcfbf8cdf4a84398"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stdout.log",
+          "sha256": "3e9b2af6e4c296e588d5d74d4895d7654625e79f0ae3f3fafd3372a575fb8d48"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-tcp-state-validator.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "name": "legacy-failed-capture-validator",
+      "origin": "reused-original-freeze",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "command": {
+        "name": "legacy-failed-capture-validator",
+        "argv": [
+          "taskset",
+          "-c",
+          "8-11",
+          "env",
+          "PYTHONDONTWRITEBYTECODE=1",
+          "timeout",
+          "--signal=TERM",
+          "--kill-after=5s",
+          "30s",
+          "python3",
+          "-I",
+          "-B",
+          "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/validator-capture-source-1/integration/contracts/test-failed-capture-validator.py"
+        ],
+        "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+        "max_output_bytes": 2097152,
+        "max_stdout_bytes": 2097152,
+        "max_stderr_bytes": 2097152,
+        "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+      },
+      "files": [
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.command-proof.json",
+          "sha256": "dc498398ec29836de1a9c1517ad3c3cce881734b4aece35547862942e6763d9a"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.outer.json",
+          "sha256": "6965aa496a443a04c4987051807b3496b8e64464f00800b74a2def81ee6c7d80"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.started.json",
+          "sha256": "d6dc5f81bfc8b10073028b7fc794e106712262ba90faf0ca1bfaf63569b1b40c"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stdout.log",
+          "sha256": "32cbd457ac639a770aa9b5a4300ad2e117a2b7b4f0f938185f4d4d160cd49864"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/legacy-failed-capture-validator.stderr.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    },
+    {
+      "name": "prospective-terminal-contracts",
+      "origin": "reused-original-freeze",
+      "execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+      "command": {
+        "name": "prospective-terminal-contracts",
+        "argv": [
+          "taskset",
+          "-c",
+          "8-11",
+          "env",
+          "PYTHONDONTWRITEBYTECODE=1",
+          "timeout",
+          "--signal=TERM",
+          "--kill-after=5s",
+          "20s",
+          "python3",
+          "-I",
+          "-B",
+          "contracts/test-terminal-attribution.py",
+          "-v"
+        ],
+        "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+        "max_output_bytes": 1048576,
+        "max_stdout_bytes": 1048576,
+        "max_stderr_bytes": 1048576,
+        "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+      },
+      "files": [
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.command-proof.json",
+          "sha256": "d4763bdcf3ab63c0464fe604fde4c2ee4f6b2c23ab3c519d05cddee91586644a"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.outer.json",
+          "sha256": "5a29f6f36a9e0714598cd78155dd327b4ac02b5724c7ef77b82f538a4f312c78"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.started.json",
+          "sha256": "ac8bf4f8b0280a433a6c1543fa3a125b6a8e7d0c155db825b80d4ef4107b0d5c"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stdout.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/prospective-terminal-contracts.stderr.log",
+          "sha256": "c0f851654136603f1c9a8bc9c31be16a02f2f6db93094fbc03a1be93df4895af"
+        }
+      ]
+    }
+  ],
+  "fresh_tests": [
+    {
+      "name": "python-contracts",
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "60s",
+        "python3",
+        "-I",
+        "-B",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/contracts/test-controller-screen.py"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017",
+      "max_output_bytes": 1048576,
+      "max_stdout_bytes": 1048576,
+      "max_stderr_bytes": 1048576,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    },
+    {
+      "name": "normal",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "240s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-count=1",
+        "-timeout=60s",
+        "-run",
+        "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+        "-v",
+        "./internal/agent"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "max_output_bytes": 8388608,
+      "max_stdout_bytes": 8388608,
+      "max_stderr_bytes": 8388608,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    },
+    {
+      "name": "race",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "240s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-race",
+        "-count=1",
+        "-timeout=90s",
+        "-run",
+        "^TestQualification(Terminal|RawWrite|TCP|Controller)",
+        "-v",
+        "./internal/agent"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "max_output_bytes": 8388608,
+      "max_stdout_bytes": 8388608,
+      "max_stderr_bytes": 8388608,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    }
+  ],
+  "fresh_builds": [
+    {
+      "name": "agent-build",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "180s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+        "./internal/agent"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "max_output_bytes": 2097152,
+      "max_stdout_bytes": 2097152,
+      "max_stderr_bytes": 2097152,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    },
+    {
+      "name": "server-build",
+      "argv": [
+        "taskset",
+        "-c",
+        "8-11",
+        "env",
+        "GOMAXPROCS=2",
+        "GOENV=off",
+        "GOWORK=off",
+        "GOFLAGS=",
+        "GOTOOLCHAIN=local",
+        "GOPROXY=off",
+        "GOSUMDB=off",
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "180s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "test",
+        "-c",
+        "-p=2",
+        "-tags=p2pstream_qualification",
+        "-o",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+        "./internal/server"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "max_output_bytes": 2097152,
+      "max_stdout_bytes": 2097152,
+      "max_stderr_bytes": 2097152,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    },
+    {
+      "name": "agent-metadata",
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "max_output_bytes": 65536,
+      "max_stdout_bytes": 65536,
+      "max_stderr_bytes": 65536,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    },
+    {
+      "name": "server-metadata",
+      "argv": [
+        "timeout",
+        "--signal=TERM",
+        "--kill-after=5s",
+        "20s",
+        "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "version",
+        "-m",
+        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test"
+      ],
+      "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+      "max_output_bytes": 65536,
+      "max_stdout_bytes": 65536,
+      "max_stderr_bytes": 65536,
+      "output_bound_semantics": "max_output_bytes/max_stdout_bytes/max_stderr_bytes are polled rejection thresholds; retain complete logs; any observed overflow fails; overshoot is possible"
+    }
+  ],
+  "source_inventory_sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "original_failed_run": {
+    "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/failed-run.json",
+    "sha256": "6d84f0576677e3d8c2830e08817df604f8298823aee5107d2e6f30ac8cca203b"
+  },
+  "root_must_separately_grant_execution": true,
+  "wan_traffic": false,
+  "runtime_token_must_remain_blocked": true
+}

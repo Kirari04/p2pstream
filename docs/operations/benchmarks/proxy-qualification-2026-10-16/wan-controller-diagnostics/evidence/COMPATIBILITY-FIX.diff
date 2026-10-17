@@ -1,0 +1,29 @@
+--- failed-freeze/contracts/test-controller-screen.py
++++ corrected/contracts/test-controller-screen.py
+@@ -74,13 +74,21 @@
+   with tempfile.TemporaryDirectory() as temporary:
+    run=Path(temporary)/'arm';shutil.copytree(oldrun,run)
+    before={p.name for p in (run/'results.sender-wait-controls').iterdir()}
++   def evaluate(name):
++    att=run/name
++    args=[sys.executable,'-I','-B',str(P/'validate-wan-below-tls-arm.py')]+[str(run/x) for x in ['results.jsonl','results.lifecycle.jsonl','results.summary.json','outer-namespaces.json','supervisor-lifecycle.json','pre-hashes.json','post-hashes.json']]+[str(att),'h2','sustained']
++    status=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=20)
++    self.assertEqual(status.returncode,1)
++    return json.loads(att.read_text())
++   relocated=evaluate('compatibility-before.json')
++   original=json.loads((oldrun/'attestation.json').read_text())
++   # Relocation alone changes the mature validator's path-bound facts. Preserve
++   # that discrepancy; isolate only the effect of adding the root sidecar.
++   self.assertNotEqual(relocated,original)
+    (run/'controller-selection.json').write_text('{"schema_version":1}')
+    self.assertEqual(before,{p.name for p in (run/'results.sender-wait-controls').iterdir()})
+-   att=run/'compatibility-attestation.json'
+-   args=[sys.executable,'-I','-B',str(P/'validate-wan-below-tls-arm.py')]+[str(run/x) for x in ['results.jsonl','results.lifecycle.jsonl','results.summary.json','outer-namespaces.json','supervisor-lifecycle.json','pre-hashes.json','post-hashes.json']]+[str(att),'h2','sustained']
+-   status=subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=20)
+-   self.assertEqual(status.returncode,1) # preserve the old performance failure
+-   self.assertEqual(json.loads(att.read_text()),json.loads((oldrun/'attestation.json').read_text()))
++   with_sidecar=evaluate('compatibility-after.json')
++   self.assertEqual(with_sidecar,relocated) # no additional integrity/control-set discrepancy
+  def test_unmodified_mature_validators(self):
+   for p in P.glob('validate-*.py'):
+    if p.name.startswith('validate-controller'):continue

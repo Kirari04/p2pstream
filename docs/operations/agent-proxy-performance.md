@@ -731,6 +731,29 @@ remaining raw-write error while preserving bounded cancellation and all fixed
 gates. The original WAN, HAProxy, and remaining
 pressure, cancellation, capacity, and integration gates remain open.
 
+The later qualification-only controller diagnostics pass 19 Python controls
+and 192 named Go checks in each normal/race mode, using verified local TLS and
+explicit per-data-socket controller readback before TLS. The first completed
+CUBIC cohort has 16 exact 256 MiB transfers and natural shutdown, but its narrow
+control gate rejects an extra retained-warmup failure at 14.699 MB/s alongside
+steady failures at 27.515 and 27.864 MB/s.
+
+A separately preregistered fresh diagnostic considers the entire retained-download
+vector without reusing that rejected control. Its first CUBIC cohort also
+completes all 16 payloads and events with natural shutdown and clean integrity,
+but sequences 15 and 16 genuinely replace their origin connections after
+34.0425 and 34.5084 seconds, beyond the unchanged production 30-second idle
+timeout. This is recorded idle/reuse loss, not absent capture. Retained sequence
+14 is conditioning-valid and slow at 15.849 MB/s; its seven retransmissions and
+zero RTO do not identify a unique cause. Both screens stop before Reno or a final
+CUBIC control. The local proof, original fixture/environment/ownership failures,
+joined-helper correction, exact-rational offline correction and independent
+outcome assessment are preserved in the
+[controller diagnostic evidence](benchmarks/proxy-qualification-2026-10-16/wan-controller-diagnostics/README.md).
+These observations establish no controller comparison, production controller
+recommendation or original WAN/HAProxy qualification clearance. Earlier idle
+expiration observations above remain historical context.
+
 Both WAN modes provide four public data lanes. The legacy runtime's
 `bulk_sessions: 3` display excludes its mixed control/data lane zero, while
 the selector still uses lanes 0–3. Aggregate-v1 uses lanes 1–4 and reserves

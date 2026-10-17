@@ -1,0 +1,1025 @@
+//go:build p2pstream_qualification
+
+package agent
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"math"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+
+	"github.com/hashicorp/yamux"
+)
+
+const (
+	qualificationRawWriteSchemaVersion = 1
+	qualificationRawWriteEnableEnv     = "P2PSTREAM_QUALIFICATION_WAN_SENDER_WAIT"
+	qualificationRawWriteTerminalEnv   = "P2PSTREAM_QUALIFICATION_RAW_WRITE_TERMINAL_PATH"
+)
+
+type qualificationRawWriteContextKey struct{}
+
+type qualificationRawWriteInstall struct {
+	previous                   http.RoundTripper
+	installed                  *http.Transport
+	tcpSlowStartAfterIdleSetup int
+	controllerScreen           *qualificationControllerScreen
+}
+
+var qualificationRawWriteGlobal struct {
+	mu         sync.Mutex
+	install    atomic.Pointer[qualificationRawWriteInstall]
+	generation atomic.Uint64
+}
+
+type qualificationRawWriteBinding struct {
+	mu        sync.Mutex
+	lane      int
+	owner     *qualificationRawWriteOwner
+	rawBound  bool
+	bodyBound bool
+}
+
+type qualificationRawWriteDuration struct {
+	count uint64
+	total uint64
+	max   uint64
+}
+
+type qualificationRawWriteClass uint8
+
+const (
+	qualificationRawWriteContained qualificationRawWriteClass = iota
+	qualificationRawWriteOutside
+	qualificationRawWriteStraddling
+	qualificationRawWriteClassCount
+)
+
+type qualificationRawWriteOutcome uint8
+
+const (
+	qualificationRawWriteSuccess qualificationRawWriteOutcome = iota
+	qualificationRawWriteError
+	qualificationRawWriteShort
+)
+
+type qualificationRawWriteClassCounters struct {
+	calls               uint64
+	attemptBytes        uint64
+	writtenBytes        uint64
+	duration            qualificationRawWriteDuration
+	successDuration     qualificationRawWriteDuration
+	errorDuration       qualificationRawWriteDuration
+	shortDuration       qualificationRawWriteDuration
+	successCalls        uint64
+	errorCalls          uint64
+	shortCalls          uint64
+	successAttemptBytes uint64
+	successWrittenBytes uint64
+	errorAttemptBytes   uint64
+	errorWrittenBytes   uint64
+	shortAttemptBytes   uint64
+	shortWrittenBytes   uint64
+}
+
+type qualificationRawWriteInterval struct {
+	ambiguous                  bool
+	overflow                   bool
+	streamObserved             bool
+	streamID                   uint32
+	multipleStreams            bool
+	maximumActiveRawWrites     uint64
+	envelopeCount              uint64
+	envelopePayloadBytes       uint64
+	envelopeWireBytes          uint64
+	envelopeZeroRawCalls       uint64
+	envelopeDuration           qualificationRawWriteDuration
+	containedRawDuration       qualificationRawWriteDuration
+	residualDuration           qualificationRawWriteDuration
+	boundaryActiveRawWrites    uint64
+	boundaryOutsideCompletions uint64
+	envelopeOverlaps           uint64
+	ownerGenerationChanges     uint64
+	classes                    [qualificationRawWriteClassCount]qualificationRawWriteClassCounters
+	lastRawFinished            time.Time
+}
+
+type qualificationRawWriteOwner struct {
+	mu       sync.Mutex
+	terminal terminalState
+
+	lane          int
+	generation    uint64
+	rawBound      bool
+	bodyBound     bool
+	closeStarted  bool
+	closeObserved bool
+	sessionJoined bool
+	localAddr     net.Addr
+	remoteAddr    net.Addr
+	localAddress  string
+	remoteAddress string
+
+	epoch                      uint64
+	nextEnvelopeToken          uint64
+	activeEnvelope             bool
+	activeEnvelopeToken        uint64
+	activeEnvelopeStreamID     uint32
+	activeEnvelopePayloadBytes uint64
+	activeEnvelopeWireBytes    uint64
+	activeEnvelopeStarted      time.Time
+	activeEnvelopeCalls        uint64
+	activeEnvelopeRawNS        uint64
+	activeRawWrites            uint64
+
+	interval qualificationRawWriteInterval
+	tcp      qualificationTCPStateOwner
+}
+
+type qualificationRawWriteBegin struct {
+	terminal       uint64
+	started        time.Time
+	generation     uint64
+	epoch          uint64
+	envelopeActive bool
+	envelopeToken  uint64
+	tcp            qualificationTCPRawReservation
+	threshold      qualificationTCPThresholdReservation
+}
+
+type qualificationObservedRawConn struct {
+	net.Conn
+	owner *qualificationRawWriteOwner
+}
+
+type qualificationObservedSyscallRawConn struct {
+	*qualificationObservedRawConn
+	syscallConn syscall.Conn
+}
+
+type qualificationObservedTunnelBody struct {
+	io.ReadWriteCloser
+	owner *qualificationRawWriteOwner
+}
+
+type qualificationRawWriteTerminalRecord struct {
+	Lane            int                                 `json:"lane"`
+	Aggregate       bool                                `json:"aggregate"`
+	SessionIdentity string                              `json:"session_identity"`
+	RawWrite        yamux.QualificationRawWriteActivity `json:"raw_write_activity"`
+}
+
+type qualificationRawWriteTerminalSidecar struct {
+	SchemaVersion                  int                                   `json:"schema_version"`
+	Expected                       int                                   `json:"expected_sessions"`
+	Complete                       bool                                  `json:"complete"`
+	Invalid                        bool                                  `json:"invalid"`
+	TCPSlowStartAfterIdleSetup     int                                   `json:"tcp_slow_start_after_idle_setup"`
+	TCPSlowStartAfterIdleTerminal  int                                   `json:"tcp_slow_start_after_idle_terminal"`
+	TCPSlowStartAfterIdleReadError bool                                  `json:"tcp_slow_start_after_idle_read_error"`
+	Records                        []qualificationRawWriteTerminalRecord `json:"records"`
+}
+
+type qualificationRawWriteTerminalRecorder struct {
+	terminal terminalRecorderState
+	mu       sync.Mutex
+	path     string
+	expected int
+	invalid  bool
+	active   map[int]*yamux.Session
+	records  map[int]qualificationRawWriteTerminalRecord
+}
+
+func newExternalQualificationRawWriteTerminalRecorder(expected int) (*qualificationRawWriteTerminalRecorder, error) {
+	if os.Getenv(qualificationRawWriteEnableEnv) == "" {
+		return &qualificationRawWriteTerminalRecorder{}, nil
+	}
+	path := os.Getenv(qualificationRawWriteTerminalEnv)
+	if expected <= 0 || path == "" || !filepath.IsAbs(path) {
+		return nil, errors.New("raw-write diagnostic terminal path and positive expected session count are required")
+	}
+	return &qualificationRawWriteTerminalRecorder{
+		path: path, expected: expected,
+		active:  make(map[int]*yamux.Session, expected),
+		records: make(map[int]qualificationRawWriteTerminalRecord, expected),
+	}, nil
+}
+
+func (recorder *qualificationRawWriteTerminalRecorder) observe(observation tunnelSessionObservation) {
+	if recorder == nil || recorder.path == "" {
+		return
+	}
+	recorder.mu.Lock()
+	defer recorder.mu.Unlock()
+	if observation.Lane < 0 || observation.Lane >= recorder.expected || observation.Session == nil {
+		recorder.invalid = true
+		return
+	}
+	recorder.terminalObserveLocked(observation)
+	if observation.Connected {
+		if recorder.active[observation.Lane] != nil {
+			recorder.invalid = true
+			return
+		}
+		if _, exists := recorder.records[observation.Lane]; exists {
+			recorder.invalid = true
+			return
+		}
+		recorder.active[observation.Lane] = observation.Session
+		return
+	}
+	if recorder.active[observation.Lane] != observation.Session {
+		recorder.invalid = true
+		return
+	}
+	delete(recorder.active, observation.Lane)
+	snapshot := observation.Session.DrainQualificationRawWriteActivity()
+	record := qualificationRawWriteTerminalRecord{
+		Lane: observation.Lane, Aggregate: observation.Aggregate,
+		SessionIdentity: fmt.Sprintf("%p", observation.Session), RawWrite: snapshot,
+	}
+	if !qualificationRawWriteTerminalRecordValid(record, observation.Lane) {
+		recorder.invalid = true
+	}
+	recorder.records[observation.Lane] = record
+}
+
+func qualificationRawWriteTerminalRecordValid(record qualificationRawWriteTerminalRecord, lane int) bool {
+	snapshot := record.RawWrite
+	tcp := snapshot.TCPState
+	localAddress := strings.TrimSpace(snapshot.LocalAddress)
+	remoteAddress := strings.TrimSpace(snapshot.RemoteAddress)
+	return record.Lane == lane && strings.TrimSpace(record.SessionIdentity) != "" &&
+		snapshot.SchemaVersion == qualificationRawWriteSchemaVersion && snapshot.Enabled && snapshot.Bound &&
+		snapshot.Complete && snapshot.ResetPerformed && !snapshot.Ambiguous && !snapshot.Overflow &&
+		snapshot.CloseObserved && snapshot.SessionJoined && snapshot.ActiveEnvelopes == 0 && snapshot.ActiveRawWrites == 0 &&
+		tcp.SchemaVersion == yamux.QualificationTCPStateSchemaVersion && tcp.Enabled && tcp.Bound && !tcp.Armed &&
+		tcp.Complete && tcp.ResetPerformed && !tcp.Invalid && !tcp.Ambiguous && !tcp.Overflow &&
+		tcp.ActiveSamples == 0 && tcp.PendingRawClaims == 0 && tcp.ActiveRawPairs == 0 && tcp.CaptureErrors == 0 &&
+		tcp.LastLiveTCPInfo.Captured && tcp.LastLiveTCPInfo.CaptureMonotonicValid &&
+		tcp.LastLiveTCPInfo.TCPInfoSucceeded && tcp.LastLiveTCPInfo.CongestionControlSucceeded &&
+		tcp.LastLiveTCPInfo.FailureStage == "" && tcp.LastLiveTCPInfo.FailureErrno == 0 &&
+		tcp.LastLiveTCPInfo.CongestionControl != "" &&
+		snapshot.Lane == lane && snapshot.Generation != 0 && localAddress != "" && remoteAddress != "" &&
+		localAddress != "yamux:local" && remoteAddress != "yamux:remote"
+}
+
+func (recorder *qualificationRawWriteTerminalRecorder) write() error {
+	if recorder == nil || recorder.path == "" {
+		return nil
+	}
+	terminalSlowStartAfterIdle, terminalReadErr := qualificationReadTCPSlowStartAfterIdle()
+	setupSlowStartAfterIdle := -1
+	if install := qualificationRawWriteGlobal.install.Load(); install != nil {
+		setupSlowStartAfterIdle = install.tcpSlowStartAfterIdleSetup
+	}
+	recorder.mu.Lock()
+	sidecar := qualificationRawWriteTerminalSidecar{
+		SchemaVersion: qualificationRawWriteSchemaVersion, Expected: recorder.expected,
+		Invalid: recorder.invalid || terminalReadErr != nil || setupSlowStartAfterIdle < 0 ||
+			terminalSlowStartAfterIdle != setupSlowStartAfterIdle,
+		TCPSlowStartAfterIdleSetup:     setupSlowStartAfterIdle,
+		TCPSlowStartAfterIdleTerminal:  terminalSlowStartAfterIdle,
+		TCPSlowStartAfterIdleReadError: terminalReadErr != nil,
+		Records:                        make([]qualificationRawWriteTerminalRecord, 0, len(recorder.records)),
+	}
+	for lane := 0; lane < recorder.expected; lane++ {
+		if record, ok := recorder.records[lane]; ok {
+			if !qualificationRawWriteTerminalRecordValid(record, lane) {
+				sidecar.Invalid = true
+			}
+			sidecar.Records = append(sidecar.Records, record)
+		}
+	}
+	sidecar.Complete = !sidecar.Invalid && len(recorder.active) == 0 && len(sidecar.Records) == recorder.expected
+	recorder.mu.Unlock()
+	data, err := json.Marshal(sidecar)
+	if err != nil {
+		return err
+	}
+	file, err := os.OpenFile(recorder.path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err = file.Write(data); err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return err
+	}
+	if err := recorder.writeTerminalAttribution(data); err != nil {
+		return err
+	}
+	if install := qualificationRawWriteGlobal.install.Load(); install != nil {
+		if err := install.controllerScreen.write(recorder.path); err != nil {
+			return err
+		}
+	}
+	if !sidecar.Complete {
+		return errQualificationLegacyTerminalIncomplete
+	}
+	return nil
+}
+
+func installExternalQualificationRawWriteObserver() (func() error, error) {
+	enabled := os.Getenv(qualificationRawWriteEnableEnv)
+	if enabled == "" {
+		if os.Getenv(qualificationControllerEnv) != "" {
+			return nil, errors.New("controller screen requires raw observer enablement")
+		}
+		return func() error { return nil }, nil
+	}
+	if enabled != "1" {
+		return nil, errors.New("raw-write diagnostic requires exact sender-wait enablement")
+	}
+	controllerScreen, err := qualificationControllerSetup()
+	if err != nil {
+		return nil, err
+	}
+	tcpSlowStartAfterIdle, err := qualificationReadTCPSlowStartAfterIdle()
+	if err != nil {
+		return nil, fmt.Errorf("read TCP slow-start-after-idle setup state: %w", err)
+	}
+
+	qualificationRawWriteGlobal.mu.Lock()
+	defer qualificationRawWriteGlobal.mu.Unlock()
+	if qualificationRawWriteGlobal.install.Load() != nil {
+		return nil, errors.New("raw-write diagnostic transport is already installed")
+	}
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return nil, errors.New("raw-write diagnostic requires the default HTTP transport")
+	}
+	if base.DialTLS != nil || base.DialTLSContext != nil || base.DialContext == nil {
+		return nil, errors.New("raw-write diagnostic requires the pinned default DialContext and no custom TLS dialer")
+	}
+	originalDial := base.DialContext
+	transport := base.Clone()
+	transport.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := originalDial(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		binding, _ := ctx.Value(qualificationRawWriteContextKey{}).(*qualificationRawWriteBinding)
+		if binding == nil {
+			return conn, nil
+		}
+		wrapped, bindErr := binding.bindRaw(conn)
+		if bindErr != nil {
+			_ = conn.Close()
+			return nil, bindErr
+		}
+		return wrapped, nil
+	}
+	install := &qualificationRawWriteInstall{previous: http.DefaultTransport, installed: transport, tcpSlowStartAfterIdleSetup: tcpSlowStartAfterIdle, controllerScreen: controllerScreen}
+	qualificationRawWriteGlobal.install.Store(install)
+	http.DefaultTransport = transport
+	return func() error {
+		qualificationRawWriteGlobal.mu.Lock()
+		defer qualificationRawWriteGlobal.mu.Unlock()
+		current := qualificationRawWriteGlobal.install.Load()
+		if current != install || http.DefaultTransport != install.installed {
+			return errors.New("raw-write diagnostic transport ownership changed before restore")
+		}
+		http.DefaultTransport = install.previous
+		qualificationRawWriteGlobal.install.Store(nil)
+		return nil
+	}, nil
+}
+
+func qualificationBindRawWriteRequest(req *http.Request, registration tunnelLaneRegistration) (*http.Request, error) {
+	if qualificationRawWriteGlobal.install.Load() == nil {
+		return req, nil
+	}
+	if req == nil || registration.lane < 0 {
+		return nil, errors.New("raw-write diagnostic received an invalid tunnel request binding")
+	}
+	generation := qualificationRawWriteGlobal.generation.Add(1)
+	if generation == 0 {
+		return nil, errors.New("raw-write diagnostic generation overflow")
+	}
+	install := qualificationRawWriteGlobal.install.Load()
+	if install == nil {
+		return nil, errors.New("raw-write diagnostic transport disappeared during tunnel request binding")
+	}
+	owner := &qualificationRawWriteOwner{lane: registration.lane, generation: generation}
+	owner.tcp.tcpSlowStartAfterIdle = install.tcpSlowStartAfterIdleSetup
+	binding := &qualificationRawWriteBinding{lane: registration.lane, owner: owner}
+	ctx := context.WithValue(req.Context(), qualificationRawWriteContextKey{}, binding)
+	return req.WithContext(ctx), nil
+}
+
+func qualificationBindRawWriteBody(req *http.Request, body io.ReadWriteCloser) (io.ReadWriteCloser, error) {
+	if qualificationRawWriteGlobal.install.Load() == nil {
+		return body, nil
+	}
+	if req == nil || body == nil {
+		return nil, errors.New("raw-write diagnostic received an invalid tunnel body binding")
+	}
+	binding, _ := req.Context().Value(qualificationRawWriteContextKey{}).(*qualificationRawWriteBinding)
+	if binding == nil {
+		return nil, errors.New("raw-write diagnostic tunnel request binding is missing")
+	}
+	binding.mu.Lock()
+	defer binding.mu.Unlock()
+	if !binding.rawBound || binding.bodyBound || binding.owner == nil {
+		return nil, errors.New("raw-write diagnostic tunnel body binding is missing or duplicated")
+	}
+	binding.bodyBound = true
+	binding.owner.mu.Lock()
+	binding.owner.bodyBound = true
+	binding.owner.mu.Unlock()
+	return &qualificationObservedTunnelBody{ReadWriteCloser: body, owner: binding.owner}, nil
+}
+
+func qualificationRetireRawWriteSession(session *yamux.Session) error {
+	if session == nil || !session.RetireQualificationRawWriteActivity() {
+		return errors.New("raw-write diagnostic session retirement preceded Yamux joins")
+	}
+	return nil
+}
+
+func (binding *qualificationRawWriteBinding) bindRaw(conn net.Conn) (net.Conn, error) {
+	if _, ok := conn.(*net.TCPConn); !ok {
+		return nil, errors.New("terminal attribution requires a direct standard TCP connection")
+	}
+	if binding == nil || conn == nil {
+		return nil, errors.New("raw-write diagnostic received an invalid raw connection")
+	}
+	binding.mu.Lock()
+	if binding.rawBound || binding.owner == nil || binding.owner.lane != binding.lane {
+		binding.mu.Unlock()
+		return nil, errors.New("raw-write diagnostic raw connection binding is duplicated or mismatched")
+	}
+	binding.rawBound = true
+	owner := binding.owner
+	binding.mu.Unlock()
+	localAddr, remoteAddr := conn.LocalAddr(), conn.RemoteAddr()
+	if localAddr == nil || remoteAddr == nil {
+		binding.mu.Lock()
+		binding.rawBound = false
+		binding.mu.Unlock()
+		return nil, errors.New("raw-write diagnostic connection addresses are unavailable")
+	}
+	syscallConn, ok := conn.(syscall.Conn)
+	if !ok {
+		binding.mu.Lock()
+		binding.rawBound = false
+		binding.mu.Unlock()
+		return nil, errors.New("raw-write diagnostic TCP connection does not expose syscall.RawConn")
+	}
+	raw, err := syscallConn.SyscallConn()
+	if err != nil {
+		binding.mu.Lock()
+		binding.rawBound = false
+		binding.mu.Unlock()
+		return nil, fmt.Errorf("raw-write diagnostic resolve syscall.RawConn: %w", err)
+	}
+	install := qualificationRawWriteGlobal.install.Load()
+	if install != nil && install.controllerScreen != nil {
+		if err := install.controllerScreen.bind(raw, owner, localAddr.String(), remoteAddr.String()); err != nil {
+			return nil, err
+		}
+	}
+	bindTCPInfo, err := qualificationCaptureTCPInfo(raw)
+	if err != nil {
+		binding.mu.Lock()
+		binding.rawBound = false
+		binding.mu.Unlock()
+		return nil, fmt.Errorf("raw-write diagnostic bind TCP state: %w", err)
+	}
+	if install != nil && install.controllerScreen != nil {
+		want := install.controllerScreen.Requested
+		if owner.lane == 0 {
+			want = "cubic"
+		}
+		if bindTCPInfo.CongestionControl != want {
+			return nil, errors.New("controller differs at initial owner TCP snapshot")
+		}
+	}
+	owner.mu.Lock()
+	owner.rawBound = true
+	owner.terminal.TCPBound = true
+	owner.localAddr = localAddr
+	owner.remoteAddr = remoteAddr
+	owner.localAddress = localAddr.String()
+	owner.remoteAddress = remoteAddr.String()
+	tcpSlowStartAfterIdle := owner.tcp.tcpSlowStartAfterIdle
+	owner.mu.Unlock()
+	if !owner.bindTCPState(raw, bindTCPInfo, tcpSlowStartAfterIdle) {
+		binding.mu.Lock()
+		binding.rawBound = false
+		binding.mu.Unlock()
+		return nil, errors.New("raw-write diagnostic TCP state binding is duplicated or invalid")
+	}
+	base := &qualificationObservedRawConn{Conn: conn, owner: owner}
+	return &qualificationObservedSyscallRawConn{qualificationObservedRawConn: base, syscallConn: syscallConn}, nil
+}
+
+func (conn *qualificationObservedRawConn) QualificationUnderlyingConn() net.Conn {
+	if conn == nil {
+		return nil
+	}
+	if conn.owner != nil {
+		conn.owner.mu.Lock()
+		conn.owner.terminal.UnderlyingEscaped = true
+		conn.owner.terminal.reject(terminalOwnerChanged)
+		conn.owner.mu.Unlock()
+	}
+	return conn.Conn
+}
+
+func (conn *qualificationObservedSyscallRawConn) SyscallConn() (syscall.RawConn, error) {
+	if conn == nil || conn.syscallConn == nil {
+		return nil, errors.New("raw-write diagnostic syscall connection is unavailable")
+	}
+	return conn.syscallConn.SyscallConn()
+}
+
+func (conn *qualificationObservedRawConn) Write(payload []byte) (int, error) {
+	if conn == nil || conn.Conn == nil || conn.owner == nil {
+		return 0, net.ErrClosed
+	}
+	begin := conn.owner.beginRawWrite()
+	var tcpBefore, tcpAfter qualificationTCPInfoSnapshot
+	var tcpBeforeErr, tcpAfterErr error
+	var tcpBeforeProviderInvoked, tcpAfterProviderInvoked bool
+	if begin.tcp.first || begin.threshold.active {
+		raw := begin.tcp.raw
+		if raw == nil {
+			raw = begin.threshold.raw
+		}
+		tcpBefore, tcpBeforeErr, tcpBeforeProviderInvoked = conn.owner.captureTCPRawInfoIfPermitted(begin, raw)
+	}
+	// This timestamp is the measured raw-write start. Ownership is reserved
+	// first so an envelope opening in the gap sees an active boundary write.
+	begin.started = time.Now()
+	written, err := conn.Conn.Write(payload)
+	finished := time.Now()
+	conn.owner.terminalRawReturned(begin.terminal, len(payload), written, err)
+	if begin.tcp.first || begin.threshold.active {
+		raw := begin.tcp.raw
+		if raw == nil {
+			raw = begin.threshold.raw
+		}
+		tcpAfter, tcpAfterErr, tcpAfterProviderInvoked = conn.owner.captureTCPRawInfoIfPermitted(begin, raw)
+	}
+	conn.owner.finishRawWriteWithTCP(begin, len(payload), written, err, finished, tcpBefore, tcpBeforeErr, tcpAfter, tcpAfterErr, tcpBeforeProviderInvoked, tcpAfterProviderInvoked)
+	return written, err
+}
+
+func (conn *qualificationObservedRawConn) Close() error {
+	if conn == nil || conn.Conn == nil {
+		return net.ErrClosed
+	}
+	if conn.owner != nil {
+		conn.owner.beginClose()
+	}
+	err := conn.Conn.Close()
+	if conn.owner != nil {
+		conn.owner.terminalPhysicalCloseEnd(err)
+		conn.owner.markClosed()
+	}
+	return err
+}
+
+func (body *qualificationObservedTunnelBody) Close() error {
+	if body == nil || body.ReadWriteCloser == nil {
+		return net.ErrClosed
+	}
+	// The outer body can be a TLS connection. Its Close synchronously writes
+	// close_notify before it closes the observed physical connection, so the
+	// physical-close barrier belongs in qualificationObservedRawConn.Close.
+	err := body.ReadWriteCloser.Close()
+	if body.owner != nil {
+		body.owner.markClosed()
+	}
+	return err
+}
+
+func (body *qualificationObservedTunnelBody) CloseWrite() error {
+	if body == nil || body.ReadWriteCloser == nil {
+		return net.ErrClosed
+	}
+	closer, ok := body.ReadWriteCloser.(interface{ CloseWrite() error })
+	if !ok {
+		return errors.New("raw-write diagnostic tunnel body does not support CloseWrite")
+	}
+	return closer.CloseWrite()
+}
+
+func (body *qualificationObservedTunnelBody) LocalAddr() net.Addr {
+	if body == nil || body.owner == nil {
+		return nil
+	}
+	body.owner.mu.Lock()
+	defer body.owner.mu.Unlock()
+	return body.owner.localAddr
+}
+
+func (body *qualificationObservedTunnelBody) RemoteAddr() net.Addr {
+	if body == nil || body.owner == nil {
+		return nil
+	}
+	body.owner.mu.Lock()
+	defer body.owner.mu.Unlock()
+	return body.owner.remoteAddr
+}
+
+func (body *qualificationObservedTunnelBody) BeginQualificationRawWriteEnvelope(streamID uint32, payloadBytes, wireBytes uint64, physicalStarted time.Time) uint64 {
+	if body == nil || body.owner == nil {
+		return 0
+	}
+	return body.owner.beginEnvelope(streamID, payloadBytes, wireBytes, physicalStarted)
+}
+
+func (body *qualificationObservedTunnelBody) FinishQualificationRawWriteEnvelope(token uint64) time.Time {
+	if body == nil || body.owner == nil {
+		return time.Now()
+	}
+	return body.owner.finishEnvelopeNow(token)
+}
+
+func (body *qualificationObservedTunnelBody) DrainQualificationRawWriteActivity() yamux.QualificationRawWriteActivity {
+	if body == nil || body.owner == nil {
+		return yamux.QualificationRawWriteActivity{}
+	}
+	return body.owner.drain()
+}
+
+func (body *qualificationObservedTunnelBody) RetireQualificationRawWriteActivity() {
+	if body != nil && body.owner != nil {
+		body.owner.markSessionJoined()
+	}
+}
+
+func (owner *qualificationRawWriteOwner) beginRawWrite() qualificationRawWriteBegin {
+	owner.mu.Lock()
+	closed := owner.closeStarted || owner.closeObserved || owner.sessionJoined
+	if closed {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		owner.tcp.ambiguous = true
+		owner.tcp.invalid = true
+	}
+	owner.activeRawWrites = qualificationRawAdd(owner.activeRawWrites, 1, &owner.interval.overflow)
+	if owner.activeRawWrites > owner.interval.maximumActiveRawWrites {
+		owner.interval.maximumActiveRawWrites = owner.activeRawWrites
+	}
+	if owner.activeRawWrites > 1 {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	}
+	begin := qualificationRawWriteBegin{
+		terminal:       owner.terminalBeginRawLocked(),
+		generation:     owner.generation,
+		epoch:          owner.epoch,
+		envelopeActive: owner.activeEnvelope,
+		envelopeToken:  owner.activeEnvelopeToken,
+		threshold:      owner.beginTCPThresholdHistoryLocked(),
+	}
+	if !closed {
+		begin.tcp = owner.reserveTCPRawPairLocked()
+	}
+	owner.mu.Unlock()
+	return begin
+}
+
+func (owner *qualificationRawWriteOwner) beginClose() {
+	owner.mu.Lock()
+	owner.terminalPhysicalCloseBeginLocked()
+	owner.closeStarted = true
+	owner.mu.Unlock()
+}
+
+func (owner *qualificationRawWriteOwner) finishRawWrite(begin qualificationRawWriteBegin, attempted, written int, writeErr error, finished time.Time) {
+	owner.finishRawWriteWithTCP(begin, attempted, written, writeErr, finished, qualificationTCPInfoSnapshot{}, nil, qualificationTCPInfoSnapshot{}, nil, false, false)
+}
+
+func (owner *qualificationRawWriteOwner) finishRawWriteWithTCP(begin qualificationRawWriteBegin, attempted, written int, writeErr error, finished time.Time, tcpBefore qualificationTCPInfoSnapshot, tcpBeforeErr error, tcpAfter qualificationTCPInfoSnapshot, tcpAfterErr error, tcpBeforeProviderInvoked, tcpAfterProviderInvoked bool) {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	owner.terminalFinishRawLocked(begin.terminal)
+	if owner.activeRawWrites == 0 {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	} else {
+		owner.activeRawWrites--
+	}
+	class := qualificationRawWriteStraddling
+	if begin.generation != owner.generation {
+		owner.interval.ownerGenerationChanges = qualificationRawAdd(owner.interval.ownerGenerationChanges, 1, &owner.interval.overflow)
+	} else if begin.epoch == owner.epoch && begin.envelopeActive && owner.activeEnvelope && begin.envelopeToken == owner.activeEnvelopeToken &&
+		!begin.started.Before(owner.activeEnvelopeStarted) {
+		class = qualificationRawWriteContained
+	} else if begin.epoch == owner.epoch && !begin.envelopeActive && !owner.activeEnvelope {
+		class = qualificationRawWriteOutside
+	}
+	if attempted < 0 || written < 0 || written > attempted || finished.Before(begin.started) {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		attempted = max(attempted, 0)
+		written = min(max(written, 0), attempted)
+	}
+	outcome := qualificationRawWriteSuccess
+	if writeErr != nil {
+		outcome = qualificationRawWriteError
+	} else if written != attempted {
+		outcome = qualificationRawWriteShort
+	}
+	owner.interval.classes[class].record(uint64(attempted), uint64(written), finished.Sub(begin.started), outcome, &owner.interval.overflow)
+	owner.finishTCPRawWriteLocked(begin, class, finished, tcpBefore, tcpBeforeErr, tcpAfter, tcpAfterErr, tcpBeforeProviderInvoked, tcpAfterProviderInvoked)
+	owner.finishTCPThresholdHistoryLocked(begin.threshold, attempted, written, writeErr, begin.started, finished, tcpBefore, tcpBeforeErr, tcpAfter, tcpAfterErr, tcpBeforeProviderInvoked, tcpAfterProviderInvoked, begin.tcp.first)
+	if owner.interval.lastRawFinished.IsZero() || finished.After(owner.interval.lastRawFinished) {
+		owner.interval.lastRawFinished = finished
+	}
+}
+
+func (owner *qualificationRawWriteOwner) beginEnvelope(streamID uint32, payloadBytes, wireBytes uint64, physicalStarted time.Time) uint64 {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	if owner.activeEnvelope {
+		owner.interval.envelopeOverlaps = qualificationRawAdd(owner.interval.envelopeOverlaps, 1, &owner.interval.overflow)
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		return 0
+	}
+	if physicalStarted.IsZero() || wireBytes < payloadBytes {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		return 0
+	}
+	owner.nextEnvelopeToken = qualificationRawAdd(owner.nextEnvelopeToken, 1, &owner.interval.overflow)
+	if owner.nextEnvelopeToken == 0 {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		return 0
+	}
+	owner.epoch = qualificationRawAdd(owner.epoch, 1, &owner.interval.overflow)
+	owner.activeEnvelope = true
+	owner.activeEnvelopeToken = owner.nextEnvelopeToken
+	owner.activeEnvelopeStreamID = streamID
+	owner.activeEnvelopePayloadBytes = payloadBytes
+	owner.activeEnvelopeWireBytes = wireBytes
+	owner.activeEnvelopeStarted = physicalStarted
+	owner.activeEnvelopeCalls = owner.interval.classes[qualificationRawWriteContained].calls
+	owner.activeEnvelopeRawNS = owner.interval.classes[qualificationRawWriteContained].duration.total
+	owner.interval.envelopeCount = qualificationRawAdd(owner.interval.envelopeCount, 1, &owner.interval.overflow)
+	owner.interval.envelopePayloadBytes = qualificationRawAdd(owner.interval.envelopePayloadBytes, payloadBytes, &owner.interval.overflow)
+	owner.interval.envelopeWireBytes = qualificationRawAdd(owner.interval.envelopeWireBytes, wireBytes, &owner.interval.overflow)
+	owner.observeStream(streamID)
+	owner.beginTCPEnvelopeLocked(streamID, owner.activeEnvelopeToken)
+	if owner.activeRawWrites != 0 {
+		owner.interval.boundaryActiveRawWrites = qualificationRawAdd(owner.interval.boundaryActiveRawWrites, owner.activeRawWrites, &owner.interval.overflow)
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	}
+	if !owner.interval.lastRawFinished.IsZero() && owner.interval.lastRawFinished.After(physicalStarted) {
+		owner.interval.boundaryOutsideCompletions = qualificationRawAdd(owner.interval.boundaryOutsideCompletions, 1, &owner.interval.overflow)
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	}
+	return owner.activeEnvelopeToken
+}
+
+func (owner *qualificationRawWriteOwner) finishEnvelope(token uint64, physicalFinished time.Time) {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	owner.finishEnvelopeLocked(token, physicalFinished)
+}
+
+func (owner *qualificationRawWriteOwner) finishEnvelopeNow(token uint64) time.Time {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	physicalFinished := time.Now()
+	owner.finishEnvelopeLocked(token, physicalFinished)
+	return physicalFinished
+}
+
+func (owner *qualificationRawWriteOwner) finishEnvelopeLocked(token uint64, physicalFinished time.Time) {
+	if !owner.activeEnvelope || token == 0 || token != owner.activeEnvelopeToken {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		return
+	}
+	if physicalFinished.Before(owner.activeEnvelopeStarted) {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		physicalFinished = owner.activeEnvelopeStarted
+	}
+	if owner.activeRawWrites != 0 {
+		owner.interval.boundaryActiveRawWrites = qualificationRawAdd(owner.interval.boundaryActiveRawWrites, owner.activeRawWrites, &owner.interval.overflow)
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	}
+	if !owner.interval.lastRawFinished.IsZero() && owner.interval.lastRawFinished.After(physicalFinished) {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	}
+	contained := &owner.interval.classes[qualificationRawWriteContained]
+	containedCalls := uint64(0)
+	containedNS := uint64(0)
+	if contained.calls < owner.activeEnvelopeCalls || contained.duration.total < owner.activeEnvelopeRawNS {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	} else {
+		containedCalls = contained.calls - owner.activeEnvelopeCalls
+		containedNS = contained.duration.total - owner.activeEnvelopeRawNS
+	}
+	envelopeDuration := physicalFinished.Sub(owner.activeEnvelopeStarted)
+	owner.interval.envelopeDuration.add(envelopeDuration, &owner.interval.overflow)
+	if containedNS > math.MaxInt64 {
+		owner.interval.overflow = true
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	} else {
+		owner.interval.containedRawDuration.add(time.Duration(containedNS), &owner.interval.overflow)
+	}
+	if containedCalls == 0 {
+		owner.interval.envelopeZeroRawCalls = qualificationRawAdd(owner.interval.envelopeZeroRawCalls, 1, &owner.interval.overflow)
+	}
+	if containedNS > uint64(envelopeDuration) || containedNS > math.MaxInt64 {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+	} else {
+		owner.interval.residualDuration.add(envelopeDuration-time.Duration(containedNS), &owner.interval.overflow)
+	}
+	owner.finishTCPEnvelopeLocked()
+	owner.activeEnvelope = false
+	owner.activeEnvelopeToken = 0
+	owner.activeEnvelopeStreamID = 0
+	owner.activeEnvelopePayloadBytes = 0
+	owner.activeEnvelopeWireBytes = 0
+	owner.activeEnvelopeStarted = time.Time{}
+	owner.activeEnvelopeCalls = 0
+	owner.activeEnvelopeRawNS = 0
+	owner.epoch = qualificationRawAdd(owner.epoch, 1, &owner.interval.overflow)
+}
+
+func (owner *qualificationRawWriteOwner) observeStream(streamID uint32) {
+	if !owner.interval.streamObserved {
+		owner.interval.streamObserved = true
+		owner.interval.streamID = streamID
+		return
+	}
+	if owner.interval.streamID != streamID {
+		owner.interval.multipleStreams = true
+	}
+}
+
+func (owner *qualificationRawWriteOwner) markClosed() {
+	owner.mu.Lock()
+	owner.terminalLegacyCloseLocked()
+	owner.closeStarted = true
+	owner.closeObserved = true
+	owner.closeTCPThresholdHistoryLocked()
+	if owner.activeEnvelope || owner.activeRawWrites != 0 || owner.tcp.armed || owner.tcp.transitioning ||
+		owner.tcp.activeSamples != 0 || owner.tcp.pendingRawClaims != 0 || owner.tcp.activeRawPairs != 0 ||
+		owner.tcp.activeEnvelopeWaitSlot != 0 || owner.tcp.activeEnvelopePairSlot != 0 {
+		owner.interval.ambiguous = true
+		owner.tcp.ambiguous = true
+		owner.tcp.invalid = true
+	}
+	owner.mu.Unlock()
+}
+
+func (owner *qualificationRawWriteOwner) markSessionJoined() {
+	owner.mu.Lock()
+	if owner.terminal.Joined == 0 {
+		owner.terminal.Joined = owner.terminal.next()
+	}
+	owner.sessionJoined = true
+	owner.closeTCPThresholdHistoryLocked()
+	if owner.activeEnvelope || owner.activeRawWrites != 0 || owner.tcp.armed || owner.tcp.transitioning ||
+		owner.tcp.activeSamples != 0 || owner.tcp.pendingRawClaims != 0 || owner.tcp.activeRawPairs != 0 ||
+		owner.tcp.activeEnvelopeWaitSlot != 0 || owner.tcp.activeEnvelopePairSlot != 0 {
+		owner.interval.ambiguous = true
+		owner.terminal.reject(terminalOtherLegacyAmbiguity)
+		owner.tcp.ambiguous = true
+		owner.tcp.invalid = true
+	}
+	owner.mu.Unlock()
+}
+
+func (owner *qualificationRawWriteOwner) drain() yamux.QualificationRawWriteActivity {
+	owner.mu.Lock()
+	defer owner.mu.Unlock()
+	outerComplete := !owner.activeEnvelope && owner.activeRawWrites == 0
+	tcpState := owner.drainTCPStateLocked(outerComplete)
+	complete := outerComplete && tcpState.Complete
+	result := yamux.QualificationRawWriteActivity{
+		SchemaVersion: qualificationRawWriteSchemaVersion,
+		Enabled:       true, Complete: complete, ResetPerformed: complete,
+		Bound: owner.rawBound && owner.bodyBound, CloseObserved: owner.closeObserved, SessionJoined: owner.sessionJoined,
+		Ambiguous: owner.interval.ambiguous, Overflow: owner.interval.overflow,
+		Lane: owner.lane, Generation: owner.generation,
+		LocalAddress: owner.localAddress, RemoteAddress: owner.remoteAddress,
+		StreamObserved: owner.interval.streamObserved, ObservedStreamID: owner.interval.streamID,
+		MultipleStreams: owner.interval.multipleStreams,
+		ActiveEnvelopes: qualificationRawBoolCount(owner.activeEnvelope), ActiveRawWrites: owner.activeRawWrites,
+		MaximumActiveRawWrites:     owner.interval.maximumActiveRawWrites,
+		EnvelopeCount:              owner.interval.envelopeCount,
+		EnvelopePayloadBytes:       owner.interval.envelopePayloadBytes,
+		EnvelopeWireBytes:          owner.interval.envelopeWireBytes,
+		EnvelopeZeroRawCalls:       owner.interval.envelopeZeroRawCalls,
+		EnvelopeDuration:           qualificationRawDurationSnapshot(owner.interval.envelopeDuration),
+		ContainedRawDuration:       qualificationRawDurationSnapshot(owner.interval.containedRawDuration),
+		ResidualDuration:           qualificationRawDurationSnapshot(owner.interval.residualDuration),
+		BoundaryActiveRawWrites:    owner.interval.boundaryActiveRawWrites,
+		BoundaryOutsideCompletions: owner.interval.boundaryOutsideCompletions,
+		EnvelopeOverlaps:           owner.interval.envelopeOverlaps,
+		OwnerGenerationChanges:     owner.interval.ownerGenerationChanges,
+		Contained:                  qualificationRawClassSnapshot(owner.interval.classes[qualificationRawWriteContained]),
+		Outside:                    qualificationRawClassSnapshot(owner.interval.classes[qualificationRawWriteOutside]),
+		Straddling:                 qualificationRawClassSnapshot(owner.interval.classes[qualificationRawWriteStraddling]),
+		TCPState:                   tcpState,
+	}
+	if complete {
+		owner.interval = qualificationRawWriteInterval{}
+	}
+	return result
+}
+
+func (counters *qualificationRawWriteClassCounters) record(attempted, written uint64, duration time.Duration, outcome qualificationRawWriteOutcome, overflow *bool) {
+	counters.calls = qualificationRawAdd(counters.calls, 1, overflow)
+	counters.attemptBytes = qualificationRawAdd(counters.attemptBytes, attempted, overflow)
+	counters.writtenBytes = qualificationRawAdd(counters.writtenBytes, written, overflow)
+	counters.duration.add(duration, overflow)
+	switch outcome {
+	case qualificationRawWriteSuccess:
+		counters.successDuration.add(duration, overflow)
+		counters.successCalls = qualificationRawAdd(counters.successCalls, 1, overflow)
+		counters.successAttemptBytes = qualificationRawAdd(counters.successAttemptBytes, attempted, overflow)
+		counters.successWrittenBytes = qualificationRawAdd(counters.successWrittenBytes, written, overflow)
+	case qualificationRawWriteError:
+		counters.errorDuration.add(duration, overflow)
+		counters.errorCalls = qualificationRawAdd(counters.errorCalls, 1, overflow)
+		counters.errorAttemptBytes = qualificationRawAdd(counters.errorAttemptBytes, attempted, overflow)
+		counters.errorWrittenBytes = qualificationRawAdd(counters.errorWrittenBytes, written, overflow)
+	case qualificationRawWriteShort:
+		counters.shortDuration.add(duration, overflow)
+		counters.shortCalls = qualificationRawAdd(counters.shortCalls, 1, overflow)
+		counters.shortAttemptBytes = qualificationRawAdd(counters.shortAttemptBytes, attempted, overflow)
+		counters.shortWrittenBytes = qualificationRawAdd(counters.shortWrittenBytes, written, overflow)
+	}
+}
+
+func (duration *qualificationRawWriteDuration) add(value time.Duration, overflow *bool) {
+	if value < 0 {
+		*overflow = true
+		return
+	}
+	nanoseconds := uint64(value)
+	duration.count = qualificationRawAdd(duration.count, 1, overflow)
+	duration.total = qualificationRawAdd(duration.total, nanoseconds, overflow)
+	if nanoseconds > duration.max {
+		duration.max = nanoseconds
+	}
+}
+
+func qualificationRawAdd(current, value uint64, overflow *bool) uint64 {
+	if math.MaxUint64-current < value {
+		*overflow = true
+		return math.MaxUint64
+	}
+	return current + value
+}
+
+func qualificationRawBoolCount(value bool) uint64 {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func qualificationRawDurationSnapshot(duration qualificationRawWriteDuration) yamux.QualificationDurationBucket {
+	return yamux.QualificationDurationBucket{Count: duration.count, TotalNanoseconds: duration.total, MaxNanoseconds: duration.max}
+}
+
+func qualificationRawClassSnapshot(counters qualificationRawWriteClassCounters) yamux.QualificationRawWriteClass {
+	return yamux.QualificationRawWriteClass{
+		Calls: counters.calls, AttemptBytes: counters.attemptBytes, WrittenBytes: counters.writtenBytes,
+		Duration:        qualificationRawDurationSnapshot(counters.duration),
+		SuccessDuration: qualificationRawDurationSnapshot(counters.successDuration),
+		ErrorDuration:   qualificationRawDurationSnapshot(counters.errorDuration),
+		ShortDuration:   qualificationRawDurationSnapshot(counters.shortDuration),
+		SuccessCalls:    counters.successCalls, ErrorCalls: counters.errorCalls, ShortCalls: counters.shortCalls,
+		SuccessAttemptBytes: counters.successAttemptBytes, SuccessWrittenBytes: counters.successWrittenBytes,
+		ErrorAttemptBytes: counters.errorAttemptBytes, ErrorWrittenBytes: counters.errorWrittenBytes,
+		ShortAttemptBytes: counters.shortAttemptBytes, ShortWrittenBytes: counters.shortWrittenBytes,
+	}
+}

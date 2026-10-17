@@ -1,0 +1,20 @@
+{
+  "all_selected_original_bytes_preserved": true,
+  "completed_scope": [
+    "failed initial local compatibility fixture and preserved source freeze",
+    "accepted local continuation explicitly reusing four old natural-zero proofs",
+    "original zero-transfer cache-cleanup launch failure",
+    "exact official toolchain restoration and ownership-rejected environment recovery",
+    "joined-ps source correction and paired local regression",
+    "completed16-transfer first CUBIC arm, rejected for retained-warmup plus steady download floors"
+  ],
+  "future_extension_requires_new_evidence": true,
+  "omitted": [
+    "executable binaries",
+    "private key and certificate contents",
+    "full Go compilation tree",
+    "application logs/readiness contents and duplicate per-transfer artifacts",
+    "separate proposed whole retained vector diagnostic"
+  ],
+  "status": "ignored publication staging; not committed/pushed/published"
+}

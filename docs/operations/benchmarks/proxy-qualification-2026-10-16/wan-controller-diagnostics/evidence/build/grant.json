@@ -1,0 +1,6 @@
+{
+  "inventory_sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "plan_sha256": "4bd921978e886a6894597de5b8ca810228ccada16a4db15912fae7e05808cc22",
+  "scope": "local frozen tests/build only; sequential single attempt; stop first failure; no endpoint/WAN/namespaces; runtime token blocked",
+  "source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22"
+}

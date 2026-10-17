@@ -1,0 +1,101 @@
+--- runner-source/integration/run-wan-below-tls-arm.sh
++++ runner-source/integration/run-wan-below-tls-arm-joined-ps.sh
+@@ -987,7 +987,7 @@
+   exit 1
+ }
+ python3 - "$scope_dir/scope-process-join.json" "$scope_dir/scope-launcher.json" "$scope_sentinel_state" <<'PY'
+-import json, os, pathlib, sys
++import json, os, pathlib, subprocess, sys
+ out, launcher_path, sentinel_path = sys.argv[1:]
+ launcher, sentinel = json.load(open(launcher_path)), json.load(open(sentinel_path))
+ def alive(identity):
+@@ -996,7 +996,7 @@
+         return path.exists() and int(path.read_text().split()[21]) == identity["start_ticks"]
+     except (FileNotFoundError, ProcessLookupError):
+         return False
+-pgids = {int(value) for value in os.popen("ps -e -o pgid=").read().split()}
++pgids = {int(value) for value in subprocess.run(["ps", "-e", "-o", "pgid="], check=True, capture_output=True, text=True, timeout=20).stdout.split()}
+ value = {
+     "launcher_alive_same_identity": alive(launcher), "sentinel_alive_same_identity": alive(sentinel),
+     "launcher_group_joined": launcher["pgid"] not in pgids, "sentinel_group_joined": sentinel["pgid"] not in pgids,
+--- run-controller-screen-environment-recovery.py
++++ run-controller-screen-joined-ps.py
+@@ -159,11 +159,11 @@
+ 
+ def main():
+  if sys.argv[1:]!=['--execute-approved-once']:raise SystemExit('requires separately approved runtime command')
+- frozen=json.loads((ROOT/'COMMANDS-environment-recovery.json').read_text());grant=(ROOT/'REVIEWED-RECEIPT-SHA256').read_text().strip()
++ frozen=json.loads((ROOT/'COMMANDS-joined-ps.json').read_text());grant=(ROOT/'REVIEWED-RECEIPT-SHA256').read_text().strip()
+  if len(grant)!=64 or any(x not in '0123456789abcdef' for x in grant):raise SystemExit('reviewed build receipt absent')
+  for entry in json.loads((ROOT/'FROZEN-INPUTS.json').read_text()):
+   if hashlib.sha256(Path(entry['path']).read_bytes()).hexdigest()!=entry['sha256']:raise SystemExit('frozen source/runner/plan input changed')
+- runroot=ROOT/'runner-source/integration/runs/controller-crc-environment-recovery-once'
++ runroot=ROOT/'runner-source/integration/runs/controller-crc-joined-ps-once'
+  if runroot.exists():raise SystemExit('fresh complete screen output required; no retry')
+  runroot.mkdir(parents=True);decisions=[];screen={'schema_version':1,'accepted':False,'completed_arms':0,'stopped':True}
+  try:
+--- COMMANDS-environment-recovery.json
++++ COMMANDS-joined-ps.json
+@@ -10,7 +10,7 @@
+         "--signal=TERM",
+         "--kill-after=10s",
+         "900s",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm-joined-ps.sh",
+         "--server-binary",
+         "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+         "--aggregate-agent-binary",
+@@ -28,9 +28,9 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0-cubic"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-joined-ps-once/arm-0-cubic"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0-cubic",
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-joined-ps-once/arm-0-cubic",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+       }
+@@ -44,7 +44,7 @@
+         "--signal=TERM",
+         "--kill-after=10s",
+         "900s",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm-joined-ps.sh",
+         "--server-binary",
+         "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+         "--aggregate-agent-binary",
+@@ -62,9 +62,9 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-1-reno"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-joined-ps-once/arm-1-reno"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-1-reno",
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-joined-ps-once/arm-1-reno",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "reno"
+       }
+@@ -78,7 +78,7 @@
+         "--signal=TERM",
+         "--kill-after=10s",
+         "900s",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm-joined-ps.sh",
+         "--server-binary",
+         "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+         "--aggregate-agent-binary",
+@@ -96,9 +96,9 @@
+         "--protocol",
+         "h2",
+         "--output-dir",
+-        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-2-cubic"
++        "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-joined-ps-once/arm-2-cubic"
+       ],
+-      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-2-cubic",
++      "output_dir": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-joined-ps-once/arm-2-cubic",
+       "env": {
+         "P2PSTREAM_QUALIFICATION_DATA_CONTROLLER": "cubic"
+       }

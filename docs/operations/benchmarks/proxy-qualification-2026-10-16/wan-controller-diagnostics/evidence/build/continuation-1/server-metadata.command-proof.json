@@ -1,0 +1,36 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "version",
+    "-m",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "exit_status": 0,
+  "finished_unix": 1792239211.7625062,
+  "forced": false,
+  "name": "server-metadata",
+  "outer_audit_sha256": "0d7598915eab0b99ba764c11d440d70a9b01265a4a330144afd7a1acf2d03fb9",
+  "output_bytes": 442,
+  "owned_identities": [
+    {
+      "pgid": 2523806,
+      "pid": 2523806,
+      "ppid": 2522862,
+      "sid": 2523806,
+      "start_ticks": 7676723,
+      "state": "Z"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792239211.6290445,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 442,
+  "stdout_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b"
+}

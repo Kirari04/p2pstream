@@ -1,0 +1,28 @@
+{
+  "accepted_build_receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "changed_compilation_files_exported": 3,
+  "compiled_binaries_hash_only": {
+    "agent": {
+      "go_version_m_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+      "sha256": "b2d938c647c1d8ab4c2199a462b78e66ca7d00b710c08900b4421fc08eae8737",
+      "size": 22049900
+    },
+    "server": {
+      "go_version_m_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+      "sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+      "size": 60252128
+    }
+  },
+  "compiled_source_ref": "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+  "full_source_tree_exported": false,
+  "joined_ps_final_audit_sha256": "7160e279a3e29c1e750dcaa04e27590873d64eec1adc00d0c77531bd05119835",
+  "joined_ps_probe_sha256": "28bd786937712722d1417a4f525b68da0d6c8fd3f8e8c01adcc98fb8c9e9d9da",
+  "joined_ps_source_sha256": "83dacdb85a74130730a6ced36905343470616ca56b2adba10b01248f25c62c00",
+  "parent_frozen_manifest_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "production_reference": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "recorder_head_excluded": true,
+  "source_files": 462,
+  "source_inventory_sha256": "a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622"
+}

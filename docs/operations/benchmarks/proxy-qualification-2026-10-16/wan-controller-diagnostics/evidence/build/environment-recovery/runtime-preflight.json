@@ -1,0 +1,30 @@
+{
+  "all_frozen_and_plan_inputs_unchanged": true,
+  "binaries": {
+    "agent": {
+      "go_version_m_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+      "sha256": "b2d938c647c1d8ab4c2199a462b78e66ca7d00b710c08900b4421fc08eae8737",
+      "size": 22049900
+    },
+    "server": {
+      "go_version_m_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b",
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+      "sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+      "size": 60252128
+    }
+  },
+  "certificate_dates": [
+    "notBefore=Oct 17 09:14:29 2026 GMT",
+    "notAfter=Oct 18 09:14:29 2026 GMT"
+  ],
+  "commands_sha256": "8b8c7ba6a0764aeb48397b4062dd260d07d7e8e84c562669362bf60672a3150d",
+  "current_time_utc": "2026-10-17T12:20:05.725880+00:00",
+  "namespace_before": [],
+  "original_failed_runtime_ledger_verified": true,
+  "original_freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+  "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "recovery_record_sha256": "58a6aadce8e70cf9f8c1a46a2f347196d1606cf5e1703d4226dda16e1ff7d807",
+  "runner_namespace": "net:[4026531833]",
+  "runner_sha256": "be2d995bdb2aef7e62f315304ee294d6281ce49a195079bae9c9c9a479a8183e"
+}

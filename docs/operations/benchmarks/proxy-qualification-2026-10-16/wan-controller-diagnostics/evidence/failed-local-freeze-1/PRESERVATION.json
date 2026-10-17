@@ -1,0 +1,20 @@
+{
+  "source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+  "reason": "approved local test attempt stopped at first failure; correction requires separate source review and execution grant",
+  "failed_attempt_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build",
+  "failed_attempt_must_remain_immutable": true,
+  "preserved_paths": [
+    "SHA256SUMS",
+    "FROZEN-INPUTS.json",
+    "BUILD-TEST-PLAN.json",
+    "COMMANDS.json",
+    "SOURCE-SHA256SUMS",
+    "SOURCE.diff",
+    "STATIC-CHECKS.json",
+    "REVIEW.md",
+    "freeze-source.py",
+    "contracts/test-controller-screen.py",
+    "runner-source/integration/verify-terminal-build.py"
+  ],
+  "other_original_frozen_inputs_remain_unchanged": true
+}

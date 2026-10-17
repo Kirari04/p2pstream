@@ -1,0 +1,36 @@
+{
+  "adopted_descendants": [],
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=5s",
+    "20s",
+    "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+    "version",
+    "-m",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test"
+  ],
+  "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/test-source",
+  "exit_status": 0,
+  "finished_unix": 1792239211.539569,
+  "forced": false,
+  "name": "agent-metadata",
+  "outer_audit_sha256": "e026b3534ded425aa07b9feddafe48f1a5f9572b4b5f4991aff0e7dc74e40d30",
+  "output_bytes": 440,
+  "owned_identities": [
+    {
+      "pgid": 2523800,
+      "pid": 2523800,
+      "ppid": 2522862,
+      "sid": 2523800,
+      "start_ticks": 7676700,
+      "state": "Z"
+    }
+  ],
+  "remaining_group_members": [],
+  "started_unix": 1792239211.4028385,
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stdout_bytes": 440,
+  "stdout_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690"
+}

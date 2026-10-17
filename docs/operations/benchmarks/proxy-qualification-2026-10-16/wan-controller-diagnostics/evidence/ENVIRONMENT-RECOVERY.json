@@ -1,0 +1,74 @@
+{
+  "cause_classification": "environment input disappearance; no application/runtime defect established",
+  "derivative": {
+    "allowed_changes": "runner only COMMANDS filename and fresh output root; COMMANDS only3 output-dir argv values plus3 matching output_dir values",
+    "commands_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/COMMANDS-environment-recovery.json",
+    "commands_sha256": "8b8c7ba6a0764aeb48397b4062dd260d07d7e8e84c562669362bf60672a3150d",
+    "diff_sha256": "6f6f5ec2a8e90ab3b838e85578d978deb62dbde86f9534b173472a27542ba10f",
+    "fresh_output_absent": true,
+    "fresh_output_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once",
+    "maximum_transfers": 48,
+    "runner_path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen-environment-recovery.py",
+    "runner_sha256": "be2d995bdb2aef7e62f315304ee294d6281ce49a195079bae9c9c9a479a8183e",
+    "single_attempt": true,
+    "validations_supervision_workload_stop_gates_unchanged": true
+  },
+  "original_zero_traffic_failure": {
+    "completed_arms": 0,
+    "final_audit_sha256": "a3938f8ebe51927f01cf3bea2e0659e946e8aabbb8d8576320f2ca38247f1649",
+    "preserved_without_relabeling": true,
+    "runtime_evidence_ledger": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/runtime-SHA256SUMS",
+    "runtime_evidence_ledger_sha256": "2872d86dbc351819162c286743fbc97fa14ab49b0ddd40b886d3fc2fa9d93c2e",
+    "screen_final_sha256": "f3c29412afbe03a5692c14f4b10f3e55d22ba7d434be2e7ab4d227b6e9219ac9",
+    "transfers": 0
+  },
+  "originals": {
+    "binaries": {
+      "agent": {
+        "go_version_m_sha256": "838a2634397e6664f66fc54186ea2ee84a0631db2794c41fc9a4ac090abe4690",
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+        "sha256": "b2d938c647c1d8ab4c2199a462b78e66ca7d00b710c08900b4421fc08eae8737",
+        "size": 22049900
+      },
+      "server": {
+        "go_version_m_sha256": "d01bff4ce0162158922192cb0f8a1fb46862e79db0ea7412d71483096dd6237b",
+        "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+        "sha256": "7bdac220c824f6d135696377bfc4203ee828c2cd2423e529523586571130b23d",
+        "size": 60252128
+      }
+    },
+    "commands_sha256": "e078180ed57f0404b034180756431bbaa85c898f15f7c1b1491da01621caf740",
+    "freeze_sha256": "25aba314c036019a2c283e6944aa8838ff2e4d90eced2be857864fbcd265f331",
+    "plan_sha256": "698959601a56caa0761b7e274336ae4520f45762119292d06cc95932acdeed91",
+    "receipt_sha256": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+    "runner_sha256": "621cffe67aacba1dc5ead223c5034c97cfcda402f104e92c07fbbd576beeaac8"
+  },
+  "restoration": {
+    "all_original_frozen_and_plan_inputs_verified": true,
+    "builds_rerun": 0,
+    "command_sha256": "4902e5b4752f5554d7c457ef434344a7ed38058c67253c014fa65da2dd77950a",
+    "official_reference": "https://go.dev/doc/toolchain",
+    "restored_inputs": [
+      {
+        "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+        "sha256": "29e6e0b8be61beb1489ceae62b304343566de8a1dc700af74bde7aeb9c80ad45",
+        "size": 15434687
+      },
+      {
+        "path": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/gofmt",
+        "sha256": "0ef6fe2d15c972d15b8ecb75dcb9c861e042ac94a0e48baf0202a840648b0fdc",
+        "size": 3110743
+      }
+    ],
+    "result_sha256": "72c0b85d3ffcd5a698b99965002099bd0fed44bb8996a10105855665f8d8e1a6",
+    "status": 0,
+    "stderr_sha256": "230ac034732b1a20b37e22beb13083bcb6730ea9e542991816f2ae0b11cc1658",
+    "stdout_sha256": "058fc41f36af1ff69115b2bd237ebf769e90628e64a58c9dc171751384ffef72",
+    "tests_rerun": 0
+  },
+  "reviewed_token": "d5115080339eea5a1881376c2d936b70122099be576a5c18866ef98c754d31bb",
+  "status": "environment restored; source-only derivative prepared; traffic held for root review",
+  "tracked_status": "",
+  "traffic_started": false,
+  "user_confirmed_cause": "user performed disk/cache cleanup, removing the Go module/toolchain cache"
+}

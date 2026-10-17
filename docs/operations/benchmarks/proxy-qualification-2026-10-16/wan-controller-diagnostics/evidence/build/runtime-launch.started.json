@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "-B",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/run-controller-screen.py",
+    "--execute-approved-once"
+  ],
+  "identity": {
+    "pid": 2526559,
+    "start_ticks": 7689588,
+    "pgid": 2526559,
+    "sid": 2526559
+  },
+  "started_unix": 1792239340.3053951
+}

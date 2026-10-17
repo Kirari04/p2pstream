@@ -1,0 +1,259 @@
+{
+  "accepted_cleanup": false,
+  "adopted_descendants": [
+    {
+      "exit_code": 0,
+      "pgid": 2530768,
+      "pid": 2531439,
+      "ppid": 2530767,
+      "sid": 2530768,
+      "start_ticks": 7716738,
+      "state": "Z",
+      "term_signal": null,
+      "wait_error": null,
+      "wait_status": 0
+    }
+  ],
+  "argv": [
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=10s",
+    "900s",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/run-wan-below-tls-arm.sh",
+    "--server-binary",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-server-controller.test",
+    "--aggregate-agent-binary",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/current-agent-controller.test",
+    "--server-source-ref",
+    "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+    "--aggregate-agent-source-ref",
+    "27c8e31f3826ab5326d941b20644c1f56159d99d+controller-screen-source-a2852dbd034b001b920f8ae08b145c1caeb3c71ffa4a75c139bc4162fc12c622",
+    "--cert",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.crt.pem",
+    "--key",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/integration-source-2/integration/runs/tiny-threshold-history-smoke-2/tls/public.test.key.pem",
+    "--expected-leaf-sha256",
+    "aa506ceb2c1e490ae8a385823f5637a0c4f62f454dd489ed941b82670805fc23",
+    "--protocol",
+    "h2",
+    "--output-dir",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/runner-source/integration/runs/controller-crc-environment-recovery-once/arm-0-cubic"
+  ],
+  "artifact_bytes": 94962924,
+  "artifact_rejection_threshold_bytes": 268435456,
+  "artifact_tree_check_seconds": 1.0,
+  "elapsed_seconds": 6.45453403799911,
+  "failure_reason": "unexpected adopted descendant",
+  "forced": true,
+  "owned_identities": [
+    {
+      "pgid": 2530768,
+      "pid": 2530768,
+      "ppid": 2530767,
+      "sid": 2530768,
+      "start_ticks": 7716137,
+      "state": "S"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2530769,
+      "ppid": 2530768,
+      "sid": 2530768,
+      "start_ticks": 7716138,
+      "state": "S"
+    },
+    {
+      "pgid": 2531090,
+      "pid": 2531090,
+      "ppid": 2530769,
+      "sid": 2531090,
+      "start_ticks": 7716217,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531109,
+      "ppid": 2530769,
+      "sid": 2531109,
+      "start_ticks": 7716238,
+      "state": "S"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531111,
+      "ppid": 2530769,
+      "sid": 2530768,
+      "start_ticks": 7716238,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531112,
+      "ppid": 2531109,
+      "sid": 2531109,
+      "start_ticks": 7716238,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531113,
+      "ppid": 2531112,
+      "sid": 2531109,
+      "start_ticks": 7716239,
+      "state": "R"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531114,
+      "ppid": 2531113,
+      "sid": 2531109,
+      "start_ticks": 7716239,
+      "state": "Z"
+    },
+    {
+      "pgid": 2531166,
+      "pid": 2531166,
+      "ppid": 2531113,
+      "sid": 2531166,
+      "start_ticks": 7716256,
+      "state": "S"
+    },
+    {
+      "pgid": 2531166,
+      "pid": 2531170,
+      "ppid": 2531166,
+      "sid": 2531166,
+      "start_ticks": 7716256,
+      "state": "S"
+    },
+    {
+      "pgid": 2531171,
+      "pid": 2531171,
+      "ppid": 2531113,
+      "sid": 2531171,
+      "start_ticks": 7716256,
+      "state": "S"
+    },
+    {
+      "pgid": 2531171,
+      "pid": 2531175,
+      "ppid": 2531171,
+      "sid": 2531171,
+      "start_ticks": 7716257,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531264,
+      "ppid": 2531113,
+      "sid": 2531109,
+      "start_ticks": 7716292,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531265,
+      "ppid": 2531264,
+      "sid": 2531109,
+      "start_ticks": 7716292,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531266,
+      "ppid": 2531264,
+      "sid": 2531109,
+      "start_ticks": 7716292,
+      "state": "S"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531271,
+      "ppid": 2531265,
+      "sid": 2531109,
+      "start_ticks": 7716294,
+      "state": "S"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531282,
+      "ppid": 2530769,
+      "sid": 2530768,
+      "start_ticks": 7716341,
+      "state": "S"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531326,
+      "ppid": 2530769,
+      "sid": 2530768,
+      "start_ticks": 7716444,
+      "state": "S"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531345,
+      "ppid": 2530769,
+      "sid": 2530768,
+      "start_ticks": 7716543,
+      "state": "Z"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531383,
+      "ppid": 2530769,
+      "sid": 2530768,
+      "start_ticks": 7716649,
+      "state": "S"
+    },
+    {
+      "pgid": 2531414,
+      "pid": 2531414,
+      "ppid": 2531113,
+      "sid": 2531414,
+      "start_ticks": 7716718,
+      "state": "S"
+    },
+    {
+      "pgid": 2531429,
+      "pid": 2531429,
+      "ppid": 2531113,
+      "sid": 2531429,
+      "start_ticks": 7716726,
+      "state": "R"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531439,
+      "ppid": 2530767,
+      "sid": 2530768,
+      "start_ticks": 7716738,
+      "state": "Z"
+    },
+    {
+      "pgid": 2531109,
+      "pid": 2531454,
+      "ppid": 2531113,
+      "sid": 2531109,
+      "start_ticks": 7716754,
+      "state": "S"
+    },
+    {
+      "pgid": 2530768,
+      "pid": 2531455,
+      "ppid": 2530769,
+      "sid": 2530768,
+      "start_ticks": 7716755,
+      "state": "S"
+    }
+  ],
+  "ownership_mode": "linux-child-subreaper",
+  "per_stream_rejection_threshold_bytes": 16777216,
+  "remaining_owned": [],
+  "schema_version": 1,
+  "status": 124,
+  "stderr_bytes": 37,
+  "stdout_bytes": 309,
+  "stream_check_seconds": 0.05,
+  "threshold_semantics": "polled rejection; overshoot possible; complete logs retained; any observed overflow rejects"
+}

@@ -15,6 +15,12 @@ comparison.
 
 ## Files
 
+- [`wan-controller-diagnostics/README.md`](wan-controller-diagnostics/README.md)
+  preserves the controller hook's local proof and two separate 16-transfer
+  CUBIC observations. The narrow screen rejects an extra retained-warmup
+  floor failure; the fresh retained-vector screen rejects genuine sequence-15/16
+  idle expiry beyond the unchanged 30-second timeout. All payloads and natural
+  joins pass, but neither screen reaches Reno or establishes controller dependence.
 - [`recorder-nullable-ids/README.md`](recorder-nullable-ids/README.md)
   records the retained nullable-ID conversion: all ten fixed cases save eight
   allocations and approximately 128 bytes per event with lower median times.

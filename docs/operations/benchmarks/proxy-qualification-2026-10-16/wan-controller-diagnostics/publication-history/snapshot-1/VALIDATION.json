@@ -1,0 +1,14 @@
+{
+  "binary_private_key_certificate_or_database_payloads_exported": false,
+  "copied_bytes": 25031025,
+  "copied_files": 317,
+  "full_go_tree_exported": false,
+  "new_tests_builds_traffic": 0,
+  "new_vector_execution_claimed": false,
+  "prepared_unix": 1792240969.896048,
+  "private_key_certificate_marker_matches": [],
+  "source_byte_rewrites": 0,
+  "staging_selection_correction": "5 leftover application temp/database/certificate files removed before final manifest; originals untouched; hash-only disposition retained",
+  "status": "exact-copy/hash and final membership packaging audit passed",
+  "tracked_status": ""
+}

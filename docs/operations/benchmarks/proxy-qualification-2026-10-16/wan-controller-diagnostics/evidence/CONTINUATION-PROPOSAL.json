@@ -1,0 +1,25 @@
+{
+  "status": "source-only corrected continuation schema prepared; root review and separate execution grant required",
+  "authoritative_plan": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/BUILD-TEST-PLAN.json",
+  "reused_commands": [
+    "preflight",
+    "legacy-tcp-state-validator",
+    "legacy-failed-capture-validator",
+    "prospective-terminal-contracts"
+  ],
+  "fresh_commands": [
+    "python-contracts",
+    "normal",
+    "race",
+    "agent-build",
+    "server-build",
+    "agent-metadata",
+    "server-metadata"
+  ],
+  "fresh_log_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/wan-controller-screen-20261017/build/continuation-1",
+  "receipt_schema_version": 2,
+  "original_execution_source_freeze_sha256": "12d0eda626e79501dcacd49360d87dea911ee310406cdf732d0d734e8ea81a22",
+  "no_execution": true,
+  "wan_traffic": false,
+  "runtime_token_remains_blocked": true
+}
