@@ -1,0 +1,5 @@
+{
+  "exit_status": 1,
+  "stderr": "server_binary_sha256 hash mismatch\n",
+  "stdout": ""
+}

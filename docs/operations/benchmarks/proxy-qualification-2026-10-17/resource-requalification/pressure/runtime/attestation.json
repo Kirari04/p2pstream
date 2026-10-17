@@ -1,0 +1,13 @@
+{
+  "accepted": true,
+  "build_manifest_sha256": "8a841a0396ad4ef50362232d64751755cc271c77a6541b7a00279404475a71c6",
+  "current_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "legacy_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab",
+  "lifecycle_sha256": "a35ca4c5acb2548a6936e588c9a8a7f17211608dc1abeac8057cfd2283f9f8cb",
+  "natural_owner_exit_count": 6,
+  "private_pid_namespace_claimed": false,
+  "results_sha256": "9dfa4b9114dbdfde63bee483e86c7b8effce609f4ae41923a1948cca3bec1f91",
+  "schema_version": 1,
+  "transfer_rows": 12,
+  "validation": "original grown-pool pressure with natural owned joins"
+}

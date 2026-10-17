@@ -6,6 +6,60 @@ Automatic admission avoids the former low fixed request and connection ceilings.
 Explicit operator limits, parser/body limits and real memory/descriptor pressure
 still apply.
 
+## Current qualification and work queue
+
+At checkpoint `8fa16378`, the original 96-transfer steady-state WAN gate passes
+with the retained public-route reuse policy. All payloads and events are exact,
+and all endpoint/helper processes exit naturally. The focused normal/race
+checks and the PR's CI, CodeQL and documentation checks pass. Two retained
+download warmups still run at 14.34–14.65 MB/s; the original steady-state gate
+excludes those rows. See the
+[route-reuse result](benchmarks/proxy-qualification-2026-10-16/wan-route-reuse/README.md).
+
+Fresh resource checks at the same `8fa16378` checkpoint pass all three
+1,536-held-request deployments, their 512-request recovery phases, both legacy
+compatibility bursts, and all 13 grown-pool pressure gates. Control traffic,
+cancellation, accounting and recovery remain functional under the tested
+memory pressure. The [resource packet](benchmarks/proxy-qualification-2026-10-17/resource-requalification/README.md)
+keeps these results tied to that checkpoint.
+
+The identity-context optimization in `1fa81d83` removes redundant context nodes
+and slice copies while preserving trusted-proxy resolution and defensive
+getters. Its 560-sample local comparison saves 48–200 bytes and 2–6 allocations
+per operation; median identity-path runtime falls 18–45% across the 28 cases.
+Normal and race checks pass. These are local allocation and runtime results,
+not a new HTTP throughput comparison. See the
+[identity-context packet](benchmarks/proxy-qualification-2026-10-17/identity-context/README.md).
+
+The mixed-route regressions in `8bbd9adb` pass normally and under the race
+detector. They cover concurrent warm, busy and cold targets, retirement while
+bodies remain active, and generation replacement without losing body ownership.
+These are connection-lifecycle checks; see the
+[mixed-route packet](benchmarks/proxy-qualification-2026-10-17/mixed-route-regressions/README.md).
+
+The historical sections below retain each checkpoint's original verdict.
+A historical failure is not automatically an open defect in the latest source,
+and a historical pass does not qualify later changes. The active work queue is:
+
+| Work | Evidence and next completion condition |
+| --- | --- |
+| Retained-transfer startup | Reproduce and distinguish the slow downloads from healthy retained and steady transfers; retain a fix only with unchanged correctness and steady-state gates. |
+| Request CPU and allocation cost | Identity-context reduction is retained with local normal/race and benchmark evidence. Measure its HTTP impact and continue source-supported recorder/forwarding work; the rejected larger SQL batch remains rejected. |
+| Current capacity and resource behavior | Held-capacity, recovery, compatibility and grown-pool pressure pass at the transport-reuse checkpoint. Repeat affected gates after flow-control changes; standing 16/32-agent and later source checkpoints remain separately scoped. |
+| Direct throughput and moderate-load tails | Repeat the relevant reference cells after supported optimizations. Earlier tiny-GET Caddy comparisons pass; the HAProxy throughput and moderate-load latency gates fail. |
+| Cold connection and admission efficiency | Explain excess cold H2 connection attempts and conservative direct-path admission. The earlier 4,096-request H2 result remains unqualified; reservations must not be reduced merely because RSS is lower. |
+| Memory after bursts | Measure resident memory and retained pool promises separately from logical stream cleanup; decide whether safe reclamation is justified. |
+| Saturation and mixed traffic | Mixed warm/busy/cold route ownership and retirement now have normal/race regressions. Qualify latency, bounded rejection and recovery near capacity, including small requests alongside bulk transfers, slow clients and multiple agents/tenants. |
+| Network and feature coverage | Add representative loss/jitter/bandwidth changes and configured cache, WAF, retry and WebSocket/streaming workloads before making broader proxy claims. |
+| Reference consistency | Use explicit SNI and verified matching certificates, and document equivalent resource envelopes for new reference comparisons. Earlier no-SNI measurements remain unchanged. |
+| Sustained operation and regression coverage | Add a bounded longer-duration workload for resource growth, reconnect/drain/cancellation, and select a practical automated subset that covers startup/reuse as well as steady state. |
+| Release and operational verification | Review through `dev`, promote through `staging` and `main`, and verify the original request-success problem with categorized operational failures. Local benchmark success does not establish deployed behavior. |
+
+These items include measured gaps and additional coverage needed for broader
+qualification. A separately reviewed fix can land in `dev` before that whole
+qualification program is complete. QUIC remains an optional future experiment,
+not a prerequisite for retaining the current TCP transport fixes.
+
 ## Defaults and upgrade behavior
 
 - New peers negotiate aggregate-v1 with one authenticated TLS/TCP control

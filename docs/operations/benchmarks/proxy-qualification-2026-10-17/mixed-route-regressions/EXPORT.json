@@ -1,0 +1,181 @@
+{
+  "authorization": "Coordinator explicitly authorized lean mixed-route-regressions publication; no commit",
+  "base_compile_input_count": 431,
+  "copied_bytes": 111050,
+  "copied_file_count": 24,
+  "files": [
+    {
+      "bytes": 3895,
+      "classification": "authored outcome and independent coverage review",
+      "destination": "README.md",
+      "sha256": "342bae68c3a805264b7dc32d716faf14c581286f4d991265aec75837b39f4fb5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/review-export/README.md"
+    },
+    {
+      "bytes": 1935,
+      "classification": "authored outcome and independent coverage review",
+      "destination": "REVIEW.md",
+      "sha256": "02014b8cd97cc2352343bc7f01a5f44652697db16372f97993f1c45db94a64e3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/review-export/REVIEW.md"
+    },
+    {
+      "bytes": 2388,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/AUDIT.json",
+      "sha256": "729624f51acfeb30887c156a56ff01749fe22efc5a10240fcad72ba8e4eecd01",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/review-export/AUDIT.json"
+    },
+    {
+      "bytes": 4608,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/audit-saved-mixed.py.txt",
+      "sha256": "42f58e6ce3767e81ccab1c50d4756d2ccb8d021231da714ef47c9062304a6d6a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/review-export/audit-saved-mixed.py"
+    },
+    {
+      "bytes": 2388,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/audit-saved-mixed.stdout.json",
+      "sha256": "6f4061d5a89409593000a1c23e1f90b959343b7a62af3961e002804c10c823a3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/review-export/audit-saved-mixed.stdout.json"
+    },
+    {
+      "bytes": 11253,
+      "classification": "exact tested Go source; inert publication suffix",
+      "destination": "source/agent_transport_locality_mixed_test.go.txt",
+      "sha256": "e191f59dc83191b150a76ee15596e240acebcbed21f9201312713efb0359c13d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/agent_transport_locality_mixed_test.go"
+    },
+    {
+      "bytes": 287,
+      "classification": "exact test-only overlay mapping",
+      "destination": "source/overlay.json",
+      "sha256": "9c7ca81850cc86cd465aed136bcbab3a965dc17b3c7545ab7a07329ea76280bf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/overlay.json"
+    },
+    {
+      "bytes": 53323,
+      "classification": "frozen source closure, command and owner provenance",
+      "destination": "provenance/PLAN.json",
+      "sha256": "edaeee337536320a051587967558147489352113f59a00ff87ec682c5a1f2078",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/PLAN.json"
+    },
+    {
+      "bytes": 1209,
+      "classification": "frozen source closure, command and owner provenance",
+      "destination": "provenance/FROZEN.json",
+      "sha256": "1d58aa006a5cab19c3243d1b5bc76b21b67cb354184d9a3b7128243991f8c393",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/FROZEN.json"
+    },
+    {
+      "bytes": 308,
+      "classification": "frozen source closure, command and owner provenance",
+      "destination": "provenance/INTEGRATION.json",
+      "sha256": "bd2a20468df3669731fdaf284113dc7645d7b57dac6f564b3120f5c1a71b4d63",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/INTEGRATION.json"
+    },
+    {
+      "bytes": 4671,
+      "classification": "frozen source closure, command and owner provenance",
+      "destination": "provenance/run-once.py.txt",
+      "sha256": "dd156acbee0d803b1f1691647b56110cc26ad5dfe9210bc823cc99200f09815e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once.py"
+    },
+    {
+      "bytes": 13405,
+      "classification": "frozen source closure, command and owner provenance",
+      "destination": "provenance/owned-supervisor.py.txt",
+      "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/owned-supervisor.py"
+    },
+    {
+      "bytes": 1695,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/RESULT.json",
+      "sha256": "59e86c553d7d889dbb11e46ae657ac17075a758bcce6990be000936770276c64",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/RESULT.json"
+    },
+    {
+      "bytes": 863,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/normal.started.json",
+      "sha256": "b4ff12e4dc6e6fa6e5023ecdf2c3dae9bf5931bc24a49d46b84d83c848a147c2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/normal.started.json"
+    },
+    {
+      "bytes": 1752,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/normal.outer.json",
+      "sha256": "17ac00ea13b24f40df6c1ccf2f238e011cab62222a64317f9863971b81bb069e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/normal.outer.json"
+    },
+    {
+      "bytes": 2084,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/normal.stdout.log",
+      "sha256": "8625df43cae393bfedd7359c09b26d380df6ffd15c4142b0d46a9cf45c7a792d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/normal.stdout.log"
+    },
+    {
+      "bytes": 0,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/normal.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/normal.stderr.log"
+    },
+    {
+      "bytes": 876,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/race.started.json",
+      "sha256": "9dc22d52f7715961bb2b9663b30c5538bfcdee87a625be6db7df664b6b26af68",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/race.started.json"
+    },
+    {
+      "bytes": 1918,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/race.outer.json",
+      "sha256": "11d58db50a5fb63445423eaa9ecab45a511107dda29bd91a6fcc1db6025e3fa7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/race.outer.json"
+    },
+    {
+      "bytes": 2085,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/race.stdout.log",
+      "sha256": "6a80f9edf6cfb60121e734783532eae9809a6d870fe4645589bffdee7740ca02",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/race.stdout.log"
+    },
+    {
+      "bytes": 0,
+      "classification": "unaltered normal/race output or owner audit",
+      "destination": "runtime/race.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/run-once/race.stderr.log"
+    },
+    {
+      "bytes": 2,
+      "classification": "coordinator launch status/output",
+      "destination": "runtime/root-launch.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/root-launch.status"
+    },
+    {
+      "bytes": 105,
+      "classification": "coordinator launch status/output",
+      "destination": "runtime/root-launch.stdout",
+      "sha256": "cee2c7e56a1a5ffcfa954ff6a767e2c18faddca426ff67af3fa9c86fb24d3fae",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/root-launch.stdout"
+    },
+    {
+      "bytes": 0,
+      "classification": "coordinator launch status/output",
+      "destination": "runtime/root-launch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-mixed-route-tests-20261017/qualification-1fa81d8/root-launch.stderr"
+    }
+  ],
+  "production_checkpoint": "1fa81d839f35ae575c41779a309d356c23c1f956",
+  "published_at": "2026-10-17T17:39:49.769123+00:00",
+  "schema_version": 1,
+  "scope": "exact two mixed-route correctness regressions normal and race; no WAN/capacity/pressure claim",
+  "with_test_overlay_compile_input_count": 432
+}

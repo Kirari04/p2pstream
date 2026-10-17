@@ -1,0 +1,5 @@
+{
+  "exit_status": 1,
+  "stderr": "build manifest changed after launch\n",
+  "stdout": ""
+}

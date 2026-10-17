@@ -1,0 +1,5 @@
+{
+  "exit_status": 1,
+  "stderr": "missing unique pressure-baseline row\n",
+  "stdout": ""
+}

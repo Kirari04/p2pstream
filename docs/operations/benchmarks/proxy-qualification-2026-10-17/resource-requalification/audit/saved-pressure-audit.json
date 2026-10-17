@@ -1,0 +1,184 @@
+{
+  "accepted": true,
+  "actual_agent_memory_critical_bytes": 3885223936,
+  "actual_agent_memory_headroom_bytes": 409743360,
+  "actual_agent_memory_max_bytes": 4294967296,
+  "audit_utc": "2026-10-17T17:25:05.371432+00:00",
+  "bound_input_sha256": {
+    "archives/current.tar": "240e540165e39b24e0c7682e764761d1551398a7632802335b5c91129f16fd7c",
+    "archives/legacy.tar": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+    "bin/current-agent.test": "c8f541da6c4be5ea3ed4ae3cc1df9bfb188da210d78ffc00962602354ff41537",
+    "bin/current-server.test": "5d7552f7a51f907dcbbd4c7b3e73590a3a887cbf1333cc7da058a8e23ee27577",
+    "bin/legacy-agent.test": "3eaeb0c5e8851b6f07214582152f7588527c3ae23bed555ca1545cf0317d8b61",
+    "provenance/go-build-settings.json": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+    "provenance/qualify-proxy-agent-growth-pressure-owned.sh": "43315047b3b545d8f45a1186e48792c740f587226180c8d8dc418731466938f3",
+    "provenance/qualify-proxy-pressure-checkpoint.sh": "68c8316003430f5fc0b9c8c179db392db70592b725dee8d4d99625e8c74da9ae",
+    "provenance/validate-owned-pressure.py": "3ae4060839ea4ae01b93314710fd93bad95c2de768f5676e722785450158419e",
+    "sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go": "43dbba91e6485b1fd5376c2331614adf8728f32d2aff0aea2ba08362dd0698bb"
+  },
+  "canceled_upload_independently_observed_origin_bytes": 9502720,
+  "canceled_upload_origin_request_body_bytes": 8929280,
+  "compiled_source_count": 430,
+  "conserved_event_rows": 14,
+  "control_http_status": 200,
+  "control_reserved": {
+    "in_use_after": 0,
+    "in_use_before": 0,
+    "in_use_immediate": 0,
+    "ordinary_admission_limit_after": 0,
+    "ordinary_admission_limit_before": 0,
+    "reserved_base_bytes": 3145728,
+    "reserved_base_fds": 8,
+    "reserved_slots": 4
+  },
+  "current_worktree_not_requalified_after_later_changes": true,
+  "full_archived_source_trees": {
+    "current": {
+      "archive_sha256": "240e540165e39b24e0c7682e764761d1551398a7632802335b5c91129f16fd7c",
+      "exact_file_set_verified": true,
+      "file_contents_verified": true,
+      "file_count": 10375,
+      "file_hash_map_sha256": "eecae661af090fd53262db42056faebd606dd2d5ddfe68cbfe7db47c7c717c8a",
+      "source_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85"
+    },
+    "legacy": {
+      "archive_sha256": "192bf558611b157512565afedef92fb8398e5abdb9fe2fb20d7af206379fcc2a",
+      "exact_file_set_verified": true,
+      "file_contents_verified": true,
+      "file_count": 783,
+      "file_hash_map_sha256": "4097bf62a2d7be5316616e04c3a8b627e92cb8b5a73ece4c7db9b7a6febd68c9",
+      "source_ref": "3ec137c3ad3d07028e867042fb00d3933912d7ab"
+    }
+  },
+  "natural_owner_exits": [
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "canceled-upload-load",
+      "pid": 2865264,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "current-server-aggregate-v1-1-agent",
+      "pid": 2863180,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "current-server-aggregate-v1-1-server",
+      "pid": 2863158,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "origin",
+      "pid": 2863145,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "agent-namespace",
+      "pid": 2862985,
+      "status": 0
+    },
+    {
+      "event": "process-exit",
+      "forced": false,
+      "group_joined": true,
+      "invalidates_success": false,
+      "label": "router-namespace",
+      "pid": 2862990,
+      "status": 0
+    }
+  ],
+  "new_proof_bytes": 1111293417,
+  "no_workload_build_or_validator_rerun_by_audit": true,
+  "offline_contract_history": {
+    "missing_scope_fixture": true,
+    "narrow_continuation_exit": 0,
+    "narrow_tests": 1,
+    "original_exit": 1,
+    "original_tests": 10,
+    "validator_assertions_changed": false
+  },
+  "original_runner_and_validator_byte_identical": true,
+  "outer_elapsed_seconds": 131.43955813300272,
+  "pressure_acceptance_fields": {
+    "admission_rejected_under_pressure": true,
+    "all_receiving_pools_exceeded_required_size_before_pressure": true,
+    "all_receiving_pools_retained_after_recovery": true,
+    "canceled_upload_reached_origin": true,
+    "canceled_upload_refunds_quiescent": true,
+    "control_did_not_consume_ordinary_pressure_rejection": true,
+    "control_progress_during_pressure": true,
+    "control_reservation_owned": true,
+    "control_slot_returned_to_baseline": true,
+    "functional_recovery": true,
+    "no_oom": true,
+    "ordinary_admission_closed_during_pressure": true,
+    "pressure_reached": true
+  },
+  "pressure_ballast_mib": 3648,
+  "public_rejection_status": 503,
+  "receiving_pools": {
+    "post_recovery": {
+      "agent_bytes": [
+        86507520,
+        95420416,
+        95944704,
+        97255424
+      ],
+      "agent_cgroup_memory_current_bytes": 29302784,
+      "agent_max_bytes": 97255424,
+      "agent_min_bytes": 86507520,
+      "server_bytes": [
+        89915392,
+        92536832,
+        94371840,
+        94896128
+      ],
+      "server_cgroup_memory_current_bytes": 219779072,
+      "server_max_bytes": 94896128,
+      "server_min_bytes": 89915392
+    },
+    "pre_pressure": {
+      "agent_bytes": [
+        86507520,
+        95420416,
+        95944704,
+        97255424
+      ],
+      "agent_cgroup_memory_current_bytes": 47656960,
+      "agent_max_bytes": 97255424,
+      "agent_min_bytes": 86507520,
+      "server_bytes": [
+        89915392,
+        92536832,
+        94371840,
+        94896128
+      ],
+      "server_cgroup_memory_current_bytes": 194297856,
+      "server_max_bytes": 94896128,
+      "server_min_bytes": 89915392
+    },
+    "required_strictly_greater_than_bytes": 83886080
+  },
+  "rows": 77,
+  "source_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "transfer_rows": 12
+}

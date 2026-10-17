@@ -1,0 +1,64 @@
+from pathlib import Path
+import hashlib,json,subprocess,datetime
+REPO=Path.cwd();ROOT=REPO/'tmp/proxy-capacity-followup-20261017';C=ROOT/'capacity-continuation';OUT=C/'capacity-attempt-1';DEST=ROOT/'independent-review'
+def read(p):return json.loads(p.read_text())
+def sha(p):
+ h=hashlib.sha256()
+ with p.open('rb') as f:
+  for b in iter(lambda:f.read(1<<20),b''):h.update(b)
+ return h.hexdigest()
+def require(v,msg):
+ if not v:raise AssertionError(msg)
+def zero(v):return type(v)is int and v==0
+def events(row,n):
+ return row.get('event_stats_captured')is True and type(row.get('persisted_event_delta'))is int and row['persisted_event_delta']==n and zero(row.get('dropped_event_delta')) and zero(row.get('event_queue_after_drain')) and row.get('event_drain_error')==''
+def response(row,n):
+ return type(row.get('attempted'))is int and row['attempted']==n and type(row.get('useful_completed'))is int and row['useful_completed']==n and zero(row.get('errors')) and row.get('status_classes')=={'2xx':n} and all(type(v)is int for v in row['status_classes'].values()) and events(row,n)
+def cgroup(p):
+ return p.get('container') and type(p.get('cgroup_inode'))is int and p['cgroup_inode']>0 and p.get('cgroup_memory_max_bytes')==4<<30 and p.get('cgroup_memory_events_captured')is True and zero(p.get('oom_delta')) and zero(p.get('oom_kill_delta'))
+ref='8fa16378af4ac0117276726fe6e51d8bc4c74c85';summary=read(OUT/'summary.json');outer=read(C/'capacity.outer.json');decision=read(C/'capacity-decision.json');manifest=read(OUT/'manifest.json');build=read(C/'BUILD-RECEIPT.json');inventory=read(C/'BUILD-SOURCE430.json')
+require(summary['accepted']is True and summary['failures']==[],'summary rejected')
+require(zero(outer['status']) and outer['forced']is False and outer['accepted_cleanup']is True and outer['remaining_owned']==[] and outer['adopted_descendants']==[],'outer ownership failure')
+require(decision.get('source_ref')==ref and decision.get('source_files_verified')==430 and decision['summary_sha256']==sha(OUT/'summary.json'),'decision identity mismatch')
+require(manifest['candidate_ref']==ref,'capacity source mismatch')
+require(build['accepted']is True and build['source_identity']['source_file_count']==430 and len(inventory['source_files'])==430,'ordinary compile identity mismatch')
+mismatches=[n for n,h in inventory['source_files'].items() if sha(REPO/n)!=h];require(mismatches==[],'current430source mismatch')
+for role in ['server','agent']:
+ b=build['binaries'][role];require(sha(Path(b['path']))==b['sha256']==manifest['binaries']['candidate_'+role+'_sha256'],'ordinary binary mismatch:'+role)
+report={'accepted':True,'audit_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'source_ref':ref,'ordinary_build_source_identity':build['source_identity'],'current_source_files_rehashed':430,'source_mismatches':mismatches,'outer_elapsed_seconds':outer['elapsed_seconds'],'outer_proof_bytes':outer['artifact_bytes'],'source_summary_sha256':sha(OUT/'summary.json'),'topologies':{},'compatibility':{},'natural_receipts':{},'original_preflight_failure_preserved':(ROOT/'capacity-failure-decision.json').exists()}
+expected={'combined-4g-server-plus-colocated-agent':(0,3),'external-one-agent-separate-4g-cgroups':(1,4),'external-four-agents-separate-4g-cgroups':(4,7)}
+require(set(summary['topologies'])==set(expected),'topology schema mismatch')
+for name,(agents,receipts) in expected.items():
+ v=summary['topologies'][name];raw=[json.loads(x) for x in (OUT/'results'/(name+'.jsonl')).read_text().splitlines() if x.strip()]
+ cap=[x for x in raw if x.get('label')=='candidate-'+ref and x.get('scenario')=='capacity-1536-h1'];rec=[x for x in raw if x.get('label')=='candidate-'+ref and x.get('scenario')=='recovery']
+ require(len(cap)==len(rec)==1 and cap[0]==v['capacity'] and rec[0]==v['recovery'],'raw/summary differs:'+name)
+ cap,rec=cap[0],rec[0];require(v['accepted']is True and response(cap,1536) and response(rec,512),'response/event failure:'+name)
+ require(cap['origin_peak_inflight']==1536 and cap['owner_peak_reservations']['public_connection']==1536 and cap['owner_peak_reservations']['public_request']==1536,'held occupancy failure:'+name)
+ require(cap['barrier_max_hold_seconds']==3 and cap['barrier_post_release_hold_ms']==200 and cap['server_ballast_bytes']==1<<30,'barrier/ballast changed:'+name)
+ for row in [cap,rec]:
+  require(cgroup(row['server_process']) and len(row.get('agent_processes',[]))==agents and all(cgroup(p) for p in row.get('agent_processes',[])),'cgroup failure:'+name)
+ report['topologies'][name]={'held_useful':1536,'held_attempted':1536,'held_persisted_events':1536,'origin_peak':cap['origin_peak_inflight'],'public_connection_owner_peak':cap['owner_peak_reservations']['public_connection'],'public_request_owner_peak':cap['owner_peak_reservations']['public_request'],'recovery_useful':512,'recovery_attempted':512,'recovery_persisted_events':512,'errors':0,'server_sampled_peak_cgroup_bytes':cap['server_process']['peak_cgroup_memory_bytes'],'agent_sampled_peak_cgroup_bytes':[p['peak_cgroup_memory_bytes'] for p in cap.get('agent_processes',[])],'zero_oom':True}
+for lanes in [1,4]:
+ name=f'compat-current-agent-old-server-{lanes}-lane';v=summary['compatibility_bursts'][name];cap=v['capacity'];rec=v['recovery'];require(v['accepted']is True and response(cap,128) and response(rec,512),'compatibility responses/events failed')
+ require(cap['origin_peak_inflight']==128 and v['legacy_session_envelope_bytes']==181586560*lanes,'legacy topology/envelope failed')
+ report['compatibility'][name]={'held_useful':128,'held_attempted':128,'held_persisted_events':128,'recovery_useful':512,'recovery_persisted_events':512,'errors':0,'legacy_session_envelope_bytes':v['legacy_session_envelope_bytes']}
+ expected[name]=(1,4)
+for name,(_,count) in expected.items():
+ raw=OUT/'raw'/name;require(read(raw/'status.json')=={'exit_status':0,'emergency_cleanup':False},'raw status failure:'+name)
+ paths=list(raw.glob('*.stop.exit.json'));require(len(paths)==count,'receipt count mismatch:'+name)
+ entries=[]
+ for p in paths:
+  bound={Path(x['file']).name:x['sha256'] for x in decision['receipts'][name]}
+  require(bound.get(p.name)==sha(p),'receipt changed after original decision:'+str(p))
+  v=read(p);require(v.get('forced_cleanup')is False and zero(v.get('shell_exit_status')) and v.get('natural_exit_verified')is True,'unnatural receipt:'+str(p))
+  require(not Path('/proc',str(v['pid'])).exists(),'recorded process remains')
+  if v.get('container'):
+   c=v['container_state'];require(c.get('Running')is False and zero(c.get('ExitCode')) and c.get('OOMKilled')is False,'bad container receipt')
+  entries.append({'name':p.name,'sha256':sha(p),'pid':v['pid']})
+ report['natural_receipts'][name]=entries
+require(sum(map(len,report['natural_receipts'].values()))==22,'total natural receipts mismatch')
+containers=subprocess.check_output(['docker','ps','-a','--filter','name=p2pstream-qualification','--format','{{.ID}}'],text=True,timeout=10).strip();require(containers=='','qualification containers remain')
+for row in outer['owned_identities']:
+ require(not Path('/proc',str(row['pid'])).exists(),'outer recorded owner remains')
+report['natural_exit_count']=22;report['qualification_containers_remaining']=[];report['performance_parity_claimed']=False;report['standing_or_pressure_cleared']=False
+(DEST/'saved-capacity-audit.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n');print(json.dumps(report,indent=2,sort_keys=True))

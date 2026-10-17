@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""Two finite mixed-route tests, normal then race, on frozen1fa compile inputs."""
+from pathlib import Path
+import hashlib,importlib.util,json,os,signal,subprocess,sys
+ROOT=Path(__file__).resolve().parent
+REPO=ROOT.parent.parent.parent
+
+def sha(path):
+ h=hashlib.sha256()
+ with Path(path).open('rb') as f:
+  for b in iter(lambda:f.read(1<<20),b''):h.update(b)
+ return h.hexdigest()
+def write_fresh(path,value):
+ with path.open('x') as f:json.dump(value,f,indent=2,sort_keys=True);f.write('\n')
+def check(plan):
+ for n,h in json.loads((ROOT/'FROZEN.json').read_text()).items():
+  if sha(n)!=h:raise RuntimeError('frozen runner/overlay input changed: '+n)
+ actual=set()
+ for name in plan['source_roots']:
+  p=REPO/name
+  if p.is_file():actual.add(name)
+  elif p.exists():actual.update(str(f.relative_to(REPO)) for f in p.rglob('*') if f.is_file())
+ if actual-set(plan['explicit_noncompile_runtime_path_exclusions'])!=set(plan['source_files']):raise RuntimeError('actual compile source file set changed')
+ for n,h in plan['source_files'].items():
+  if sha(REPO/n)!=h:raise RuntimeError('actual compile source hash changed: '+n)
+ if (REPO/plan['overlay_target']).exists():raise RuntimeError('overlay target unexpectedly became an actual source file')
+ if sha(plan['go_binary'])!=plan['go_binary_sha256']:raise RuntimeError('pinned Go changed')
+ # HEAD may advance for docs; exact431 compiled bytes, not unrelated history,
+ # establish that this is still the declared production checkpoint.
+ return subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True,timeout=10).strip()
+def validate(prefix,required):
+ events=[]
+ for line in prefix.with_suffix('.stdout.log').read_text().splitlines():
+  if line.strip():events.append(json.loads(line))
+ failures=[v for v in events if v.get('Action') in ['fail','skip']]
+ runs=[v['Test'] for v in events if v.get('Action')=='run' and v.get('Test') and '/' not in v['Test']]
+ passes=[v['Test'] for v in events if v.get('Action')=='pass' and v.get('Test') and '/' not in v['Test']]
+ packages=[v for v in events if v.get('Action')=='pass' and not v.get('Test')]
+ if failures or sorted(runs)!=sorted(required) or sorted(passes)!=sorted(required) or len(packages)!=1 or packages[0].get('Package')!='p2pstream/internal/server':raise RuntimeError('exact two top-level passes/no skip/package pass contract failed')
+ return {'top_level_run':runs,'top_level_pass':passes,'skips':0,'failures':0,'package_pass':True,'stdout_sha256':sha(prefix.with_suffix('.stdout.log'))}
+def main():
+ if sys.argv[1:]!=['--execute-coordinator-scheduled-once']:raise SystemExit('root must schedule the finite normal+race window')
+ os.chdir(REPO)
+ plan=json.loads((ROOT/'PLAN.json').read_text());before=check(plan);run=ROOT/'run-once'
+ if run.exists():raise RuntimeError('attempt exists; no automatic retry')
+ run.mkdir()
+ spec=importlib.util.spec_from_file_location('owned',ROOT/'owned-supervisor.py');owned=importlib.util.module_from_spec(spec);spec.loader.exec_module(owned);owned.ROOT=ROOT;owned.BUDGET=4<<30
+ def artifact_bytes():
+  dependency=Path(plan['shared_dependency_root'])
+  total=0
+  for base in [ROOT,dependency]:
+   for p in base.rglob('*'):
+    try:
+     if p.is_file():total+=p.stat().st_size
+    except FileNotFoundError:
+     pass # Go removes transient cache/tmp files while the monitor inventories.
+  return total
+ owned.artifact_bytes=artifact_bytes
+ env={'PATH':str(Path(plan['go_binary']).parent)+':/usr/sbin:/usr/bin:/bin','HOME':os.environ['HOME'],**plan['environment']}
+ signal.signal(signal.SIGTERM,owned.terminate)
+ result={'accepted':False,'production_checkpoint':plan['production_checkpoint'],'head_at_freeze':plan['head_at_freeze'],'head_before':before,'base_compile_input_count':431,'overlay_compile_input_count':432,'source_identity':plan['source_identity'],'commands':[],'automatic_retry':False}
+ try:
+  for command in plan['commands']:
+   check(plan);prefix=run/command['name'];status=owned.execute_owned(command['argv'],env,prefix,command['outer_deadline_seconds'],8<<20)
+   if status!=0:raise RuntimeError(command['name']+' command exited nonzero')
+   verified=validate(prefix,plan['required_tests']);verified.update(name=command['name'],status=status,outer_sha256=sha(prefix.with_suffix('.outer.json')));result['commands'].append(verified)
+   result['head_after']=check(plan)
+  result['accepted']=True
+ except BaseException as error:
+  result['failure']=type(error).__name__+': '+str(error);raise
+ finally:
+  write_fresh(run/'RESULT.json',result)
+ print('accepted exact two mixed-route tests normal+race on frozen431 current sources plus one test-only overlay')
+if __name__=='__main__':main()

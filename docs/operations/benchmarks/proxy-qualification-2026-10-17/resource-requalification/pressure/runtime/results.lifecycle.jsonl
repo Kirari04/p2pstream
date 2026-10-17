@@ -1,0 +1,7 @@
+{"event":"namespace-helpers-start","boot_id":"1811fe8e-5c3c-4428-ab82-9b38d6519500","runner_namespace":"net:[4026533063]","agent":{"pid":2862985,"start_ticks":9514881,"namespace":"net:[4026532935]"},"router":{"pid":2862990,"start_ticks":9514883,"namespace":"net:[4026532932]"}}
+{"event":"process-exit","label":"canceled-upload-load","pid":2865264,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-agent","pid":2863180,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"current-server-aggregate-v1-1-server","pid":2863158,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"origin","pid":2863145,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"agent-namespace","pid":2862985,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}
+{"event":"process-exit","label":"router-namespace","pid":2862990,"status":0,"forced":false,"group_joined":true,"invalidates_success":false}

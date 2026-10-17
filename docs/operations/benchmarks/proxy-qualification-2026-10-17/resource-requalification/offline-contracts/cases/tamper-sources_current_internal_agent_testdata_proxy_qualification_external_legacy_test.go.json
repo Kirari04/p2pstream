@@ -1,0 +1,5 @@
+{
+  "exit_status": 1,
+  "stderr": "bound input hash mismatch: sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go\n",
+  "stdout": ""
+}

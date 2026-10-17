@@ -1,0 +1,25 @@
+{
+  "accepted": true,
+  "recorded_groups_remaining": [],
+  "recorded_payloads_remaining": [],
+  "scopes": [
+    {
+      "cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-qual-agent-2862968-1.scope",
+      "probe_status": 0,
+      "properties": {
+        "ActiveState": "inactive",
+        "ControlGroup": "",
+        "LoadState": "not-found"
+      }
+    },
+    {
+      "cgroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/p2p-qual-server-2862968-1.scope",
+      "probe_status": 0,
+      "properties": {
+        "ActiveState": "inactive",
+        "ControlGroup": "",
+        "LoadState": "not-found"
+      }
+    }
+  ]
+}

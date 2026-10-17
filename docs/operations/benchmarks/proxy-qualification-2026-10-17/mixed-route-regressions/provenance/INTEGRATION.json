@@ -1,0 +1,8 @@
+{
+  "source_inputs_verified": 431,
+  "overlay_source_inputs": 432,
+  "actual_test_file": "internal/server/agent_transport_locality_mixed_test.go",
+  "actual_test_sha256": "e191f59dc83191b150a76ee15596e240acebcbed21f9201312713efb0359c13d",
+  "matches_tested_overlay": true,
+  "normal_and_race_passed": true
+}

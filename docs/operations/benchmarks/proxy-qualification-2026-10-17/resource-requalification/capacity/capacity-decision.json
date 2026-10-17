@@ -1,0 +1,430 @@
+{
+  "accepted": true,
+  "forced_cleanup": false,
+  "latest_source_absolute_capacity": true,
+  "performance_parity_claimed": false,
+  "receipts": {
+    "combined-4g-server-plus-colocated-agent": [
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-2849098",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:38.242494033Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:36.142052158Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849154,
+          "shell_exit_status": 0
+        },
+        "sha256": "7259eec34ccf9f4563acc1598eb007344a6ee969197c25605c95825e513b3aec"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/origin.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849144,
+          "shell_exit_status": 0
+        },
+        "sha256": "15a2118102c2b54f0c7b51541c34564c574db9142b8211514663b89415a8a96e"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/haproxy-1.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849337,
+          "shell_exit_status": 0
+        },
+        "sha256": "283399bbfdfa6c52a345894a13a5ab5a509f36aa03303c371e51eaf67fcd9c9f"
+      }
+    ],
+    "compat-current-agent-old-server-1-lane": [
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-server.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-server-2851055",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:52.460168091Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:50.343093407Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851112,
+          "shell_exit_status": 0
+        },
+        "sha256": "1194838593111cafa5f8aff8ada48f630b43396852d557b2444eff749491115b"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-agent-1.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-agent-1-2851055",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:52.184351862Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:51.071149892Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851204,
+          "shell_exit_status": 0
+        },
+        "sha256": "dc16a7496f969cf34b0a523e71b29ed90bf594e3af83b98bebb382b21e0f4fa4"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/origin.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851102,
+          "shell_exit_status": 0
+        },
+        "sha256": "e0653c804b1502cc84edbfe654f921a25042e740d6c5319310f3113eeb257551"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/haproxy-1.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851418,
+          "shell_exit_status": 0
+        },
+        "sha256": "bbbd7358a7170c0296b32c8deba6fa9efd9d98ab0fb20389512dda2580426dc6"
+      }
+    ],
+    "compat-current-agent-old-server-4-lane": [
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-agent-1.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-agent-1-2851480",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:55.847508674Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:54.682891651Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851631,
+          "shell_exit_status": 0
+        },
+        "sha256": "e0ef427717a6d1e737b6051154b69a89e074e6fb1afd5bf97b8381628194f141"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/origin.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851527,
+          "shell_exit_status": 0
+        },
+        "sha256": "4df7b8f4b926a3e11c3ee95b56251ebbab6a4d8897069b0112705f561d49f473"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-server.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-server-2851480",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:56.12078785Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:53.934520718Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2851537,
+          "shell_exit_status": 0
+        },
+        "sha256": "ae03a1f5e78befea6ae777d00634e496c5c367fd215f5fe2534e6d688243e874"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/haproxy-1.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2852009,
+          "shell_exit_status": 0
+        },
+        "sha256": "bc2aeb54af7c72b49ba1e080cd4362c7c2527d365f7beef28f936eb0be98c7f5"
+      }
+    ],
+    "external-four-agents-separate-4g-cgroups": [
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-4.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-4-2849902",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:47.684102542Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:46.154438034Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2850469,
+          "shell_exit_status": 0
+        },
+        "sha256": "b6fa4dfbb7112d4fd61b0767ac3294048004ad4eabc60354133f94058a5c05e8"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1-2849902",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:48.188421019Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:45.25316533Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2850102,
+          "shell_exit_status": 0
+        },
+        "sha256": "5568877b4a2badd93f5a40ec82e15c7de9c8306d04acff6c57ccb4a6fff9f0d7"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server-2849902",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:48.484017001Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:44.462570479Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849959,
+          "shell_exit_status": 0
+        },
+        "sha256": "a1e25be6409a035be6cf0f6b8d60e07fa1a5b9d3bf8b57050804957fce79613d"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/origin.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849949,
+          "shell_exit_status": 0
+        },
+        "sha256": "f20bb5989d4c42689ef51d4360eff1f27fc678480affcadeebc70e9acb9b4dad"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-2.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-2-2849902",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:48.035429598Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:45.552888516Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2850305,
+          "shell_exit_status": 0
+        },
+        "sha256": "62b14fe6754933d115baab61e0b90080efd834ac214ef73ff311c9412bc8143d"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-3.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-3-2849902",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:47.878689248Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:45.858601561Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2850388,
+          "shell_exit_status": 0
+        },
+        "sha256": "460724a5348fc6710678468e73666e4b3e9e258c80a15462297540abf7b36ceb"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/haproxy-1.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2850912,
+          "shell_exit_status": 0
+        },
+        "sha256": "0a700990b92cd179fc64bc431e1008207a9b2824b24384e55351c2f0eba564bf"
+      }
+    ],
+    "external-one-agent-separate-4g-cgroups": [
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1-2849462",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:42.330737776Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:40.856506346Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849613,
+          "shell_exit_status": 0
+        },
+        "sha256": "c45f0e675d2b06345f16f59bff8a8a699e79a45bd89d683fd46f82c31e827379"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server.stop.exit.json",
+        "receipt": {
+          "container": "p2pstream-qualification-candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server-2849462",
+          "container_state": {
+            "Dead": false,
+            "Error": "",
+            "ExitCode": 0,
+            "FinishedAt": "2026-10-17T17:12:42.617370393Z",
+            "OOMKilled": false,
+            "Paused": false,
+            "Pid": 0,
+            "Restarting": false,
+            "Running": false,
+            "StartedAt": "2026-10-17T17:12:40.06081712Z",
+            "Status": "exited"
+          },
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849519,
+          "shell_exit_status": 0
+        },
+        "sha256": "9c0a2d112bd76466d4f8c60dbd1870018fc92271a705fa7dc1f1da0843a952ae"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/origin.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849509,
+          "shell_exit_status": 0
+        },
+        "sha256": "e6aaa12048f0ba5201d60c93e88037db2fa3e6be7cb97f8fc942d5f7fe983f0f"
+      },
+      {
+        "file": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/haproxy-1.stop.exit.json",
+        "receipt": {
+          "container": "",
+          "container_state": null,
+          "forced_cleanup": false,
+          "natural_exit_verified": true,
+          "pid": 2849839,
+          "shell_exit_status": 0
+        },
+        "sha256": "c6e88d25678c30aa870bd1b45ac197960ee89aaf1114df1393added2c6b2e01f"
+      }
+    ]
+  },
+  "source_files_verified": 430,
+  "source_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "standing_or_pressure_cleared": false,
+  "summary_sha256": "c41a4b3ab56d64692e8c6d2adfc9600f5483fdedde9238a759764c102c7a8724"
+}

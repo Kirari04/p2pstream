@@ -1,0 +1,1090 @@
+{
+  "authorization": "Coordinator explicitly authorized publication of reviewed152-file resource packet; no commit",
+  "candidate_ref": "8fa16378af4ac0117276726fe6e51d8bc4c74c85",
+  "excluded": [
+    "all source archives/extracted trees",
+    "all executable binaries/compiler caches/module caches",
+    "endpoint logs,ready files,stop files,HAProxy configs",
+    "private/public runtime certificate/key material",
+    "database files",
+    "unrelated standing/CPU evidence"
+  ],
+  "file_count": 152,
+  "files": [
+    {
+      "bytes": 2310,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/CAPACITY-AUDIT.md",
+      "sha256": "c855dde8f56dc31cb44c0a560b67d4e7e5462e5a0c0fa155b5d3df52555cf919",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/independent-review/CAPACITY-AUDIT.md"
+    },
+    {
+      "bytes": 7790,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/saved-capacity-audit.json",
+      "sha256": "c76aeb94c895211605af56d3a40777e2c4a62e38793f83cf7c19d14e89d3fee3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/independent-review/saved-capacity-audit.json"
+    },
+    {
+      "bytes": 7483,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/audit-saved-capacity.py.txt",
+      "sha256": "214f52bd2e725cdbf0b76a3603e3f1ed215c212cb3da76512ec6950112e6d9fb",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/independent-review/audit-saved-capacity.py"
+    },
+    {
+      "bytes": 6292,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/saved-pressure-audit.json",
+      "sha256": "9f655747fd7caf25e2760efcfa15844ce8b1ac0240732329dcd8d55e34cccfc2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/independent-review/saved-pressure-audit.json"
+    },
+    {
+      "bytes": 12611,
+      "classification": "independent saved-evidence audit",
+      "destination": "audit/audit-saved-pressure.py.txt",
+      "sha256": "20d21bebfc4c381862d7e4ac2ae1c401fc1b9ab41d62138790ea3b60236321f8",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/independent-review/audit-saved-pressure.py"
+    },
+    {
+      "bytes": 19595,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/capacity-decision.json",
+      "sha256": "3b28abcc38a447111dce34b9167fcfeecb293c069c5dbe0322c06d657c0d2780",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-decision.json"
+    },
+    {
+      "bytes": 8088,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/capacity.outer.json",
+      "sha256": "eb66171e8518d4501f1378fde5fc24f1ae37f1c1be032f1b386ffa5d882a2d62",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity.outer.json"
+    },
+    {
+      "bytes": 817,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/capacity.started.json",
+      "sha256": "62a47375ec7952c66e38c4c34a67190bf0404e6a9d97c9b08ced99b67d03ba58",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity.started.json"
+    },
+    {
+      "bytes": 3364,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/capacity.stdout.log",
+      "sha256": "7992cf5446bf86408417ce254e7c2d33d1d99a44aef0ed988a60e077860f18e5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity.stdout.log"
+    },
+    {
+      "bytes": 0,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/capacity.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity.stderr.log"
+    },
+    {
+      "bytes": 2,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/root-launch.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/root-launch.status"
+    },
+    {
+      "bytes": 78,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/root-launch.stdout",
+      "sha256": "70efc0aff1c96a12ade4c8494c6e3a1b81de18ddf75c3b20acabb69ac4d4225d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/root-launch.stdout"
+    },
+    {
+      "bytes": 0,
+      "classification": "capacity runtime/supervisor identity",
+      "destination": "capacity/root-launch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/root-launch.stderr"
+    },
+    {
+      "bytes": 1822,
+      "classification": "original aggregate capacity evidence",
+      "destination": "capacity/runtime/manifest.json",
+      "sha256": "f30000e27d9a0fdd72efae4a18ab1c97c3417966bd5edfa0c4b5269cfb540642",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/manifest.json"
+    },
+    {
+      "bytes": 166949,
+      "classification": "original aggregate capacity evidence",
+      "destination": "capacity/runtime/summary.json",
+      "sha256": "c41a4b3ab56d64692e8c6d2adfc9600f5483fdedde9238a759764c102c7a8724",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/summary.json"
+    },
+    {
+      "bytes": 18,
+      "classification": "original aggregate capacity evidence",
+      "destination": "capacity/runtime/status.json",
+      "sha256": "5fd9469f2ea90f86656176ca01f9acc05cca5f966ebaaf4428a0fda227416a9b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/status.json"
+    },
+    {
+      "bytes": 4883,
+      "classification": "original aggregate capacity evidence",
+      "destination": "capacity/runtime/attempts.jsonl",
+      "sha256": "fdcba3f1d154ffeb9dfcc17dab02cf764e4166ca1525407e3ebe5f1baf1ba6ee",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/attempts.jsonl"
+    },
+    {
+      "bytes": 7505,
+      "classification": "original per-topology result rows",
+      "destination": "capacity/runtime/results/combined-4g-server-plus-colocated-agent.jsonl",
+      "sha256": "5c252b3e416d3b7535344b887830962600e6169bfe886027a904ff86f9a84f33",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/results/combined-4g-server-plus-colocated-agent.jsonl"
+    },
+    {
+      "bytes": 14730,
+      "classification": "original per-topology result rows",
+      "destination": "capacity/runtime/results/compat-current-agent-old-server-1-lane.jsonl",
+      "sha256": "f7eed0146715ac0fbad8f47d70392217689c5aa9d89fe334fb52c0d5a9df5992",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/results/compat-current-agent-old-server-1-lane.jsonl"
+    },
+    {
+      "bytes": 14836,
+      "classification": "original per-topology result rows",
+      "destination": "capacity/runtime/results/compat-current-agent-old-server-4-lane.jsonl",
+      "sha256": "e57688bbae238b6512e32dee06ab379b163b6e6197ae58fe1555d2b8d0790268",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/results/compat-current-agent-old-server-4-lane.jsonl"
+    },
+    {
+      "bytes": 55898,
+      "classification": "original per-topology result rows",
+      "destination": "capacity/runtime/results/external-four-agents-separate-4g-cgroups.jsonl",
+      "sha256": "f12efa693d27335c2067d60d34925dc619fb862e85f33c56c4be8bccf34993ca",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/results/external-four-agents-separate-4g-cgroups.jsonl"
+    },
+    {
+      "bytes": 20066,
+      "classification": "original per-topology result rows",
+      "destination": "capacity/runtime/results/external-one-agent-separate-4g-cgroups.jsonl",
+      "sha256": "89120ed542208b7025885e048c617e1147cb1abf3d6d33129a5630bbf13c7a1e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/results/external-one-agent-separate-4g-cgroups.jsonl"
+    },
+    {
+      "bytes": 431,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/combined-4g-server-plus-colocated-agent/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1.stop.exit.json",
+      "sha256": "7259eec34ccf9f4563acc1598eb007344a6ee969197c25605c95825e513b3aec",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/combined-4g-server-plus-colocated-agent/haproxy-1.stop.exit.json",
+      "sha256": "283399bbfdfa6c52a345894a13a5ab5a509f36aa03303c371e51eaf67fcd9c9f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/haproxy-1.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/combined-4g-server-plus-colocated-agent/origin.stop.exit.json",
+      "sha256": "15a2118102c2b54f0c7b51541c34564c574db9142b8211514663b89415a8a96e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/origin.stop.exit.json"
+    },
+    {
+      "bytes": 44,
+      "classification": "original mature-runner lifecycle",
+      "destination": "capacity/runtime/exit-records/combined-4g-server-plus-colocated-agent/status.json",
+      "sha256": "e98ce840f631f224a64ae8973dac92118dbcf18ac2bb8ac0d7fec43546f6e68d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/combined-4g-server-plus-colocated-agent/status.json"
+    },
+    {
+      "bytes": 470,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-1-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-agent-1.stop.exit.json",
+      "sha256": "dc16a7496f969cf34b0a523e71b29ed90bf594e3af83b98bebb382b21e0f4fa4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-agent-1.stop.exit.json"
+    },
+    {
+      "bytes": 469,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-1-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-server.stop.exit.json",
+      "sha256": "1194838593111cafa5f8aff8ada48f630b43396852d557b2444eff749491115b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-1-lane-1-external-server.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-1-lane/haproxy-1.stop.exit.json",
+      "sha256": "bbbd7358a7170c0296b32c8deba6fa9efd9d98ab0fb20389512dda2580426dc6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/haproxy-1.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-1-lane/origin.stop.exit.json",
+      "sha256": "e0653c804b1502cc84edbfe654f921a25042e740d6c5319310f3113eeb257551",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/origin.stop.exit.json"
+    },
+    {
+      "bytes": 44,
+      "classification": "original mature-runner lifecycle",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-1-lane/status.json",
+      "sha256": "e98ce840f631f224a64ae8973dac92118dbcf18ac2bb8ac0d7fec43546f6e68d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-1-lane/status.json"
+    },
+    {
+      "bytes": 470,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-4-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-agent-1.stop.exit.json",
+      "sha256": "e0ef427717a6d1e737b6051154b69a89e074e6fb1afd5bf97b8381628194f141",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-agent-1.stop.exit.json"
+    },
+    {
+      "bytes": 468,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-4-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-server.stop.exit.json",
+      "sha256": "ae03a1f5e78befea6ae777d00634e496c5c367fd215f5fe2534e6d688243e874",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/current-agent-8fa16378af4ac0117276726fe6e51d8bc4c74c85-old-server-4-lane-1-external-server.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-4-lane/haproxy-1.stop.exit.json",
+      "sha256": "bc2aeb54af7c72b49ba1e080cd4362c7c2527d365f7beef28f936eb0be98c7f5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/haproxy-1.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-4-lane/origin.stop.exit.json",
+      "sha256": "4df7b8f4b926a3e11c3ee95b56251ebbab6a4d8897069b0112705f561d49f473",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/origin.stop.exit.json"
+    },
+    {
+      "bytes": 44,
+      "classification": "original mature-runner lifecycle",
+      "destination": "capacity/runtime/exit-records/compat-current-agent-old-server-4-lane/status.json",
+      "sha256": "e98ce840f631f224a64ae8973dac92118dbcf18ac2bb8ac0d7fec43546f6e68d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/compat-current-agent-old-server-4-lane/status.json"
+    },
+    {
+      "bytes": 447,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1.stop.exit.json",
+      "sha256": "5568877b4a2badd93f5a40ec82e15c7de9c8306d04acff6c57ccb4a6fff9f0d7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1.stop.exit.json"
+    },
+    {
+      "bytes": 448,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-2.stop.exit.json",
+      "sha256": "62b14fe6754933d115baab61e0b90080efd834ac214ef73ff311c9412bc8143d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-2.stop.exit.json"
+    },
+    {
+      "bytes": 448,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-3.stop.exit.json",
+      "sha256": "460724a5348fc6710678468e73666e4b3e9e258c80a15462297540abf7b36ceb",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-3.stop.exit.json"
+    },
+    {
+      "bytes": 448,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-4.stop.exit.json",
+      "sha256": "b6fa4dfbb7112d4fd61b0767ac3294048004ad4eabc60354133f94058a5c05e8",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-4.stop.exit.json"
+    },
+    {
+      "bytes": 447,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server.stop.exit.json",
+      "sha256": "a1e25be6409a035be6cf0f6b8d60e07fa1a5b9d3bf8b57050804957fce79613d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/haproxy-1.stop.exit.json",
+      "sha256": "0a700990b92cd179fc64bc431e1008207a9b2824b24384e55351c2f0eba564bf",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/haproxy-1.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/origin.stop.exit.json",
+      "sha256": "f20bb5989d4c42689ef51d4360eff1f27fc678480affcadeebc70e9acb9b4dad",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/origin.stop.exit.json"
+    },
+    {
+      "bytes": 44,
+      "classification": "original mature-runner lifecycle",
+      "destination": "capacity/runtime/exit-records/external-four-agents-separate-4g-cgroups/status.json",
+      "sha256": "e98ce840f631f224a64ae8973dac92118dbcf18ac2bb8ac0d7fec43546f6e68d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-four-agents-separate-4g-cgroups/status.json"
+    },
+    {
+      "bytes": 448,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-one-agent-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1.stop.exit.json",
+      "sha256": "c45f0e675d2b06345f16f59bff8a8a699e79a45bd89d683fd46f82c31e827379",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-agent-1.stop.exit.json"
+    },
+    {
+      "bytes": 446,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-one-agent-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server.stop.exit.json",
+      "sha256": "9c0a2d112bd76466d4f8c60dbd1870018fc92271a705fa7dc1f1da0843a952ae",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/candidate-8fa16378af4ac0117276726fe6e51d8bc4c74c85-1-external-server.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-one-agent-separate-4g-cgroups/haproxy-1.stop.exit.json",
+      "sha256": "c6e88d25678c30aa870bd1b45ac197960ee89aaf1114df1393added2c6b2e01f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/haproxy-1.stop.exit.json"
+    },
+    {
+      "bytes": 128,
+      "classification": "natural process/container exit receipt",
+      "destination": "capacity/runtime/exit-records/external-one-agent-separate-4g-cgroups/origin.stop.exit.json",
+      "sha256": "e6aaa12048f0ba5201d60c93e88037db2fa3e6be7cb97f8fc942d5f7fe983f0f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/origin.stop.exit.json"
+    },
+    {
+      "bytes": 44,
+      "classification": "original mature-runner lifecycle",
+      "destination": "capacity/runtime/exit-records/external-one-agent-separate-4g-cgroups/status.json",
+      "sha256": "e98ce840f631f224a64ae8973dac92118dbcf18ac2bb8ac0d7fec43546f6e68d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-attempt-1/raw/external-one-agent-separate-4g-cgroups/status.json"
+    },
+    {
+      "bytes": 79373,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/FROZEN.json",
+      "sha256": "dcf7133b241b282ac616c8443cc78b874e7d347de43859d38a9f692041fb9495",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/FROZEN.json"
+    },
+    {
+      "bytes": 638,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/RUNNER-SHA256.json",
+      "sha256": "0992e0157c24e383e95ab7d4741ee47df398e0e66aad8619b76f6e0260f6e5ea",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/RUNNER-SHA256.json"
+    },
+    {
+      "bytes": 9763,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/BUILD-RECEIPT.json",
+      "sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/BUILD-RECEIPT.json"
+    },
+    {
+      "bytes": 18164,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/capacity-once.sh.txt",
+      "sha256": "811c8bebd04a3045546b7948af81d1aaa6ec64057c811285d4c8b1fb83c88d84",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/capacity-once.sh"
+    },
+    {
+      "bytes": 6880,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/run-capacity.py.txt",
+      "sha256": "13ab49bf0ca3b21f54ba2fb3c4a3b3839cfa9da4282c4a6f07387a64b628a213",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/run-capacity.py"
+    },
+    {
+      "bytes": 8921,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/stock-validator.py.txt",
+      "sha256": "6af38516806dccc0ce0c5661d6accb0a91bbd1a6e69b0ab40f5de401ea99a26b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/stock-validator.py"
+    },
+    {
+      "bytes": 13405,
+      "classification": "frozen capacity preparation/replay source",
+      "destination": "capacity/preparation/owned-supervisor.py.txt",
+      "sha256": "a3b980c38bef32d99f201e32a543f1f1d4bd07391df8b97d7f0e3ee5201c1767",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-continuation/owned-supervisor.py"
+    },
+    {
+      "bytes": 114,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/capacity-failure-decision.json",
+      "sha256": "2c7bfc38cbadab20e182db111830211ad339950115809acd6cf5493dfe2614c1",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/capacity-failure-decision.json"
+    },
+    {
+      "bytes": 2,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/root-launch.status",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/root-launch.status"
+    },
+    {
+      "bytes": 0,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/root-launch.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/root-launch.stdout"
+    },
+    {
+      "bytes": 791,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/root-launch.stderr",
+      "sha256": "688fd61b911d106f801e339f970a104e1b29f5d5521e1c3c15f7b25d8f171599",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/root-launch.stderr"
+    },
+    {
+      "bytes": 6447,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/run-capacity.py.txt",
+      "sha256": "6532237582dc8e47d7ce6bdd6b6aaf6c64b4d26a687f2c6db9bfa97b762b15dd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/run-capacity.py"
+    },
+    {
+      "bytes": 638,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/RUNNER-SHA256.json",
+      "sha256": "b3418a5cf09f82e6c155ac9e99af67e0c0618468582a98d8f3c2832782075320",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/RUNNER-SHA256.json"
+    },
+    {
+      "bytes": 78775,
+      "classification": "preserved original source-closure failure before any endpoint launch",
+      "destination": "preflight/capacity-original/FROZEN.json",
+      "sha256": "2a203600d32383e30480ea315097e2707c528a104a39cac8092cc1cf2cba3679",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/FROZEN.json"
+    },
+    {
+      "bytes": 352,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/pressure-decision.json",
+      "sha256": "bb2e50c444e8fb73fdf4e9c55736c8d05465d8d88c3fbcdfa46bb50441fb42ba",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-decision.json"
+    },
+    {
+      "bytes": 11389,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/pressure.outer.json",
+      "sha256": "f970f8c9aac876b56bf722686884727f622ed553892b768893295ccdd95e1ecd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure.outer.json"
+    },
+    {
+      "bytes": 927,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/pressure.started.json",
+      "sha256": "16674b570487908b2593bb7c45a5ca1672dc34f94cb94d24aa4fbcbc02a986d6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure.started.json"
+    },
+    {
+      "bytes": 654,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/post-run-owned-resource-audit.json",
+      "sha256": "7013d6dfc717ea28a2a11c85a9033de40d265b9253333945956be4e4053e54dd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/post-run-owned-resource-audit.json"
+    },
+    {
+      "bytes": 2,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/root-launch.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/root-launch.status"
+    },
+    {
+      "bytes": 65,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/root-launch.stdout",
+      "sha256": "f748712e835623ec37764d3fd59ef8402be02f0527d2cbd8c36a06393d51dbf5",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/root-launch.stdout"
+    },
+    {
+      "bytes": 0,
+      "classification": "pressure runtime/supervisor identity",
+      "destination": "pressure/root-launch.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/root-launch.stderr"
+    },
+    {
+      "bytes": 371987,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/results.jsonl",
+      "sha256": "9dfa4b9114dbdfde63bee483e86c7b8effce609f4ae41923a1948cca3bec1f91",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/results.jsonl"
+    },
+    {
+      "bytes": 3347,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/results.summary.json",
+      "sha256": "0c3c2815b57169dec562ce640febcaddaa58002806c093df6199b2e24331dc3e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/results.summary.json"
+    },
+    {
+      "bytes": 1150,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/results.lifecycle.jsonl",
+      "sha256": "a35ca4c5acb2548a6936e588c9a8a7f17211608dc1abeac8057cfd2283f9f8cb",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/results.lifecycle.jsonl"
+    },
+    {
+      "bytes": 243,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/results.status.json",
+      "sha256": "216e9149405776dd81be655f859cd51e88b3cc7149736b02b1715d1495d59a3b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/results.status.json"
+    },
+    {
+      "bytes": 118,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/supervisor-lifecycle.json",
+      "sha256": "8e99013d22a1aeb5006d57908dd1a7dbadf1587cd4583339ee0df406bff4b75c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/supervisor-lifecycle.json"
+    },
+    {
+      "bytes": 611,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/attestation.json",
+      "sha256": "a559c49d647cd294d5e1a0584aa6d8b6e56b06a62efa4fa365222a1173709264",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/attestation.json"
+    },
+    {
+      "bytes": 1730,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/input-check-before.log",
+      "sha256": "0bd8ae37d089cdcb90b5cc6d7a498db9a427d7f8d45620398fd2bac6bca3aed9",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/input-check-before.log"
+    },
+    {
+      "bytes": 1730,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/input-check-after.log",
+      "sha256": "0bd8ae37d089cdcb90b5cc6d7a498db9a427d7f8d45620398fd2bac6bca3aed9",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/input-check-after.log"
+    },
+    {
+      "bytes": 1190,
+      "classification": "original full pressure evidence",
+      "destination": "pressure/runtime/invocation.txt",
+      "sha256": "059e720591501db68565a1031c705820f208ad6ff3fc66c2dd18f8a677151a4c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempt-1/invocation.txt"
+    },
+    {
+      "bytes": 84,
+      "classification": "checkpoint status",
+      "destination": "pressure/runtime/status.json",
+      "sha256": "3afbeb2726ff1d33303959822046fb614c9e1b678439c003584b3d1ddf85ac80",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/status.json"
+    },
+    {
+      "bytes": 504,
+      "classification": "checkpoint status",
+      "destination": "pressure/runtime/attempts.jsonl",
+      "sha256": "a2dee1af4bd359d6c53a5a8e8c6d5ba0ad4d8944e8653f8e215223db1941e8b7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/attempts.jsonl"
+    },
+    {
+      "bytes": 13227,
+      "classification": "exact archived source/binary/build identity; archive/binary hashes retained",
+      "destination": "pressure/provenance/build-manifest.json",
+      "sha256": "8a841a0396ad4ef50362232d64751755cc271c77a6541b7a00279404475a71c6",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/provenance/build-manifest.json"
+    },
+    {
+      "bytes": 65,
+      "classification": "exact archived source/binary/build identity; archive/binary hashes retained",
+      "destination": "pressure/provenance/build-manifest.sha256",
+      "sha256": "5223d82cea052522fb696bc77edbba450be6ca8db44ee0fe01853dfa2d49651b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/provenance/build-manifest.sha256"
+    },
+    {
+      "bytes": 9763,
+      "classification": "exact archived source/binary/build identity; archive/binary hashes retained",
+      "destination": "pressure/provenance/reused-build-receipt.json",
+      "sha256": "d428e45fd861c8ed7a4346920e53c2a56d1fe678660fd343707f9841f53af624",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/provenance/reused-build-receipt.json"
+    },
+    {
+      "bytes": 264,
+      "classification": "exact archived source/binary/build identity; archive/binary hashes retained",
+      "destination": "pressure/provenance/go-build-settings.json",
+      "sha256": "20da54a4bdaf5c9bdf3d60af7e097792e7dbc1d9abecdb059e80f747d8e91147",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/provenance/go-build-settings.json"
+    },
+    {
+      "bytes": 32,
+      "classification": "exact archived source/binary/build identity; archive/binary hashes retained",
+      "destination": "pressure/provenance/go-version.txt",
+      "sha256": "058fc41f36af1ff69115b2bd237ebf769e90628e64a58c9dc171751384ffef72",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/provenance/go-version.txt"
+    },
+    {
+      "bytes": 2350,
+      "classification": "exact archived source/binary/build identity; archive/binary hashes retained",
+      "destination": "pressure/provenance/launch-inputs.sha256",
+      "sha256": "cc65495b97f4742e62829c78b0c30f04a5f2d2f35f84e8fbe08bd2d993153b57",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/pressure-attempt-1/provenance/launch-inputs.sha256"
+    },
+    {
+      "bytes": 1770,
+      "classification": "frozen pressure preparation/replay source",
+      "destination": "pressure/preparation/FROZEN-pressure.json",
+      "sha256": "e2644726559270c086d94a464da4ff1829d97f0f499635b30f95cc6b7385ba4a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/FROZEN-pressure.json"
+    },
+    {
+      "bytes": 6839,
+      "classification": "frozen pressure preparation/replay source",
+      "destination": "pressure/preparation/run-pressure.py.txt",
+      "sha256": "c1ffe5c24913a820db3cc8d0b063566359c3d80aad2cf2fb809763a2f7c02903",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/run-pressure.py"
+    },
+    {
+      "bytes": 9780,
+      "classification": "frozen pressure preparation/replay source",
+      "destination": "pressure/preparation/qualify-proxy-pressure-checkpoint.sh.txt",
+      "sha256": "68c8316003430f5fc0b9c8c179db392db70592b725dee8d4d99625e8c74da9ae",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/qualify-proxy-pressure-checkpoint.sh"
+    },
+    {
+      "bytes": 78695,
+      "classification": "frozen pressure preparation/replay source",
+      "destination": "pressure/preparation/qualify-proxy-agent-growth-pressure-owned.sh.txt",
+      "sha256": "43315047b3b545d8f45a1186e48792c740f587226180c8d8dc418731466938f3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/qualify-proxy-agent-growth-pressure-owned.sh"
+    },
+    {
+      "bytes": 11913,
+      "classification": "frozen pressure preparation/replay source",
+      "destination": "pressure/preparation/validate-owned-pressure.py.txt",
+      "sha256": "3ae4060839ea4ae01b93314710fd93bad95c2de768f5676e722785450158419e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/validate-owned-pressure.py"
+    },
+    {
+      "bytes": 4616,
+      "classification": "frozen pressure preparation/replay source",
+      "destination": "pressure/preparation/reuse-vs-original.patch",
+      "sha256": "0c4727cbad67977ca7a219d059122986469c62817316513abab0a7faa4f39495",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/reuse-vs-original.patch"
+    },
+    {
+      "bytes": 2,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contracts-root.status",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts-root.status"
+    },
+    {
+      "bytes": 0,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contracts-root.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts-root.stdout"
+    },
+    {
+      "bytes": 1367,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contracts-root.stderr",
+      "sha256": "f3316904bc6a11d502a7dbcc3f9fe5fd241dcc95c2136a8b14aeec7ff51fbe38",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts-root.stderr"
+    },
+    {
+      "bytes": 2,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contracts-missing-fixture-continuation.status",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts-missing-fixture-continuation.status"
+    },
+    {
+      "bytes": 0,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contracts-missing-fixture-continuation.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts-missing-fixture-continuation.stdout"
+    },
+    {
+      "bytes": 98,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contracts-missing-fixture-continuation.stderr",
+      "sha256": "9152bd257679336b40c628719f593ad31d6a57b4b0f6b839cb7ee8dbb189fcb2",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts-missing-fixture-continuation.stderr"
+    },
+    {
+      "bytes": 14037,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/offline-contracts.py.txt",
+      "sha256": "d1ae780068e78753ae3f8a2eaef3ef66b3cf70e0860794d0ca01ee86405b731d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/offline-contracts.py"
+    },
+    {
+      "bytes": 7856,
+      "classification": "preserved original offline failure and exact narrow continuation",
+      "destination": "offline-contracts/contract-pressure-scopes.sh.txt",
+      "sha256": "b0c0429056a3c87b49688dace1d22f9701c00fd773492766ae331898e4379d18",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contract-pressure-scopes.sh"
+    },
+    {
+      "bytes": 99,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/acceptance-empty.json",
+      "sha256": "50573b58bfc90b930a75d2e9fb31a02ab8f1526c911e98427f826b9479ba5e2d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/acceptance-empty.json"
+    },
+    {
+      "bytes": 99,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/acceptance-nonboolean.json",
+      "sha256": "50573b58bfc90b930a75d2e9fb31a02ab8f1526c911e98427f826b9479ba5e2d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/acceptance-nonboolean.json"
+    },
+    {
+      "bytes": 92,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/editable-manifest-and-row.json",
+      "sha256": "6ba7caa9befcece5bafea5d28d5e39a49ae02958766bee25a1cc549ca6645470",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/editable-manifest-and-row.json"
+    },
+    {
+      "bytes": 94,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/lifecycle-duplicate.json",
+      "sha256": "f19da35357086045377a5d9ac3aed05ab56d3d87fce07b1de67260b5046e14c3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/lifecycle-duplicate.json"
+    },
+    {
+      "bytes": 86,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/lifecycle-forced.json",
+      "sha256": "b4cde37f1bdc298418393070c8dcb9130e7a3c7ce730e3d3ad97a7cc1b62762a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/lifecycle-forced.json"
+    },
+    {
+      "bytes": 94,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/lifecycle-missing.json",
+      "sha256": "f19da35357086045377a5d9ac3aed05ab56d3d87fce07b1de67260b5046e14c3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/lifecycle-missing.json"
+    },
+    {
+      "bytes": 55,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/preserved-original-pass.json",
+      "sha256": "6dd0e51ca516d9556c37411578662a9ab03ebc196a97af5ab49c55486171f527",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/preserved-original-pass.json"
+    },
+    {
+      "bytes": 90,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/response-extra.json",
+      "sha256": "d7683b981fc3e72402413289dcf6582aed0708a0b58fcdbe067a674a104a32cd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/response-extra.json"
+    },
+    {
+      "bytes": 91,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/row-binary-hash-mismatch.json",
+      "sha256": "448b40297b38b1c4e6ce59d739f9d1328a4e8b5723cdd18a9c20e2fad78820fd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/row-binary-hash-mismatch.json"
+    },
+    {
+      "bytes": 89,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/row-source-mismatch.json",
+      "sha256": "a95f7005c7a982d7b3dee76705f3c1d3987e3398bcb804ac60d417b934b29e59",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/row-source-mismatch.json"
+    },
+    {
+      "bytes": 92,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/sample-source-mismatch.json",
+      "sha256": "d09561cb13bcba1c7b0e7bbb301a738982c4ae78da593d392fe66508131d6e21",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/sample-source-mismatch.json"
+    },
+    {
+      "bytes": 281,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/scope-extracted-syntax.json",
+      "sha256": "c30f52726145f180fe73237b7fef7ac19cb8758ce419ada8f47d708508fc6701",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/scope-extracted-syntax.json"
+    },
+    {
+      "bytes": 91,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-canceled-upload-duplicate.json",
+      "sha256": "874d785836711758047a867e6f98118d8e55d6e5f2fe3f7a2f327f83216ea69f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-canceled-upload-duplicate.json"
+    },
+    {
+      "bytes": 91,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-canceled-upload-missing.json",
+      "sha256": "874d785836711758047a867e6f98118d8e55d6e5f2fe3f7a2f327f83216ea69f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-canceled-upload-missing.json"
+    },
+    {
+      "bytes": 93,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-baseline-duplicate.json",
+      "sha256": "b2d12975ae2e75fee0f33c8f898531bb6d7f180292d47639d15952515b4b471a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-baseline-duplicate.json"
+    },
+    {
+      "bytes": 93,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-baseline-missing.json",
+      "sha256": "b2d12975ae2e75fee0f33c8f898531bb6d7f180292d47639d15952515b4b471a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-baseline-missing.json"
+    },
+    {
+      "bytes": 102,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-control-roundtrip-duplicate.json",
+      "sha256": "23075dabafd487ebb2df3a46b551e5e592803b50768ebe3e9fd6fc6aa3827a45",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-control-roundtrip-duplicate.json"
+    },
+    {
+      "bytes": 102,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-control-roundtrip-missing.json",
+      "sha256": "23075dabafd487ebb2df3a46b551e5e592803b50768ebe3e9fd6fc6aa3827a45",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-control-roundtrip-missing.json"
+    },
+    {
+      "bytes": 93,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-critical-duplicate.json",
+      "sha256": "b1d8c918a0789a6c6138d501aee31a5a84b2409cb5a201ee16e647e1e3892e78",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-critical-duplicate.json"
+    },
+    {
+      "bytes": 93,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-critical-missing.json",
+      "sha256": "b1d8c918a0789a6c6138d501aee31a5a84b2409cb5a201ee16e647e1e3892e78",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-critical-missing.json"
+    },
+    {
+      "bytes": 94,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-recovered-duplicate.json",
+      "sha256": "3bef74839fa9e63de94b173a53342fde14b6851591e0d7f940d15c5e4136385c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-recovered-duplicate.json"
+    },
+    {
+      "bytes": 94,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-recovered-missing.json",
+      "sha256": "3bef74839fa9e63de94b173a53342fde14b6851591e0d7f940d15c5e4136385c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-recovered-missing.json"
+    },
+    {
+      "bytes": 94,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-rejection-duplicate.json",
+      "sha256": "ede111379fbc7b3e69b8fc23856123d43be6d8171089f8dc4686418f842e9af7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-rejection-duplicate.json"
+    },
+    {
+      "bytes": 94,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-rejection-missing.json",
+      "sha256": "ede111379fbc7b3e69b8fc23856123d43be6d8171089f8dc4686418f842e9af7",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-rejection-missing.json"
+    },
+    {
+      "bytes": 93,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-released-duplicate.json",
+      "sha256": "44fa359b9cf33b91b7c596724529e959effbbaeef4fa9eaeacc015f7fbd03a56",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-released-duplicate.json"
+    },
+    {
+      "bytes": 93,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-released-missing.json",
+      "sha256": "44fa359b9cf33b91b7c596724529e959effbbaeef4fa9eaeacc015f7fbd03a56",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-released-missing.json"
+    },
+    {
+      "bytes": 91,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-result-duplicate.json",
+      "sha256": "9e3cf6414bfc893fc792d926579a4cc1084ae442c2a79f3fcccf4c6271c6675f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-result-duplicate.json"
+    },
+    {
+      "bytes": 91,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/stage-pressure-result-missing.json",
+      "sha256": "9e3cf6414bfc893fc792d926579a4cc1084ae442c2a79f3fcccf4c6271c6675f",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/stage-pressure-result-missing.json"
+    },
+    {
+      "bytes": 104,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-archives_current.tar.json",
+      "sha256": "c2cd2e08a967b78372550fc096310e7e4bb717b33cb6342704cb7447436d5afb",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-archives_current.tar.json"
+    },
+    {
+      "bytes": 103,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-archives_legacy.tar.json",
+      "sha256": "a534fc92cd5b8c482908ccec06044eb85e0c0bfaaa4844e8ae8b0a05d702ad3e",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-archives_legacy.tar.json"
+    },
+    {
+      "bytes": 106,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-bin_current-agent.test.json",
+      "sha256": "623f588fe1354878a7b8a7b27d5b001f021c78ce69d2cafe8c14c595dbb6093a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-bin_current-agent.test.json"
+    },
+    {
+      "bytes": 107,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-bin_current-server.test.json",
+      "sha256": "b8cefbf6ee65a45d2f0d7ffed0f30c76b46ed6117365175433e00d08b6d8af1a",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-bin_current-server.test.json"
+    },
+    {
+      "bytes": 105,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-bin_legacy-agent.test.json",
+      "sha256": "c40719ab2fec4e5c1f6804451023e64ef0657ca624c343f693396417630000b3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-bin_legacy-agent.test.json"
+    },
+    {
+      "bytes": 87,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-go.json",
+      "sha256": "b6f0f2455549c50ecf9743e376186eb4b04a54d83da2c7997652b01a11f3491b",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-go.json"
+    },
+    {
+      "bytes": 117,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-provenance_go-build-settings.json.json",
+      "sha256": "6c5ff8da6c97ada18e3ff9155d2fe89f8c09eef894cc764e7b1f93d971b8c7f3",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-provenance_go-build-settings.json.json"
+    },
+    {
+      "bytes": 139,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-provenance_qualify-proxy-agent-growth-pressure-owned.sh.json",
+      "sha256": "e49b75ea72f233b9550e9cac777f79b8d13d4b63470c83fb62188b749365af79",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-provenance_qualify-proxy-agent-growth-pressure-owned.sh.json"
+    },
+    {
+      "bytes": 131,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-provenance_qualify-proxy-pressure-checkpoint.sh.json",
+      "sha256": "637701635ac4bdcec2ce9c6d2a5a709d6cabbb8f5eda3f59d8864df72a9ecd8d",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-provenance_qualify-proxy-pressure-checkpoint.sh.json"
+    },
+    {
+      "bytes": 121,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-provenance_validate-owned-pressure.py.json",
+      "sha256": "3aacc97a5d36ce7b839b06f075e9d4c19ae98d35ab9279d3445c540491e83416",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-provenance_validate-owned-pressure.py.json"
+    },
+    {
+      "bytes": 167,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/tamper-sources_current_internal_agent_testdata_proxy_qualification_external_legacy_test.go.json",
+      "sha256": "36598627259bc8ee733764614a2f87226abe2cbf05e9dfb8cc66b4e0bf0e75a4",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/tamper-sources_current_internal_agent_testdata_proxy_qualification_external_legacy_test.go.json"
+    },
+    {
+      "bytes": 90,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/telemetry-dropped_event_delta-None.json",
+      "sha256": "d7683b981fc3e72402413289dcf6582aed0708a0b58fcdbe067a674a104a32cd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/telemetry-dropped_event_delta-None.json"
+    },
+    {
+      "bytes": 90,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/telemetry-event_drain_error-None.json",
+      "sha256": "d7683b981fc3e72402413289dcf6582aed0708a0b58fcdbe067a674a104a32cd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/telemetry-event_drain_error-None.json"
+    },
+    {
+      "bytes": 90,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/telemetry-event_queue_after_drain-0.0.json",
+      "sha256": "d7683b981fc3e72402413289dcf6582aed0708a0b58fcdbe067a674a104a32cd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/telemetry-event_queue_after_drain-0.0.json"
+    },
+    {
+      "bytes": 90,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/telemetry-event_queue_after_drain-False.json",
+      "sha256": "d7683b981fc3e72402413289dcf6582aed0708a0b58fcdbe067a674a104a32cd",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/telemetry-event_queue_after_drain-False.json"
+    },
+    {
+      "bytes": 122,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/transfer-duplicate.json",
+      "sha256": "18a0e2f12ef2b3d61a5019913ce41436c18656fc677ad18635a737c395f2f492",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/transfer-duplicate.json"
+    },
+    {
+      "bytes": 122,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/transfer-missing.json",
+      "sha256": "18a0e2f12ef2b3d61a5019913ce41436c18656fc677ad18635a737c395f2f492",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/transfer-missing.json"
+    },
+    {
+      "bytes": 122,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/transfer-order.json",
+      "sha256": "18a0e2f12ef2b3d61a5019913ce41436c18656fc677ad18635a737c395f2f492",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/transfer-order.json"
+    },
+    {
+      "bytes": 122,
+      "classification": "inert offline acceptance/tamper case result",
+      "destination": "offline-contracts/cases/transfer-payload.json",
+      "sha256": "18a0e2f12ef2b3d61a5019913ce41436c18656fc677ad18635a737c395f2f492",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/pressure-prep/contracts/transfer-payload.json"
+    },
+    {
+      "bytes": 7067,
+      "classification": "scope and separate unexecuted follow-up plan",
+      "destination": "preparation/PLAN.md",
+      "sha256": "c550fa071e473e585774b0e83ac4b458caa9f90c8101664e5a1044e065a56583",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/PLAN.md"
+    },
+    {
+      "bytes": 4598,
+      "classification": "scope and separate unexecuted follow-up plan",
+      "destination": "preparation/COLD-GAPS.md",
+      "sha256": "740e6c431121468783533994f7444a0a10ef004404350f2726bb05a97d068715",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/COLD-GAPS.md"
+    },
+    {
+      "bytes": 49634,
+      "classification": "ordinary compile source closure hashes; no source archives",
+      "destination": "provenance/compiled-source430.json",
+      "sha256": "6c9c0e64aa5ef6ab8b4d32fcfa0b6bfa5440be2ff1a3f97a41b55f2417892f4c",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/export-review/compiled-source430.json"
+    },
+    {
+      "bytes": 5217,
+      "classification": "exact8fa outcome and preserved-failure narrative",
+      "destination": "README.md",
+      "sha256": "de55c821443688e930c2c68182eba76188a99c5f2120751a132e69dcfeba0a84",
+      "source": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/proxy-capacity-followup-20261017/export-review/README.md"
+    }
+  ],
+  "later_commit_not_requalified": "1fa81d839f35ae575c41779a309d356c23c1f956",
+  "preserved_failures": [
+    "original capacity source-closure preflight; no endpoint executed",
+    "original pressure offline10-method suite error; missing inert scope fixture",
+    "exact pressure offline failing-method continuation passed once; no changed validators/assertions"
+  ],
+  "proposed_docs_directory": "docs/operations/benchmarks/proxy-qualification-2026-10-17/resource-requalification",
+  "published_at": "2026-10-17T17:31:25.684535+00:00",
+  "review_state": "root-reviewed-published",
+  "schema_version": 1,
+  "total_bytes": 1216162
+}

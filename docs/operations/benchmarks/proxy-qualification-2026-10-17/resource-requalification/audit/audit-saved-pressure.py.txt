@@ -1,0 +1,93 @@
+from pathlib import Path
+import collections,datetime,hashlib,json,os,subprocess,tarfile
+REPO=Path.cwd();P=REPO/'tmp/proxy-capacity-followup-20261017/pressure-prep';ROOT=P/'pressure-attempt-1';A=ROOT/'attempt-1';DEST=P.parent/'independent-review'
+def read(p):return json.loads(p.read_text())
+def sha(p):
+ h=hashlib.sha256()
+ with p.open('rb') as f:
+  for b in iter(lambda:f.read(1<<20),b''):h.update(b)
+ return h.hexdigest()
+def require(x,m):
+ if not x:raise AssertionError(m)
+def zero(x):return type(x)is int and x==0
+m=read(ROOT/'provenance/build-manifest.json');att=read(A/'attestation.json');summary=read(A/'results.summary.json');outer=read(P/'pressure.outer.json');decision=read(P/'pressure-decision.json')
+rows=[json.loads(v) for v in (A/'results.jsonl').read_text().splitlines() if v.strip()];life=[json.loads(v) for v in (A/'results.lifecycle.jsonl').read_text().splitlines() if v.strip()]
+def one(stage):
+ found=[x for x in rows if x.get('measurement_stage')==stage];require(len(found)==1,'missing/duplicate stage:'+stage);return found[0]
+ref='8fa16378af4ac0117276726fe6e51d8bc4c74c85';require(m['current_ref']==att['current_ref']==decision['source_ref']==ref,'source ref mismatch')
+require(att['accepted']is True and att['results_sha256']==sha(A/'results.jsonl') and att['lifecycle_sha256']==sha(A/'results.lifecycle.jsonl') and att['build_manifest_sha256']==sha(ROOT/'provenance/build-manifest.json') and decision['independent_result_sha256']==sha(A/'attestation.json'),'attestation identity mismatch')
+inputs={}
+for name,h in m['sha256'].items():require(sha(ROOT/name)==h,'bound input changed:'+name);inputs[name]=h
+require(sha(Path(m['go_binary']))==m['go_binary_sha256'],'Go executable changed')
+original=REPO/'tmp/pressure-final-readiness-20261017/proposal/scripts'
+for name in ['qualify-proxy-agent-growth-pressure-owned.sh','validate-owned-pressure.py']:
+ require(sha(original/name)==sha(P/name)==sha(ROOT/'provenance'/name),'original pressure runner/validator changed:'+name)
+require(read(A/'results.status.json')['emergency_cleanup']is False and zero(read(A/'results.status.json')['exit_status']),'inner lifecycle invalid')
+require(zero(outer['status']) and outer['forced']is False and outer['accepted_cleanup']is True and outer['remaining_owned']==[] and outer['adopted_descendants']==[],'outer lifecycle invalid')
+require(zero(read(ROOT/'status.json')['exit_status']) and read(ROOT/'status.json')['forced_supervisor_cleanup']is False,'checkpoint lifecycle invalid')
+require(read(A/'supervisor-lifecycle.json')['group_joined']is True and read(A/'supervisor-lifecycle.json')['forced']is False and zero(read(A/'supervisor-lifecycle.json')['runner_status']),'inner supervisor lifecycle invalid')
+fields={'pressure_reached','admission_rejected_under_pressure','functional_recovery','control_progress_during_pressure','ordinary_admission_closed_during_pressure','control_reservation_owned','control_slot_returned_to_baseline','control_did_not_consume_ordinary_pressure_rejection','canceled_upload_refunds_quiescent','canceled_upload_reached_origin','all_receiving_pools_exceeded_required_size_before_pressure','all_receiving_pools_retained_after_recovery','no_oom'}
+require(set(summary['acceptance'])==fields and all(x is True for x in summary['acceptance'].values()),'original thirteen pressure gates invalid')
+expected=[('warmup',d,k,256<<20) for d in ['download','upload'] for k in range(1,5)]+[('retained-warmup',d,1,256<<20) for d in ['download','upload']]+[('pressure-recovery',d,1,16<<20) for d in ['download','upload']]
+transfers=[x for x in rows if x.get('measurement_stage') in ['warmup','retained-warmup','steady','pressure-recovery']]
+require([(x['measurement_stage'],x['transfer_direction'],x['repetition'],x['configured_payload_bytes']) for x in transfers]==expected,'original transfer order/payload mismatch')
+events=[x for x in rows if x.get('measurement_stage') in ['warmup','retained-warmup','pressure-recovery','canceled-upload','pressure-rejection']]
+require(len(events)==14,'original event-row count mismatch')
+for x in events:require(x.get('event_stats_captured')is True and type(x.get('persisted_event_delta'))is int and x['persisted_event_delta']==1 and zero(x.get('dropped_event_delta')) and zero(x.get('event_queue_after_drain')) and x.get('event_drain_error')=='','event conservation failure')
+for x in transfers:
+ require(x.get('attempted')==x.get('useful_completed')==1 and zero(x.get('errors')) and x.get('status_codes')=={'200':1} and x.get('status_classes')=={'2xx':1} and x.get('protocol')=='h2' and x.get('observed_http_major')==2 and x.get('configured_rtt_ms')==80 and x.get('shaped_rate_bits_per_second')==1000000000,'transfer status/path failure')
+ require(x['response_bytes']==(x['configured_payload_bytes'] if x['transfer_direction']=='download' else 32),'transfer response payload mismatch')
+critical=one('pressure-critical');current=critical['agent_cgroup']['memory_current_bytes'];maximum=critical['agent_cgroup']['memory_max_bytes'];require(current*100>=maximum*90 and maximum-current>=256<<20,'actual critical memory margin failed')
+base=one('pressure-baseline');recovered=one('pressure-recovered')
+identity=lambda r:[(x['lane'],x['session_identity']) for x in r['agent_runtime']['tunnel_sessions']]
+require(identity(base)==identity(critical)==identity(recovered) and len(identity(base))==5,'session generation changed')
+for stage in ['pressure-baseline','pressure-critical','pressure-released','pressure-recovered']:
+ x=one(stage)
+ for role in ['agent','server']:
+  c=x[role+'_cgroup'];require(c['memory_max_bytes']==4<<30 and zero(c['memory_swap_max_bytes']) and zero(c['memory_events']['oom']) and zero(c['memory_events']['oom_kill']),'cgroup/OOM gate failed')
+for stage in ['pre_pressure','post_recovery']:
+ for role in ['agent','server']:
+  pools=summary['receiving_pools'][stage][role+'_bytes'];require(len(pools)==4 and all(type(v)is int and v>80<<20 for v in pools),'retained growth gate failed')
+require(summary['receiving_pools']['pre_pressure']['agent_bytes']==summary['receiving_pools']['post_recovery']['agent_bytes'] and summary['receiving_pools']['pre_pressure']['server_bytes']==summary['receiving_pools']['post_recovery']['server_bytes'],'receiving pools changed after recovery')
+reject=one('pressure-rejection');control=one('pressure-control-roundtrip');cancel=one('canceled-upload')
+require(reject['status_codes']=={'503':1} and control['control_roundtrip']['http_status']==200 and control['control_progress_proven']is True,'rejection/control proof failed')
+for key in ['ordinary_admission_limit_before','ordinary_admission_limit_after','control_in_use_before','control_in_use_after']:require(zero(control[key]),'control isolation failed:'+key)
+require(control['agent_rejected_pressure_before']==control['agent_rejected_pressure_after']==1 and control['control_reserved_slots']==4 and control['control_reserved_base_bytes']==3145728 and control['control_reserved_base_fds']==8,'reserved control accounting failed')
+require(cancel['configured_payload_bytes']==32<<20 and cancel['origin_receiving_payload_observed']is True and cancel['agent_lane_refunds_quiescent']is True and cancel['canceled_errors']==1,'cancellation/refund proof failed')
+labels={'current-server-aggregate-v1-1-agent','current-server-aggregate-v1-1-server','origin','agent-namespace','router-namespace','canceled-upload-load'};exits=[x for x in life if x.get('event')=='process-exit'];require(collections.Counter(x['label'] for x in exits)==collections.Counter(labels),'natural owner identity mismatch')
+for x in exits:
+ require(zero(x['status']) and x['forced']is False and x['group_joined']is True and x['invalidates_success']is False,'unnatural owner exit')
+ require(not Path('/proc',str(x['pid'])).exists(),'recorded payload remained')
+ try:os.killpg(x['pid'],0)
+ except ProcessLookupError:pass
+ else:raise AssertionError('recorded group remained')
+require(read(P/'post-run-owned-resource-audit.json')['accepted']is True,'final resource audit failed')
+# Compare every archived file against its extracted current/legacy source copy.
+# No archive is extracted or executed here, and no source contents are exported.
+source_trees={}
+for role,expected_ref in [('current',ref),('legacy',m['legacy_ref'])]:
+ archive=ROOT/'archives'/(role+'.tar');src=ROOT/'sources'/role;expected_files={}
+ with archive.open('rb') as f:archive_ref=subprocess.check_output(['git','get-tar-commit-id'],stdin=f,text=True,timeout=10).strip()
+ require(archive_ref==expected_ref,'archive commit mismatch:'+role)
+ with tarfile.open(archive,'r:') as tar:
+  for member in tar:
+   if member.isdir():continue
+   require(not member.name.startswith('/') and '..' not in Path(member.name).parts,'unsafe archive source path')
+   path=src/member.name
+   if member.issym():require(path.is_symlink() and os.readlink(path)==member.linkname,'source symlink changed');expected_files[member.name]=hashlib.sha256(member.linkname.encode()).hexdigest();continue
+   require(member.isfile(),'unexpected archive entry type');h=hashlib.sha256()
+   with tar.extractfile(member) as content:
+    for data in iter(lambda:content.read(1<<20),b''):h.update(data)
+   expected_files[member.name]=h.hexdigest();require(sha(path)==h.hexdigest(),'extracted source changed:'+role+'/'+member.name)
+ actual_files={str(p.relative_to(src)) for p in src.rglob('*') if p.is_file() or p.is_symlink()}
+ if role=='legacy':
+  overlay='internal/agent/proxy_qualification_external_legacy_test.go';expected_files[overlay]=sha(ROOT/'sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go');require(sha(src/overlay)==expected_files[overlay],'legacy overlay changed')
+ require(actual_files==set(expected_files),'extracted source file set changed:'+role)
+ source_trees[role]={'source_ref':expected_ref,'file_count':len(expected_files),'archive_sha256':sha(archive),'file_hash_map_sha256':hashlib.sha256(json.dumps(expected_files,sort_keys=True,separators=(',',':')).encode()).hexdigest(),'exact_file_set_verified':True,'file_contents_verified':True}
+inventory=read(P.parent/'capacity-continuation/BUILD-SOURCE430.json');require(len(inventory['source_files'])==430,'compile source cardinality changed')
+for name,h in inventory['source_files'].items():require(sha(ROOT/'sources/current'/name)==h,'archived430 ordinary build source mismatch:'+name)
+for role in ['agent','server']:require(m['sha256']['bin/current-'+role+'.test']==read(P.parent/'capacity-continuation/BUILD-RECEIPT.json')['binaries'][role]['sha256'],'ordinary binary receipt mismatch')
+require((P/'contracts-root.status').read_text().strip()=='1' and 'FileNotFoundError' in (P/'contracts-root.stderr').read_text() and (P/'contracts-missing-fixture-continuation.status').read_text().strip()=='0' and 'Ran 1 test' in (P/'contracts-missing-fixture-continuation.stderr').read_text(),'offline failed/continuation history not preserved')
+require(sha(P/'contract-pressure-scopes.sh')==sha(original/'contract-pressure-scopes.sh'),'restored fixture changed')
+report={'accepted':True,'audit_utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'source_ref':ref,'current_worktree_not_requalified_after_later_changes':True,'bound_input_sha256':inputs,'full_archived_source_trees':source_trees,'compiled_source_count':430,'original_runner_and_validator_byte_identical':True,'pressure_acceptance_fields':summary['acceptance'],'rows':len(rows),'transfer_rows':len(transfers),'conserved_event_rows':len(events),'natural_owner_exits':exits,'outer_elapsed_seconds':outer['elapsed_seconds'],'new_proof_bytes':outer['artifact_bytes'],'actual_agent_memory_critical_bytes':current,'actual_agent_memory_max_bytes':maximum,'actual_agent_memory_headroom_bytes':maximum-current,'pressure_ballast_mib':summary['pressure_ballast_mib'],'receiving_pools':summary['receiving_pools'],'control_reserved':summary['control_reservation'],'canceled_upload_origin_request_body_bytes':cancel['origin_request_body_bytes'],'canceled_upload_independently_observed_origin_bytes':cancel['origin_upload_observation']['received_body_bytes'],'control_http_status':200,'public_rejection_status':503,'offline_contract_history':{'original_exit':1,'original_tests':10,'missing_scope_fixture':True,'narrow_continuation_exit':0,'narrow_tests':1,'validator_assertions_changed':False},'no_workload_build_or_validator_rerun_by_audit':True}
+(DEST/'saved-pressure-audit.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n');print(json.dumps({k:v for k,v in report.items() if k not in ['bound_input_sha256','natural_owner_exits','pressure_acceptance_fields','receiving_pools']},indent=2))

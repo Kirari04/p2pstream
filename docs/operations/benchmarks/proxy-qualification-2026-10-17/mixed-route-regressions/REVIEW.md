@@ -1,0 +1,9 @@
+# Focused mixed-route test review
+
+The existing tests separately exercised full-key eligibility, idle concurrent claims, all-busy fallback, four cold live lanes, body completion and retirement, sequential distinct route keys, and generation mismatch. The additions combine those states rather than duplicating each eligibility-field test.
+
+The live test starts with two complete warm target keys against the same origin. The second target also differs in response-header timeout. Channel gates retain real HTTP bodies while a busy warm request, another idle target and a cold target overlap. Per-request `GotConn` observations identify physical connection ownership. Locked pool snapshots verify entry identity, in-flight claims and draining ownership at retirement and replacement boundaries. Exact response payloads, repeated body close, final empty pool and the existing stream-lease helper verify release conservation. No sleeps determine expected scheduling, and no exact concurrent lane or uniform distribution is required.
+
+The generation test uses alternate protocol responses to avoid coupling generation identity and pool bookkeeping to socket-shutdown timing. It verifies rejection of an old generation's idle entry, replacement under the same full key, preservation of the new generation during stale cleanup, and completion of both retained bodies. It covers pool generation ownership rather than actual network disconnect behavior.
+
+The coordinator and CPU review worker reported no test blocker before execution. The independent static review found the gate lifecycle, request-group joins, body cleanup and assertions consistent with the current ownership contract. The saved normal and race outputs subsequently show both tests passed once with no skips or forced cleanup. The source was copied into the actual package only after those commands completed; the integration receipt binds its bytes to the tested overlay.

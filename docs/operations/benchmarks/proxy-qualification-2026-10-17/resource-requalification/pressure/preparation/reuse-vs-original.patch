@@ -1,0 +1,50 @@
+--- accepted-original-pressure-checkpoint
++++ reuse-ordinary-pressure-checkpoint
+@@ -81,21 +81,18 @@
+ overlay=$output_root/sources/current/internal/agent/testdata/proxy_qualification_external_legacy_test.go
+ install -m 0644 "$overlay" "$output_root/sources/legacy/internal/agent/proxy_qualification_external_legacy_test.go"
+ 
+-stage=build
+-# A clean build environment prevents inherited observer tags, GOFLAGS or work
+-# files from silently changing the archived production build. No private env is logged.
+-build_env=(env -i HOME="$HOME" PATH="$(dirname "$go_binary"):/usr/bin:/bin" \
+-  GOENV=off GOTOOLCHAIN=local GOWORK=off GOMAXPROCS=4)
++stage=reuse_verified_ordinary_build
++# Source/archive/binary equality is checked by the outer phase supervisor.
++# No compile occurs here. Reuse exact accepted ordinary route-locality build.
++reuse=$PWD/tmp/wan-early-share-dependencies-20261017/route-reuse-build-output
++legacy=$PWD/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/pressure-attempt-1/bin/legacy-agent.test
++install -m 0755 "$reuse/current-server-route-reuse.test" "$output_root/bin/current-server.test"
++install -m 0755 "$reuse/current-agent-route-reuse.test" "$output_root/bin/current-agent.test"
++install -m 0755 "$legacy" "$output_root/bin/legacy-agent.test"
+ sha256sum "$go_binary" >"$output_root/provenance/go-binary-before-build.sha256"
+-"${build_env[@]}" "$go_binary" version >"$output_root/provenance/go-version.txt"
+-"${build_env[@]}" "$go_binary" env -json GOOS GOARCH GOAMD64 CGO_ENABLED GOFLAGS GOWORK GOTOOLCHAIN \
+-  >"$output_root/provenance/go-build-settings.json"
+-timeout --signal=TERM --kill-after=10s 600s "${build_env[@]}" "$go_binary" -C "$output_root/sources/current" test -c -o "$output_root/bin/current-server.test" ./internal/server \
+-  >"$output_root/build/current-server.log" 2>&1
+-timeout --signal=TERM --kill-after=10s 600s "${build_env[@]}" "$go_binary" -C "$output_root/sources/current" test -c -o "$output_root/bin/current-agent.test" ./internal/agent \
+-  >"$output_root/build/current-agent.log" 2>&1
+-timeout --signal=TERM --kill-after=10s 600s "${build_env[@]}" "$go_binary" -C "$output_root/sources/legacy" test -c -o "$output_root/bin/legacy-agent.test" ./internal/agent \
+-  >"$output_root/build/legacy-agent.log" 2>&1
++"$go_binary" version >"$output_root/provenance/go-version.txt"
++cp tmp/wan-route-reuse-build-20261017/build-once/settings.stdout.log "$output_root/provenance/go-build-settings.json"
++cp tmp/wan-route-reuse-build-20261017/build-once/receipt.json "$output_root/provenance/reused-build-receipt.json"
+ sha256sum -c "$output_root/provenance/go-binary-before-build.sha256" >"$output_root/provenance/go-binary-after-build-check.log"
+ python3 - "$output_root" "$candidate_ref" "$legacy_ref" "$go_binary" <<'PY'
+ import hashlib, json, pathlib, sys
+@@ -115,11 +112,9 @@
+ manifest = {"schema_version": 1, "current_ref": current, "legacy_ref": legacy,
+     "go_binary": go, "go_binary_sha256": digest(go), "go_version": (root / "provenance/go-version.txt").read_text().strip(),
+     "build_settings": json.loads((root / "provenance/go-build-settings.json").read_text()),
+-    "build": {"environment": "env -i; HOME and pinned-Go /usr/bin /bin PATH; GOENV=off GOTOOLCHAIN=local GOWORK=off GOMAXPROCS=4; ordinary Go content-addressed cache",
+-              "commands": ["timeout --signal=TERM --kill-after=10s 600s go -C sources/current test -c -o bin/current-server.test ./internal/server",
+-                           "timeout --signal=TERM --kill-after=10s 600s go -C sources/current test -c -o bin/current-agent.test ./internal/agent",
+-                           "timeout --signal=TERM --kill-after=10s 600s go -C sources/legacy test -c -o bin/legacy-agent.test ./internal/agent"],
+-              "legacy_overlay": "only canonical internal/agent/proxy_qualification_external_legacy_test.go"},
++    "build": {"environment": "No new build. Exact ordinary Go1.26.6 route-locality server/agent binaries reused with receipt; full430 source equality enforced pre/post by phase supervisor.",
++              "commands": [], "reused_ordinary_build_receipt": json.loads((root / "provenance/reused-build-receipt.json").read_text()),
++              "legacy_overlay": "only canonical internal/agent/proxy_qualification_external_legacy_test.go; previously accepted original pressure legacy binary reused"},
+     "sha256": files,
+     "topology": "original user/net namespace entry; host PID topology; separate 4GiB no-swap systemd user scopes",
+     "workload": {"warmup_mib": 256, "warmup_rounds_each_direction": 4, "retained_mib_each_direction": 256,
