@@ -1,0 +1,83 @@
+//go:build p2pstream_qualification
+
+package agent
+
+import "testing"
+
+func terminalTestApplicationStack() terminalStack {
+	return terminalStack{GoVersion: terminalPinnedGo, Complete: true, Functions: []string{
+		"p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked",
+		"p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP",
+		"p2pstream/internal/agent.(*qualificationObservedRawConn).Write",
+		"crypto/tls.(*Conn).write", "crypto/tls.(*Conn).writeRecordLocked", "crypto/tls.(*Conn).Write",
+		"p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write",
+		"github.com/hashicorp/yamux.(*Session).sendLoop", "github.com/hashicorp/yamux.(*Session).send", "runtime.goexit",
+	}}
+}
+
+func TestQualificationTerminalStackGrammar(t *testing.T) {
+	for mask := 0; mask < 8; mask++ {
+		s := terminalTestApplicationStack()
+		var out []string
+		for _, name := range s.Functions {
+			if name == "crypto/tls.(*Conn).write" && mask&1 != 0 {
+				out = append(out, "p2pstream/internal/agent.(*qualificationObservedSyscallRawConn).Write")
+			}
+			if name == "p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write" && mask&2 != 0 {
+				out = append(out, "net/http.(*readWriteCloserBody).Write")
+			}
+			if name == "runtime.goexit" && mask&4 != 0 {
+				out = append(out, "github.com/hashicorp/yamux.newSession.gowrap2")
+			}
+			out = append(out, name)
+		}
+		s.Functions = out
+		if !terminalApplicationStack(s) {
+			t.Fatalf("source forwarding variant %d rejected", mask)
+		}
+	}
+	for name, mutate := range map[string]func(*terminalStack){
+		"key_update":   func(s *terminalStack) { s.Functions[5] = "crypto/tls.(*Conn).handleKeyUpdate" },
+		"alert":        func(s *terminalStack) { s.Functions[5] = "crypto/tls.(*Conn).sendAlertLocked" },
+		"close_notify": func(s *terminalStack) { s.Functions[5] = "crypto/tls.(*Conn).closeNotify" },
+		"handshake":    func(s *terminalStack) { s.Functions[5] = "crypto/tls.(*Conn).HandshakeContext" },
+		"wrong_go":     func(s *terminalStack) { s.GoVersion = "go1.26.8" },
+		"incomplete":   func(s *terminalStack) { s.Complete = false },
+		"missing_root": func(s *terminalStack) { s.Functions = s.Functions[:len(s.Functions)-1] },
+		"empty_frame":  func(s *terminalStack) { s.Functions[4] = "" },
+		"unknown_frame": func(s *terminalStack) {
+			s.Functions = append(s.Functions[:4], append([]string{"unknown"}, s.Functions[4:]...)...)
+		},
+		"duplicate_tls_write": func(s *terminalStack) { s.Functions[4] = s.Functions[5] },
+		"wrong_order":         func(s *terminalStack) { s.Functions[3], s.Functions[4] = s.Functions[4], s.Functions[3] },
+		"oversized":           func(s *terminalStack) { s.Functions = make([]string, 33) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := terminalTestApplicationStack()
+			mutate(&s)
+			if terminalApplicationStack(s) {
+				t.Fatal("non-application provenance accepted")
+			}
+		})
+	}
+}
+
+// Recursion cannot be inlined. CallersFrames must not make a truncated capture
+// appear complete; this is a collector bound check, not an application proof.
+func terminalTestDeepStack(depth int) terminalStack {
+	if depth > 0 {
+		return terminalTestDeepStack(depth - 1)
+	}
+	return terminalCaptureStack()
+}
+
+func TestQualificationTerminalStackCollectorRejectsTruncation(t *testing.T) {
+	s := terminalTestDeepStack(40)
+	if s.Complete || terminalApplicationStack(s) {
+		t.Fatal("truncated caller capture accepted")
+	}
+	s = terminalCaptureStack()
+	if terminalApplicationStack(s) {
+		t.Fatal("test helper stack passed application ancestry")
+	}
+}

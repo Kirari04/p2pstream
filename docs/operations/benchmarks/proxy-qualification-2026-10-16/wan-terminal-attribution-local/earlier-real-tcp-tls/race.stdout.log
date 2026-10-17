@@ -1,0 +1,34 @@
+=== RUN   TestRealTCPTLSYamuxCancellation
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control
+    cancellation_test.go:327: evidence={"Sequence":9,"PlainBegin":1,"PlainEnd":8,"RawBegin":2,"RawEnd":6,"AfterCapture":7,"Stop":3,"CloseBegin":4,"CloseEnd":5,"Joined":9,"PlainCalls":1,"RawCalls":1,"PlainControl":true,"PlainAttempt":12,"RawAttempt":34,"RawWritten":0,"RawError":true,"RawNetClosed":true,"RawShort":false,"BeforeControlOK":true,"BeforeCallback":true,"AfterControlNetClosed":true,"AfterCallback":false,"OwnerGeneration":1,"RawGeneration":1,"StopGeneration":1,"Ambiguous":false,"ActivePlain":false,"ActiveRaw":false}
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/data_or_unknown
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/late_stop
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/missing_join
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/active_write
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/invalid_capture_order
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/missing_stop
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/nonlocal_error
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/positive_partial
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/nil_error_short
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/wrong_generation
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/post_retirement
+=== RUN   TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/overlapping_writes
+=== RUN   TestRealTCPTLSYamuxCancellation/completed_control_before_capture
+    cancellation_test.go:327: evidence={"Sequence":9,"PlainBegin":1,"PlainEnd":8,"RawBegin":2,"RawEnd":3,"AfterCapture":7,"Stop":4,"CloseBegin":5,"CloseEnd":6,"Joined":9,"PlainCalls":1,"RawCalls":1,"PlainControl":true,"PlainAttempt":12,"RawAttempt":34,"RawWritten":34,"RawError":false,"RawNetClosed":false,"RawShort":false,"BeforeControlOK":true,"BeforeCallback":true,"AfterControlNetClosed":true,"AfterCallback":false,"OwnerGeneration":1,"RawGeneration":1,"StopGeneration":1,"Ambiguous":false,"ActivePlain":false,"ActiveRaw":false}
+--- PASS: TestRealTCPTLSYamuxCancellation (0.02s)
+    --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control (0.01s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/data_or_unknown (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/late_stop (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/missing_join (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/active_write (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/invalid_capture_order (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/missing_stop (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/nonlocal_error (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/positive_partial (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/nil_error_short (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/wrong_generation (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/post_retirement (0.00s)
+        --- PASS: TestRealTCPTLSYamuxCancellation/local_close_interrupts_control/overlapping_writes (0.00s)
+    --- PASS: TestRealTCPTLSYamuxCancellation/completed_control_before_capture (0.01s)
+PASS
+ok  	local/wan-cancellation-discriminator	1.031s

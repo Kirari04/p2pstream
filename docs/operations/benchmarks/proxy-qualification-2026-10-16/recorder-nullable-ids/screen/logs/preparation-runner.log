@@ -1,0 +1,5 @@
+baseline-correctness exit 0
+candidate-build exit 0
+candidate-correctness exit 0
+candidate-race-build exit 0
+candidate-correctness-race exit 0

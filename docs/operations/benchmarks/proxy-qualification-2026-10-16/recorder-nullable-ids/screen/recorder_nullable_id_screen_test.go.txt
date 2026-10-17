@@ -1,0 +1,298 @@
+package server
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"path/filepath"
+	"reflect"
+	"testing"
+	"time"
+
+	"p2pstream/internal/db"
+)
+
+func nullableScreenIDs(event *db.InsertProxyRequestEventAtParams) []*sql.NullInt64 {
+	return []*sql.NullInt64{&event.ListenerID, &event.RouteID, &event.RouteTargetID, &event.WafRuleID, &event.AgentID, &event.CacheRuleID, &event.RetryRuleID, &event.RetryFailedAgentID}
+}
+
+func seedNullableScreenIDs(tb testing.TB, database *db.DB, offset int64) db.InsertProxyRequestEventAtParams {
+	tb.Helper()
+	ctx := context.Background()
+	statements := []struct {
+		query string
+		args  []any
+	}{
+		{`INSERT INTO public_cache_rules (id, name) VALUES (?, ?)`, []any{offset + 1, fmt.Sprintf("nullable-cache-%d", offset)}},
+		{`INSERT INTO public_listeners (id, name, bind_address, port, protocol) VALUES (?, ?, '127.0.0.1', ?, 'http')`, []any{offset + 11, fmt.Sprintf("nullable-listener-%d", offset), 18111 + offset}},
+		{`INSERT INTO public_routes (id, listener_id, priority, host_pattern, path_prefix) VALUES (?, ?, 10, 'nullable.example', '/all-fields')`, []any{offset + 12, offset + 11}},
+		{`INSERT INTO public_route_targets (id, route_id, name, position) VALUES (?, ?, ?, 0)`, []any{offset + 13, offset + 12, fmt.Sprintf("nullable-target-%d", offset)}},
+		{`INSERT INTO public_waf_rules (id, name) VALUES (?, ?)`, []any{offset + 14, fmt.Sprintf("nullable-waf-%d", offset)}},
+		{`INSERT INTO agents (id, public_id, name, token_hash) VALUES (?, ?, ?, ?), (?, ?, ?, ?)`, []any{offset + 15, fmt.Sprintf("nullable-agent-%d", offset), "Nullable Agent", "nullable-test-hash", offset + 16, fmt.Sprintf("nullable-failed-agent-%d", offset), "Nullable Failed Agent", "nullable-failed-test-hash"}},
+		{`INSERT INTO public_retry_rules (id, name) VALUES (?, ?)`, []any{offset + 17, fmt.Sprintf("nullable-retry-%d", offset)}},
+	}
+	for _, statement := range statements {
+		if _, err := database.ExecContext(ctx, statement.query, statement.args...); err != nil {
+			tb.Fatal(err)
+		}
+	}
+	return db.InsertProxyRequestEventAtParams{
+		ListenerID: sql.NullInt64{Int64: offset + 11, Valid: true}, RouteID: sql.NullInt64{Int64: offset + 12, Valid: true},
+		RouteTargetID: sql.NullInt64{Int64: offset + 13, Valid: true}, WafRuleID: sql.NullInt64{Int64: offset + 14, Valid: true},
+		AgentID: sql.NullInt64{Int64: offset + 15, Valid: true}, CacheRuleID: sql.NullInt64{Int64: offset + 1, Valid: true},
+		RetryRuleID: sql.NullInt64{Int64: offset + 17, Valid: true}, RetryFailedAgentID: sql.NullInt64{Int64: offset + 16, Valid: true},
+	}
+}
+
+func nullableScreenEvent(index int) db.InsertProxyRequestEventAtParams {
+	return db.InsertProxyRequestEventAtParams{
+		OccurredAt: time.Date(2026, 10, 17, 8, 0, 0, 0, time.UTC).Add(time.Duration(index) * time.Millisecond),
+		StatusCode: int64(200 + index%5), DurationMs: int64(index + 1), ErrorKind: fmt.Sprintf("kind-%d", index%16),
+		Method: "PATCH", Host: "nullable.example", PathPrefix: fmt.Sprintf("/route-%d", index%64), WafAction: "challenge",
+		RequestBytes: int64(index + 101), ResponseBytes: int64(index + 257), CacheStatus: "stale", CacheBytes: int64(index + 313),
+		RetryCount: int64(index%3 + 1), RetryOutcome: "recovered", RetryErrorKind: "connection-reset",
+	}
+}
+
+func copyNullableScreenIDs(dst *db.InsertProxyRequestEventAtParams, src db.InsertProxyRequestEventAtParams) {
+	to, from := nullableScreenIDs(dst), nullableScreenIDs(&src)
+	for index := range to {
+		*to[index] = *from[index]
+	}
+}
+
+const nullableScreenSelect = `SELECT occurred_at, status_code, duration_ms, error_kind, method, host, path_prefix,
+listener_id, route_id, route_target_id, waf_rule_id, waf_action, agent_id, request_bytes, response_bytes,
+cache_rule_id, cache_status, cache_bytes, retry_rule_id, retry_count, retry_outcome, retry_error_kind, retry_failed_agent_id,
+typeof(listener_id), typeof(route_id), typeof(route_target_id), typeof(waf_rule_id), typeof(agent_id), typeof(cache_rule_id), typeof(retry_rule_id), typeof(retry_failed_agent_id)
+FROM proxy_request_events ORDER BY id`
+
+type nullableScreenQueryer interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func readNullableScreenEvents(tb testing.TB, queryer nullableScreenQueryer) []db.InsertProxyRequestEventAtParams {
+	tb.Helper()
+	rows, err := queryer.QueryContext(context.Background(), nullableScreenSelect)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	defer rows.Close()
+	var events []db.InsertProxyRequestEventAtParams
+	for rows.Next() {
+		var event db.InsertProxyRequestEventAtParams
+		var types [8]string
+		args := []any{&event.OccurredAt, &event.StatusCode, &event.DurationMs, &event.ErrorKind, &event.Method, &event.Host, &event.PathPrefix,
+			&event.ListenerID, &event.RouteID, &event.RouteTargetID, &event.WafRuleID, &event.WafAction, &event.AgentID, &event.RequestBytes, &event.ResponseBytes,
+			&event.CacheRuleID, &event.CacheStatus, &event.CacheBytes, &event.RetryRuleID, &event.RetryCount, &event.RetryOutcome, &event.RetryErrorKind, &event.RetryFailedAgentID}
+		for index := range types {
+			args = append(args, &types[index])
+		}
+		if err := rows.Scan(args...); err != nil {
+			tb.Fatal(err)
+		}
+		for index, field := range nullableScreenIDs(&event) {
+			wantType := "null"
+			if field.Valid {
+				wantType = "integer"
+			}
+			if types[index] != wantType {
+				tb.Fatalf("nullable field %d SQLite type=%q, want %q", index, types[index], wantType)
+			}
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		tb.Fatal(err)
+	}
+	return events
+}
+
+func TestRecorderNullableIDPersistenceSingleAndBatch(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		t.Run(fmt.Sprintf("batch-%v", batch), func(t *testing.T) {
+			database := newServerTestDB(t)
+			small := seedNullableScreenIDs(t, database, 0)
+			large := seedNullableScreenIDs(t, database, 1000)
+			events := make([]db.InsertProxyRequestEventAtParams, 35)
+			for index := range events {
+				events[index] = nullableScreenEvent(index)
+				switch index % 4 {
+				case 1:
+					for fieldIndex, field := range nullableScreenIDs(&events[index]) {
+						*field = sql.NullInt64{Int64: int64(999000 + fieldIndex), Valid: false}
+					}
+				case 2:
+					copyNullableScreenIDs(&events[index], small)
+				case 3:
+					copyNullableScreenIDs(&events[index], large)
+				}
+			}
+			ctx := t.Context()
+			tx, err := database.BeginTx(ctx, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback()
+			inserter, err := db.PrepareProxyRequestEventInserter(ctx, tx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if batch {
+				err = inserter.InsertBatch(ctx, events)
+			} else {
+				for _, event := range events {
+					if err = inserter.Insert(ctx, event); err != nil {
+						break
+					}
+				}
+			}
+			closeErr := inserter.Close()
+			if err != nil || closeErr != nil {
+				t.Fatalf("insert=%v close=%v", err, closeErr)
+			}
+			if err := tx.Commit(); err != nil {
+				t.Fatal(err)
+			}
+			got := readNullableScreenEvents(t, database)
+			if len(got) != len(events) {
+				t.Fatalf("persisted %d events, want %d", len(got), len(events))
+			}
+			for index, want := range events {
+				for _, field := range nullableScreenIDs(&want) {
+					if !field.Valid {
+						field.Int64 = 0 // SQLite NULL has no retained invalid payload.
+					}
+				}
+				if !got[index].OccurredAt.Equal(want.OccurredAt) {
+					t.Fatalf("event %d timestamp changed", index)
+				}
+				got[index].OccurredAt = want.OccurredAt
+				if !reflect.DeepEqual(got[index], want) {
+					t.Fatalf("event %d persisted=%+v want=%+v", index, got[index], want)
+				}
+			}
+		})
+	}
+}
+
+func TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert(t *testing.T) {
+	database := newServerTestDB(t)
+	seedNullableScreenIDs(t, database, 0)
+	payloads := []sql.NullInt64{{Int64: 0, Valid: true}, {Int64: -1, Valid: true}, {Int64: -1 << 63, Valid: true}, {Int64: 1<<63 - 1, Valid: true}, {Int64: 999999, Valid: false}, {}}
+	probe := func(event db.InsertProxyRequestEventAtParams, generated bool) (string, []db.InsertProxyRequestEventAtParams) {
+		t.Helper()
+		tx, err := database.BeginTx(t.Context(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback()
+		if generated {
+			err = database.WithTx(tx).InsertProxyRequestEventAt(t.Context(), event)
+		} else {
+			var inserter *db.ProxyRequestEventInserter
+			inserter, err = db.PrepareProxyRequestEventInserter(t.Context(), tx)
+			if err == nil {
+				err = inserter.Insert(t.Context(), event)
+				if closeErr := inserter.Close(); err == nil {
+					err = closeErr
+				}
+			}
+		}
+		if err != nil {
+			return fmt.Sprintf("%T:%v", err, err), nil
+		}
+		return "", readNullableScreenEvents(t, tx)
+	}
+	for fieldIndex := range 8 {
+		for _, payload := range payloads {
+			event := nullableScreenEvent(fieldIndex)
+			*nullableScreenIDs(&event)[fieldIndex] = payload
+			wantError, wantRows := probe(event, true)
+			gotError, gotRows := probe(event, false)
+			if gotError != wantError || !reflect.DeepEqual(gotRows, wantRows) {
+				t.Fatalf("field %d payload=%+v generated=(%q,%+v), inserter=(%q,%+v)", fieldIndex, payload, wantError, wantRows, gotError, gotRows)
+			}
+		}
+	}
+	var rows int
+	if err := database.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rows); err != nil || rows != 0 {
+		t.Fatalf("edge probes did not roll back: rows=%d err=%v", rows, err)
+	}
+}
+
+func insertNullableScreenBatch(database *db.DB, events []db.InsertProxyRequestEventAtParams, productionDeadline bool) error {
+	ctx := context.Background()
+	if productionDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
+	tx, err := database.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	inserter, err := db.PrepareProxyRequestEventInserter(ctx, tx)
+	if err != nil {
+		return err
+	}
+	err = inserter.InsertBatch(ctx, events)
+	closeErr := inserter.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return tx.Commit()
+}
+
+func BenchmarkRecorderNullableIDFixedBatchInsert(b *testing.B) {
+	for _, shape := range []string{"all_null", "ordinary_direct", "all_small", "all_large"} {
+		for _, productionDeadline := range []bool{false, true} {
+			contextName := "background"
+			if productionDeadline {
+				contextName = "production_deadline"
+			}
+			b.Run(shape+"/"+contextName, func(b *testing.B) {
+				database, err := db.Open(filepath.Join(b.TempDir(), "nullable-insert.db"))
+				if err != nil {
+					b.Fatal(err)
+				}
+				defer database.Close()
+				small := seedNullableScreenIDs(b, database, 0)
+				large := seedNullableScreenIDs(b, database, 1000)
+				events := make([]db.InsertProxyRequestEventAtParams, 512)
+				for index := range events {
+					events[index] = nullableScreenEvent(index)
+					switch shape {
+					case "ordinary_direct":
+						events[index].ListenerID, events[index].RouteID, events[index].RouteTargetID = small.ListenerID, small.RouteID, small.RouteTargetID
+					case "all_small":
+						copyNullableScreenIDs(&events[index], small)
+					case "all_large":
+						copyNullableScreenIDs(&events[index], large)
+					}
+				}
+				b.ReportAllocs()
+				b.ResetTimer()
+				for b.Loop() {
+					if err := insertNullableScreenBatch(database, events, productionDeadline); err != nil {
+						b.Fatal(err)
+					}
+					b.StopTimer()
+					var count int
+					if err := database.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&count); err != nil || count != len(events) {
+						b.Fatalf("persisted batch count=%d err=%v", count, err)
+					}
+					if _, err := database.ExecContext(context.Background(), `DELETE FROM proxy_request_events`); err != nil {
+						b.Fatal(err)
+					}
+					b.StartTimer()
+				}
+				b.ReportMetric(float64(len(events)), "events/op")
+			})
+		}
+	}
+}

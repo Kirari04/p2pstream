@@ -1,0 +1,347 @@
+=== RUN   TestQualificationRawWriteActualWrapperBlockedErrorAndShort
+=== RUN   TestQualificationRawWriteActualWrapperBlockedErrorAndShort/blocked_write_remains_live_until_exact_release
+=== RUN   TestQualificationRawWriteActualWrapperBlockedErrorAndShort/close_releases_blocked_write_and_ownership_joins
+=== RUN   TestQualificationRawWriteActualWrapperBlockedErrorAndShort/error
+=== RUN   TestQualificationRawWriteActualWrapperBlockedErrorAndShort/short
+--- PASS: TestQualificationRawWriteActualWrapperBlockedErrorAndShort (0.02s)
+    --- PASS: TestQualificationRawWriteActualWrapperBlockedErrorAndShort/blocked_write_remains_live_until_exact_release (0.01s)
+    --- PASS: TestQualificationRawWriteActualWrapperBlockedErrorAndShort/close_releases_blocked_write_and_ownership_joins (0.00s)
+    --- PASS: TestQualificationRawWriteActualWrapperBlockedErrorAndShort/error (0.01s)
+    --- PASS: TestQualificationRawWriteActualWrapperBlockedErrorAndShort/short (0.00s)
+=== RUN   TestQualificationRawWriteBindingRejectsMissingDuplicateAndCustomTLSDialer
+=== RUN   TestQualificationRawWriteBindingRejectsMissingDuplicateAndCustomTLSDialer/terminal_recorder_rejects_duplicate_reconnect_and_mismatch
+=== RUN   TestQualificationRawWriteBindingRejectsMissingDuplicateAndCustomTLSDialer/terminal_sidecar_orders_exact_five_lanes_and_is_fresh
+--- PASS: TestQualificationRawWriteBindingRejectsMissingDuplicateAndCustomTLSDialer (0.02s)
+    --- PASS: TestQualificationRawWriteBindingRejectsMissingDuplicateAndCustomTLSDialer/terminal_recorder_rejects_duplicate_reconnect_and_mismatch (0.00s)
+    --- PASS: TestQualificationRawWriteBindingRejectsMissingDuplicateAndCustomTLSDialer/terminal_sidecar_orders_exact_five_lanes_and_is_fresh (0.02s)
+=== RUN   TestQualificationRawWriteTLS101PathSharesPhysicalInterval
+--- PASS: TestQualificationRawWriteTLS101PathSharesPhysicalInterval (0.01s)
+=== RUN   TestQualificationRawWriteOutcomeDurationsConserveSuccessErrorShort
+--- PASS: TestQualificationRawWriteOutcomeDurationsConserveSuccessErrorShort (0.00s)
+=== RUN   TestQualificationRawWriteEnvelopeRejectsBoundaryActiveAndStraddling
+--- PASS: TestQualificationRawWriteEnvelopeRejectsBoundaryActiveAndStraddling (0.00s)
+=== RUN   TestQualificationRawWriteDrainRetainsLiveOwnershipAndPublishesJoin
+--- PASS: TestQualificationRawWriteDrainRetainsLiveOwnershipAndPublishesJoin (0.00s)
+=== RUN   TestQualificationRawWriteStartTimestampMustBeInsideEnvelope
+--- PASS: TestQualificationRawWriteStartTimestampMustBeInsideEnvelope (0.01s)
+=== RUN   TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw
+=== RUN   TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/zero_raw_remains_explicit
+=== RUN   TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/end_straddler_closes_into_next_epoch
+=== RUN   TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/concurrent_raw_writes_are_bounded_and_invalid
+=== RUN   TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/generation_replacement_cannot_reattribute_live_write
+=== RUN   TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/checked_additions_expose_overflow
+--- PASS: TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw (0.02s)
+    --- PASS: TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/zero_raw_remains_explicit (0.00s)
+    --- PASS: TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/end_straddler_closes_into_next_epoch (0.00s)
+    --- PASS: TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/concurrent_raw_writes_are_bounded_and_invalid (0.00s)
+    --- PASS: TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/generation_replacement_cannot_reattribute_live_write (0.01s)
+    --- PASS: TestQualificationRawWriteInvalidBoundariesOverflowGenerationAndZeroRaw/checked_additions_expose_overflow (0.00s)
+=== RUN   TestQualificationRawWriteConcurrentProtocolWriteUsesTemporalClassification
+--- PASS: TestQualificationRawWriteConcurrentProtocolWriteUsesTemporalClassification (0.00s)
+=== RUN   TestQualificationTCPInfoReturnedLengthAndAvailableZeroValues
+--- PASS: TestQualificationTCPInfoReturnedLengthAndAvailableZeroValues (0.00s)
+=== RUN   TestQualificationTCPInfoCopiesRequiredTypedValues
+--- PASS: TestQualificationTCPInfoCopiesRequiredTypedValues (0.00s)
+=== RUN   TestQualificationTCPInfoAcceptsExactRequiredFieldEnd
+--- PASS: TestQualificationTCPInfoAcceptsExactRequiredFieldEnd (0.00s)
+=== RUN   TestQualificationTCPInfoRejectsReturnedLengthBounds
+=== RUN   TestQualificationTCPInfoRejectsReturnedLengthBounds/zero
+=== RUN   TestQualificationTCPInfoRejectsReturnedLengthBounds/truncated_required_tail
+=== RUN   TestQualificationTCPInfoRejectsReturnedLengthBounds/oversize
+--- PASS: TestQualificationTCPInfoRejectsReturnedLengthBounds (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsReturnedLengthBounds/zero (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsReturnedLengthBounds/truncated_required_tail (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsReturnedLengthBounds/oversize (0.00s)
+=== RUN   TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry
+=== RUN   TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/control
+=== RUN   TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/no_callback
+=== RUN   TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/duplicate_callback
+=== RUN   TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/tcp_info
+=== RUN   TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/tcp_congestion
+--- PASS: TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/control (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/no_callback (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/duplicate_callback (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/tcp_info (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsControlAndGetsockoptErrorsWithoutRetry/tcp_congestion (0.00s)
+=== RUN   TestQualificationTCPInfoRejectsCongestionLengthBounds
+=== RUN   TestQualificationTCPInfoRejectsCongestionLengthBounds/zero
+=== RUN   TestQualificationTCPInfoRejectsCongestionLengthBounds/oversize
+--- PASS: TestQualificationTCPInfoRejectsCongestionLengthBounds (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsCongestionLengthBounds/zero (0.00s)
+    --- PASS: TestQualificationTCPInfoRejectsCongestionLengthBounds/oversize (0.00s)
+=== RUN   TestQualificationTCPInfoOwnedLoopbackSocket
+--- PASS: TestQualificationTCPInfoOwnedLoopbackSocket (0.00s)
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/precondition
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/raw_control
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/callback_missing
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/callback_duplicate
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/tcp_info
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/tcp_info_length
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/tcp_congestion
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/tcp_congestion_length
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/tcp_congestion_value
+=== RUN   TestQualificationTCPInfoFailureStagesAndErrnos/capture_clock
+--- PASS: TestQualificationTCPInfoFailureStagesAndErrnos (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/precondition (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/raw_control (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/callback_missing (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/callback_duplicate (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/tcp_info (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/tcp_info_length (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/tcp_congestion (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/tcp_congestion_length (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/tcp_congestion_value (0.00s)
+    --- PASS: TestQualificationTCPInfoFailureStagesAndErrnos/capture_clock (0.00s)
+=== RUN   TestQualificationTCPStateWaitAndRawPairLifecycle
+--- PASS: TestQualificationTCPStateWaitAndRawPairLifecycle (0.00s)
+=== RUN   TestQualificationTCPStateUnarmedConditioningIsIgnored
+--- PASS: TestQualificationTCPStateUnarmedConditioningIsIgnored (0.00s)
+=== RUN   TestQualificationTCPStateLastLiveCaptureIsChronological
+--- PASS: TestQualificationTCPStateLastLiveCaptureIsChronological (0.00s)
+=== RUN   TestQualificationTCPStateJoinControls
+=== RUN   TestQualificationTCPStateJoinControls/equal_cursor_applied_range
+=== RUN   TestQualificationTCPStateJoinControls/intervening_allocation
+=== RUN   TestQualificationTCPStateJoinControls/interleaved_two_streams
+=== RUN   TestQualificationTCPStateJoinControls/excluded_retry_classes
+--- PASS: TestQualificationTCPStateJoinControls (0.01s)
+    --- PASS: TestQualificationTCPStateJoinControls/equal_cursor_applied_range (0.00s)
+    --- PASS: TestQualificationTCPStateJoinControls/intervening_allocation (0.00s)
+    --- PASS: TestQualificationTCPStateJoinControls/interleaved_two_streams (0.00s)
+    --- PASS: TestQualificationTCPStateJoinControls/excluded_retry_classes (0.00s)
+=== RUN   TestQualificationTCPStateRawPairBoundariesAndFinishCommit
+=== RUN   TestQualificationTCPStateRawPairBoundariesAndFinishCommit/finish_only_commit
+=== RUN   TestQualificationTCPStateRawPairBoundariesAndFinishCommit/mismatched_stream
+=== RUN   TestQualificationTCPStateRawPairBoundariesAndFinishCommit/straddling
+=== RUN   TestQualificationTCPStateRawPairBoundariesAndFinishCommit/missing_first_write
+--- PASS: TestQualificationTCPStateRawPairBoundariesAndFinishCommit (0.01s)
+    --- PASS: TestQualificationTCPStateRawPairBoundariesAndFinishCommit/finish_only_commit (0.00s)
+    --- PASS: TestQualificationTCPStateRawPairBoundariesAndFinishCommit/mismatched_stream (0.00s)
+    --- PASS: TestQualificationTCPStateRawPairBoundariesAndFinishCommit/straddling (0.00s)
+    --- PASS: TestQualificationTCPStateRawPairBoundariesAndFinishCommit/missing_first_write (0.00s)
+=== RUN   TestQualificationTCPStateStickyInvalidation
+=== RUN   TestQualificationTCPStateStickyInvalidation/entry_without_retry
+=== RUN   TestQualificationTCPStateStickyInvalidation/capture_error
+=== RUN   TestQualificationTCPStateStickyInvalidation/duplicate
+=== RUN   TestQualificationTCPStateStickyInvalidation/overflow
+=== RUN   TestQualificationTCPStateStickyInvalidation/applied_zero
+=== RUN   TestQualificationTCPStateStickyInvalidation/unknown_allocation
+=== RUN   TestQualificationTCPStateStickyInvalidation/cursor_after_unavailable
+=== RUN   TestQualificationTCPStateStickyInvalidation/congestion_algorithm_changed
+--- PASS: TestQualificationTCPStateStickyInvalidation (0.01s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/entry_without_retry (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/capture_error (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/duplicate (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/overflow (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/applied_zero (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/unknown_allocation (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/cursor_after_unavailable (0.00s)
+    --- PASS: TestQualificationTCPStateStickyInvalidation/congestion_algorithm_changed (0.00s)
+=== RUN   TestQualificationTCPThresholdHistoryFirstTransition
+=== RUN   TestQualificationTCPThresholdHistoryFirstTransition/across_pre_tls_write_and_stop
+=== RUN   TestQualificationTCPThresholdHistoryFirstTransition/between_control_writes
+=== RUN   TestQualificationTCPThresholdHistoryFirstTransition/between_bind_and_first_write
+=== RUN   TestQualificationTCPThresholdHistoryFirstTransition/data_attribution
+--- PASS: TestQualificationTCPThresholdHistoryFirstTransition (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFirstTransition/across_pre_tls_write_and_stop (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFirstTransition/between_control_writes (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFirstTransition/between_bind_and_first_write (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFirstTransition/data_attribution (0.00s)
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/not_reproduced
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/transition_observed_with_initial_pre
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/matched
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/mismatch
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/finite_selected_pre_without_observed_transition
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/comparison_refreshes_per_sequence_without_overwriting_first_transition
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/comparison_requires_decisive_capture_strictly_prior
+=== RUN   TestQualificationTCPThresholdHistorySelectedPreClassification/control_no_transition
+--- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification (0.01s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/not_reproduced (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/transition_observed_with_initial_pre (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/matched (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/mismatch (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/finite_selected_pre_without_observed_transition (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/comparison_refreshes_per_sequence_without_overwriting_first_transition (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/comparison_requires_decisive_capture_strictly_prior (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistorySelectedPreClassification/control_no_transition (0.00s)
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/finite_bind_baseline
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/attempt_limit
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/short_write
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/write_error
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/provider_failure
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/missing_threshold_availability
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/congestion_control_mismatch
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/concurrent_reservation
+=== RUN   TestQualificationTCPThresholdHistoryFailuresAreSticky/permission_denial_not_counted
+--- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky (0.01s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/finite_bind_baseline (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/attempt_limit (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/short_write (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/write_error (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/provider_failure (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/missing_threshold_availability (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/congestion_control_mismatch (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/concurrent_reservation (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryFailuresAreSticky/permission_denial_not_counted (0.00s)
+=== RUN   TestQualificationTCPThresholdHistorySharesSelectedRawPairCapturesOnce
+--- PASS: TestQualificationTCPThresholdHistorySharesSelectedRawPairCapturesOnce (0.00s)
+=== RUN   TestQualificationTCPThresholdHistoryPersistsAcrossHealthyDrain
+--- PASS: TestQualificationTCPThresholdHistoryPersistsAcrossHealthyDrain (0.00s)
+=== RUN   TestQualificationTCPThresholdHistoryJSONShape
+--- PASS: TestQualificationTCPThresholdHistoryJSONShape (0.00s)
+=== RUN   TestQualificationTCPThresholdHistoryRefreshesThroughArmDrain
+--- PASS: TestQualificationTCPThresholdHistoryRefreshesThroughArmDrain (0.01s)
+=== RUN   TestQualificationTCPThresholdHistoryCloseOrdering
+=== RUN   TestQualificationTCPThresholdHistoryCloseOrdering/real_tls_orderly_close_allows_alert_before_physical_close
+=== RUN   TestQualificationTCPThresholdHistoryCloseOrdering/close_before_reservation
+=== RUN   TestQualificationTCPThresholdHistoryCloseOrdering/reserved_capture_races_close
+--- PASS: TestQualificationTCPThresholdHistoryCloseOrdering (0.01s)
+    --- PASS: TestQualificationTCPThresholdHistoryCloseOrdering/real_tls_orderly_close_allows_alert_before_physical_close (0.01s)
+    --- PASS: TestQualificationTCPThresholdHistoryCloseOrdering/close_before_reservation (0.00s)
+    --- PASS: TestQualificationTCPThresholdHistoryCloseOrdering/reserved_capture_races_close (0.00s)
+=== RUN   TestQualificationTerminalControlParser
+=== RUN   TestQualificationTerminalControlParser/stream_ack
+=== RUN   TestQualificationTerminalControlParser/stream_ack_fin
+=== RUN   TestQualificationTerminalControlParser/stream_rst
+=== RUN   TestQualificationTerminalControlParser/allocation_refund
+=== RUN   TestQualificationTerminalControlParser/global_refund
+=== RUN   TestQualificationTerminalControlParser/goaway_normal
+=== RUN   TestQualificationTerminalControlParser/ping_ack
+=== RUN   TestQualificationTerminalControlParser/stream_credit
+=== RUN   TestQualificationTerminalControlParser/stream_syn
+=== RUN   TestQualificationTerminalControlParser/stream_fin
+=== RUN   TestQualificationTerminalControlParser/stream_syn_fin
+=== RUN   TestQualificationTerminalControlParser/stream_growth
+=== RUN   TestQualificationTerminalControlParser/bounded_refund_batch
+=== RUN   TestQualificationTerminalControlParser/ping_syn
+=== RUN   TestQualificationTerminalControlParser/global_growth
+=== RUN   TestQualificationTerminalControlParser/global_unaligned
+=== RUN   TestQualificationTerminalControlParser/rst_credit
+=== RUN   TestQualificationTerminalControlParser/allocation_unaligned
+=== RUN   TestQualificationTerminalControlParser/allocation_zero_stream
+=== RUN   TestQualificationTerminalControlParser/growth_zero
+=== RUN   TestQualificationTerminalControlParser/excess_batch
+=== RUN   TestQualificationTerminalControlParser/empty
+=== RUN   TestQualificationTerminalControlParser/truncated
+=== RUN   TestQualificationTerminalControlParser/version
+=== RUN   TestQualificationTerminalControlParser/goaway_error
+=== RUN   TestQualificationTerminalControlParser/invalid_window_flags
+=== RUN   TestQualificationTerminalControlParser/empty_data
+=== RUN   TestQualificationTerminalControlParser/ping_stream
+=== RUN   TestQualificationTerminalControlParser/unknown_type
+=== RUN   TestQualificationTerminalControlParser/data
+=== RUN   TestQualificationTerminalControlParser/mixed_data_control
+=== RUN   TestQualificationTerminalControlParser/ping_flags
+=== RUN   TestQualificationTerminalControlParser/global_stream_flags
+--- PASS: TestQualificationTerminalControlParser (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_ack (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_ack_fin (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_rst (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/allocation_refund (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/global_refund (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/goaway_normal (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/ping_ack (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_credit (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_syn (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_fin (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_syn_fin (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/stream_growth (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/bounded_refund_batch (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/ping_syn (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/global_growth (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/global_unaligned (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/rst_credit (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/allocation_unaligned (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/allocation_zero_stream (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/growth_zero (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/excess_batch (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/empty (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/truncated (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/version (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/goaway_error (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/invalid_window_flags (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/empty_data (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/ping_stream (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/unknown_type (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/data (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/mixed_data_control (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/ping_flags (0.00s)
+    --- PASS: TestQualificationTerminalControlParser/global_stream_flags (0.00s)
+=== RUN   TestQualificationTerminalIntentCoverage
+=== RUN   TestQualificationTerminalIntentCoverage/five_live_owners
+=== RUN   TestQualificationTerminalIntentCoverage/missing_owner
+=== RUN   TestQualificationTerminalIntentCoverage/missing_live_session
+=== RUN   TestQualificationTerminalIntentCoverage/changed_session
+=== RUN   TestQualificationTerminalIntentCoverage/closed_owner
+=== RUN   TestQualificationTerminalIntentCoverage/active_data
+=== RUN   TestQualificationTerminalIntentCoverage/unbound_owner
+=== RUN   TestQualificationTerminalIntentCoverage/unconsumed_data
+--- PASS: TestQualificationTerminalIntentCoverage (0.05s)
+    --- PASS: TestQualificationTerminalIntentCoverage/five_live_owners (0.01s)
+    --- PASS: TestQualificationTerminalIntentCoverage/missing_owner (0.00s)
+    --- PASS: TestQualificationTerminalIntentCoverage/missing_live_session (0.00s)
+    --- PASS: TestQualificationTerminalIntentCoverage/changed_session (0.01s)
+    --- PASS: TestQualificationTerminalIntentCoverage/closed_owner (0.00s)
+    --- PASS: TestQualificationTerminalIntentCoverage/active_data (0.01s)
+    --- PASS: TestQualificationTerminalIntentCoverage/unbound_owner (0.01s)
+    --- PASS: TestQualificationTerminalIntentCoverage/unconsumed_data (0.00s)
+=== RUN   TestQualificationTerminalReasonsAndOrdering
+--- PASS: TestQualificationTerminalReasonsAndOrdering (0.00s)
+=== RUN   TestQualificationTerminalStackGrammar
+=== RUN   TestQualificationTerminalStackGrammar/key_update
+=== RUN   TestQualificationTerminalStackGrammar/wrong_go
+=== RUN   TestQualificationTerminalStackGrammar/incomplete
+=== RUN   TestQualificationTerminalStackGrammar/empty_frame
+=== RUN   TestQualificationTerminalStackGrammar/unknown_frame
+=== RUN   TestQualificationTerminalStackGrammar/duplicate_tls_write
+=== RUN   TestQualificationTerminalStackGrammar/oversized
+=== RUN   TestQualificationTerminalStackGrammar/alert
+=== RUN   TestQualificationTerminalStackGrammar/close_notify
+=== RUN   TestQualificationTerminalStackGrammar/handshake
+=== RUN   TestQualificationTerminalStackGrammar/missing_root
+=== RUN   TestQualificationTerminalStackGrammar/wrong_order
+--- PASS: TestQualificationTerminalStackGrammar (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/key_update (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/wrong_go (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/incomplete (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/empty_frame (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/unknown_frame (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/duplicate_tls_write (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/oversized (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/alert (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/close_notify (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/handshake (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/missing_root (0.00s)
+    --- PASS: TestQualificationTerminalStackGrammar/wrong_order (0.00s)
+=== RUN   TestQualificationTerminalStackCollectorRejectsTruncation
+--- PASS: TestQualificationTerminalStackCollectorRejectsTruncation (0.00s)
+=== RUN   TestQualificationTerminalRealTCPTLSYamux
+=== RUN   TestQualificationTerminalRealTCPTLSYamux/local_close_interrupts_control
+    qualification_terminal_transport_test.go:235: terminal={"tcp_bound":true,"physical_close_calls":1,"physical_close_error":false,"underlying_escaped":false,"sequence":15,"problems":0,"stop":9,"stop_generation":1,"close_begin":10,"close_end":11,"joined":15,"raw_errors":1,"raw_shorts":0,"active_plain":false,"active_raw":false,"legacy_close_overlap":true,"records":[{"begin":8,"return":12,"after":13,"generation":1,"attempt":34,"written":0,"error":true,"net_closed":true,"short":false,"plain":{"begin":7,"end":14,"attempt":12,"control":true,"headers":[{"type":3,"flags":0,"stream":0,"value":0}]},"stack":{"go_version":"go1.26.6","complete":true,"functions":["p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked","p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP","p2pstream/internal/agent.(*qualificationObservedRawConn).Write","crypto/tls.(*Conn).write","crypto/tls.(*Conn).writeRecordLocked","crypto/tls.(*Conn).Write","p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write","github.com/hashicorp/yamux.(*Session).sendLoop","github.com/hashicorp/yamux.(*Session).send","runtime.goexit"]}}]}
+=== RUN   TestQualificationTerminalRealTCPTLSYamux/completed_control_before_capture
+    qualification_terminal_transport_test.go:235: terminal={"tcp_bound":true,"physical_close_calls":1,"physical_close_error":false,"underlying_escaped":false,"sequence":15,"problems":0,"stop":10,"stop_generation":1,"close_begin":11,"close_end":12,"joined":15,"raw_errors":0,"raw_shorts":0,"active_plain":false,"active_raw":false,"legacy_close_overlap":true,"records":[{"begin":8,"return":9,"after":13,"generation":1,"attempt":34,"written":34,"error":false,"net_closed":false,"short":false,"plain":{"begin":7,"end":14,"attempt":12,"control":true,"headers":[{"type":3,"flags":0,"stream":0,"value":0}]},"stack":{"go_version":"go1.26.6","complete":true,"functions":["p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked","p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP","p2pstream/internal/agent.(*qualificationObservedRawConn).Write","crypto/tls.(*Conn).write","crypto/tls.(*Conn).writeRecordLocked","crypto/tls.(*Conn).Write","p2pstream/internal/agent.(*qualificationObservedTunnelBody).Write","github.com/hashicorp/yamux.(*Session).sendLoop","github.com/hashicorp/yamux.(*Session).send","runtime.goexit"]}}]}
+--- PASS: TestQualificationTerminalRealTCPTLSYamux (0.01s)
+    --- PASS: TestQualificationTerminalRealTCPTLSYamux/local_close_interrupts_control (0.01s)
+    --- PASS: TestQualificationTerminalRealTCPTLSYamux/completed_control_before_capture (0.00s)
+=== RUN   TestQualificationTerminalRealTLSProtocolProvenance
+=== RUN   TestQualificationTerminalRealTLSProtocolProvenance/handshake
+    qualification_terminal_transport_test.go:320: protocol={"begin":3,"return":4,"after":5,"generation":1,"attempt":1475,"written":1475,"error":false,"net_closed":false,"short":false,"plain":{"begin":0,"end":0,"attempt":0,"control":false,"headers":null},"stack":{"go_version":"go1.26.6","complete":true,"functions":["p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked","p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP","p2pstream/internal/agent.(*qualificationObservedRawConn).Write","crypto/tls.(*Conn).write","crypto/tls.(*Conn).writeRecordLocked","crypto/tls.(*Conn).writeHandshakeRecord","crypto/tls.(*Conn).clientHandshake","crypto/tls.(*Conn).handshakeContext","crypto/tls.(*Conn).HandshakeContext","crypto/tls.(*Conn).Handshake","p2pstream/internal/agent.(*terminalTransportFixture).handshake","p2pstream/internal/agent.TestQualificationTerminalRealTLSProtocolProvenance.func1","testing.tRunner","runtime.goexit"]}}
+    qualification_terminal_transport_test.go:320: protocol={"begin":6,"return":7,"after":8,"generation":1,"attempt":64,"written":64,"error":false,"net_closed":false,"short":false,"plain":{"begin":0,"end":0,"attempt":0,"control":false,"headers":null},"stack":{"go_version":"go1.26.6","complete":true,"functions":["p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked","p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP","p2pstream/internal/agent.(*qualificationObservedRawConn).Write","crypto/tls.(*Conn).flush","crypto/tls.(*clientHandshakeStateTLS13).handshake","crypto/tls.(*Conn).clientHandshake","crypto/tls.(*Conn).handshakeContext","crypto/tls.(*Conn).HandshakeContext","crypto/tls.(*Conn).Handshake","p2pstream/internal/agent.(*terminalTransportFixture).handshake","p2pstream/internal/agent.TestQualificationTerminalRealTLSProtocolProvenance.func1","testing.tRunner","runtime.goexit"]}}
+=== RUN   TestQualificationTerminalRealTLSProtocolProvenance/close_notify
+    qualification_terminal_transport_test.go:320: protocol={"begin":9,"return":10,"after":11,"generation":1,"attempt":24,"written":24,"error":false,"net_closed":false,"short":false,"plain":{"begin":0,"end":0,"attempt":0,"control":false,"headers":null},"stack":{"go_version":"go1.26.6","complete":true,"functions":["p2pstream/internal/agent.(*qualificationRawWriteOwner).terminalFinishRawLocked","p2pstream/internal/agent.(*qualificationRawWriteOwner).finishRawWriteWithTCP","p2pstream/internal/agent.(*qualificationObservedRawConn).Write","crypto/tls.(*Conn).write","crypto/tls.(*Conn).writeRecordLocked","crypto/tls.(*Conn).sendAlertLocked","crypto/tls.(*Conn).closeNotify","crypto/tls.(*Conn).CloseWrite","p2pstream/internal/agent.TestQualificationTerminalRealTLSProtocolProvenance.func1","testing.tRunner","runtime.goexit"]}}
+--- PASS: TestQualificationTerminalRealTLSProtocolProvenance (0.01s)
+    --- PASS: TestQualificationTerminalRealTLSProtocolProvenance/handshake (0.00s)
+    --- PASS: TestQualificationTerminalRealTLSProtocolProvenance/close_notify (0.00s)
+=== RUN   TestQualificationTerminalPhysicalOwnership
+=== RUN   TestQualificationTerminalPhysicalOwnership/non_tcp_bind
+=== RUN   TestQualificationTerminalPhysicalOwnership/underlying_escape
+=== RUN   TestQualificationTerminalPhysicalOwnership/duplicate_actual_close
+--- PASS: TestQualificationTerminalPhysicalOwnership (0.00s)
+    --- PASS: TestQualificationTerminalPhysicalOwnership/non_tcp_bind (0.00s)
+    --- PASS: TestQualificationTerminalPhysicalOwnership/underlying_escape (0.00s)
+    --- PASS: TestQualificationTerminalPhysicalOwnership/duplicate_actual_close (0.00s)
+PASS
+ok  	p2pstream/internal/agent	0.245s

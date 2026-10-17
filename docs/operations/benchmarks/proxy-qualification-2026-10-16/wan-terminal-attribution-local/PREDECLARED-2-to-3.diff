@@ -1,0 +1,27 @@
+--- successor/PREDECLARED-COMMANDS-2.json
++++ successor/PREDECLARED-COMMANDS-3.json
+@@ -136,7 +136,7 @@
+       "GOTOOLCHAIN"
+     ],
+     "expected": {
+-      "GOENV": "off",
++      "GOENV": "",
+       "GOWORK": "off",
+       "GOFLAGS": "",
+       "GOVERSION": "go1.26.6",
+@@ -146,5 +146,15 @@
+     },
+     "max_output_bytes": 8192,
+     "status": "unexecuted; run only in approved runtime window before compile"
++  },
++  "preflight_contract_correction": {
++    "previous_manifest": "successor/PREDECLARED-COMMANDS-2.json",
++    "previous_sha256": "b7a06963f30bb636da10f9344c774eab5afd9bde230163f2931d3c02bca2d9e9",
++    "semantic_change_only": "expected resolved GOENV is empty; command still explicitly sets GOENV=off",
++    "sources": [
++      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/cmd/go/internal/cfg/cfg.go:344",
++      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/cmd/go/internal/envcmd/env.go:79"
++    ],
++    "preserved_stopped_result": "local-window-1/RESULT.json"
+   }
+ }

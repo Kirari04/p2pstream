@@ -1,0 +1,11 @@
+{
+  "original": "tmp/recorder-allocation-next-20261017/screen-attempt-1/frozen-source-manifest.json",
+  "sha256": "fcb05c0d31dc1289eeb212e89a750bdc5489bcd1a001e32d4a9e57020bcb58a9",
+  "bytes": 5838433,
+  "record_count": 16426,
+  "per_arm_file_counts": {
+    "baseline": 8213,
+    "candidate": 8213
+  },
+  "full_inventory_retained_locally": true
+}

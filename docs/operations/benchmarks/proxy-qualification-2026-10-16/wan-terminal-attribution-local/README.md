@@ -1,0 +1,24 @@
+# Local terminal-attribution correctness evidence
+
+This curated package records completed **local diagnostic correctness** work. It does not clear the original raw-write rejection, classify historical tiny1/tiny2 errors, establish a throughput cause, or pass any original WAN performance gate. Pending integrated five-owner runner/build/smoke work is excluded and remains unexecuted by this work.
+
+| Stage | Actual result | Evidence |
+| --- | --- | --- |
+| Earlier real TCP/TLS/Yamux fixture | One normal and one race execution; 15 named checks each; natural zero exits and no remaining owned group | `earlier-real-tcp-tls/RESULT.md`, per-mode results and logs |
+| Predecessor observer | Blocked in source review: observed return order alone was insufficient, and concurrent TLS protocol writes could inherit a plaintext token | `blocked-predecessor/PROPOSAL.md` and original source/diff |
+| Successor local window 1 | Stopped at preflight. Go naturally returned zero, but resolved GOENV was empty rather than the expected `off`. No Python or Go tests ran | `local-window-1/RESULT.json`, preflight output/status |
+| Successor local window 2 | Corrected preflight plus 7 Python tests; 170 named Go checks in normal mode and 170 with race (39 top-level tests in each); zero failures/skips | `local-window-2/RESULT.md`, `COUNTS.json`, raw logs and invocation/exit records |
+
+All four window2 commands exited naturally zero, without forced termination or remaining owned process-group members. Input inventories and pinned toolchain hashes were unchanged before/after execution; `POST-AUDIT.json` records the final audit. The command3 correction changes only the expected resolved GOENV value and adds correction provenance; the command still sets `GOENV=off`. Both frozen command manifests, their exact diff, and the stopped first preflight are retained.
+
+The successor captures the actual bounded, inline-aware application stack while the retained terminal raw call is still live. Concrete TCP binding, exclusive physical-Close ownership, typed closed errors, and owner retirement constrain the prospective diagnostic classifier. Real handshake and close_notify controls reject inherited plaintext labels. The finite schedules use real loopback TCP, verified TLS 1.3 and production Yamux GoAway; a barrier pauses before the TCP syscall or before the after-capture. They do not reproduce a kernel-stalled write or establish complete integrated five-owner lifecycle coverage.
+
+The repository fixture certificate expired in 2025. These controls verify trust, server name and signature at `cert.NotBefore+1h`; transport deadlines and event order use the real clock. This is not evidence of current-date certificate validity. No certificates or private keys are exported.
+
+`successor/materialized/` contains the exact final new Go helpers/tests and Python adapter/contracts used in window2. Original and successor diffs preserve the existing-file changes. The final inventory binds all 459 actual test-source files (8,164,026 bytes), independently rehashed during packaging; the repetitive original 450-file materialization map is represented by its hash and summary in `FULL-SOURCE-BINDING.json`. The pinned immutable legacy validators are included separately. Original absolute paths and historical checkpoint/status text are preserved verbatim: earlier “not executed” labels describe predeclaration time; actual execution is established by the later window records.
+
+All ten exported Go source artifacts use `.go.txt` destinations so Go tooling cannot discover evidence packages. Their bytes and original `.go` source paths are unchanged; `EXPORT-MAP.json` records the renamed destinations. Historical source diffs and checkpoint manifests remain byte-for-byte original.
+
+This is a review package, not a standalone build tree. Full inherited source, archives, binaries, toolchains, certificates/keys, readiness files and runtime databases are omitted. Future runner/build/smoke wiring is deliberately excluded. Inherited source/toolchain requirements remain hash-bound, and original checkpoint manifests may reference omitted files. No source was redacted or rewritten.
+
+`EXPORT-MAP.json` lists every copied file, original location, SHA-256, size and selection reason. `SELECTION.json` records omissions. Root `SHA256SUMS` covers every package file except itself. `VERIFY-PACKAGE.py` checks every exported copy against its source, the full actual input inventory, recorded result/log counts, the narrow manifest correction, and nonprinting fixture-secret/certificate rules. `VALIDATION.json` records that packaging audit. This task ran no builds, tests, endpoint binaries, smoke, or network workload. The secret scan is a documented check of fixture payloads and prohibited formats, not a general assurance about arbitrary confidential prose.

@@ -15,6 +15,17 @@ comparison.
 
 ## Files
 
+- [`recorder-nullable-ids/README.md`](recorder-nullable-ids/README.md)
+  records the retained nullable-ID conversion: all ten fixed cases save eight
+  allocations and approximately 128 bytes per event with lower median times.
+  Clean repository tests, focused race checks and vet pass; parser and setup
+  failures remain preserved. This is a recorder result, without an end-to-end
+  throughput or parity claim.
+- [`wan-terminal-attribution-local/README.md`](wan-terminal-attribution-local/README.md)
+  records local verified-TLS terminal attribution controls: seven Python tests
+  and 170 named Go checks in each normal/race mode pass, with natural exits
+  and unchanged inputs. Original and corrected preflight records are preserved.
+  This does not reclassify historical errors or clear the WAN performance gate.
 - [`current-grown-pool-pressure/README.md`](current-grown-pool-pressure/README.md)
   records the clean-build `27c8e31` pressure pass: all thirteen gates, retained
   pools above 80 MiB on all eight receiving lanes, ordinary 503 and reserved

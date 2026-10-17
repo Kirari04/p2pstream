@@ -1,0 +1,124 @@
+--- a/internal/agent/qualification_terminal_attribution_qualification.go
++++ b/internal/agent/qualification_terminal_attribution_qualification.go
+@@ -104,9 +104,14 @@
+ 	NetClosed  bool          `json:"net_closed"`
+ 	Short      bool          `json:"short"`
+ 	Plain      terminalPlain `json:"plain"`
++	Stack      terminalStack `json:"stack"`
+ }
+ 
+ type terminalState struct {
++	TCPBound           bool          `json:"tcp_bound"`
++	PhysicalCloseCalls uint64        `json:"physical_close_calls"`
++	PhysicalCloseError bool          `json:"physical_close_error"`
++	UnderlyingEscaped  bool          `json:"underlying_escaped"`
+ 	Sequence           uint64        `json:"sequence"`
+ 	Problems           uint64        `json:"problems"`
+ 	Stop               uint64        `json:"stop"`
+@@ -197,7 +202,7 @@
+ // Return is the observation under owner.mu, not an atomic transport-return
+ // timestamp: preemption or lock contention can move this observation past Close.
+ // Its ordering alone does not establish local-close causality. See PROPOSAL.md
+-// for the unresolved unique-close and TLS-call provenance review prerequisites.
++// and successor/DESIGN.md for exclusive-close and live-stack prerequisites.
+ func (owner *qualificationRawWriteOwner) terminalRawReturned(token uint64, attempted, written int, err error) {
+ 	owner.mu.Lock()
+ 	defer owner.mu.Unlock()
+@@ -235,6 +240,17 @@
+ 	s.raw.After = s.next()
+ 	// Retain every error, including pre-stop errors; retain all terminal calls.
+ 	if s.Stop != 0 || s.raw.Error || s.raw.Short {
++		if len(s.Records) >= terminalRecordLimit {
++			s.reject(terminalOverflow)
++			s.ActiveRaw = false
++			s.raw = terminalRaw{}
++			return
++		}
++		s.raw.Stack = terminalCaptureStack()
++		if !terminalApplicationStack(s.raw.Stack) {
++			// Temporal overlap cannot identify a TLS protocol write.
++			s.raw.Plain = terminalPlain{}
++		}
+ 		if len(s.Records) == terminalRecordLimit {
+ 			s.reject(terminalOverflow)
+ 		} else {
+@@ -247,15 +263,25 @@
+ 
+ func (owner *qualificationRawWriteOwner) terminalPhysicalCloseBeginLocked() {
+ 	s := &owner.terminal
++	if s.PhysicalCloseCalls == math.MaxUint64 {
++		s.reject(terminalOverflow)
++	} else {
++		s.PhysicalCloseCalls++
++	}
++	if s.PhysicalCloseCalls != 1 { s.reject(terminalOwnerChanged) }
+ 	if s.CloseBegin == 0 {
+ 		s.CloseBegin = s.next()
+ 	}
+ }
+ 
+-func (owner *qualificationRawWriteOwner) terminalPhysicalCloseEnd() {
++func (owner *qualificationRawWriteOwner) terminalPhysicalCloseEnd(closeErr error) {
+ 	owner.mu.Lock()
+ 	defer owner.mu.Unlock()
+ 	s := &owner.terminal
++	if closeErr != nil {
++		s.PhysicalCloseError = true
++		s.reject(terminalOwnerChanged)
++	}
+ 	if s.CloseEnd == 0 {
+ 		s.CloseEnd = s.next()
+ 	}
+--- a/internal/agent/qualification_raw_write_qualification.go
++++ b/internal/agent/qualification_raw_write_qualification.go
+@@ -439,6 +439,9 @@
+ }
+ 
+ func (binding *qualificationRawWriteBinding) bindRaw(conn net.Conn) (net.Conn, error) {
++	if _, ok := conn.(*net.TCPConn); !ok {
++		return nil, errors.New("terminal attribution requires a direct standard TCP connection")
++	}
+ 	if binding == nil || conn == nil {
+ 		return nil, errors.New("raw-write diagnostic received an invalid raw connection")
+ 	}
+@@ -480,6 +483,7 @@
+ 	}
+ 	owner.mu.Lock()
+ 	owner.rawBound = true
++	owner.terminal.TCPBound = true
+ 	owner.localAddr = localAddr
+ 	owner.remoteAddr = remoteAddr
+ 	owner.localAddress = localAddr.String()
+@@ -499,6 +503,12 @@
+ func (conn *qualificationObservedRawConn) QualificationUnderlyingConn() net.Conn {
+ 	if conn == nil {
+ 		return nil
++	}
++	if conn.owner != nil {
++		conn.owner.mu.Lock()
++		conn.owner.terminal.UnderlyingEscaped = true
++		conn.owner.terminal.reject(terminalOwnerChanged)
++		conn.owner.mu.Unlock()
+ 	}
+ 	return conn.Conn
+ }
+@@ -551,7 +561,7 @@
+ 	}
+ 	err := conn.Conn.Close()
+ 	if conn.owner != nil {
+-		conn.owner.terminalPhysicalCloseEnd()
++		conn.owner.terminalPhysicalCloseEnd(err)
+ 		conn.owner.markClosed()
+ 	}
+ 	return err
+--- a/internal/agent/qualification_terminal_attribution_test.go
++++ b/internal/agent/qualification_terminal_attribution_test.go
+@@ -132,7 +132,7 @@
+ 	owner.terminal.Stop = owner.terminal.next()
+ 	owner.terminal.StopGeneration = 1
+ 	owner.terminalPhysicalCloseBeginLocked()
+-	owner.terminalPhysicalCloseEnd()
++	owner.terminalPhysicalCloseEnd(nil)
+ 	owner.terminalLegacyCloseLocked()
+ 	if !owner.terminal.LegacyCloseOverlap || owner.terminal.Problems != 0 {
+ 		t.Fatal("exact control close reason lost")

@@ -1,0 +1,22 @@
+{
+  "description": "Compact binding of omitted repetitive full materialization map; exact 459-file final inventory is exported. No full source tree or fixture certificate/key is exported. All 459 actual input hashes were independently read and checked during packaging, without running tools under test.",
+  "original_materialization_map": {
+    "source": "tmp/wan-terminal-attribution-20261017/successor/MATERIALIZATION.json",
+    "sha256": "9426ca87b9d50dd536168db0a080437841c701b4e3ab9b2e555ba8daed1946c5",
+    "bytes": 176065,
+    "base": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/continuation-20261016/wan-tcp-threshold-history-source/build-source-1/runs/audited-build-attempt-3/source",
+    "production_commit": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+    "original_files": 450,
+    "copy_method": "shutil.copy2 independent regular files; no hardlinks",
+    "excluded": "docs/web/cmd and root app entrypoints are not needed for agent package tests",
+    "ordinary_mapping": "only production public_routing.go health admission delta applied; existing tagged attribution hook preserved"
+  },
+  "final_inventory": {
+    "export": "successor/TEST-SOURCE-SHA256SUMS",
+    "sha256": "fa9a76a9640ad5084daec1722da509f98dc9eca0c6541536b55d129e3e80fb8b",
+    "files": 459,
+    "bytes": 8164026
+  },
+  "full_tree_exported": false,
+  "all_actual_final_input_hashes_verified": true
+}

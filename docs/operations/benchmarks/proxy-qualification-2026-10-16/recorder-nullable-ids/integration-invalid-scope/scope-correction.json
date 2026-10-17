@@ -1,0 +1,20 @@
+{
+  "reason": "ignored tmp evidence source trees invalidated normal ./... scope; race compilation had begun before correction received; terminate owned runner and race compiler to prevent subsequent tests/vet",
+  "owned_terminated": [
+    {
+      "pid": 2416238,
+      "ppid": 2415902,
+      "argv": "/tmp/ri.01b1x43y/go-build1445136529/b001/server.test -test.paniconexit0 -test.v=test2json -test.count=1 -test.timeout=10m0s -test.run=^(TestPreparedProxyRequestEvent.*|TestObservabilityRecorder.*|TestCloseObservabilityRecorder.*)$"
+    },
+    {
+      "pid": 2415902,
+      "ppid": 2411735,
+      "argv": "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go test -race -json -count=1 -timeout=10m ./internal/server -run ^(TestPreparedProxyRequestEvent.*|TestObservabilityRecorder.*|TestCloseObservabilityRecorder.*)$"
+    },
+    {
+      "pid": 2411735,
+      "ppid": 2411672,
+      "argv": "python3 tmp/recorder-allocation-next-20261017/integration-validation-1/run-checks.py"
+    }
+  ]
+}

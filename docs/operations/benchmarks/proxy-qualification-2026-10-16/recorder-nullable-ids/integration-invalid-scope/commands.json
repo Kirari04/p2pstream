@@ -1,0 +1,28 @@
+[
+  {
+    "label": "normal-root-suite",
+    "argv": [
+      "taskset",
+      "-c",
+      "0-7",
+      "env",
+      "PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/usr/local/go/bin:/usr/sbin:/usr/bin:/bin",
+      "GOTOOLCHAIN=local",
+      "GOMAXPROCS=4",
+      "CGO_ENABLED=1",
+      "GOWORK=off",
+      "GOFLAGS=",
+      "TMPDIR=/tmp/ri.01b1x43y",
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-json",
+      "-count=1",
+      "-timeout=20m",
+      "./..."
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream",
+    "started_at": "2026-10-17T10:45:49.896670+00:00",
+    "exit_status": 1,
+    "finished_at": "2026-10-17T10:47:57.027295+00:00"
+  }
+]

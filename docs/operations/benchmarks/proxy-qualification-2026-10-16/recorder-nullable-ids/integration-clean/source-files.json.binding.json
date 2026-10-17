@@ -1,0 +1,8 @@
+{
+  "original": "tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source-files.json",
+  "sha256": "b489c84da8d5a81ece1db1210740fdbf31ca1389b9942a6411081c7715fd234d",
+  "bytes": 2257474,
+  "record_count": 8430,
+  "per_arm_file_counts": null,
+  "full_inventory_retained_locally": true
+}

@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-10-17T10:52:45.823453+00:00",
+  "owned_process_matches": [],
+  "owned_temporary_build_dirs": [
+    {
+      "path": "/tmp/ri.01b1x43y",
+      "existed": true,
+      "removed": true
+    },
+    {
+      "path": "/tmp/rc.5l3hqb6c",
+      "existed": true,
+      "removed": true
+    }
+  ],
+  "runtime_helper_sha256": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+  "permanent_test_sha256": "d8fa5fba12361152287710f7f3797174637e8660f90c95ffb09ccd739c0b8fc3",
+  "all_three_clean_checks_exit0": true,
+  "clean_source_inventory_unchanged": true,
+  "measured_binaries_unchanged": {
+    "baseline.test": true,
+    "candidate-race.test": true,
+    "candidate.test": true
+  },
+  "raw_pair_logs_identical": true,
+  "no_go_evidence_files": true,
+  "no_gzip_or_binary_artifacts": true
+}

@@ -1,0 +1,14 @@
+{
+  "state": "approved invocation started",
+  "at": "2026-10-17T10:42:03.258243+00:00",
+  "argv": [
+    "python3",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/postprocess-stateful.py",
+    "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/postprocessor-inputs.json"
+  ],
+  "postprocessor_sha256": "057e8f5509cc5c7d11d9ebca6404fdf85d24e9990427fbbe631a9522a3015733",
+  "input_manifest_sha256": "05df982bda566c728b392b85c625a6ab7840b6ff10dc88a80e584c8a34c2894a",
+  "analysis_only": true,
+  "frozen_collector_exit_status": 1,
+  "additional_measurement_invocations": 0
+}

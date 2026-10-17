@@ -1,0 +1,413 @@
+diff --git a/go.mod b/go.mod
+new file mode 100644
+index 0000000..4e52580
+--- /dev/null
++++ b/go.mod
+@@ -0,0 +1,7 @@
++module local/wan-cancellation-discriminator
++
++go 1.26.6
++
++require github.com/hashicorp/yamux v0.1.2
++
++replace github.com/hashicorp/yamux => ../../third_party/yamux
+diff --git a/cancellation_test.go b/cancellation_test.go
+new file mode 100644
+index 0000000..92c6842
+--- /dev/null
++++ b/cancellation_test.go
+@@ -0,0 +1,366 @@
++package cancellation
++
++import (
++	"bytes"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/json"
++	"errors"
++	"io"
++	"net"
++	"os"
++	"sync"
++	"sync/atomic"
++	"syscall"
++	"testing"
++	"time"
++
++	"github.com/hashicorp/yamux"
++)
++
++// The only allowlisted plaintext is one exact Yamux GoAway(normal) header.
++// This is a chosen local stimulus, never an inference from ciphertext length.
++var normalGoAway = []byte{0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
++
++type evidence struct {
++	Sequence                                             uint64
++	PlainBegin, PlainEnd, RawBegin, RawEnd, AfterCapture uint64
++	Stop, CloseBegin, CloseEnd, Joined                   uint64
++	PlainCalls, RawCalls                                 int
++	PlainControl                                         bool
++	PlainAttempt, RawAttempt, RawWritten                 int
++	RawError, RawNetClosed, RawShort                     bool
++	BeforeControlOK, BeforeCallback                      bool
++	AfterControlNetClosed, AfterCallback                 bool
++	OwnerGeneration, RawGeneration, StopGeneration       uint64
++	Ambiguous, ActivePlain, ActiveRaw                    bool
++}
++
++type recorder struct {
++	mu sync.Mutex
++	e  evidence
++}
++
++func (r *recorder) mark(fn func(*evidence, uint64)) {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	r.e.Sequence++
++	fn(&r.e, r.e.Sequence)
++}
++
++func (r *recorder) snapshot() evidence {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	return r.e
++}
++
++// This is a local proposed predicate, not a replacement for the published WAN
++// validator. Every input is retained; a cancellation never becomes zero errors.
++func terminalControlCancellation(e evidence) bool {
++	return e.PlainCalls == 1 && e.RawCalls == 1 && e.PlainControl && e.PlainAttempt == 12 &&
++		e.RawAttempt > 0 && e.RawWritten == 0 && e.RawError && e.RawNetClosed && !e.RawShort &&
++		e.BeforeControlOK && e.BeforeCallback && e.AfterControlNetClosed && !e.AfterCallback &&
++		e.OwnerGeneration != 0 && e.OwnerGeneration == e.RawGeneration && e.OwnerGeneration == e.StopGeneration &&
++		!e.Ambiguous && !e.ActivePlain && !e.ActiveRaw &&
++		e.PlainBegin > 0 && e.PlainBegin < e.RawBegin && e.RawBegin < e.Stop &&
++		e.Stop < e.CloseBegin && e.CloseBegin < e.RawEnd && e.CloseBegin < e.CloseEnd &&
++		e.RawEnd < e.AfterCapture && e.AfterCapture < e.PlainEnd && e.PlainEnd < e.Joined && e.CloseEnd < e.Joined
++}
++
++type observedBody struct {
++	*tls.Conn
++	r *recorder
++}
++
++func (b *observedBody) Write(p []byte) (int, error) {
++	b.r.mark(func(e *evidence, seq uint64) {
++		if e.ActivePlain || e.Joined != 0 {
++			e.Ambiguous = true
++		}
++		e.ActivePlain = true
++		e.PlainCalls++
++		e.PlainBegin = seq
++		e.PlainControl = bytes.Equal(p, normalGoAway)
++		e.PlainAttempt = len(p)
++	})
++	n, err := b.Conn.Write(p)
++	b.r.mark(func(e *evidence, seq uint64) { e.ActivePlain = false; e.PlainEnd = seq })
++	return n, err
++}
++
++type observedTCP struct {
++	*net.TCPConn
++	r                                *recorder
++	raw                              syscall.RawConn
++	armed                            atomic.Bool
++	blockBefore                      bool
++	entered, release, physicalClosed chan struct{}
++	closeOnce                        sync.Once
++}
++
++func (c *observedTCP) Write(p []byte) (int, error) {
++	if !c.armed.Load() {
++		return c.TCPConn.Write(p)
++	}
++	beforeCallback := false
++	beforeErr := c.raw.Control(func(uintptr) { beforeCallback = true })
++	c.r.mark(func(e *evidence, seq uint64) {
++		if e.ActiveRaw || !e.ActivePlain || e.Joined != 0 {
++			e.Ambiguous = true
++		}
++		e.ActiveRaw = true
++		e.RawCalls++
++		e.RawBegin = seq
++		e.RawAttempt = len(p)
++		e.RawGeneration = e.OwnerGeneration
++		e.BeforeControlOK = beforeErr == nil
++		e.BeforeCallback = beforeCallback
++	})
++	if c.blockBefore {
++		close(c.entered)
++		<-c.release
++	}
++	// This is always the real TCP Write. No injected errors or synthetic TCP
++	// capture result are used. The first schedule has already closed this fd.
++	n, err := c.TCPConn.Write(p)
++	c.r.mark(func(e *evidence, seq uint64) {
++		e.RawEnd = seq
++		e.RawWritten = n
++		e.RawError = err != nil
++		e.RawNetClosed = errors.Is(err, net.ErrClosed)
++		e.RawShort = err == nil && n != len(p)
++	})
++	if !c.blockBefore {
++		close(c.entered)
++		<-c.release
++	}
++	afterCallback := false
++	afterErr := c.raw.Control(func(uintptr) { afterCallback = true })
++	c.r.mark(func(e *evidence, seq uint64) {
++		e.ActiveRaw = false
++		e.AfterCapture = seq
++		e.AfterControlNetClosed = errors.Is(afterErr, net.ErrClosed)
++		e.AfterCallback = afterCallback
++	})
++	return n, err
++}
++
++func (c *observedTCP) Close() error {
++	c.r.mark(func(e *evidence, seq uint64) {
++		if e.CloseBegin == 0 {
++			e.CloseBegin = seq
++		}
++	})
++	err := c.TCPConn.Close()
++	c.r.mark(func(e *evidence, seq uint64) {
++		if e.CloseEnd == 0 {
++			e.CloseEnd = seq
++		}
++	})
++	c.closeOnce.Do(func() { close(c.physicalClosed) })
++	return err
++}
++
++func wait(t *testing.T, ch <-chan struct{}, name string) {
++	t.Helper()
++	select {
++	case <-ch:
++	case <-time.After(5 * time.Second):
++		t.Fatalf("%s did not join within 5 seconds", name)
++	}
++}
++
++func TestRealTCPTLSYamuxCancellation(t *testing.T) {
++	for _, blockBefore := range []bool{true, false} {
++		name := "completed_control_before_capture"
++		if blockBefore {
++			name = "local_close_interrupts_control"
++		}
++		t.Run(name, func(t *testing.T) {
++			certPEM, err := os.ReadFile("../../third_party/yamux/testdata/cert.pem")
++			if err != nil {
++				t.Fatal(err)
++			}
++			cert, err := tls.LoadX509KeyPair("../../third_party/yamux/testdata/cert.pem", "../../third_party/yamux/testdata/key.pem")
++			if err != nil {
++				t.Fatal(err)
++			}
++			leaf, err := x509.ParseCertificate(cert.Certificate[0])
++			if err != nil {
++				t.Fatal(err)
++			}
++			// The repository's public test certificate expired in 2025. Verify
++			// its trust/name/signature at a fixed time inside its validity; all
++			// socket deadlines and event ordering still use the real clock.
++			certificateTime := func() time.Time { return leaf.NotBefore.Add(time.Hour) }
++			roots := x509.NewCertPool()
++			if !roots.AppendCertsFromPEM(certPEM) {
++				t.Fatal("invalid test certificate")
++			}
++			listener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1)})
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer listener.Close()
++			if err := listener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
++				t.Fatal(err)
++			}
++			clientTCP, err := net.DialTCP("tcp4", nil, listener.Addr().(*net.TCPAddr))
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer clientTCP.Close()
++			serverTCP, err := listener.AcceptTCP()
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer serverTCP.Close()
++			if err := listener.Close(); err != nil {
++				t.Fatal(err)
++			}
++			for _, conn := range []*net.TCPConn{clientTCP, serverTCP} {
++				if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
++					t.Fatal(err)
++				}
++			}
++			raw, err := clientTCP.SyscallConn()
++			if err != nil {
++				t.Fatal(err)
++			}
++			r := &recorder{e: evidence{OwnerGeneration: 1}}
++			observed := &observedTCP{TCPConn: clientTCP, raw: raw, r: r, blockBefore: blockBefore,
++				entered: make(chan struct{}), release: make(chan struct{}), physicalClosed: make(chan struct{})}
++			clientTLS := tls.Client(observed, &tls.Config{RootCAs: roots, ServerName: "example.com", MinVersion: tls.VersionTLS13, Time: certificateTime})
++			serverTLS := tls.Server(serverTCP, &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13})
++			var workers []<-chan struct{}
++			launch := func(fn func()) <-chan struct{} {
++				done := make(chan struct{})
++				workers = append(workers, done)
++				go func() { defer close(done); fn() }()
++				return done
++			}
++			var releaseOnce sync.Once
++			var session *yamux.Session
++			t.Cleanup(func() {
++				// Successful paths have joined before cleanup. These only release
++				// failure barriers and close resources so a failed test cannot hang.
++				releaseOnce.Do(func() { close(observed.release) })
++				_ = clientTCP.Close()
++				_ = serverTCP.Close()
++				if session != nil {
++					_ = session.Close()
++				}
++				for _, done := range workers {
++					select {
++					case <-done:
++					case <-time.After(5 * time.Second):
++						t.Error("fixture worker did not join in cleanup")
++					}
++				}
++			})
++			handshakeResult := make(chan error, 1)
++			handshakeDone := launch(func() { handshakeResult <- serverTLS.Handshake() })
++			if err := clientTLS.Handshake(); err != nil {
++				t.Fatal(err)
++			}
++			wait(t, handshakeDone, "server handshake")
++			if err := <-handshakeResult; err != nil {
++				t.Fatal(err)
++			}
++			observed.armed.Store(true)
++			config := yamux.DefaultConfig()
++			config.EnableKeepAlive = false
++			config.LogOutput = io.Discard
++			config.ConnectionWriteTimeout = 5 * time.Second
++			// Same aggregate wire limits as internal/tunnel/protocol.go. No DATA
++			// is sent, but Close must also join the real aggregate publisher.
++			config.MaxStreamWindowSize = 512 * 1024
++			config.MaxIncomingStreams = 1
++			config.InitialSessionWindowSize = 2 * 1024 * 1024
++			config.MaxSessionWindowSize = 1024 * 1024 * 1024
++			config.MaxDataFrameSize = yamux.AggregateMaxDataFrameSize
++			config.InitialStreamAllocationWindowSize = 512 * 1024
++			config.MaxStreamAllocationWindowSize = 256 * 1024 * 1024
++			session, err = yamux.Client(&observedBody{Conn: clientTLS, r: r}, config)
++			if err != nil {
++				t.Fatal(err)
++			}
++			peerResult := make(chan error, 1)
++			var peerDone <-chan struct{}
++			if !blockBefore {
++				peerDone = launch(func() {
++					got := make([]byte, 12)
++					_, err := io.ReadFull(serverTLS, got)
++					if err == nil && !bytes.Equal(got, normalGoAway) {
++						err = errors.New("peer received different plaintext")
++					}
++					peerResult <- err
++				})
++			}
++			goAwayDone := launch(func() { _ = session.GoAway() })
++			wait(t, observed.entered, "controlled raw-write boundary")
++			if peerDone != nil {
++				wait(t, peerDone, "peer exact control read")
++				if err := <-peerResult; err != nil {
++					t.Fatal(err)
++				}
++			}
++			r.mark(func(e *evidence, seq uint64) { e.Stop = seq; e.StopGeneration = e.OwnerGeneration })
++			closeResult := make(chan error, 1)
++			closeDone := launch(func() {
++				err := session.Close()
++				r.mark(func(e *evidence, seq uint64) { e.Joined = seq })
++				closeResult <- err
++			})
++			wait(t, observed.physicalClosed, "real TCP close")
++			releaseOnce.Do(func() { close(observed.release) })
++			wait(t, closeDone, "Yamux Session.Close")
++			if err := <-closeResult; err != nil {
++				t.Fatal(err)
++			}
++			wait(t, goAwayDone, "GoAway caller")
++			for _, done := range workers {
++				wait(t, done, "fixture worker")
++			}
++			e := r.snapshot()
++			encoded, _ := json.Marshal(e)
++			t.Logf("evidence=%s", encoded)
++			if blockBefore {
++				if !terminalControlCancellation(e) {
++					t.Fatalf("typed control cancellation predicate rejected: %+v", e)
++				}
++				for name, mutate := range map[string]func(*evidence){
++					"data_or_unknown":       func(v *evidence) { v.PlainControl = false },
++					"missing_stop":          func(v *evidence) { v.Stop = 0 },
++					"late_stop":             func(v *evidence) { v.Stop = v.RawEnd + 1 },
++					"nonlocal_error":        func(v *evidence) { v.RawNetClosed = false },
++					"positive_partial":      func(v *evidence) { v.RawWritten = 1 },
++					"nil_error_short":       func(v *evidence) { v.RawError = false; v.RawShort = true },
++					"wrong_generation":      func(v *evidence) { v.RawGeneration++ },
++					"missing_join":          func(v *evidence) { v.Joined = 0 },
++					"post_retirement":       func(v *evidence) { v.RawEnd = v.Joined + 1 },
++					"overlapping_writes":    func(v *evidence) { v.Ambiguous = true },
++					"active_write":          func(v *evidence) { v.ActiveRaw = true },
++					"invalid_capture_order": func(v *evidence) { v.AfterCapture = v.RawEnd },
++				} {
++					t.Run(name, func(t *testing.T) {
++						bad := e
++						mutate(&bad)
++						if terminalControlCancellation(bad) {
++							t.Fatal("invalid terminal cancellation accepted")
++						}
++					})
++				}
++			} else {
++				if terminalControlCancellation(e) {
++					t.Fatal("successful write misclassified as cancellation")
++				}
++				if e.RawError || e.RawShort || e.RawWritten != e.RawAttempt || e.RawWritten == 0 ||
++					!e.PlainControl || !e.BeforeControlOK || !e.BeforeCallback || !e.AfterControlNetClosed || e.AfterCallback ||
++					e.Ambiguous || e.ActivePlain || e.ActiveRaw || e.Joined <= e.PlainEnd || e.RawEnd >= e.Stop {
++					t.Fatalf("completed control / closed real capture mismatch: %+v", e)
++				}
++			}
++		})
++	}
++}
+diff --git a/LOCAL-ACCEPTANCE.md b/LOCAL-ACCEPTANCE.md
+new file mode 100644
+index 0000000..fb6ae0b
+--- /dev/null
++++ b/LOCAL-ACCEPTANCE.md
+@@ -0,0 +1,22 @@
++# Predeclared local acceptance, source-only
++
++Scope: this standalone module imports the current local production Yamux module. It does not alter the WAN runner/observer/validator, production source, historical verdicts, or any gate. No WAN experiment follows automatically.
++
++Two channel-forced schedules use real loopback TCP, certificate-verified TLS 1.3, and production Yamux Session.GoAway/Session.Close. Raw Write always delegates to the real TCPConn; RawConn.Control is real and its callback invocation is recorded. Certificate and private key are existing public test fixtures and are not copied or printed. The only eligible plaintext is the exact 12-byte GoAway(normal) header emitted by that real Yamux call. No inference depends on ciphertext length.
++
++Source preflight found that the repository test certificate expired in August 2025. TLS verification therefore uses its NotBefore + one hour as a fixed certificate-validation time; trust, name and signature checks remain enabled. All networking, timeouts and event ordering use real clocks. This is local fixture verification, not current-date certificate acceptance or a WAN trust change.
++
++1. Pause the raw wrapper before TCPConn.Write, mark local stop intent, call Session.Close, await the actual TCP close, then release the real Write and actual RawConn.Control. Accept only zero bytes with errors.Is(net.ErrClosed), verified plaintext, correct owner-local event order, closed-provider Control error with no callback, and naturally joined Session.Close/caller/fixture workers.
++2. Permit the real TCP Write and exact peer plaintext read; pause before actual Control, close locally, resume Control. Require full successful Write, real unavailable-after capture, and natural joins. It must not classify as an errored cancellation.
++3. Twelve predicate negative controls mutate the retained real positive evidence: DATA/unknown, absent/late intent, non-local error, partial/nil-short write, changed generation, missing join, post-retirement activity, overlap, active write, and invalid capture ordering. All reject. The predicate explicitly requires raw Write return < after-capture completion < plaintext Write return. The exact GoAway allowlist is established by source and the real scheduled GoAway; no separate test merely restates bytes.Equal.
++
++Limitations predeclared: no saturated/kernel-blocked write; the barrier pauses before the syscall. No exact tiny2 interleaving or frame identity claim. RawConn.Control is exercised directly, without a synthetic result or a TCP_INFO syscall: after close, the real Control callback must never run. Negative reset/short/data cases are predicate controls, not claims to reproduce those socket failures. This proves a narrow typed-control/local-close interpretation, not a complete WAN schema or broad benign-error exception. The no-error successful path in the original observer is not modified.
++
++Proposed one-shot invocations, only after coordinator source review and the granted CPU window:
++
++```
++taskset -c 8-11 env GOMAXPROCS=2 timeout --signal=TERM --kill-after=5s 90s go test -count=1 -timeout=30s -v .
++taskset -c 8-11 env GOMAXPROCS=2 timeout --signal=TERM --kill-after=5s 120s go test -race -count=1 -timeout=30s -v .
++```
++
++The module reuses the system Go cache and contains no copied repository tree, artifacts archive, generated build corpus, or new dependencies beyond the existing local Yamux. Capture status and stdout/stderr for each mode once. Record pre/post source hashes, exact tests, natural exit, and no remaining owned process. A failed attempt is retained and reviewed before any revised invocation. Five-second per-operation fixture deadlines and the process timeout are failure bounds, not timing assertions. Total new retained artifacts remain below 100 MiB.

@@ -1,0 +1,39 @@
+{
+  "screen_baseline": "27c8e31f3826ab5326d941b20644c1f56159d99d",
+  "screen_candidate_patch_sha256": "0c80d4082c44fbc6cedd85866c862d3a51efbe90d4de052c829f3360b914925b",
+  "measured_candidate_runtime_sha256": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+  "retained_runtime_sha256": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+  "permanent_test_sha256": "d8fa5fba12361152287710f7f3797174637e8660f90c95ffb09ccd739c0b8fc3",
+  "permanent_test_added_lines": 81,
+  "permanent_test_is_separate_from_timed_overlay": true,
+  "clean_integration": {
+    "head": "dc4c25df876c238204ecaa16630471a94dda264a",
+    "archive_sha256": "1f2d1ae1be8e0dac4aeb146bfdb5c1a235004f8136df0f5e5da26aaa77f44a5c",
+    "composite_patch_sha256": "43b120ec6c80d684d35079c7031e28f7dd82797521fba3122b8db7275c4aa6a8",
+    "source_files_sha256": "b489c84da8d5a81ece1db1210740fdbf31ca1389b9942a6411081c7715fd234d",
+    "file_count": 8430,
+    "source_root": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/integration-clean-validation-1/source",
+    "approved_retained_files": {
+      "internal/db/proxy_request_event_inserter.go": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+      "internal/server/observability_prepared_insert_test.go": "d8fa5fba12361152287710f7f3797174637e8660f90c95ffb09ccd739c0b8fc3"
+    },
+    "worktree_matches": true,
+    "scope": "tracked HEAD archive plus exact approved two-file diff; excludes ignored tmp evidence",
+    "prior_attempt": "integration-validation-1: scope invalid, normal exit1 (128 failures all p2pstream/tmp), race compiler/runner terminated, vet not run",
+    "setup_correction": "git apply within an ignored path under parent worktree skipped inputs; exact two approved files copied from current worktree and individually rehashed; no checks launched before validation"
+  },
+  "measurement_collector_exit_status": 1,
+  "collector_failure_phase": "analysis after all 20 timed invocations exited0",
+  "reviewed_postprocessor_exit_status": 0,
+  "timed_invocations": 20,
+  "samples": 200,
+  "extra_timed_samples_or_retries": 0,
+  "all_ten_fixed_cases_accepted": true,
+  "no_app_throughput_or_parity_claim": true,
+  "excluded": [
+    "binaries",
+    "source/archive copies",
+    "runtime databases",
+    "environment credentials"
+  ]
+}

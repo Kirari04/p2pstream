@@ -273,6 +273,87 @@ func TestPreparedProxyRequestEventBatchCancellationRollsBack(t *testing.T) {
 	}
 }
 
+func TestPreparedProxyRequestEventNullableIDsMatchGeneratedInsert(t *testing.T) {
+	database := newServerTestDB(t)
+	probe := func(event db.InsertProxyRequestEventAtParams, mode string) (string, [][8]sql.NullInt64) {
+		t.Helper()
+		tx, err := database.BeginTx(t.Context(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer tx.Rollback()
+		events := make([]db.InsertProxyRequestEventAtParams, 16)
+		for index := range events {
+			events[index] = event
+		}
+		if mode == "generated" {
+			for _, event := range events {
+				if err = database.WithTx(tx).InsertProxyRequestEventAt(t.Context(), event); err != nil {
+					break
+				}
+			}
+		} else {
+			var inserter *db.ProxyRequestEventInserter
+			inserter, err = db.PrepareProxyRequestEventInserter(t.Context(), tx)
+			if err == nil {
+				if mode == "batch" {
+					err = inserter.InsertBatch(t.Context(), events)
+				} else {
+					for _, event := range events {
+						if err = inserter.Insert(t.Context(), event); err != nil {
+							break
+						}
+					}
+				}
+				if closeErr := inserter.Close(); err == nil {
+					err = closeErr
+				}
+			}
+		}
+		if err != nil {
+			return fmt.Sprintf("%T:%v", err, err), nil
+		}
+		rows, err := tx.QueryContext(t.Context(), `SELECT listener_id, route_id, route_target_id, waf_rule_id,
+			agent_id, cache_rule_id, retry_rule_id, retry_failed_agent_id FROM proxy_request_events ORDER BY id`)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var persisted [][8]sql.NullInt64
+		for rows.Next() {
+			var ids [8]sql.NullInt64
+			if err := rows.Scan(&ids[0], &ids[1], &ids[2], &ids[3], &ids[4], &ids[5], &ids[6], &ids[7]); err != nil {
+				t.Fatal(err)
+			}
+			persisted = append(persisted, ids)
+		}
+		if err := rows.Err(); err != nil || len(persisted) != len(events) {
+			t.Fatalf("persisted rows=%d err=%v, want %d", len(persisted), err, len(events))
+		}
+		return "", persisted
+	}
+	for field := range 8 {
+		for _, payload := range []sql.NullInt64{{}, {Int64: 999_999}, {Int64: 0, Valid: true}, {Int64: -1, Valid: true}, {Int64: -1 << 63, Valid: true}, {Int64: 1<<63 - 1, Valid: true}} {
+			event := db.InsertProxyRequestEventAtParams{OccurredAt: time.Now().UTC(), StatusCode: http.StatusOK}
+			ids := []*sql.NullInt64{&event.ListenerID, &event.RouteID, &event.RouteTargetID, &event.WafRuleID, &event.AgentID, &event.CacheRuleID, &event.RetryRuleID, &event.RetryFailedAgentID}
+			*ids[field] = payload
+			// Generated SQL supplies the database oracle; zero is not assumed to
+			// be a valid FK, and invalid nonzero payloads must remain SQL NULL.
+			wantError, wantRows := probe(event, "generated")
+			for _, mode := range []string{"single", "batch"} {
+				gotError, gotRows := probe(event, mode)
+				if gotError != wantError || !reflect.DeepEqual(gotRows, wantRows) {
+					t.Fatalf("field %d payload=%+v mode=%s got=(%q,%+v), generated=(%q,%+v)", field, payload, mode, gotError, gotRows, wantError, wantRows)
+				}
+			}
+		}
+	}
+	var rows int
+	if err := database.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM proxy_request_events`).Scan(&rows); err != nil || rows != 0 {
+		t.Fatalf("nullable-ID probes did not roll back: rows=%d err=%v", rows, err)
+	}
+}
+
 func assertPreparedObservabilityBatchState(t *testing.T, app *App, rawEvents, rollupRequests, cacheHits int64) {
 	t.Helper()
 	ctx := context.Background()

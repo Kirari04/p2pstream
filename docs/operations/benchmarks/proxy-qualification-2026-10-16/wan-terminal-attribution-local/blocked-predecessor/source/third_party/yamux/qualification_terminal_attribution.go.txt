@@ -1,0 +1,12 @@
+//go:build p2pstream_qualification
+
+package yamux
+
+// QualificationTerminalObserver exposes only the already installed, tagged
+// transport observer. It neither drains activity nor changes session lifetime.
+func (s *Session) QualificationTerminalObserver() any {
+	if s == nil {
+		return nil
+	}
+	return s.conn
+}

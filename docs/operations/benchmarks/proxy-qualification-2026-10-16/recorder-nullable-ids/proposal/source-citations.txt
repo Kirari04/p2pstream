@@ -1,0 +1,174 @@
+### /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/sql.go:219
+219: // it can be used as a scan destination, similar to [NullString].
+220: type NullInt64 struct {
+221: 	Int64 int64
+222: 	Valid bool // Valid is true if Int64 is not NULL
+223: }
+224: 
+225: // Scan implements the [Scanner] interface.
+226: func (n *NullInt64) Scan(value any) error {
+227: 	if value == nil {
+228: 		n.Int64, n.Valid = 0, false
+229: 		return nil
+230: 	}
+231: 	n.Valid = true
+232: 	return convertAssign(&n.Int64, value)
+233: }
+234: 
+235: // Value implements the [driver.Valuer] interface.
+236: func (n NullInt64) Value() (driver.Value, error) {
+237: 	if !n.Valid {
+238: 		return nil, nil
+239: 	}
+240: 	return n.Int64, nil
+241: }
+242: 
+
+### /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/convert.go:95
+95: // defaultCheckNamedValue wraps the default ColumnConverter to have the same
+96: // function signature as the CheckNamedValue in the driver.NamedValueChecker
+97: // interface.
+98: func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
+99: 	nv.Value, err = driver.DefaultParameterConverter.ConvertValue(nv.Value)
+100: 	return err
+101: }
+102: 
+103: // driverArgsConnLocked converts arguments from callers of Stmt.Exec and
+104: // Stmt.Query into driver Values.
+105: //
+106: // The statement ds may be nil, if no statement is available.
+107: //
+108: // ci must be locked.
+109: func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.NamedValue, error) {
+110: 	nvargs := make([]driver.NamedValue, len(args))
+111: 
+
+### /home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/src/database/sql/driver/types.go:241
+241: func (defaultConverter) ConvertValue(v any) (Value, error) {
+242: 	if IsValue(v) {
+243: 		return v, nil
+244: 	}
+245: 
+246: 	switch vr := v.(type) {
+247: 	case Valuer:
+248: 		sv, err := callValuerValue(vr)
+249: 		if err != nil {
+250: 			return nil, err
+251: 		}
+252: 		if !IsValue(sv) {
+253: 			return nil, fmt.Errorf("non-Value type %T returned from Value", sv)
+254: 		}
+255: 		return sv, nil
+256: 
+257: 	// For now, continue to prefer the Valuer interface over the decimal decompose interface.
+258: 	case decimalDecompose:
+259: 		return vr, nil
+260: 	}
+261: 
+
+### /home/user/go/pkg/mod/github.com/mattn/go-sqlite3@v1.14.49/sqlite3.go:2199
+2199: func bindValue(s *C.sqlite3_stmt, n C.int, value driver.Value) C.int {
+2200: 	switch v := value.(type) {
+2201: 	case nil:
+2202: 		return C.sqlite3_bind_null(s, n)
+2203: 	case string:
+2204: 		return bindText(s, n, v)
+2205: 	case int64:
+2206: 		return C.sqlite3_bind_int64(s, n, C.sqlite3_int64(v))
+2207: 	case bool:
+2208: 		if v {
+
+### /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/db/proxy_request_event_inserter.go:88
+88: func appendProxyRequestEventArgs(args []any, arg InsertProxyRequestEventAtParams) []any {
+89: 	return append(args,
+90: 		arg.OccurredAt,
+91: 		arg.StatusCode,
+92: 		arg.DurationMs,
+93: 		arg.ErrorKind,
+94: 		arg.Method,
+95: 		arg.Host,
+96: 		arg.PathPrefix,
+97: 		arg.ListenerID,
+98: 		arg.RouteID,
+99: 		arg.RouteTargetID,
+100: 		arg.WafRuleID,
+101: 		arg.WafAction,
+102: 		arg.AgentID,
+103: 		arg.RequestBytes,
+104: 		arg.ResponseBytes,
+105: 		arg.CacheRuleID,
+106: 		arg.CacheStatus,
+107: 		arg.CacheBytes,
+108: 		arg.RetryRuleID,
+109: 		arg.RetryCount,
+110: 		arg.RetryOutcome,
+111: 		arg.RetryErrorKind,
+112: 		arg.RetryFailedAgentID,
+113: 	)
+114: }
+
+### /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/db/query.sql.go:3567
+3567: type InsertProxyRequestEventAtParams struct {
+3568: 	OccurredAt         time.Time     `json:"occurred_at"`
+3569: 	StatusCode         int64         `json:"status_code"`
+3570: 	DurationMs         int64         `json:"duration_ms"`
+3571: 	ErrorKind          string        `json:"error_kind"`
+3572: 	Method             string        `json:"method"`
+3573: 	Host               string        `json:"host"`
+3574: 	PathPrefix         string        `json:"path_prefix"`
+3575: 	ListenerID         sql.NullInt64 `json:"listener_id"`
+3576: 	RouteID            sql.NullInt64 `json:"route_id"`
+3577: 	RouteTargetID      sql.NullInt64 `json:"route_target_id"`
+3578: 	WafRuleID          sql.NullInt64 `json:"waf_rule_id"`
+3579: 	WafAction          string        `json:"waf_action"`
+3580: 	AgentID            sql.NullInt64 `json:"agent_id"`
+3581: 	RequestBytes       int64         `json:"request_bytes"`
+3582: 	ResponseBytes      int64         `json:"response_bytes"`
+3583: 	CacheRuleID        sql.NullInt64 `json:"cache_rule_id"`
+3584: 	CacheStatus        string        `json:"cache_status"`
+3585: 	CacheBytes         int64         `json:"cache_bytes"`
+3586: 	RetryRuleID        sql.NullInt64 `json:"retry_rule_id"`
+3587: 	RetryCount         int64         `json:"retry_count"`
+3588: 	RetryOutcome       string        `json:"retry_outcome"`
+3589: 	RetryErrorKind     string        `json:"retry_error_kind"`
+3590: 	RetryFailedAgentID sql.NullInt64 `json:"retry_failed_agent_id"`
+3591: }
+3592: 
+
+### /home/user/.codex/worktrees/astra-proxy-performance/p2pstream/internal/db/open.go:1
+1: package db
+2: 
+3: import (
+4: 	"context"
+5: 	"database/sql"
+6: 	"fmt"
+7: 
+8: 	_ "github.com/mattn/go-sqlite3" // sqlite driver
+9: 	"github.com/rs/zerolog/log"
+10: )
+11: 
+12: type DB struct {
+13: 	*sql.DB
+14: 	*Queries
+15: }
+16: 
+17: // Open initializes the SQLite database connection with high performance pragmas and runs schema migrations.
+18: func Open(databaseURL string) (*DB, error) {
+19: 	log.Info().Str("url", databaseURL).Msg("Connecting to SQLite database")
+20: 
+21: 	dsn, err := normalizeSQLiteDSN(databaseURL)
+22: 	if err != nil {
+23: 		return nil, err
+24: 	}
+25: 	if err := ensureSQLiteDir(dsn); err != nil {
+26: 		return nil, err
+27: 	}
+28: 
+29: 	db, err := sql.Open("sqlite3", dsn)
+30: 	if err != nil {
+31: 		return nil, fmt.Errorf("failed to open database: %w", err)
+32: 	}
+33: 	db.SetMaxOpenConns(8)
+34: 	db.SetMaxIdleConns(8)
+35: 	db.SetConnMaxLifetime(0)
+

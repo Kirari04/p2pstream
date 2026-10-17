@@ -1,0 +1,112 @@
+[
+  {
+    "label": "baseline-correctness",
+    "argv": [
+      "taskset",
+      "-c",
+      "0-7",
+      "env",
+      "GOMAXPROCS=4",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/baseline.test",
+      "-test.run",
+      "^(TestRecorderNullableIDPersistenceSingleAndBatch|TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert|TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches|TestPreparedProxyRequestEventBatchCancellationRollsBack|TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups|TestObservabilityRecorderCoalescesPublicCacheTouches|TestObservabilityRecorderCoalescesCacheTouchesPerGeneration|TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails|TestCloseObservabilityRecorderFlushesQueuedEvents|TestCloseObservabilityRecorderCancelsActiveFlushAndDrains|TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext)$",
+      "-test.v",
+      "-test.timeout=120s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/sources/baseline",
+    "started_at": "2026-10-17T10:33:46.488012+00:00",
+    "exit_status": 0,
+    "finished_at": "2026-10-17T10:33:47.645054+00:00"
+  },
+  {
+    "label": "candidate-build",
+    "argv": [
+      "taskset",
+      "-c",
+      "0-7",
+      "env",
+      "PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/usr/local/go/bin:/usr/bin:/bin",
+      "GOTOOLCHAIN=local",
+      "GOMAXPROCS=4",
+      "CGO_ENABLED=1",
+      "GOWORK=off",
+      "GOFLAGS=",
+      "TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/go-tmp",
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-c",
+      "-o",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/candidate.test",
+      "./internal/server"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/sources/candidate",
+    "started_at": "2026-10-17T10:33:47.645372+00:00",
+    "exit_status": 0,
+    "finished_at": "2026-10-17T10:34:01.248629+00:00"
+  },
+  {
+    "label": "candidate-correctness",
+    "argv": [
+      "taskset",
+      "-c",
+      "0-7",
+      "env",
+      "GOMAXPROCS=4",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/candidate.test",
+      "-test.run",
+      "^(TestRecorderNullableIDPersistenceSingleAndBatch|TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert|TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches|TestPreparedProxyRequestEventBatchCancellationRollsBack|TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups|TestObservabilityRecorderCoalescesPublicCacheTouches|TestObservabilityRecorderCoalescesCacheTouchesPerGeneration|TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails|TestCloseObservabilityRecorderFlushesQueuedEvents|TestCloseObservabilityRecorderCancelsActiveFlushAndDrains|TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext)$",
+      "-test.v",
+      "-test.timeout=120s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/sources/candidate",
+    "started_at": "2026-10-17T10:34:01.249016+00:00",
+    "exit_status": 0,
+    "finished_at": "2026-10-17T10:34:02.232323+00:00"
+  },
+  {
+    "label": "candidate-race-build",
+    "argv": [
+      "taskset",
+      "-c",
+      "0-7",
+      "env",
+      "PATH=/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin:/usr/local/go/bin:/usr/bin:/bin",
+      "GOTOOLCHAIN=local",
+      "GOMAXPROCS=4",
+      "CGO_ENABLED=1",
+      "GOWORK=off",
+      "GOFLAGS=",
+      "TMPDIR=/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/go-tmp",
+      "/home/user/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.6.linux-amd64/bin/go",
+      "test",
+      "-race",
+      "-c",
+      "-o",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/candidate-race.test",
+      "./internal/server"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/sources/candidate",
+    "started_at": "2026-10-17T10:34:02.232663+00:00",
+    "exit_status": 0,
+    "finished_at": "2026-10-17T10:34:25.421717+00:00"
+  },
+  {
+    "label": "candidate-correctness-race",
+    "argv": [
+      "taskset",
+      "-c",
+      "0-7",
+      "env",
+      "GOMAXPROCS=4",
+      "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/bin/candidate-race.test",
+      "-test.run",
+      "^(TestRecorderNullableIDPersistenceSingleAndBatch|TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert|TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches|TestPreparedProxyRequestEventBatchCancellationRollsBack|TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups|TestObservabilityRecorderCoalescesPublicCacheTouches|TestObservabilityRecorderCoalescesCacheTouchesPerGeneration|TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails|TestCloseObservabilityRecorderFlushesQueuedEvents|TestCloseObservabilityRecorderCancelsActiveFlushAndDrains|TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext)$",
+      "-test.v",
+      "-test.timeout=120s"
+    ],
+    "cwd": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/sources/candidate",
+    "started_at": "2026-10-17T10:34:25.422166+00:00",
+    "exit_status": 0,
+    "finished_at": "2026-10-17T10:34:29.163833+00:00"
+  }
+]

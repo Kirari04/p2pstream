@@ -1,0 +1,365 @@
+//go:build linux && p2pstream_qualification
+
+package agent
+
+import (
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"errors"
+	"io"
+	"net"
+	"os"
+	"sync"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/hashicorp/yamux"
+)
+
+// The barriers below reuse the existing per-owner TCP capture provider seam.
+// They are synthetic scheduling, not kernel stalls. Every socket Write and
+// TCP_INFO capture is real; no error or stack result is injected.
+type terminalTransportFixture struct {
+	owner        *qualificationRawWriteOwner
+	raw          net.Conn
+	client, peer *tls.Conn
+	workers      []<-chan struct{}
+	release      chan struct{}
+	releaseOnce  sync.Once
+	session      *yamux.Session
+}
+
+func terminalWait(t *testing.T, ch <-chan struct{}, what string) {
+	t.Helper()
+	select {
+	case <-ch:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("%s did not join within five seconds", what)
+	}
+}
+func (f *terminalTransportFixture) launch(fn func()) <-chan struct{} {
+	done := make(chan struct{})
+	f.workers = append(f.workers, done)
+	go func() { defer close(done); fn() }()
+	return done
+}
+func terminalTLSFixture(t *testing.T) *terminalTransportFixture {
+	t.Helper()
+	certPEM, err := os.ReadFile("../../third_party/yamux/testdata/cert.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, err := tls.LoadX509KeyPair("../../third_party/yamux/testdata/cert.pem", "../../third_party/yamux/testdata/key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(certPEM) {
+		t.Fatal("test roots invalid")
+	}
+	client, peer := qualificationRawWriteTestTCPPair(t)
+	for _, c := range []*net.TCPConn{client, peer} {
+		if err := c.SetDeadline(time.Now().Add(10 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	owner := &qualificationRawWriteOwner{lane: 1, generation: 1}
+	binding := &qualificationRawWriteBinding{lane: 1, owner: owner}
+	raw, err := binding.bindRaw(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This public repository certificate expired in 2025. Trust/name/signature
+	// verification uses a time inside its validity; socket timeouts use real time.
+	f := &terminalTransportFixture{owner: owner, raw: raw, release: make(chan struct{})}
+	f.client = tls.Client(raw, &tls.Config{RootCAs: roots, ServerName: "example.com", MinVersion: tls.VersionTLS13, Time: func() time.Time { return leaf.NotBefore.Add(time.Hour) }})
+	f.peer = tls.Server(peer, &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13})
+	t.Cleanup(func() {
+		f.releaseOnce.Do(func() { close(f.release) })
+		// Failure-only resource release; successful classified paths already closed
+		// the socket through the observed owner and joined before this cleanup.
+		_ = client.Close()
+		_ = peer.Close()
+		if f.session != nil {
+			_ = f.session.Close()
+		}
+		for _, done := range f.workers {
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Error("fixture worker leaked")
+			}
+		}
+	})
+	return f
+}
+func (f *terminalTransportFixture) handshake(t *testing.T) {
+	t.Helper()
+	result := make(chan error, 1)
+	done := f.launch(func() { result <- f.peer.Handshake() })
+	if err := f.client.Handshake(); err != nil {
+		t.Fatal(err)
+	}
+	terminalWait(t, done, "peer handshake")
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
+	state := f.client.ConnectionState()
+	if !state.HandshakeComplete || len(state.VerifiedChains) == 0 {
+		t.Fatal("TLS did not verify")
+	}
+}
+func terminalGoAwayHeader() []byte { return []byte{0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} }
+func (f *terminalTransportFixture) localIntent() {
+	f.owner.mu.Lock()
+	defer f.owner.mu.Unlock()
+	f.owner.terminal.Stop = f.owner.terminal.next()
+	f.owner.terminal.StopGeneration = f.owner.generation
+}
+func (f *terminalTransportFixture) waitPhysicalClose(t *testing.T) {
+	t.Helper()
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	tick := time.NewTicker(time.Millisecond)
+	defer tick.Stop()
+	for {
+		f.owner.mu.Lock()
+		closed := f.owner.terminal.CloseEnd != 0
+		f.owner.mu.Unlock()
+		if closed {
+			return
+		}
+		select {
+		case <-timer.C:
+			t.Fatal("physical close did not finish")
+		case <-tick.C:
+		}
+	}
+}
+func (f *terminalTransportFixture) snapshot() terminalState {
+	f.owner.mu.Lock()
+	defer f.owner.mu.Unlock()
+	s := f.owner.terminal
+	s.Records = append([]terminalRaw(nil), s.Records...)
+	return s
+}
+func TestQualificationTerminalRealTCPTLSYamux(t *testing.T) {
+	for _, before := range []bool{true, false} {
+		name := "completed_control_before_capture"
+		if before {
+			name = "local_close_interrupts_control"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := terminalTLSFixture(t)
+			f.handshake(t)
+			entered := make(chan struct{})
+			var calls int
+			f.owner.mu.Lock()
+			if !f.owner.tcp.thresholdHistory.monitoring || f.owner.tcp.thresholdHistory.inconclusive {
+				f.owner.mu.Unlock()
+				t.Fatal("real initial TCP threshold history not monitorable")
+			}
+			f.owner.bodyBound = true
+			f.owner.tcp.thresholdHistory.capture = func(raw syscall.RawConn) (qualificationTCPInfoSnapshot, error) {
+				calls++
+				if before && calls == 1 {
+					snapshot, err := qualificationCaptureTCPInfo(raw)
+					close(entered)
+					<-f.release
+					return snapshot, err
+				}
+				if !before && calls == 2 {
+					close(entered)
+					<-f.release
+				}
+				return qualificationCaptureTCPInfo(raw)
+			}
+			f.owner.mu.Unlock()
+			config := yamux.DefaultConfig()
+			config.EnableKeepAlive = false
+			config.LogOutput = io.Discard
+			config.ConnectionWriteTimeout = 5 * time.Second
+			config.MaxStreamWindowSize = 512 * 1024
+			config.MaxIncomingStreams = 1
+			config.InitialSessionWindowSize = 2 * 1024 * 1024
+			config.MaxSessionWindowSize = 1024 * 1024 * 1024
+			config.MaxDataFrameSize = yamux.AggregateMaxDataFrameSize
+			config.InitialStreamAllocationWindowSize = 512 * 1024
+			config.MaxStreamAllocationWindowSize = 256 * 1024 * 1024
+			var err error
+			f.session, err = yamux.Client(&qualificationObservedTunnelBody{ReadWriteCloser: f.client, owner: f.owner}, config)
+			if err != nil {
+				t.Fatal(err)
+			}
+			peerResult := make(chan error, 1)
+			var peerDone <-chan struct{}
+			if !before {
+				peerDone = f.launch(func() {
+					p := make([]byte, 12)
+					_, err := io.ReadFull(f.peer, p)
+					if err == nil && !bytes.Equal(p, terminalGoAwayHeader()) {
+						err = errors.New("peer plaintext is not exact normal GoAway")
+					}
+					peerResult <- err
+				})
+			}
+			sendDone := f.launch(func() { _ = f.session.GoAway() })
+			terminalWait(t, entered, "existing TCP capture scheduling seam")
+			if peerDone != nil {
+				terminalWait(t, peerDone, "exact peer control read")
+				if err := <-peerResult; err != nil {
+					t.Fatal(err)
+				}
+			}
+			f.localIntent() // One real owner here; separate source contracts cover all-five intent.
+			closed := f.launch(func() { _ = f.session.Close() })
+			f.waitPhysicalClose(t)
+			f.releaseOnce.Do(func() { close(f.release) })
+			terminalWait(t, closed, "Yamux Close")
+			terminalWait(t, sendDone, "GoAway caller")
+			if err := qualificationRetireRawWriteSession(f.session); err != nil {
+				t.Fatal(err)
+			}
+			for _, done := range f.workers {
+				terminalWait(t, done, "fixture worker")
+			}
+			s := f.snapshot()
+			encoded, _ := json.Marshal(s)
+			t.Logf("terminal=%s", encoded)
+			if s.Problems != 0 || s.ActivePlain || s.ActiveRaw || len(s.Records) != 1 || !s.TCPBound || s.PhysicalCloseCalls != 1 || s.PhysicalCloseError || s.UnderlyingEscaped {
+				t.Fatalf("terminal ownership rejected: %+v", s)
+			}
+			v := s.Records[0]
+			if !terminalApplicationStack(v.Stack) || !v.Plain.Control || len(v.Plain.Headers) != 1 || v.Plain.Headers[0] != (terminalHeader{Type: 3}) {
+				t.Fatalf("exact application ancestry/frame absent: %+v", v)
+			}
+			if !(v.Plain.Begin < v.Begin && v.Begin < s.Stop && s.Stop < s.CloseBegin && s.CloseBegin < s.CloseEnd && s.CloseEnd < s.Joined && v.Return < v.After && v.After < v.Plain.End && v.Plain.End < s.Joined) {
+				t.Fatal("observed ordering differs")
+			}
+			if before {
+				if !v.Error || !v.NetClosed || v.Written != 0 || v.Attempt <= 0 || v.Short || s.RawErrors != 1 || s.CloseBegin >= v.Return {
+					t.Fatalf("actual local cancellation missing: %+v", v)
+				}
+			} else {
+				if v.Error || v.NetClosed || v.Short || v.Written != v.Attempt || v.Written <= 0 || v.Return >= s.Stop || s.RawErrors != 0 {
+					t.Fatalf("actual completed write misclassified: %+v", v)
+				}
+			}
+			f.owner.mu.Lock()
+			oldErrors := f.owner.interval.classes[qualificationRawWriteOutside].errorCalls
+			f.owner.mu.Unlock()
+			if oldErrors != s.RawErrors {
+				t.Fatal("original raw error total changed")
+			}
+		})
+	}
+}
+
+func TestQualificationTerminalRealTLSProtocolProvenance(t *testing.T) {
+	for _, handshake := range []bool{true, false} {
+		name := "close_notify"
+		if handshake {
+			name = "handshake"
+		}
+		t.Run(name, func(t *testing.T) {
+			f := terminalTLSFixture(t)
+			if !handshake {
+				f.handshake(t)
+			}
+			// Deliberately present a simultaneous unrelated above-TLS token. Real TLS
+			// protocol writes must not inherit its Yamux label in retained finalization.
+			f.owner.mu.Lock()
+			headers, _ := terminalParseControls(terminalGoAwayHeader())
+			s := &f.owner.terminal
+			s.ActivePlain = true
+			s.plain = terminalPlain{Begin: s.next(), Attempt: 12, Control: true, Headers: headers}
+			f.owner.mu.Unlock()
+			f.localIntent()
+			if handshake {
+				f.handshake(t)
+			} else {
+				peerResult := make(chan error, 1)
+				done := f.launch(func() { var p [1]byte; _, err := f.peer.Read(p[:]); peerResult <- err })
+				if err := f.client.CloseWrite(); err != nil {
+					t.Fatal(err)
+				}
+				terminalWait(t, done, "peer close_notify")
+				if err := <-peerResult; !errors.Is(err, io.EOF) {
+					t.Fatalf("peer did not receive close_notify: %v", err)
+				}
+			}
+			s2 := f.snapshot()
+			if len(s2.Records) == 0 {
+				t.Fatal("actual TLS protocol raw calls not retained")
+			}
+			for _, v := range s2.Records {
+				if v.Error || v.Short || v.Written != v.Attempt || !v.Stack.Complete || terminalApplicationStack(v.Stack) || v.Plain.Begin != 0 || v.Plain.Control || len(v.Plain.Headers) != 0 {
+					t.Fatalf("protocol write retained an application identity: %+v", v)
+				}
+				expected := "crypto/tls.(*Conn).closeNotify"
+				if handshake {
+					expected = "crypto/tls.(*Conn).handshakeContext"
+				}
+				found := false
+				for _, name := range v.Stack.Functions {
+					if name == expected {
+						found = true
+					}
+				}
+				if !found || v.Stack.GoVersion != terminalPinnedGo {
+					t.Fatalf("actual expected protocol ancestry absent: %+v", v.Stack)
+				}
+				encoded, _ := json.Marshal(v)
+				t.Logf("protocol=%s", encoded)
+			}
+			f.owner.mu.Lock()
+			s.ActivePlain = false
+			s.plain = terminalPlain{}
+			f.owner.mu.Unlock()
+			_ = f.raw.Close()
+			for _, done := range f.workers {
+				terminalWait(t, done, "protocol fixture worker")
+			}
+		})
+	}
+}
+
+func TestQualificationTerminalPhysicalOwnership(t *testing.T) {
+	t.Run("non_tcp_bind", func(t *testing.T) {
+		binding := &qualificationRawWriteBinding{owner: &qualificationRawWriteOwner{}}
+		if _, err := binding.bindRaw(&qualificationRawWriteTestConn{}); err == nil {
+			t.Fatal("non-TCP fake bound")
+		}
+	})
+	t.Run("underlying_escape", func(t *testing.T) {
+		f := terminalTLSFixture(t)
+		raw := f.raw.(*qualificationObservedSyscallRawConn)
+		if raw.QualificationUnderlyingConn() == nil {
+			t.Fatal("getter lost underlying")
+		}
+		if !f.snapshot().UnderlyingEscaped || f.snapshot().Problems&terminalOwnerChanged == 0 {
+			t.Fatal("escape not rejecting")
+		}
+		_ = f.raw.Close()
+	})
+	t.Run("duplicate_actual_close", func(t *testing.T) {
+		f := terminalTLSFixture(t)
+		if err := f.raw.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := f.raw.Close(); !errors.Is(err, net.ErrClosed) {
+			t.Fatalf("duplicate physical close: %v", err)
+		}
+		s := f.snapshot()
+		if s.PhysicalCloseCalls != 2 || !s.PhysicalCloseError || s.Problems&terminalOwnerChanged == 0 {
+			t.Fatal("duplicate close not rejecting")
+		}
+	})
+}

@@ -1,0 +1,27 @@
+=== RUN   TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups
+--- PASS: TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups (0.06s)
+=== RUN   TestObservabilityRecorderCoalescesPublicCacheTouches
+--- PASS: TestObservabilityRecorderCoalescesPublicCacheTouches (0.05s)
+=== RUN   TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails
+--- PASS: TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails (0.66s)
+=== RUN   TestObservabilityRecorderCoalescesCacheTouchesPerGeneration
+--- PASS: TestObservabilityRecorderCoalescesCacheTouchesPerGeneration (0.00s)
+=== RUN   TestCloseObservabilityRecorderFlushesQueuedEvents
+--- PASS: TestCloseObservabilityRecorderFlushesQueuedEvents (0.05s)
+=== RUN   TestCloseObservabilityRecorderCancelsActiveFlushAndDrains
+--- PASS: TestCloseObservabilityRecorderCancelsActiveFlushAndDrains (0.05s)
+=== RUN   TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext
+--- PASS: TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext (0.05s)
+=== RUN   TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches
+--- PASS: TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches (0.05s)
+=== RUN   TestPreparedProxyRequestEventBatchCancellationRollsBack
+--- PASS: TestPreparedProxyRequestEventBatchCancellationRollsBack (0.05s)
+=== RUN   TestRecorderNullableIDPersistenceSingleAndBatch
+=== RUN   TestRecorderNullableIDPersistenceSingleAndBatch/batch-false
+=== RUN   TestRecorderNullableIDPersistenceSingleAndBatch/batch-true
+--- PASS: TestRecorderNullableIDPersistenceSingleAndBatch (0.07s)
+    --- PASS: TestRecorderNullableIDPersistenceSingleAndBatch/batch-false (0.03s)
+    --- PASS: TestRecorderNullableIDPersistenceSingleAndBatch/batch-true (0.04s)
+=== RUN   TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert
+--- PASS: TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert (0.04s)
+PASS

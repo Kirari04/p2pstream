@@ -1,0 +1,119 @@
+{
+  "status": "source-only postprocessor prepared for root review; not executed",
+  "screen_directory": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1",
+  "postprocessor_sha256": "057e8f5509cc5c7d11d9ebca6404fdf85d24e9990427fbbe631a9522a3015733",
+  "inputs": {
+    "frozen-inputs.json": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/frozen-inputs.json",
+      "sha256": "85350f068f96011c53ceaa03c3cb315071b70a347c9f42ef9618f6bfcee0dbad"
+    },
+    "frozen-source-manifest.json": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/frozen-source-manifest.json",
+      "sha256": "fcb05c0d31dc1289eeb212e89a750bdc5489bcd1a001e32d4a9e57020bcb58a9"
+    },
+    "measurement-commands.json": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/measurement-commands.json",
+      "sha256": "5b0eb16539d3c404913fef2ece5c0a23810d7ef626187784b87075b468c5e8c9"
+    },
+    "measurement-ledger.jsonl": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/measurement-ledger.jsonl",
+      "sha256": "952666c2d21c5c47fc8118685c633c9b2f6dda329aa58908ee2e8b5bc74678b7"
+    },
+    "postrun-input-audit.json": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/postrun-input-audit.json",
+      "sha256": "56b4cdc3415a4a4a26fedc4f063e6166d134b31af6934521274b8acee45dc962"
+    },
+    "logs/measurement-runner.log": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/measurement-runner.log",
+      "sha256": "a404db175c26076848fe02bdf0e01410d1c49bec726ebac4c1099a7f5cd3ab15"
+    }
+  },
+  "raw_logs": {
+    "pair-01-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-01-baseline.log",
+      "sha256": "862587ceb25933d028f7030c40cd2468564aab619f722fb14b69b44d9f7b00af"
+    },
+    "pair-01-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-01-candidate.log",
+      "sha256": "83249199e35e28c8c1886ffadf91dd2c73a95921b32ab89e1122993f1e2cb6af"
+    },
+    "pair-02-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-02-candidate.log",
+      "sha256": "e2069c186548eb4561b05111f61b63f1c8571fe9175e05ab2fc744d33e7278ee"
+    },
+    "pair-02-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-02-baseline.log",
+      "sha256": "74374e17f062294c1e263b69962b8b9419ef96b7dce787a2b8b3c755c097e985"
+    },
+    "pair-03-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-03-baseline.log",
+      "sha256": "520fb0bc73926b18125e6f5c4437310558a854e32e0db9c0be654fa1fdf72a45"
+    },
+    "pair-03-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-03-candidate.log",
+      "sha256": "f936200a094707379d122a4e75d19d8746544aa14c98fc9cea3d85dd5b66fd82"
+    },
+    "pair-04-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-04-candidate.log",
+      "sha256": "a143bf6fba7c82c8fe78457a1cd8ff33762ebe1c47010f4439fc23d99f38e1b6"
+    },
+    "pair-04-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-04-baseline.log",
+      "sha256": "00c235ffba2dd802908e54a0f401711ce066e9c896d91f67994982109973c304"
+    },
+    "pair-05-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-05-baseline.log",
+      "sha256": "fe3eb6175b627fecb7f8557ec1576e23780bf3b489fb9444d2dd38fea9308eeb"
+    },
+    "pair-05-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-05-candidate.log",
+      "sha256": "97f8fccc880499fea97fa93d899d685c5b3a3e27390ea04177786446893f0708"
+    },
+    "pair-06-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-06-candidate.log",
+      "sha256": "cfc515238f76f6d4ef3606883403169b6da7dbe93c3dd20af3d2579868f1787f"
+    },
+    "pair-06-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-06-baseline.log",
+      "sha256": "a027168368f9c0c272ad098007c0bd3adf9f62c7865a8fea699c937dfefbdb1a"
+    },
+    "pair-07-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-07-baseline.log",
+      "sha256": "d8fe719ba2283795d1ae95c6505f78d7e5be6655903bcd1e5575ec0f29187cbe"
+    },
+    "pair-07-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-07-candidate.log",
+      "sha256": "612df0c637058a825001925bc6b9847501df563444dda906f2589c6c142a8eff"
+    },
+    "pair-08-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-08-candidate.log",
+      "sha256": "cb949991df99ad69c17cad667c30e7a6d0916267cd77297f97a6a40b56c83cb9"
+    },
+    "pair-08-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-08-baseline.log",
+      "sha256": "3e53a0202ac468be4d174d324338682691b96e61ae3a56a6d284381f7f4a9be8"
+    },
+    "pair-09-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-09-baseline.log",
+      "sha256": "1be6c4d249d8ddb32385c4900d6d5abaca879da71cbf0a9d17af342598d59ba7"
+    },
+    "pair-09-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-09-candidate.log",
+      "sha256": "32f3093f12de3d584f507b89aa4b3ad0341034126b943e80e97c3edd11c448ba"
+    },
+    "pair-10-candidate": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-10-candidate.log",
+      "sha256": "b7e2b3811220705760b5cff7046a1d2a9eb684fbcec6990057cc3d73b695323c"
+    },
+    "pair-10-baseline": {
+      "path": "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/logs/pair-10-baseline.log",
+      "sha256": "46eb5676ed4b254ced1350808e629d6e57b158acf1089e64c3929baa4a3e8088"
+    }
+  },
+  "known_case_count": 10,
+  "raw_log_count": 20,
+  "required_sample_count": 200,
+  "metric_record_per_case_per_log": 1,
+  "events_per_operation": 512,
+  "new_samples_or_reruns": false
+}

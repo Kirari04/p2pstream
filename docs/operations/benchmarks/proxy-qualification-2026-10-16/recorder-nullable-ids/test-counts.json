@@ -1,0 +1,752 @@
+{
+  "normal-root-suite": {
+    "counts": {
+      "top_level": {
+        "pass": 1244,
+        "skip": 16
+      },
+      "subtests": {
+        "pass": 795,
+        "skip": 1
+      },
+      "packages": {
+        "pass": 20,
+        "skip": 10
+      }
+    },
+    "failures": [],
+    "raw_sha256": "69a36af45541f3c8bb277f799fff741fa9f55d09e2978e6e982cd3bf8eb95343"
+  },
+  "focused-recorder-race": {
+    "counts": {
+      "top_level": {
+        "pass": 14
+      },
+      "subtests": {},
+      "packages": {
+        "pass": 1
+      }
+    },
+    "failures": [],
+    "raw_sha256": "9623288094063e5beb2ccdc4d008edecc625cff384bf374bc5c42c55341c85dd"
+  },
+  "invalid_first_normal": {
+    "counts": {
+      "top_level": {
+        "pass": 1244,
+        "skip": 16
+      },
+      "subtests": {
+        "pass": 795,
+        "skip": 1
+      },
+      "packages": {
+        "fail": 128,
+        "pass": 20,
+        "skip": 14
+      }
+    },
+    "failures": [
+      {
+        "Package": "p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-attempt-1/provenance",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/final-qualification/27c8e31f3826ab5326d941b20644c1f56159d99d/capacity-independent-attempt-1/provenance",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/proxy-capacity-checkpoint/1e52b45ee7a5.mvAKbQ/provenance",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/proxy-capacity-checkpoint/9807b8359b86.bi1WCm/provenance",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/proxy-capacity-checkpoint/a2af645c2799.j6rrBi/provenance",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/byte-credit-recycle/ordinary-proof-source/review/source-checkpoint-1",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/byte-credit-recycle/ordinary-proof-source/review/source-checkpoint-2",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/byte-credit-recycle/ordinary-proof-source/review/source-checkpoint-3",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/byte-credit-recycle/ordinary-proof-source/review/source-checkpoint-4",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/byte-credit-recycle/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy/review/raw-occupancy-source-checkpoint-1/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy/review/raw-occupancy-source-checkpoint-2/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy/review/raw-occupancy-source-checkpoint-3/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy/review/raw-occupancy-source-checkpoint-4/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy/review/raw-occupancy-source-checkpoint-5/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/review/source-checkpoint-1/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/review/source-checkpoint-2/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/review/source-checkpoint-3/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/review/source-checkpoint-4/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/review/source-checkpoint-5/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/work/source-checkpoint-1/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/work/source-checkpoint-2/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/work/source-checkpoint-3/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/work/source-checkpoint-4/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-connect-isolation/work/source-checkpoint-5/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-1",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-2",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-3",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-4",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-5",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-5/validation-overlay",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-6",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-6/validation-overlay",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-7",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/review/source-checkpoint-7/validation-overlay",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/raw-occupancy-ordinary-proof/validation-overlay",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/server-growth/overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/server-growth/review/source-checkpoint-1/overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/server-growth/review/source-checkpoint-2/overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-below-tls-raw-write-source/implementation-source/server-growth/review/source-checkpoint-3/overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/implementation-source/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-byte-credit-integration-source/rejected/source-checkpoint-1/implementation-source/overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/failures/focused-normal-attempt2",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/failures/focused-normal-attempt3",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/work/base/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-attribution-source/work/modified/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/reconstructed/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/reconstructed-approved-invariants/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-copy-monotonic-source/source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-protocol-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/capacity-go-source-checkpoint-1/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/capacity-go-source-checkpoint-2/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/capacity-integration-source-checkpoint-1/build-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/capacity-no-traffic-contracts-attempt-1/static/capacity-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/capacity-wip-before-approved-cleanup/build-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/memory-source-predicate-correction/checkpoint-1/focused-attempt-1/static/capacity-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-capacity-source/review/memory-source-predicate-correction/focused-attempt-1/static/capacity-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-source/review/observer-checkpoint-b964fd8f",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-read-wait-source/review/observer-pre-astra-corrections",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-1/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-1/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-10/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-10/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-10-external/preparation-failure-1/partial-checkpoint/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-10-external/preparation-failure-1/partial-checkpoint/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-11/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-11/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-2/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-2/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-3/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-3/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-4/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-4/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-5/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-5/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-6/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-6/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-7/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-7/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-8/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-8/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-9/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/review/implementation-source-checkpoint-9/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/source-overlay/internal/agent",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-integration-source/source-overlay/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/baseline-files-8ac4c8d/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/baseline-files-checkpoint-3/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/proposal-files-checkpoint-2/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/proposal-files-checkpoint-3/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/proposal-files-checkpoint-4/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/rejected-source-checkpoint-1/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-1/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-10/proof-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-10/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-2/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-3/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-4/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-5/proof-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-5/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-6/proof-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-6/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-7/proof-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-7/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-8/proof-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-8/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-9/proof-source",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/review/source-checkpoint-9/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/validation-attempt-1/candidate/source/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/validation-attempt-4/inputs",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/continuation-20261016/wan-sender-wait-source/validation-attempt-5/inputs",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/meantime-work/combined-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/meantime-work/combined-source-v2/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/meantime-work/combined-source-v3/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/native-go-attribution-source/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/native-go-patch-refresh.EzjY4cRA",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/native-go-sni-replay.fr5jDQL8/tree/internal/server",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/prepublisher-causal-build.Dh6cxH/meta",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/refund-deferred-global-source.X7x9jl/meta/portable.TtfIqR/common-repo/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/refund-deferred-global-source.X7x9jl/meta/portable.yYufig/common-repo/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/refund-queue-ack-source.FVfTzL/meta/canonical-common.wiuIHL/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/refund-queue-ack-source.FVfTzL/meta/canonical-toggle.jfXFlL/third_party/yamux",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/shaper-bypass-experiment",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/yamux-half-close-baseline-20261016",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/yamux-half-close-source-checkpoint-20261016",
+        "Test": null,
+        "Elapsed": 0
+      },
+      {
+        "Package": "p2pstream/tmp/yamux-half-close-validation-20261016",
+        "Test": null,
+        "Elapsed": 0
+      }
+    ],
+    "raw_sha256": "d3de724ce13403ac4d854415a9462ca267a7a23b8c71356cc7488d89a911d7c7"
+  },
+  "isolated_screen_correctness": {
+    "baseline-correctness": {
+      "top_level_pass": 11,
+      "subtest_pass": 2,
+      "top_level_names": [
+        "TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups",
+        "TestObservabilityRecorderCoalescesPublicCacheTouches",
+        "TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails",
+        "TestObservabilityRecorderCoalescesCacheTouchesPerGeneration",
+        "TestCloseObservabilityRecorderFlushesQueuedEvents",
+        "TestCloseObservabilityRecorderCancelsActiveFlushAndDrains",
+        "TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext",
+        "TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches",
+        "TestPreparedProxyRequestEventBatchCancellationRollsBack",
+        "TestRecorderNullableIDPersistenceSingleAndBatch",
+        "TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert"
+      ],
+      "exit_status": 0,
+      "raw_sha256": "2af195720415d858e447ae8debf46db170ccfc6076e02c8cc4710684337f0f42"
+    },
+    "candidate-correctness": {
+      "top_level_pass": 11,
+      "subtest_pass": 2,
+      "top_level_names": [
+        "TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups",
+        "TestObservabilityRecorderCoalescesPublicCacheTouches",
+        "TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails",
+        "TestObservabilityRecorderCoalescesCacheTouchesPerGeneration",
+        "TestCloseObservabilityRecorderFlushesQueuedEvents",
+        "TestCloseObservabilityRecorderCancelsActiveFlushAndDrains",
+        "TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext",
+        "TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches",
+        "TestPreparedProxyRequestEventBatchCancellationRollsBack",
+        "TestRecorderNullableIDPersistenceSingleAndBatch",
+        "TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert"
+      ],
+      "exit_status": 0,
+      "raw_sha256": "672d8e1cb75bcc4ee20f75fb00d7906b728a7fd7de499a2c424ed72d40b792f8"
+    },
+    "candidate-correctness-race": {
+      "top_level_pass": 11,
+      "subtest_pass": 2,
+      "top_level_names": [
+        "TestObservabilityRecorderFlushesQueuedEventsAsAggregatedRollups",
+        "TestObservabilityRecorderCoalescesPublicCacheTouches",
+        "TestObservabilityRecorderBoundsPendingEventsWhenDatabaseFails",
+        "TestObservabilityRecorderCoalescesCacheTouchesPerGeneration",
+        "TestCloseObservabilityRecorderFlushesQueuedEvents",
+        "TestCloseObservabilityRecorderCancelsActiveFlushAndDrains",
+        "TestObservabilityRecorderCanceledCloseCanRetryWithFreshContext",
+        "TestPreparedProxyRequestEventBatchPreservesAtomicRowsRollupsAndTouches",
+        "TestPreparedProxyRequestEventBatchCancellationRollsBack",
+        "TestRecorderNullableIDPersistenceSingleAndBatch",
+        "TestRecorderNullableIDEdgeValuesMatchGeneratedDatabaseInsert"
+      ],
+      "exit_status": 0,
+      "raw_sha256": "c0d259604adf8aa593e573dbe4e4cbf7a565e2d11561b561f13196ad65791c0d"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "head": "dc4c25df876c238204ecaa16630471a94dda264a",
+  "go_version": "go version go1.26.6 linux/amd64",
+  "runtime_source_sha256": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+  "permanent_test_sha256": "d8fa5fba12361152287710f7f3797174637e8660f90c95ffb09ccd739c0b8fc3",
+  "screen_candidate_runtime_sha256": "8a267bc1ee80ac408d089fbde27db37af756ed6585a221016d1d2d22d3b3bcd2",
+  "owned_temp": "/tmp/ri.01b1x43y",
+  "no_remeasurement": true
+}

@@ -1,0 +1,25 @@
+pair-01-baseline exit 0
+pair-01-candidate exit 0
+pair-02-candidate exit 0
+pair-02-baseline exit 0
+pair-03-baseline exit 0
+pair-03-candidate exit 0
+pair-04-candidate exit 0
+pair-04-baseline exit 0
+pair-05-baseline exit 0
+pair-05-candidate exit 0
+pair-06-candidate exit 0
+pair-06-baseline exit 0
+pair-07-baseline exit 0
+pair-07-candidate exit 0
+pair-08-candidate exit 0
+pair-08-baseline exit 0
+pair-09-baseline exit 0
+pair-09-candidate exit 0
+pair-10-candidate exit 0
+pair-10-baseline exit 0
+Traceback (most recent call last):
+  File "/home/user/.codex/worktrees/astra-proxy-performance/p2pstream/tmp/recorder-allocation-next-20261017/screen-attempt-1/measure-fixed.py", line 37, in <module>
+    assert seen==expected,(command['label'],sorted(expected-seen))
+           ^^^^^^^^^^^^^^
+AssertionError: ('pair-01-baseline', ['BenchmarkPreparedProxyRequestEventBatchFlush/background', 'BenchmarkPreparedProxyRequestEventBatchFlush/production_deadline'])
