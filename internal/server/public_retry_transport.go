@@ -57,28 +57,13 @@ func (b *retryReplayBudget) tryAcquire(size int64) (func(), bool) {
 }
 
 func (a *App) tryAcquireRetryReplayBudget(size int64) (func(), bool) {
-	if a == nil || a.retryReplayBudget == nil {
-		return nil, false
-	}
-	budgetRelease, ok := a.retryReplayBudget.tryAcquire(size)
+	workingBytes, ok := publicRetryRequestWorkingBytes(size)
 	if !ok {
 		return nil, false
 	}
-	// io.ReadAll's growing chunks and final exact copy can coexist briefly.
-	// Charge three bytes of the shared adaptive resource ledger for every
-	// buffered payload byte so the peak allocation cannot spend stream
-	// headroom that has already been granted elsewhere.
-	if size > math.MaxInt64/3 {
-		budgetRelease()
+	budgetRelease, resourceRelease, ok := a.tryAcquireRetryReplayReservation(size, workingBytes)
+	if !ok {
 		return nil, false
-	}
-	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveExternal(size*3, 0)
-	if constrained && !resourceOK {
-		budgetRelease()
-		return nil, false
-	}
-	if resourceRelease == nil {
-		resourceRelease = func() {}
 	}
 	var once sync.Once
 	return func() {
@@ -87,6 +72,69 @@ func (a *App) tryAcquireRetryReplayBudget(size int64) (func(), bool) {
 			budgetRelease()
 		})
 	}, true
+}
+
+// The payload quota and the adaptive working-memory owner have different sizes
+// and, for the response pump, different terminal lifetimes.
+func (a *App) tryAcquireRetryReplayReservation(payloadBytes, workingBytes int64) (func(), func(), bool) {
+	if a == nil || a.retryReplayBudget == nil || payloadBytes < 0 || workingBytes <= 0 {
+		return nil, nil, false
+	}
+	budgetRelease, ok := a.retryReplayBudget.tryAcquire(payloadBytes)
+	if !ok {
+		return nil, nil, false
+	}
+	resourceRelease, resourceOK, constrained := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReplayBuffer, workingBytes, 0)
+	if constrained && !resourceOK {
+		budgetRelease()
+		return nil, nil, false
+	}
+	if resourceRelease == nil {
+		resourceRelease = func() {}
+	}
+	return budgetRelease, resourceRelease, true
+}
+
+func publicRetryRequestWorkingBytes(readLimit int64) (int64, bool) {
+	if readLimit < 0 {
+		return 0, false
+	}
+	// Go 1.26.6 io.ReadAll starts with capacity 512 even for a one-byte
+	// LimitedReader. Its intermediate chunks and final copy can coexist.
+	workingBytes := max(int64(512), readLimit)
+	if workingBytes > math.MaxInt64/3 {
+		return 0, false
+	}
+	return workingBytes * 3, true
+}
+
+func publicRetryResponseWorkingBytes(prefixBytes int64) (int64, bool) {
+	const pumpWorkingBytes = int64(5 * publicRetryResponsePumpChunkBytes)
+	if prefixBytes < 0 || prefixBytes > math.MaxInt64-pumpWorkingBytes || uint64(prefixBytes) > uint64(^uint(0)>>1) {
+		return 0, false
+	}
+	// The prefix has an explicit capacity and never grows past it. The pump
+	// also owns a 32 KiB read scratch, queued/pending copied chunks and the
+	// consumer's chunk/current tail. Five chunks conservatively cover these
+	// simultaneous byte buffers, independent of the logical payload limit.
+	return prefixBytes + pumpWorkingBytes, true
+}
+
+func publicRetryResponseReservationCallbacks(budgetRelease, resourceRelease func()) (consumerDone, pumpDone func()) {
+	var remaining atomic.Int32
+	remaining.Store(2)
+	finish := func() {
+		if remaining.Add(-1) == 0 {
+			resourceRelease()
+		}
+	}
+	var consumerOnce, pumpOnce sync.Once
+	return func() {
+		consumerOnce.Do(func() {
+			budgetRelease()
+			finish()
+		})
+	}, func() { pumpOnce.Do(finish) }
 }
 
 type publicRetryAttemptResult struct {
@@ -269,21 +317,31 @@ type publicRetryResponsePump struct {
 	current    []byte
 	currentErr error
 	finished   bool
+	onExit     func()
 }
 
-func newPublicRetryResponsePump(source io.ReadCloser) *publicRetryResponsePump {
+func newPublicRetryResponsePump(source io.ReadCloser, onExit func()) *publicRetryResponsePump {
 	pump := &publicRetryResponsePump{
 		source: source,
 		chunks: make(chan publicRetryResponseChunk, 1),
 		done:   make(chan struct{}),
+		onExit: onExit,
 	}
 	go pump.run()
 	return pump
 }
 
 func (p *publicRetryResponsePump) run() {
+	if p.onExit != nil {
+		defer p.onExit()
+	}
 	emptyReads := 0
 	for {
+		select {
+		case <-p.done:
+			return
+		default:
+		}
 		buffer := make([]byte, publicRetryResponsePumpChunkBytes)
 		n, err := p.source.Read(buffer)
 		if n < 0 || n > len(buffer) {
@@ -443,17 +501,40 @@ func preparePublicRetryRequestBody(app *App, req *http.Request, rule *publicRetr
 		return source, nil
 	}
 	reservationBytes := rule.MaxReplayBodyBytes
+	var readLimit int64
 	if req.ContentLength > 0 {
 		reservationBytes = req.ContentLength
+		readLimit = req.ContentLength
+	} else {
+		if reservationBytes == math.MaxInt64 {
+			return source, nil
+		}
+		readLimit = reservationBytes + 1
 	}
-	release, ok := app.tryAcquireRetryReplayBudget(reservationBytes)
+	workingBytes, ok := publicRetryRequestWorkingBytes(readLimit)
 	if !ok {
 		return source, nil
 	}
+	budgetRelease, resourceRelease, ok := app.tryAcquireRetryReplayReservation(reservationBytes, workingBytes)
+	if !ok {
+		return source, nil
+	}
+	var releaseOnce sync.Once
+	release := func() {
+		releaseOnce.Do(func() {
+			resourceRelease()
+			budgetRelease()
+		})
+	}
 	source.release = release
-	limit := rule.MaxReplayBodyBytes + 1
-	prefix, err := io.ReadAll(io.LimitReader(req.Body, limit))
+	prefix, err := io.ReadAll(io.LimitReader(req.Body, readLimit))
+	if err == nil && req.ContentLength > 0 && int64(len(prefix)) != req.ContentLength {
+		err = io.ErrUnexpectedEOF
+	}
 	if err != nil {
+		// Preparation owns the original until a body is returned. Close it
+		// on a failed read as well, while preserving the primary read error.
+		_ = req.Body.Close()
 		release()
 		source.release = func() {}
 		return nil, err
@@ -463,8 +544,6 @@ func preparePublicRetryRequestBody(app *App, req *http.Request, rule *publicRetr
 			Reader: io.MultiReader(bytes.NewReader(prefix), req.Body),
 			closer: req.Body,
 		}
-		release()
-		source.release = func() {}
 		return source, nil
 	}
 	if err := req.Body.Close(); err != nil {
@@ -524,15 +603,20 @@ func preparePublicRetryResponseBody(app *App, req *http.Request, resp *http.Resp
 	if resp.ContentLength >= 0 {
 		reservationBytes = resp.ContentLength
 	}
-	release, ok := app.tryAcquireRetryReplayBudget(reservationBytes)
+	workingBytes, ok := publicRetryResponseWorkingBytes(reservationBytes)
 	if !ok {
 		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_buffer_budget_exhausted"}, nil
 	}
+	budgetRelease, resourceRelease, ok := app.tryAcquireRetryReplayReservation(reservationBytes, workingBytes)
+	if !ok {
+		return publicRetryPreparedResponseBody{body: resp.Body, skipReason: "response_buffer_budget_exhausted"}, nil
+	}
+	release, pumpExited := publicRetryResponseReservationCallbacks(budgetRelease, resourceRelease)
 	wait := rule.MaxBufferedResponseWait
 	if wait <= 0 {
 		wait = time.Duration(defaultPublicRetryResponseWaitMillis) * time.Millisecond
 	}
-	prefix, complete, tail, pump, skipReason, err := readPublicRetryResponseBodyBeforeDeadline(req.Context(), resp.Body, resp.ContentLength, limit, wait)
+	prefix, complete, tail, pump, skipReason, err := readPublicRetryResponseBodyBeforeDeadline(req.Context(), resp.Body, resp.ContentLength, limit, wait, pumpExited)
 	if err != nil {
 		release()
 		return publicRetryPreparedResponseBody{}, err
@@ -563,8 +647,12 @@ func readPublicRetryResponseBodyBeforeDeadline(
 	contentLength int64,
 	limit int64,
 	wait time.Duration,
+	onPumpExit func(),
 ) (prefix []byte, complete bool, tail io.Reader, pump *publicRetryResponsePump, skipReason string, err error) {
 	if body == nil || body == http.NoBody || limit <= 0 {
+		if onPumpExit != nil {
+			onPumpExit()
+		}
 		if body != nil {
 			_ = body.Close()
 		}
@@ -581,7 +669,7 @@ func readPublicRetryResponseBodyBeforeDeadline(
 		capacity = contentLength
 	}
 	prefix = make([]byte, 0, int(capacity))
-	pump = newPublicRetryResponsePump(body)
+	pump = newPublicRetryResponsePump(body, onPumpExit)
 	timer := time.NewTimer(wait)
 	defer timer.Stop()
 
@@ -770,13 +858,24 @@ func (rt *publicAgentAttemptRoundTripper) recordResponseBodyFailure(req *http.Re
 }
 
 func (rt *publicAgentAttemptRoundTripper) observeStreamingResponseBody(req *http.Request, resp *http.Response, agent *AgentConn, attempt int64, skipReason string) {
-	if rt == nil || rt.rule == nil || resp == nil || resp.Body == nil || resp.Body == http.NoBody {
+	if rt == nil || resp == nil || resp.Body == nil || resp.Body == http.NoBody {
+		return
+	}
+	if rt.rule == nil && resp.StatusCode == http.StatusSwitchingProtocols {
+		// Upgrades retain their original writable body; observing upgraded
+		// connections is separate from ordinary HTTP response-body failures.
 		return
 	}
 	resp.Body = &publicRetryObservedResponseBody{
 		ReadCloser: resp.Body,
 		onError: func(err error) {
 			if req != nil && requestContextCanceled(req.Context(), err) {
+				return
+			}
+			if rt.rule == nil {
+				// Ordinary streams have no replay policy or passive body-failure
+				// accounting. Classify only their terminal request event.
+				rt.result.TerminalErrorKind = publicRetryResponseBodyErrorKind(err)
 				return
 			}
 			rt.recordResponseBodyFailure(req, agent, attempt, err, publicRetryOutcomeSkipped, skipReason)

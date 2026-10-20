@@ -13,12 +13,10 @@ import (
 
 func newServerAdaptiveMemoryController(cfg *config.Config) *sysmetrics.AdaptiveMemoryController {
 	adaptive := sysmetrics.DefaultAdaptiveMemoryConfig()
+	adaptive.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleServerStream
+	adaptive.FileDescriptorsPerAdmission = 0
+	estimatedBytes := int64(0)
 	if cfg != nil {
-		charge, err := tunnel.StreamMemoryCharge(cfg.TunnelMaxStreamWindowBytes, 0)
-		if err != nil {
-			return nil
-		}
-		adaptive.EstimatedBytesPerAdmission = charge
 		if cfg.ServerTunnelMemorySoftPercent > 0 {
 			adaptive.SoftLimitPercent = cfg.ServerTunnelMemorySoftPercent
 		}
@@ -31,10 +29,13 @@ func newServerAdaptiveMemoryController(cfg *config.Config) *sysmetrics.AdaptiveM
 		if cfg.ServerTunnelMemorySampleMillis > 0 {
 			adaptive.SampleInterval = time.Duration(cfg.ServerTunnelMemorySampleMillis) * time.Millisecond
 		}
-		if cfg.ServerTunnelEstimatedStreamBytes > adaptive.EstimatedBytesPerAdmission {
-			adaptive.EstimatedBytesPerAdmission = cfg.ServerTunnelEstimatedStreamBytes
-		}
+		estimatedBytes = cfg.ServerTunnelEstimatedStreamBytes
 	}
+	model := tunnel.ServerStreamBaseResourceModel()
+	// The explicit estimate retains its historical full-stream meaning. Using
+	// it as a larger base while receive ownership is also charged separately is
+	// intentionally conservative for existing operator safety overrides.
+	adaptive.EstimatedBytesPerAdmission = max(estimatedBytes, model.MemoryBytes)
 	controller, err := sysmetrics.NewAdaptiveMemoryController(adaptive, nil)
 	if err != nil {
 		return nil

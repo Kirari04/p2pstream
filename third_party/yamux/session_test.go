@@ -409,6 +409,12 @@ func TestOpenStreamTimeout(t *testing.T) {
 
 		client, _ := testClientServerConfig(t, clientConn, serverConn, clientConf, serverConf)
 
+		// Complete lazy TLS setup before measuring the missing stream ACK.
+		// A transport handshake is not part of this 25 ms stream-open oracle.
+		if _, err := client.Ping(); err != nil {
+			t.Fatal(err)
+		}
+
 		// Open a single stream without a server to acknowledge it.
 		s, err := client.OpenStream()
 		if err != nil {
@@ -966,15 +972,18 @@ func TestHalfCloseSessionShutdown(t *testing.T) {
 	}
 
 	buf := make([]byte, dataSize)
-	n, err := stream2.Read(buf)
+	n, err := io.ReadFull(stream2, buf)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if int64(n) != dataSize {
-		t.Fatalf("bad: %v", n)
+	if n != len(data) {
+		t.Fatalf("read bytes: got %d, want %d", n, len(data))
+	}
+	if !bytes.Equal(buf, data) {
+		t.Fatal("read payload differs from written payload")
 	}
 
-	// EOF after close
+	// EOF after all accepted payload has drained.
 	n, err = stream2.Read(buf)
 	if err != io.EOF {
 		t.Fatalf("err: %v", err)
@@ -1491,6 +1500,19 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 		client, server := testClientServerConfig(t, clientConn, serverConn, conf, conf.Clone())
 
 		errCh := make(chan error, 1)
+		allowWriterClose := make(chan struct{})
+		writerCloseErr := make(chan error, 1)
+		writerDone := make(chan struct{})
+		var releaseWriterOnce sync.Once
+		releaseWriter := func() { releaseWriterOnce.Do(func() { close(allowWriterClose) }) }
+		t.Cleanup(func() {
+			releaseWriter()
+			select {
+			case <-writerDone:
+			case <-time.After(time.Second):
+				t.Error("writer did not stop")
+			}
+		})
 
 		// Choose a huge flood size that we know will result in a window update.
 		flood := int64(client.config.MaxStreamWindowSize)
@@ -1498,13 +1520,13 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 
 		// The server will accept a new stream and then flood data to it.
 		go func() {
+			defer close(writerDone)
 			var err error
 			wr, err = server.AcceptStream()
 			if err != nil {
 				errCh <- err
 				return
 			}
-			defer wr.Close()
 
 			window := atomic.LoadUint32(&wr.sendWindow)
 			if window != client.config.MaxStreamWindowSize {
@@ -1527,6 +1549,8 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 				return
 			}
 			errCh <- err
+			<-allowWriterClose
+			writerCloseErr <- wr.Close()
 		}()
 
 		stream, err := client.OpenStream()
@@ -1544,14 +1568,25 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		// Wait for window update to be applied by server. Should be "instant" but CI
-		// can be slow.
-		time.Sleep(2 * time.Second)
-
-		// Assert server received window update
-		window := atomic.LoadUint32(&wr.sendWindow)
-		if exp := uint32(partialReadSize); window != exp {
+		// Wait for the server to apply the update without imposing a fixed delay
+		// on every transport variant.
+		exp := uint32(partialReadSize)
+		deadline := time.Now().Add(time.Second)
+		for atomic.LoadUint32(&wr.sendWindow) != exp && time.Now().Before(deadline) {
+			runtime.Gosched()
+		}
+		if window := atomic.LoadUint32(&wr.sendWindow); window != exp {
 			t.Fatalf("sendWindow: exp=%d, got=%d", exp, window)
+		}
+
+		releaseWriter()
+		select {
+		case <-writerDone:
+		case <-time.After(time.Second):
+			t.Fatal("writer did not stop after release")
+		}
+		if err := <-writerCloseErr; err != nil {
+			t.Fatalf("close writer: %v", err)
 		}
 	})
 }

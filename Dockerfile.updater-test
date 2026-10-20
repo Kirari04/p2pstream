@@ -7,11 +7,13 @@ COPY third_party/yamux ./third_party/yamux
 RUN go mod download
 COPY . .
 RUN go test -c -tags server_update_docker -o /out/server-update-test ./internal/serverupdate
+RUN go build -trimpath -o /out/serverupdate-manifest ./cmd/serverupdate-manifest
 FROM docker:28.3.3-cli@sha256:0135662b510037ea581d99c2e5929c5e01185139c0b86986a418bd4da0b98a44 AS tools
 FROM ${REVIEW_RUNTIME}
 USER root
 COPY --from=tools /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=tools /usr/local/libexec/docker/cli-plugins/docker-compose /usr/local/lib/docker/cli-plugins/docker-compose
 COPY --from=tests /out/server-update-test /app/server-update-test
+COPY --from=tests /out/serverupdate-manifest /app/serverupdate-manifest
 ENTRYPOINT []
 CMD ["/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewLifecycle$"]

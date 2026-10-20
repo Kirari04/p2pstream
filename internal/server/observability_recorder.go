@@ -572,6 +572,9 @@ func (r *observabilityRecorder) flushBatch(
 		}
 		return err
 	}
+	// The transaction consumed these events. Release their string references
+	// before retaining the backing array for the next batch.
+	clear(*batch)
 	*batch = (*batch)[:0]
 	r.pendingEvents.Store(0)
 	for _, flushed := range touchBatch {

@@ -132,7 +132,7 @@ type Querier interface {
 	InsertAgentStatAt(ctx context.Context, arg InsertAgentStatAtParams) (int64, error)
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
-	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
+	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) error
 	IsPublicListenerSiteMigrated(ctx context.Context, listenerID int64) (int64, error)
 	ListAgentConnectionsSince(ctx context.Context, arg ListAgentConnectionsSinceParams) ([]ListAgentConnectionsSinceRow, error)
 	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)

@@ -35,10 +35,14 @@ type AgentConn struct {
 	Name                           string
 	Session                        *yamux.Session
 	TunnelGroup                    string
+	AggregateFlowControl           bool
 	tunnelMu                       sync.RWMutex
-	tunnels                        [tunnel.MaxParallelTunnels]*yamux.Session
+	tunnels                        [tunnel.MaxTunnelLaneSlots]*yamux.Session
+	tunnelResources                [tunnel.MaxTunnelLaneSlots]agentTunnelOwnedResource
 	tunnelsInitialized             bool
 	nextTunnel                     int
+	controlGateMu                  sync.Mutex
+	controlGate                    chan struct{}
 	Done                           chan struct{}
 	doneOnce                       sync.Once
 	streamOpenMu                   sync.Mutex
@@ -767,10 +771,25 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	group, lane, err := tunnel.ParseTunnelLane(r.Header.Get(tunnel.TunnelGroupHeader), r.Header.Get(tunnel.TunnelLaneHeader))
+	flowConfig, laneRole, aggregateOffered, err := tunnel.ParseAggregateFlowControlHeaders(r.Header)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+	group, lane, err := tunnel.ParseTunnelLaneHeaders(r.Header, aggregateOffered)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if aggregateOffered {
+		wantRole := tunnel.TunnelLaneRoleControl
+		if lane > 0 {
+			wantRole = tunnel.TunnelLaneRoleBulk
+		}
+		if group == "" || laneRole != wantRole || !flowConfig.Equal(tunnel.DefaultAggregateFlowControlConfig()) {
+			http.Error(w, "invalid aggregate tunnel lane contract", http.StatusBadRequest)
+			return
+		}
 	}
 	capacityMode, err := tunnel.ParseCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
 	if err != nil {
@@ -840,10 +859,12 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	agent.TunnelGroup = group
 	joiningGroup := false
+	aggregateNegotiated := aggregateOffered
+	var current *AgentConn
 	if group != "" {
-		current := a.AgentHub.connectedByID(agentRow.ID)
+		current = a.AgentHub.connectedByID(agentRow.ID)
 		if current != nil && current.TunnelGroup == group {
-			if current.NegotiatedMaxConcurrentStreams != negotiatedStreams || current.AdaptiveCapacity != adaptiveCapacity || current.BuildVersion != agent.BuildVersion || current.BuildCommit != agent.BuildCommit {
+			if current.AggregateFlowControl != aggregateOffered || current.NegotiatedMaxConcurrentStreams != negotiatedStreams || current.AdaptiveCapacity != adaptiveCapacity || current.BuildVersion != agent.BuildVersion || current.BuildCommit != agent.BuildCommit {
 				http.Error(w, "tunnel group capability mismatch", http.StatusConflict)
 				return
 			}
@@ -854,6 +875,55 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	effectiveStreamWindowBytes, err := effectiveServerTunnelStreamWindowBytes(a.Config)
+	if err != nil {
+		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid resource-accounted agent tunnel yamux configuration")
+		http.Error(w, "invalid agent tunnel resource configuration", http.StatusInternalServerError)
+		return
+	}
+	var releaseSessionResource func()
+	var sessionResourceBytes int64
+	var sessionResource agentTunnelOwnedResource
+	if aggregateNegotiated {
+		if laneRole == tunnel.TunnelLaneRoleControl {
+			sessionResourceBytes, err = tunnel.NegotiatedControlSessionResourceBytes(effectiveStreamWindowBytes)
+			sessionResource.LegacyControlSupplementBytes = sessionResourceBytes
+		} else {
+			sessionResourceBytes, err = tunnel.AggregateSessionResourceBytes(flowConfig.InitialSessionWindow, 0)
+			sessionResource.AggregateInitialPoolBytes = int64(yamux.AggregateReceiveWindowMemory(flowConfig.InitialSessionWindow))
+			sessionResource.SessionMetadataBytes = sessionResourceBytes - sessionResource.AggregateInitialPoolBytes
+		}
+		if err != nil {
+			http.Error(w, "invalid aggregate tunnel resource configuration", http.StatusInternalServerError)
+			return
+		}
+		var ok bool
+		releaseSessionResource, ok, _ = a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, sessionResourceBytes, 0)
+		if !ok {
+			// The first lane may safely remain a legacy control/traffic tunnel;
+			// an already-negotiated group and every bulk lane require exact mode
+			// agreement and are rejected without disturbing lane zero.
+			if lane == 0 && !joiningGroup && current == nil {
+				aggregateNegotiated = false
+				sessionResource = agentTunnelOwnedResource{}
+			} else {
+				http.Error(w, "aggregate tunnel resource capacity reached", http.StatusServiceUnavailable)
+				return
+			}
+		}
+	}
+	if releaseSessionResource == nil {
+		releaseSessionResource = func() {}
+	}
+	releaseSessionResourceOwned := true
+	defer func() {
+		if releaseSessionResourceOwned {
+			releaseSessionResource()
+		}
+	}()
+	if !joiningGroup {
+		agent.AggregateFlowControl = aggregateNegotiated
+	}
 	if !joiningGroup && adaptiveCapacity {
 		// The negotiated value is only a protocol guard. Do not present it as a
 		// live allowance until the newly connected agent reports a resource
@@ -862,13 +932,20 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	} else if !joiningGroup {
 		agent.CurrentAdmissionLimit.Store(negotiatedStreams)
 	}
-	effectiveStreamWindowBytes, err := effectiveServerTunnelStreamWindowBytes(a.Config)
-	if err != nil {
-		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid resource-accounted agent tunnel yamux configuration")
-		http.Error(w, "invalid agent tunnel resource configuration", http.StatusInternalServerError)
-		return
+	var yamuxConfig *yamux.Config
+	if aggregateNegotiated {
+		if laneRole == tunnel.TunnelLaneRoleControl {
+			yamuxConfig, err = tunnel.NewNegotiatedControlYamuxConfig(nil, effectiveStreamWindowBytes, -1)
+		} else {
+			aggregateMaxStreamWindowBytes := tunnel.DefaultMaxStreamWindowSizeBytes
+			if a.Config != nil {
+				aggregateMaxStreamWindowBytes = a.Config.TunnelMaxStreamWindowBytes
+			}
+			yamuxConfig, err = tunnel.NewAggregateYamuxConfig(nil, aggregateMaxStreamWindowBytes, -1)
+		}
+	} else {
+		yamuxConfig, err = tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
 	}
-	yamuxConfig, err := tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
 	if err != nil {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid agent tunnel yamux configuration")
 		http.Error(w, "invalid agent tunnel configuration", http.StatusInternalServerError)
@@ -896,6 +973,15 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = rw.WriteString(tunnel.TunnelLaneHeader + ": " + strconv.Itoa(lane) + "\r\n")
 	}
 	_, _ = rw.WriteString(tunnel.TunnelCapacityModeHeader + ": " + capacityMode + "\r\n")
+	if aggregateNegotiated {
+		_, _ = rw.WriteString(tunnel.TunnelFlowControlHeader + ": " + tunnel.TunnelFlowControlAggregateV1 + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelLaneRoleHeader + ": " + laneRole + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelSessionWindowHeader + ": " + strconv.FormatUint(uint64(flowConfig.InitialSessionWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelSessionWindowMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxSessionWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelAllocationWindowHeader + ": " + strconv.FormatUint(uint64(flowConfig.InitialStreamWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelAllocationWindowMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxStreamWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelDataFrameMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxDataFrame), 10) + "\r\n")
+	}
 	_, _ = rw.WriteString("\r\n")
 	if err := rw.Flush(); err != nil {
 		_ = rawConn.Close()
@@ -924,11 +1010,30 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
 		return
 	}
+	if aggregateNegotiated && laneRole == tunnel.TunnelLaneRoleBulk {
+		sessionResource.AggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, func(bytes int64) (func(), bool) {
+			release, ok, _ := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
+			return release, ok
+		})
+	}
+	sessionCapacityKey := agentStreamCapacitySessionKey(agent, session)
+	sessionRegistered := !joiningGroup
+	if sessionRegistered && a.agentStreamCapacity != nil {
+		// All lanes share the authenticated generation key and public quota. The
+		// negotiated control cap is a separate lease-bound gate on AgentConn.
+		a.agentStreamCapacity.registerSessionWithLimit(sessionCapacityKey, negotiatedStreamLimit)
+	}
+	sessionRegistrationOwned := sessionRegistered
+	defer func() {
+		if sessionRegistrationOwned && a.agentStreamCapacity != nil {
+			a.agentStreamCapacity.unregisterSession(sessionCapacityKey)
+		}
+	}()
 	gatedConn.releaseReads()
 	if !joiningGroup {
 		agent.Session = session
 	}
-	if old := agent.installTunnel(lane, session); old != nil {
+	if old := agent.installTunnel(lane, session, sessionResource); old != nil {
 		a.AgentTransports.closeTunnelLane(agent, lane)
 		_ = old.Close()
 	}
@@ -945,17 +1050,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 				log.Warn().Err(err).Msg("Failed to insert connection into DB")
 			}
 		}
-		sessionCapacityKey := agentStreamCapacitySessionKey(agent, session)
-		if a.agentStreamCapacity != nil {
-			// Register before publishing through AgentHub so a selected connection
-			// can never receive the unregistered single-session allowance.
-			a.agentStreamCapacity.registerSessionWithLimit(sessionCapacityKey, negotiatedStreamLimit)
-		}
 		displaced, err := a.AgentHub.replace(agent)
 		if err != nil {
-			if a.agentStreamCapacity != nil {
-				a.agentStreamCapacity.unregisterSession(sessionCapacityKey)
-			}
 			_ = session.Close()
 			if a.DB != nil && agent.ConnectionDBID > 0 {
 				if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
@@ -988,6 +1084,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Int64("advertised_max_streams", advertisedStreams).
 		Int64("negotiated_max_streams", negotiatedStreams).
 		Bool("adaptive_capacity", adaptiveCapacity).
+		Bool("aggregate_flow_control", aggregateNegotiated).
 		Int("tunnel_lane", lane).
 		Msg("Agent tunnel connected successfully")
 
@@ -997,6 +1094,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			_ = session.Close()
 		case <-session.CloseChan():
 		}
+		// CloseChan signals shutdown initiation. Complete all Yamux workers and
+		// clear the aggregate slabs before returning their lifetime reservation.
+		_ = session.Close()
+		sessionResource.AggregateGrowth.Release()
+		releaseSessionResource()
 		a.cleanupAgentTunnel(agent, lane, session)
 		log.Info().
 			Int("tunnel_lane", lane).
@@ -1005,12 +1107,13 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
 	}()
+	releaseSessionResourceOwned = false
+	sessionRegistrationOwned = false
 }
 
-// effectiveServerTunnelStreamWindowBytes keeps the Yamux receive credit within
-// the per-stream lifetime charge whenever the server resource ledger is active.
-// An explicit stream count is only an additional ceiling; it must not disable
-// the memory/FD safety model used for automatic capacity.
+// effectiveServerTunnelStreamWindowBytes returns the initial legacy receive
+// promise. Negotiated aggregate sessions own that storage in their shared pool;
+// legacy sessions acquire an exact per-stream supplement before Open.
 func effectiveServerTunnelStreamWindowBytes(cfg *config.Config) (int64, error) {
 	if cfg == nil {
 		return tunnel.DefaultAdaptiveReceiveWindowBytes, nil

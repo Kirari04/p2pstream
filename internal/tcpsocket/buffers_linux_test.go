@@ -51,6 +51,25 @@ func socketSizes(t *testing.T, conn *net.TCPConn) [2]int {
 	return sizes
 }
 
+func socketNotSentLowat(t *testing.T, conn *net.TCPConn) int {
+	t.Helper()
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var (
+		lowat     int
+		socketErr error
+	)
+	err = raw.Control(func(fd uintptr) {
+		lowat, socketErr = unix.GetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_NOTSENT_LOWAT)
+	})
+	if err != nil || socketErr != nil {
+		t.Fatalf("TCP_NOTSENT_LOWAT: %v, %v", err, socketErr)
+	}
+	return lowat
+}
+
 func TestAutoPreservesTCPBuffersAndChargesBaselineAllowance(t *testing.T) {
 	client, server := tcpPair(t)
 	for _, conn := range []*net.TCPConn{client, server} {
@@ -64,6 +83,9 @@ func TestAutoPreservesTCPBuffersAndChargesBaselineAllowance(t *testing.T) {
 		}
 		if memory != BaseMemoryBytes {
 			t.Fatalf("charge %d, want baseline %d", memory, BaseMemoryBytes)
+		}
+		if lowat := socketNotSentLowat(t, conn); lowat != DefaultNotSentLowatBytes {
+			t.Fatalf("TCP_NOTSENT_LOWAT = %d, want %d", lowat, DefaultNotSentLowatBytes)
 		}
 	}
 }
@@ -98,6 +120,9 @@ func TestExplicitTCPBufferOverrideRemainsBounded(t *testing.T) {
 	sizes := socketSizes(t, conn)
 	if memory != 512<<10 || int64(sizes[0])+int64(sizes[1]) > memory {
 		t.Fatalf("buffers %v exceed reservation %d", sizes, memory)
+	}
+	if lowat := socketNotSentLowat(t, conn); lowat != DefaultNotSentLowatBytes {
+		t.Fatalf("TCP_NOTSENT_LOWAT = %d, want %d", lowat, DefaultNotSentLowatBytes)
 	}
 }
 

@@ -8,6 +8,8 @@ if (!/^\d+$/.test(port) || Number(port) < 1024 || Number(port) > 65535) {
 process.env.PLAYWRIGHT_MANAGEMENT_PORT = port;
 
 export default defineConfig({
+  // Archived benchmark sources are not needed in browser-report Git diffs.
+  captureGitInfo: { diff: false },
   testDir: "./e2e",
   testMatch: /sites(?:-[\w-]+)?\.spec\.ts/,
   fullyParallel: false,

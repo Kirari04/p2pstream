@@ -17,12 +17,23 @@ func TestNormalizeRequestHostCanonicalizesPortsAndTrailingDots(t *testing.T) {
 		host string
 		want string
 	}{
+		{name: "empty", host: "", want: ""},
+		{name: "whitespace", host: " \t\r\n", want: ""},
 		{name: "dns", host: "example.com", want: "example.com"},
+		{name: "dns uppercase whitespace", host: " \tEXAMPLE.COM.\r\n", want: "example.com"},
 		{name: "dns trailing dot", host: "example.com.", want: "example.com"},
+		{name: "dns double trailing dot preserves one", host: "example.com..", want: "example.com."},
 		{name: "dns with port", host: "example.com:443", want: "example.com"},
 		{name: "dns trailing dot with port", host: "example.com.:443", want: "example.com"},
+		{name: "dns with nonnumeric port", host: "example.com:not-a-port", want: "example.com"},
+		{name: "empty host with port", host: ":443", want: ""},
+		{name: "bracketed dns without port", host: "[EXAMPLE.COM.]", want: "example.com"},
+		{name: "bracketed dns spaces and double dot", host: " [ EXAMPLE.COM.. ] ", want: "example.com."},
+		{name: "malformed unclosed bracket and spaces", host: " [ EXAMPLE.COM.. ", want: "example.com."},
 		{name: "ipv6 with port", host: "[2001:db8::1]:443", want: "2001:db8::1"},
 		{name: "bracketed ipv6 without port", host: "[2001:db8::1]", want: "2001:db8::1"},
+		{name: "raw ipv6", host: "2001:DB8::1", want: "2001:db8::1"},
+		{name: "malformed multiple colons", host: "EXAMPLE.COM:BAD:TAIL", want: "example.com:bad:tail"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

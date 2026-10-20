@@ -1,12 +1,37 @@
 package yamux
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
+
+type failedOpenPayloadRaceConn struct {
+	reader       io.Reader
+	readRelease  <-chan struct{}
+	writeRelease <-chan struct{}
+	closeOnce    sync.Once
+	closed       chan struct{}
+}
+
+func (c *failedOpenPayloadRaceConn) Read(p []byte) (int, error) {
+	<-c.readRelease
+	return c.reader.Read(p)
+}
+
+func (c *failedOpenPayloadRaceConn) Write([]byte) (int, error) {
+	<-c.writeRelease
+	return 0, errors.New("synthetic open write failure")
+}
+
+func (c *failedOpenPayloadRaceConn) Close() error {
+	c.closeOnce.Do(func() { close(c.closed) })
+	return nil
+}
 
 func TestFailedOpenTerminatesWireAndReleasesTracking(t *testing.T) {
 	conn, peer := net.Pipe()
@@ -31,6 +56,132 @@ func TestFailedOpenTerminatesWireAndReleasesTracking(t *testing.T) {
 	_ = peer.SetReadDeadline(time.Now().Add(time.Second))
 	if n, err := peer.Read(make([]byte, headerSize)); n != 0 || !errors.Is(err, io.EOF) {
 		t.Fatalf("timed-out SYN remained deliverable: n=%d err=%v", n, err)
+	}
+}
+
+func TestFailedOpenDiscardsPayloadAlreadyAcceptedByReader(t *testing.T) {
+	payload := []byte("payload crossing failed Open")
+	hdr := header(make([]byte, headerSize))
+	hdr.encode(typeData, 0, 1, uint32(len(payload)))
+	gated := &gatedPayloadReader{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+		data:    append([]byte(nil), payload...),
+	}
+	readRelease := make(chan struct{})
+	writeRelease := make(chan struct{})
+	var releaseReadOnce, releaseWriteOnce sync.Once
+	releaseRead := func() { releaseReadOnce.Do(func() { close(readRelease) }) }
+	releaseWrite := func() { releaseWriteOnce.Do(func() { close(writeRelease) }) }
+	conn := &failedOpenPayloadRaceConn{
+		reader:       io.MultiReader(bytes.NewReader(hdr), gated),
+		readRelease:  readRelease,
+		writeRelease: writeRelease,
+		closed:       make(chan struct{}),
+	}
+	config := testConfNoKeepAlive()
+	client, err := Client(conn, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var releasePayloadOnce sync.Once
+	releasePayload := func() { releasePayloadOnce.Do(func() { close(gated.release) }) }
+	defer func() {
+		releaseRead()
+		releaseWrite()
+		releasePayload()
+		_ = client.Close()
+	}()
+	openDone := make(chan error, 1)
+	go func() {
+		_, openErr := client.OpenStream()
+		openDone <- openErr
+	}()
+	var stream *Stream
+	deadline := time.Now().Add(time.Second)
+	for stream == nil && time.Now().Before(deadline) {
+		client.streamLock.Lock()
+		stream = client.streams[1]
+		client.streamLock.Unlock()
+		if stream == nil {
+			time.Sleep(time.Millisecond)
+		}
+	}
+	if stream == nil {
+		t.Fatal("Open did not publish its stream before writing the SYN")
+	}
+	releaseRead()
+	select {
+	case <-gated.entered:
+	case <-time.After(time.Second):
+		t.Fatal("reader did not accept forged payload during Open")
+	}
+	releaseWrite()
+	select {
+	case err := <-openDone:
+		t.Fatalf("Open returned before accepted payload was fenced: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+	releasePayload()
+	if err := <-openDone; err == nil {
+		t.Fatal("Open succeeded after synthetic write failure")
+	}
+	stream.recvLock.Lock()
+	defer stream.recvLock.Unlock()
+	if stream.recvBuf != nil {
+		t.Fatalf("failed Open retained %d payload bytes", stream.recvBuf.Len())
+	}
+}
+
+func TestResetWaitsForAcceptedPayloadAfterTerminalState(t *testing.T) {
+	payload := []byte("payload crossing an idempotent reset")
+	gated := &gatedPayloadReader{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+		data:    append([]byte(nil), payload...),
+	}
+	var releaseOnce sync.Once
+	releasePayload := func() { releaseOnce.Do(func() { close(gated.release) }) }
+	defer releasePayload()
+
+	session := &Session{config: testConfNoKeepAlive()}
+	stream := newStream(session, 1, streamEstablished)
+	readDone := make(chan error, 1)
+	go func() {
+		_, accepted, err := stream.readDataPayload(uint32(len(payload)), gated)
+		if !accepted && err == nil {
+			err = errors.New("accepted payload was rejected")
+		}
+		readDone <- err
+	}()
+	select {
+	case <-gated.entered:
+	case <-time.After(time.Second):
+		t.Fatal("payload reader did not enter")
+	}
+
+	// Publish the terminal state while readDataPayload still owns recvLock.
+	// The first cleanup would normally be waiting to discard that payload.
+	stream.forceClose()
+	resetDone := make(chan error, 1)
+	go func() { resetDone <- stream.Reset() }()
+	select {
+	case err := <-resetDone:
+		t.Fatalf("idempotent Reset returned before accepted payload was fenced: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	releasePayload()
+	if err := <-readDone; err != nil {
+		t.Fatalf("payload read: %v", err)
+	}
+	if err := <-resetDone; err != nil {
+		t.Fatalf("Reset: %v", err)
+	}
+	stream.recvLock.Lock()
+	defer stream.recvLock.Unlock()
+	if stream.recvBuf != nil {
+		t.Fatalf("idempotent Reset retained %d payload bytes", stream.recvBuf.Len())
 	}
 }
 

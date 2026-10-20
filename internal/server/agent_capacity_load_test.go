@@ -385,8 +385,12 @@ func TestPublicHandlerSustains100RPSWithoutLegacyRouteTargetQuarterCap(t *testin
 
 func installDeterministicServerResourceController(t testing.TB, app *App) {
 	t.Helper()
+	capacity := sysmetrics.DefaultAdaptiveMemoryConfig()
+	capacity.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleServerStream
+	capacity.EstimatedBytesPerAdmission = tunnel.ServerStreamBaseResourceModel().MemoryBytes
+	capacity.FileDescriptorsPerAdmission = 0
 	controller, err := sysmetrics.NewAdaptiveMemoryController(
-		sysmetrics.DefaultAdaptiveMemoryConfig(),
+		capacity,
 		sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
 			return sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}, nil
 		}),

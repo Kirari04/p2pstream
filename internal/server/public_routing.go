@@ -132,6 +132,10 @@ type publicRouteTargetConfig struct {
 	StaticResponseBodyMode        string
 	StaticResponseTemplateID      int64
 	ParsedURL                     *url.URL
+	// transportOrigin is derived before snapshot publication. Published target
+	// configurations and their ParsedURL are immutable; health/manual configs
+	// leave this empty and retain the legacy origin calculation.
+	transportOrigin string
 }
 
 type publicListenerConfig struct {
@@ -299,15 +303,23 @@ func (o proxyRequestObservability) responseBytesValue() uint64 {
 
 func (a *App) publicProxyHandler(listenerID int64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		newPublicProxyContext(a, listenerID, w, r).run()
+		servePublicProxyRequest(reusablePublicProxyContexts, a, listenerID, w, r)
 	}
+}
+
+func servePublicProxyRequest(pool *boundedPublicProxyContextPool, app *App, listenerID int64, w http.ResponseWriter, r *http.Request) {
+	ctx := pool.acquire()
+	defer pool.release(ctx)
+	initializePublicProxyContext(ctx, app, listenerID, w, r)
+	ctx.run()
 }
 
 func trafficShaperDecisionIfSelected(decision publicTrafficShaperDecision, selected bool) *publicTrafficShaperDecision {
 	if !selected {
 		return nil
 	}
-	return &decision
+	owned := decision
+	return &owned
 }
 
 func writeNoRouteTargetAvailable(w http.ResponseWriter) {
@@ -458,14 +470,22 @@ func (a *App) staticTargetResponse(w http.ResponseWriter, r *http.Request, resol
 }
 
 func (a *App) proxyDirectTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
-	a.proxyRouteTargetRequest(w, r, resolution, nil, trace, shaper, cacheDecision, observability)
+	a.proxyDirectTargetRequestWithResolution(w, r, &resolution, trace, shaper, cacheDecision, observability)
 }
 
 func (a *App) proxyAgentTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+	a.proxyAgentTargetRequestWithResolution(w, r, &resolution, trace, shaper, cacheDecision, observability)
+}
+
+func (a *App) proxyDirectTargetRequestWithResolution(w http.ResponseWriter, r *http.Request, resolution *publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+	a.proxyRouteTargetRequest(w, r, resolution, nil, trace, shaper, cacheDecision, observability)
+}
+
+func (a *App) proxyAgentTargetRequestWithResolution(w http.ResponseWriter, r *http.Request, resolution *publicRouteResolution, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	a.proxyRouteTargetRequest(w, r, resolution, resolution.Agent, trace, shaper, cacheDecision, observability)
 }
 
-func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, resolution publicRouteResolution, agent *AgentConn, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
+func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, resolution *publicRouteResolution, agent *AgentConn, trace *trafficRequestTrace, shaper *publicTrafficShaperDecision, cacheDecision *publicCacheDecision, observability proxyRequestObservability) {
 	startedAt := time.Now()
 	statusCode := http.StatusOK
 	errorKind := ""
@@ -478,7 +498,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	defer func() {
 		finalAgent := agent
 		if retryResult != nil {
-			retryResult.applyToResolution(&resolution)
+			retryResult.applyToResolution(resolution)
 			if errorKind == "" && retryResult.TerminalErrorKind != "" {
 				errorKind = retryResult.TerminalErrorKind
 			}
@@ -496,14 +516,21 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 			if retryResult != nil && retryResult.ReplaySkippedReason != "" {
 				attributes["retry_skip_reason"] = retryResult.ReplaySkippedReason
 			}
-			trace.emit(stage, &resolution, finalAgent, statusCode, errorKind, w.Header(), attributes)
+			trace.emit(stage, resolution, finalAgent, statusCode, errorKind, w.Header(), attributes)
 		}
 		event := proxyRequestEvent{
 			StatusCode: statusCode, Duration: time.Since(startedAt), ErrorKind: errorKind,
 			ListenerID: resolution.ListenerID, RouteID: resolution.RouteID, RouteTargetID: resolution.RouteTargetID,
 			AgentID: selectedAgentID, CacheRuleID: cacheRuleID(cacheDecision), CacheStatus: cacheStatus(cacheDecision),
 			CacheBytes: cacheBytes(cacheDecision), RequestBytes: observability.requestBytesValue(),
-			ResponseBytes: observability.responseBytesValue(), Context: proxyRequestContextFromResolution(r, resolution),
+			ResponseBytes: observability.responseBytesValue(), Context: proxyRequestContextFromResolution(r, *resolution),
+		}
+		if cacheDecision == nil {
+			// Bypasses keep their decision on the pipeline's stack. The owned
+			// resolution still carries attribution; only retained miss decisions
+			// can acquire final storage status and byte counts while forwarding.
+			event.CacheRuleID = sql.NullInt64{Int64: resolution.CacheRuleID, Valid: resolution.CacheRuleID != 0}
+			event.CacheStatus = resolution.CacheStatus
 		}
 		if retryResult != nil {
 			event.RetryRuleID = publicRetryRuleID(retryResult)
@@ -539,7 +566,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	if trace != nil {
 		id = trace.uuid()
 	}
-	if id == uuid.Nil {
+	if id == uuid.Nil && (agent != nil || trace != nil) {
 		var err error
 		id, err = uuid.NewV7()
 		if err != nil {
@@ -554,7 +581,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		attributes := map[string]string{"handler": handler, "upstream": redactSensitiveTraceURL(targetOrigin.String())}
 		trace.emit(
 			p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_STARTED,
-			&resolution,
+			resolution,
 			agent,
 			0,
 			"",
@@ -566,9 +593,12 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 	var transport http.RoundTripper
 	if agent != nil {
 		retryResult = &publicRetryAttemptResult{}
+		// Retry attempts and streaming response observation can outlive an
+		// individual ReverseProxy callback, so the round tripper owns its
+		// resolution snapshot instead of retaining the pooled context pointer.
 		transport = &publicAgentAttemptRoundTripper{
-			app: a, snapshot: resolution.Snapshot, resolution: resolution, initial: agent,
-			rule: selectPublicRetryRule(resolution.Snapshot, r, resolution), trace: trace,
+			app: a, snapshot: resolution.Snapshot, resolution: *resolution, initial: agent,
+			rule: selectPublicRetryRule(resolution.Snapshot, r, *resolution), trace: trace,
 			shaper: shaper, requestID: id.String(), result: retryResult,
 		}
 	} else {
@@ -590,7 +620,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 		ModifyResponse: func(resp *http.Response) error {
 			finalAgent := agent
 			if retryResult != nil {
-				retryResult.applyToResolution(&resolution)
+				retryResult.applyToResolution(resolution)
 				if retryResult.FinalAgent != nil {
 					finalAgent = retryResult.FinalAgent
 					selectedAgentID = sql.NullInt64{Int64: finalAgent.AgentID, Valid: true}
@@ -610,13 +640,28 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				return fmt.Errorf("%w: %v", errPublicTrafficShaperPolicyMatch, responseShaper.MatchError)
 			}
 			if responseShaper != nil {
-				applyTrafficShaperResolutionFields(&resolution, *responseShaper)
+				applyTrafficShaperResolutionFields(resolution, *responseShaper)
+			}
+			if agent == nil && resp.Body != nil && resp.Body != http.NoBody && resp.StatusCode != http.StatusSwitchingProtocols {
+				// Observe only origin reads, before cache capture and shaping. Body
+				// copying completes synchronously before the deferred request event;
+				// retain no pooled resolution in the callback. Upgrades keep their
+				// original writable body and existing 5xx attribution takes priority.
+				requestCtx := r.Context()
+				resp.Body = &publicRetryObservedResponseBody{ReadCloser: resp.Body, onError: func(err error) {
+					if errorKind == "" && !requestContextCanceled(requestCtx, err) {
+						errorKind = publicRetryResponseBodyErrorKind(err)
+					}
+				}}
 			}
 			if cacheDecision != nil && cacheDecision.Rule.AddCacheStatusHeader {
 				resp.Header.Set("X-p2pstream-Cache", "MISS")
 			}
 			if cacheDecision != nil && cacheDecision.Cacheable {
-				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, resolution, cacheDecision, resp, trace)
+				// The cache body can finish after ReverseProxy returns from this
+				// callback, so it retains an owned resolution snapshot rather than
+				// the pooled request context's forwarding pointer.
+				resp.Body = a.capturePublicCacheResponseBody(r.Context(), r, *resolution, cacheDecision, resp, trace)
 			}
 			if responseShaper != nil {
 				if resp.StatusCode == http.StatusSwitchingProtocols {
@@ -632,7 +677,7 @@ func (a *App) proxyRouteTargetRequest(w http.ResponseWriter, r *http.Request, re
 				}
 				trace.emit(
 					p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_UPSTREAM_RESPONDED,
-					&resolution,
+					resolution,
 					finalAgent,
 					resp.StatusCode,
 					errorKind,
@@ -851,14 +896,66 @@ func (a *App) dialViaAgentWithCapacity(
 		return nil, errAgentUpdateCordoned
 	}
 	lane := 0
-	if len(preferredLane) > 0 {
+	if agent != nil && agent.AggregateFlowControl {
+		if class == agentStreamCapacityTrustedHealth {
+			if len(preferredLane) > 0 && preferredLane[0] != 0 {
+				return nil, errAgentDisconnected
+			}
+			lane = 0
+		} else {
+			if len(preferredLane) > 0 {
+				lane = preferredLane[0]
+				if lane == 0 {
+					return nil, errAgentDisconnected
+				}
+			} else {
+				lane = agent.transportLane()
+			}
+		}
+	} else if len(preferredLane) > 0 {
 		lane = preferredLane[0]
 	} else if agent != nil {
 		lane = agent.transportLane()
 	}
-	session := agent.tunnelSession(lane)
-	if agent == nil || session == nil {
+	if agent == nil || lane < 0 {
 		return nil, errAgentDisconnected
+	}
+	session := agent.tunnelSession(lane)
+	if session == nil {
+		return nil, errAgentDisconnected
+	}
+	var releaseControl func()
+	controlOwned := false
+	if agent.AggregateFlowControl && class == agentStreamCapacityTrustedHealth {
+		controlCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+		var ok bool
+		releaseControl, ok = agent.acquireControlStream(controlCtx)
+		controlErr := controlCtx.Err()
+		cancel()
+		if !ok {
+			// Match trusted-health stream-capacity semantics: monitor cancellation
+			// remains cancellation, while deadline expiry remains health capacity.
+			if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+				return nil, ctx.Err()
+			}
+			select {
+			case <-agent.Done:
+				return nil, errAgentDisconnected
+			default:
+			}
+			if controlErr == nil {
+				controlErr = errors.New("agent control stream capacity reached")
+			} else {
+				controlErr = fmt.Errorf("agent control stream capacity reached: %w", controlErr)
+			}
+			return nil, agentStreamCapacityDialError(ctx, class, controlErr)
+		}
+		controlOwned = true
+		defer func() {
+			if controlOwned {
+				releaseControl()
+			}
+		}()
 	}
 	if a.agentStreamCapacity == nil {
 		return nil, agentDialError{Kind: "server_capacity", Err: "server stream capacity manager unavailable"}
@@ -914,23 +1011,52 @@ func (a *App) dialViaAgentWithCapacity(
 		lease.release()
 		return nil, errAgentUpdateCordoned
 	}
+	maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
+	if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
+		maximumWindow = a.Config.TunnelMaxStreamWindowBytes
+	}
+	var releaseLegacySupplement func()
+	if !agent.AggregateFlowControl {
+		supplementBytes, supplementErr := tunnel.LegacyReceiveWindowSupplementBytes(maximumWindow)
+		if supplementErr != nil {
+			lease.release()
+			return nil, agentDialError{Kind: "server_capacity", Err: "invalid legacy stream receive-window accounting"}
+		}
+		var ok bool
+		releaseLegacySupplement, ok, _ = a.agentStreamCapacity.tryReserveLegacyStreamSupplement(supplementBytes)
+		if !ok {
+			lease.release()
+			return nil, agentDialError{Kind: "server_capacity", Err: "server legacy stream receive-window capacity reached"}
+		}
+	}
+	releaseStreamResources := func() {
+		if releaseControl != nil {
+			releaseControl()
+		}
+		if releaseLegacySupplement != nil {
+			releaseLegacySupplement()
+		}
+	}
 
+	// From this point the async opener or the capacity-managed connection owns
+	// the control lease, including when the caller cancels before Open returns.
+	controlOwned = false
 	openCh := startCapacityManagedAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
 		conn, err := session.Open()
 		if err != nil {
 			lease.release()
+			releaseStreamResources()
 			return nil, err
 		}
 		if !lease.markLive() {
-			_ = conn.Close()
-			lease.release()
+			fenceFailedAgentStream(conn, agent, func() {
+				lease.release()
+				releaseStreamResources()
+			})
 			return nil, errors.New("agent tunnel stream capacity lease left opening state")
 		}
-		maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
-		if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
-			maximumWindow = a.Config.TunnelMaxStreamWindowBytes
-		}
-		return newCapacityManagedAgentTunnelStreamConn(conn, agent, lease, maximumWindow), nil
+		aggregateGrowth := agent.tunnelAggregateGrowth(lane, session)
+		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseStreamResources, aggregateGrowth, maximumWindow), nil
 	})
 
 	var conn net.Conn
@@ -1341,7 +1467,11 @@ func (a *App) selectRouteTarget(snap *publicProxySnapshot, route publicRouteConf
 	if snap == nil {
 		return publicRouteTargetConfig{}, nil, false
 	}
-	candidates := make([]routeTargetCandidate, 0, len(route.Targets))
+	var inlineCandidates [1]routeTargetCandidate
+	candidates := inlineCandidates[:0]
+	if len(route.Targets) > len(inlineCandidates) {
+		candidates = make([]routeTargetCandidate, 0, len(route.Targets))
+	}
 	lowestPriorityGroupSet := false
 	lowestPriorityGroup := int64(0)
 	for _, target := range route.Targets {
@@ -1480,6 +1610,30 @@ func applyUpstreamTargetRequestConfig(req *http.Request, target publicRouteTarge
 	}
 }
 
+// These fixed keys are already canonical, so deleting them need not repeat
+// Header.Del's canonicalization. Configured names still use Header.Del below.
+var publicForwardedIdentityHeaderNames = [...]string{
+	"Cf-Connecting-Ip",
+	"Cf-Connecting-Ipv6",
+	"Cloudfront-Viewer-Address",
+	"Fastly-Client-Ip",
+	"Fly-Client-Ip",
+	"Forwarded",
+	"True-Client-Ip",
+	"X-Appengine-User-Ip",
+	"X-Azure-Clientip",
+	"X-Client-Ip",
+	"X-Cluster-Client-Ip",
+	"X-Envoy-External-Address",
+	"X-Forwarded-Client-Ip",
+	"X-Forwarded-For",
+	"X-Forwarded-Host",
+	"X-Forwarded-Proto",
+	"X-Forwarded-Port",
+	"X-Original-Forwarded-For",
+	"X-Real-Ip",
+}
+
 func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, listener publicListenerConfig) {
 	if outReq == nil {
 		return
@@ -1487,28 +1641,8 @@ func applyTrustedForwardedHeaders(outReq *http.Request, inReq *http.Request, lis
 	if outReq.Header == nil {
 		outReq.Header = make(http.Header)
 	}
-	for _, name := range []string{
-		"Cf-Connecting-Ip",
-		"Cf-Connecting-Ipv6",
-		"Cloudfront-Viewer-Address",
-		"Fastly-Client-Ip",
-		"Fly-Client-Ip",
-		"Forwarded",
-		"True-Client-Ip",
-		"X-Appengine-User-Ip",
-		"X-Azure-Clientip",
-		"X-Client-Ip",
-		"X-Cluster-Client-Ip",
-		"X-Envoy-External-Address",
-		"X-Forwarded-Client-Ip",
-		"X-Forwarded-For",
-		"X-Forwarded-Host",
-		"X-Forwarded-Proto",
-		"X-Forwarded-Port",
-		"X-Original-Forwarded-For",
-		"X-Real-Ip",
-	} {
-		outReq.Header.Del(name)
+	for _, name := range publicForwardedIdentityHeaderNames {
+		delete(outReq.Header, name)
 	}
 	if inReq == nil {
 		return

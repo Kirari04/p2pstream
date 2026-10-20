@@ -3,6 +3,7 @@ package yamux
 import (
 	"errors"
 	"io"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -28,14 +29,35 @@ type Stream struct {
 	sendWindow       uint32
 	maxReceiveWindow uint32
 
-	id      uint32
-	session *Session
+	id       uint32
+	session  *Session
+	incoming bool
 
 	state     streamState
 	stateLock sync.Mutex
 
 	recvBuf  *recvBuffer
 	recvLock sync.Mutex
+
+	aggregateHead     *aggregateChunk
+	aggregateTail     *aggregateChunk
+	aggregateBuffered int
+	aggregateUnits    uint32
+
+	allocationSendWindow uint32
+	allocationSendLimit  uint32
+	allocationRecvWindow uint32
+	allocationRecvLimit  uint32
+
+	allocationRefundPending    uint64
+	allocationRefundPublishing uint64
+	allocationRefundQueued     bool
+	allocationRefundTerminal   bool // guarded by session.aggregate.mu
+	allocationRefundNext       *Stream
+
+	aggregateBufferTracked bool
+	aggregateOwnerPrev     *Stream
+	aggregateOwnerNext     *Stream
 
 	controlHdr     header
 	controlErr     chan error
@@ -79,6 +101,12 @@ func newStream(session *Session, id uint32, state streamState) *Stream {
 	}
 	s.readDeadline.Store(time.Time{})
 	s.writeDeadline.Store(time.Time{})
+	if session.aggregateEnabled() {
+		s.allocationSendWindow = session.config.InitialStreamAllocationWindowSize
+		s.allocationSendLimit = session.config.InitialStreamAllocationWindowSize
+		s.allocationRecvWindow = session.config.InitialStreamAllocationWindowSize
+		s.allocationRecvLimit = session.config.InitialStreamAllocationWindowSize
+	}
 	return s
 }
 
@@ -92,21 +120,42 @@ func (s *Stream) StreamID() uint32 {
 	return s.id
 }
 
+// ReceiveClosed reports whether the receive side is terminal. Buffered
+// bytes may still be readable after FIN. This is a state snapshot, not a
+// lifetime fence: callers publishing credit must still handle a concurrent FIN.
+func (s *Stream) ReceiveClosed() bool {
+	s.stateLock.Lock()
+	defer s.stateLock.Unlock()
+	switch s.state {
+	case streamRemoteClose, streamClosed, streamReset:
+		return true
+	default:
+		return false
+	}
+}
+
 // Read is used to read from the stream
 func (s *Stream) Read(b []byte) (n int, err error) {
 	defer asyncNotify(s.recvNotifyCh)
+	var drainedHead, drainedTail *aggregateChunk
+	var drainedUnits uint32
+	var refundAllocation bool
 START:
+	refundAllocation = false
 
 	// If the stream is closed and there's no data buffered, return EOF
 	s.stateLock.Lock()
 	switch s.state {
+	case streamInit, streamSYNSent, streamSYNReceived, streamEstablished:
+		refundAllocation = true
 	case streamLocalClose:
 		// LocalClose only prohibits further local writes. Handle reads normally.
+		refundAllocation = true
 	case streamRemoteClose:
 		fallthrough
 	case streamClosed:
 		s.recvLock.Lock()
-		if s.recvBuf == nil || s.recvBuf.Len() == 0 {
+		if s.receiveBufferedLocked() == 0 {
 			s.recvLock.Unlock()
 			s.stateLock.Unlock()
 			return 0, io.EOF
@@ -120,17 +169,39 @@ START:
 
 	// If there is no data available, block
 	s.recvLock.Lock()
-	if s.recvBuf == nil || s.recvBuf.Len() == 0 {
+	if s.receiveBufferedLocked() == 0 {
 		s.recvLock.Unlock()
 		goto WAIT
 	}
 
-	// Read any bytes
-	n, _ = s.recvBuf.Read(b)
+	if s.session.aggregateEnabled() {
+		n, drainedHead, drainedTail, drainedUnits = s.readAggregateLocked(b)
+		if drainedUnits > 0 {
+			s.session.returnAggregateChunks(s, drainedHead, drainedTail, drainedUnits, true, refundAllocation)
+			drainedHead, drainedTail, drainedUnits = nil, nil, 0
+		}
+		if s.aggregateBuffered == 0 {
+			s.session.untrackAggregateBuffer(s)
+		}
+	} else {
+		n, _ = s.recvBuf.Read(b)
+	}
 	s.recvLock.Unlock()
 
 	// Send a window update potentially
 	err = s.sendWindowUpdate()
+	if err != nil && n > 0 {
+		// A peer FIN or terminal session transition can become visible while
+		// the synchronous credit write is blocked. The bytes already returned
+		// remain valid, and a terminal receive side cannot consume more
+		// per-stream credit.
+		s.stateLock.Lock()
+		switch s.state {
+		case streamRemoteClose, streamClosed:
+			err = nil
+		}
+		s.stateLock.Unlock()
+	}
 	if err == ErrSessionShutdown {
 		err = nil
 	}
@@ -142,21 +213,97 @@ WAIT:
 	readDeadline := s.readDeadline.Load().(time.Time)
 	if !readDeadline.IsZero() {
 		delay := time.Until(readDeadline)
+		if delay <= 0 {
+			return 0, ErrTimeout
+		}
 		timer = time.NewTimer(delay)
 		timeout = timer.C
 	}
 	select {
 	case <-s.session.shutdownCh:
+		// Session.Close closes shutdownCh before joining the physical reader.
+		// Wait for that join so any final accepted payload is visible before
+		// deciding whether the stream is empty. This also prevents an empty,
+		// established stream from spinning on the permanently closed channel
+		// while the remaining session workers finish.
+		if s.session.recvDoneCh != nil {
+			select {
+			case <-s.session.recvDoneCh:
+			case <-s.recvNotifyCh:
+				// SetReadDeadline uses recvNotifyCh to interrupt an existing
+				// wait. Rebuild the timer from the newly stored deadline, but
+				// remain in WAIT: shutdownCh is already closed and START would
+				// merely rediscover an empty established stream.
+				stopDeadlineTimer(timer)
+				goto WAIT
+			case <-timeout:
+				return 0, ErrTimeout
+			}
+		}
+		stopDeadlineTimer(timer)
+		s.recvLock.Lock()
+		buffered := s.receiveBufferedLocked() != 0
+		s.recvLock.Unlock()
+		if buffered {
+			goto START
+		}
+		return 0, ErrSessionShutdown
 	case <-s.recvNotifyCh:
 	case <-timeout:
 		return 0, ErrTimeout
 	}
-	if timer != nil {
-		if !timer.Stop() {
-			<-timeout
+	stopDeadlineTimer(timer)
+	goto START
+}
+
+func stopDeadlineTimer(timer *time.Timer) {
+	if timer == nil {
+		return
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
 		}
 	}
-	goto START
+}
+
+func (s *Stream) receiveBufferedLocked() int {
+	if s.session.aggregateEnabled() {
+		return s.aggregateBuffered
+	}
+	if s.recvBuf == nil {
+		return 0
+	}
+	return s.recvBuf.Len()
+}
+
+func (s *Stream) readAggregateLocked(p []byte) (n int, drainedHead, drainedTail *aggregateChunk, drainedUnits uint32) {
+	for len(p) > 0 && s.aggregateHead != nil {
+		chunk := s.aggregateHead
+		copied := copy(p, chunk.buf[chunk.read:chunk.write])
+		chunk.read += uint16(copied)
+		s.aggregateBuffered -= copied
+		n += copied
+		p = p[copied:]
+		if chunk.read != chunk.write {
+			break
+		}
+		s.aggregateHead = chunk.next
+		chunk.next = nil
+		if drainedTail == nil {
+			drainedHead = chunk
+		} else {
+			drainedTail.next = chunk
+		}
+		drainedTail = chunk
+		drainedUnits++
+		s.aggregateUnits--
+	}
+	if s.aggregateHead == nil {
+		s.aggregateTail = nil
+	}
+	return n, drainedHead, drainedTail, drainedUnits
 }
 
 // Write is used to write to the stream
@@ -180,7 +327,9 @@ func (s *Stream) write(b []byte) (n int, err error) {
 	var flags uint16
 	var max uint32
 	var body []byte
+	var aggregateNotify <-chan struct{}
 START:
+	aggregateNotify = nil
 	s.stateLock.Lock()
 	switch s.state {
 	case streamLocalClose:
@@ -197,14 +346,23 @@ START:
 	// If there is no data available, block
 	window := atomic.LoadUint32(&s.sendWindow)
 	if window == 0 {
+		if qualificationAggregateSendCountersEnabled && s.session.aggregateEnabled() {
+			s.session.recordQualificationByteCreditZero()
+		}
 		goto WAIT
 	}
 
-	// Determine the flags if any
-	flags = s.sendFlags()
-
 	// Send up to our send window
 	max = min(window, uint32(len(b)))
+	if s.session.aggregateEnabled() {
+		max, aggregateNotify = s.reserveAggregateSend(max)
+		if max == 0 {
+			goto WAIT
+		}
+	}
+	// Determine flags only after all DATA credit is reserved. Otherwise a
+	// blocked first write could consume SYN without putting it on the wire.
+	flags = s.sendFlags()
 	body = b[:max]
 
 	// Send the header
@@ -213,6 +371,11 @@ START:
 		if errors.Is(err, ErrSessionShutdown) || errors.Is(err, ErrConnectionWriteTimeout) {
 			// Message left in ready queue, header re-use is unsafe.
 			s.sendHdr = header(make([]byte, headerSize))
+		}
+		if s.session.aggregateEnabled() {
+			// A timeout can race a queued write. Session credit cannot safely be
+			// restored without knowing whether the peer observed the frame.
+			s.session.abortAggregate(err)
 		}
 		return 0, err
 	}
@@ -229,20 +392,25 @@ WAIT:
 	writeDeadline := s.writeDeadline.Load().(time.Time)
 	if !writeDeadline.IsZero() {
 		delay := time.Until(writeDeadline)
+		if delay <= 0 {
+			return 0, ErrTimeout
+		}
 		timer = time.NewTimer(delay)
 		timeout = timer.C
 	}
 	select {
 	case <-s.session.shutdownCh:
+		stopDeadlineTimer(timer)
+		// No DATA credit has been reserved at WAIT. Once shutdown begins no
+		// future credit can make this write safe, so return instead of spinning
+		// until Session.Close eventually marks every stream terminal.
+		return 0, ErrSessionShutdown
 	case <-s.sendNotifyCh:
+	case <-aggregateNotify:
 	case <-timeout:
 		return 0, ErrTimeout
 	}
-	if timer != nil {
-		if !timer.Stop() {
-			<-timeout
-		}
-	}
+	stopDeadlineTimer(timer)
 	goto START
 }
 
@@ -251,6 +419,13 @@ WAIT:
 func (s *Stream) sendFlags() uint16 {
 	s.stateLock.Lock()
 	defer s.stateLock.Unlock()
+	return s.sendFlagsLocked()
+}
+
+// sendFlagsLocked returns pending establishment flags. The caller holds
+// stateLock; callers that also inspect receive storage must acquire stateLock
+// before recvLock, matching processFlags, Read, and reset cleanup.
+func (s *Stream) sendFlagsLocked() uint16 {
 	var flags uint16
 	switch s.state {
 	case streamInit:
@@ -284,31 +459,47 @@ func (s *Stream) sendWindowUpdateMode(force bool) error {
 	// Determine the delta update
 	max := atomic.LoadUint32(&s.maxReceiveWindow)
 	var bufLen uint32
+	s.stateLock.Lock()
 	s.recvLock.Lock()
-	if s.recvBuf != nil {
+	// Aggregate storage and session-wide credit are returned by Read before
+	// this per-stream update. Once peer FIN or a terminal session transition is
+	// visible, no sender can consume more per-stream credit, so publishing it
+	// is obsolete.
+	switch s.state {
+	case streamRemoteClose, streamClosed:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return nil
+	}
+	if s.session.aggregateEnabled() {
+		bufLen = uint32(s.aggregateBuffered)
+	} else if s.recvBuf != nil {
 		bufLen = uint32(s.recvBuf.Len())
 	}
 	delta := (max - bufLen) - s.recvWindow
 
 	// Determine the flags if any
-	flags := s.sendFlags()
+	flags := s.sendFlagsLocked()
 
 	// A concurrent update may have published the growth while this caller was
 	// waiting for controlHdrLock. Do not emit a spurious zero-credit frame.
 	if delta == 0 && flags == 0 {
 		s.recvLock.Unlock()
+		s.stateLock.Unlock()
 		return nil
 	}
 
 	// Check if we can omit the update
 	if !force && delta < (max/4) && flags == 0 {
 		s.recvLock.Unlock()
+		s.stateLock.Unlock()
 		return nil
 	}
 
 	// Update our window
 	s.recvWindow += delta
 	s.recvLock.Unlock()
+	s.stateLock.Unlock()
 
 	// Send the header
 	s.controlHdr.encode(typeWindowUpdate, flags, s.id, delta)
@@ -345,7 +536,10 @@ func (s *Stream) MaxReceiveWindow() uint32 {
 // while holding recvLock, so the pair describes one consistent point in time.
 func (s *Stream) ReceiveBufferStats() (bufferedBytes, allocatedBytes uint64) {
 	s.recvLock.Lock()
-	if s.recvBuf != nil {
+	if s.session.aggregateEnabled() {
+		bufferedBytes = uint64(s.aggregateBuffered)
+		allocatedBytes = uint64(s.aggregateUnits) * uint64(AggregateWindowUnitSize+aggregateChunkAccounting)
+	} else if s.recvBuf != nil {
 		bufferedBytes = uint64(s.recvBuf.Buffered())
 		allocatedBytes = uint64(s.recvBuf.AllocatedCapacity())
 	}
@@ -415,6 +609,22 @@ func (s *Stream) Close() error {
 	s.stateLock.Unlock()
 	return nil
 SEND_CLOSE:
+	// DATA and terminal controls share the ordered FIFO in both modes. Wake a
+	// writer blocked on credit, then wait for any active Write to leave that
+	// FIFO before enqueuing FIN. This prevents DATA from crossing FIN while
+	// preserving Close's ability to cancel a credit-blocked Write.
+	s.stateLock.Unlock()
+	s.notifyWaiting()
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
+	s.stateLock.Lock()
+	if s.state == streamReset {
+		s.stateLock.Unlock()
+		return nil
+	}
+	if s.state == streamClosed {
+		closeStream = true
+	}
 	// This shouldn't happen (the more realistic scenario to cancel the
 	// timer is via processFlags) but just in case this ever happens, we
 	// cancel the timer to prevent dangling timers.
@@ -445,11 +655,45 @@ SEND_CLOSE:
 	return nil
 }
 
+// Reset aborts the stream and releases its receive storage immediately. It is
+// serialized with local writes, but the peer is allowed to discard unread
+// DATA on RST. Unlike Close it does not retain the stream until a peer FIN or
+// close timeout.
+func (s *Stream) Reset() error {
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
+
+	s.stateLock.Lock()
+	if s.state == streamReset || s.state == streamClosed {
+		// A terminal state may have been published by closeTimeout or session
+		// shutdown while the physical reader still owns recvLock. Wait for that
+		// accepted payload and discard it before Reset promises its caller that
+		// receive storage is fenced.
+		s.discardReceiveBuffer(true)
+		s.stateLock.Unlock()
+		return nil
+	}
+	s.state = streamReset
+	if s.closeTimer != nil {
+		s.closeTimer.Stop()
+		s.closeTimer = nil
+	}
+	s.discardReceiveBuffer(true)
+	s.stateLock.Unlock()
+	s.notifyWaiting()
+	s.session.closeStream(s.id)
+
+	hdr := header(make([]byte, headerSize))
+	hdr.encode(typeWindowUpdate, flagRST, s.id, 0)
+	return s.session.sendNoWait(hdr)
+}
+
 // closeTimeout is called after StreamCloseTimeout during a close to
 // close this stream.
 func (s *Stream) closeTimeout() {
 	// Close our side forcibly
 	s.forceClose()
+	s.discardReceiveBuffer(true)
 
 	// Free the stream from the session map
 	s.session.closeStream(s.id)
@@ -473,6 +717,17 @@ func (s *Stream) forceClose() {
 // processFlags is used to update the state of the stream
 // based on set flags, if any. Lock must be held
 func (s *Stream) processFlags(flags uint16) error {
+	return s.processFlagsMode(flags, false)
+}
+
+// processFinalFINAfterPayload tolerates a local timeout/reset that crossed the
+// physical read of an already-accepted final frame. Genuine duplicate FIN is
+// rejected in streamRemoteClose before payload acceptance.
+func (s *Stream) processFinalFINAfterPayload() error {
+	return s.processFlagsMode(flagFIN, true)
+}
+
+func (s *Stream) processFlagsMode(flags uint16, allowCrossedTerminalFIN bool) error {
 	s.stateLock.Lock()
 	defer s.stateLock.Unlock()
 
@@ -509,17 +764,57 @@ func (s *Stream) processFlags(flags uint16) error {
 			s.state = streamClosed
 			closeStream = true
 			s.notifyWaiting()
+		case streamClosed, streamReset:
+			if !allowCrossedTerminalFIN {
+				s.session.logger.Printf("[ERR] yamux: unexpected FIN flag in state %d", s.state)
+				return ErrUnexpectedFlag
+			}
 		default:
 			s.session.logger.Printf("[ERR] yamux: unexpected FIN flag in state %d", s.state)
 			return ErrUnexpectedFlag
 		}
+		// Peer FIN makes further per-stream receive credit obsolete. Flush
+		// any short tail through the existing session refund publisher.
+		s.flushTerminalAggregateRefunds()
 	}
 	if flags&flagRST == flagRST {
 		s.state = streamReset
 		closeStream = true
+		s.discardReceiveBuffer(true)
 		s.notifyWaiting()
 	}
 	return nil
+}
+
+// discardReceiveBuffer releases buffered receive storage exactly once. In an
+// active aggregate session, discarded payload is returned only through the
+// receiver's session WINDOW_UPDATE worker.
+func (s *Stream) discardReceiveBuffer(refund bool) uint32 {
+	s.recvLock.Lock()
+	var discarded uint32
+	var aggregateHead, aggregateTail *aggregateChunk
+	var aggregateUnits uint32
+	if s.session.aggregateEnabled() {
+		discarded = uint32(s.aggregateBuffered)
+		aggregateHead, aggregateTail, aggregateUnits = s.aggregateHead, s.aggregateTail, s.aggregateUnits
+		s.aggregateHead, s.aggregateTail = nil, nil
+		s.aggregateBuffered, s.aggregateUnits = 0, 0
+		if aggregateUnits > 0 {
+			s.session.returnAggregateChunks(s, aggregateHead, aggregateTail, aggregateUnits, refund, false)
+			aggregateHead, aggregateTail, aggregateUnits = nil, nil, 0
+		}
+		s.session.untrackAggregateBuffer(s)
+		if refund {
+			// Even an empty reset/discard can own deferred refunds from a
+			// preceding Read. Stop coalescing those terminal stream tails.
+			s.flushTerminalAggregateRefunds()
+		}
+	} else if s.recvBuf != nil {
+		discarded = uint32(s.recvBuf.Len())
+		s.recvBuf = nil
+	}
+	s.recvLock.Unlock()
+	return discarded
 }
 
 // notifyWaiting notifies all the waiting channels
@@ -531,35 +826,102 @@ func (s *Stream) notifyWaiting() {
 
 // incrSendWindow updates the size of our send window
 func (s *Stream) incrSendWindow(hdr header, flags uint16) error {
+	if s.session.aggregateEnabled() && flags&^uint16(flagSYN|flagACK|flagFIN|flagRST) != 0 {
+		return ErrUnexpectedFlag
+	}
 	if err := s.processFlags(flags); err != nil {
 		return err
 	}
 
 	// Increase window, unblock a sender
-	atomic.AddUint32(&s.sendWindow, hdr.Length())
+	if s.session.aggregateEnabled() {
+		delta := hdr.Length()
+		for {
+			current := atomic.LoadUint32(&s.sendWindow)
+			if delta > math.MaxUint32-current {
+				return ErrStreamWindowExceeded
+			}
+			if atomic.CompareAndSwapUint32(&s.sendWindow, current, current+delta) {
+				break
+			}
+		}
+	} else {
+		atomic.AddUint32(&s.sendWindow, hdr.Length())
+	}
 	asyncNotify(s.sendNotifyCh)
 	return nil
 }
 
 // readData is used to handle a data frame
 func (s *Stream) readData(hdr header, flags uint16, conn io.Reader) error {
-	if err := s.processFlags(flags); err != nil {
-		return err
-	}
-
-	// Check that our recv window is not exceeded
-	length := hdr.Length()
-	if length == 0 {
+	// RST discards its payload. Applying it first fences concurrent local
+	// cleanup before the physical reader drains attacker-controlled bytes.
+	if flags&flagRST != 0 {
+		if err := s.processFlags(flags); err != nil {
+			return err
+		}
+		_, accepted, err := s.readDataPayload(hdr.Length(), conn)
+		if err != nil {
+			return err
+		}
+		if !accepted {
+			return s.discardDataPayload(hdr.Length(), conn)
+		}
 		return nil
 	}
+	// FIN becomes visible to application Read only after its final payload is
+	// buffered. ACK/SYN state may safely publish before the physical read.
+	if err := s.processFlags(flags &^ flagFIN); err != nil {
+		return err
+	}
+	_, accepted, err := s.readDataPayload(hdr.Length(), conn)
+	if err != nil {
+		return err
+	}
+	if !accepted {
+		return s.discardDataPayload(hdr.Length(), conn)
+	}
+	if flags&flagFIN != 0 {
+		if err := s.processFinalFINAfterPayload(); err != nil {
+			return err
+		}
+	}
+	asyncNotify(s.recvNotifyCh)
+	return nil
+}
 
-	// Check the attacker-controlled length before allocating receive storage.
+func (s *Stream) readDataPayload(length uint32, conn io.Reader) (uint32, bool, error) {
+	// Recheck terminal state after the session map lookup while preserving the
+	// global state -> receive lock order. Reset/timeout cleanup that starts
+	// after this point waits for recvLock and discards any appended bytes before
+	// returning the stream's lifetime resource lease.
+	s.stateLock.Lock()
 	s.recvLock.Lock()
-
 	if length > s.recvWindow {
 		s.session.logger.Printf("[ERR] yamux: receive window exceeded (stream: %d, remain: %d, recv: %d)", s.id, s.recvWindow, length)
 		s.recvLock.Unlock()
-		return ErrRecvWindowExceeded
+		s.stateLock.Unlock()
+		return 0, true, ErrRecvWindowExceeded
+	}
+	switch s.state {
+	case streamInit, streamSYNSent, streamSYNReceived, streamEstablished, streamLocalClose:
+		s.stateLock.Unlock()
+	case streamRemoteClose:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, ErrUnexpectedFlag
+	case streamClosed, streamReset:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, nil
+	default:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, ErrUnexpectedFlag
+	}
+	if length == 0 {
+		s.recvLock.Unlock()
+		return 0, true, nil
 	}
 
 	if s.recvBuf == nil {
@@ -573,14 +935,78 @@ func (s *Stream) readData(hdr header, flags uint16, conn io.Reader) error {
 	if err != nil {
 		s.session.logger.Printf("[ERR] yamux: Failed to read stream data: %v", err)
 		s.recvLock.Unlock()
-		return err
+		return uint32(copiedLength), true, err
 	}
 
 	s.recvLock.Unlock()
+	return uint32(copiedLength), true, nil
+}
 
-	// Unblock any readers
-	asyncNotify(s.recvNotifyCh)
+func (s *Stream) discardDataPayload(length uint32, conn io.Reader) error {
+	if length == 0 {
+		return nil
+	}
+	if _, err := io.CopyN(io.Discard, conn, int64(length)); err != nil {
+		s.session.logger.Printf("[ERR] yamux: Failed to discard terminal stream data: %v", err)
+		return err
+	}
 	return nil
+}
+
+func (s *Stream) readAggregateDataPayload(length, charge uint32, conn io.Reader) (uint32, bool, error) {
+	if length == 0 {
+		return 0, true, nil
+	}
+	// Recheck terminal state after the session lookup/reservation while using
+	// the global state -> receive lock order. Release stateLock before the
+	// physical read; a timeout may then mark the stream closed, but its discard
+	// waits for recvLock and releases any just-appended chunks exactly once.
+	s.stateLock.Lock()
+	s.recvLock.Lock()
+	switch s.state {
+	case streamInit, streamSYNSent, streamSYNReceived, streamEstablished, streamLocalClose:
+		s.stateLock.Unlock()
+	case streamRemoteClose:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, ErrUnexpectedFlag
+	case streamClosed, streamReset:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, nil
+	default:
+		s.recvLock.Unlock()
+		s.stateLock.Unlock()
+		return 0, false, ErrUnexpectedFlag
+	}
+	head, tail, units, err := s.session.borrowAggregateChunks(charge)
+	if err != nil {
+		s.recvLock.Unlock()
+		return 0, true, err
+	}
+	if length > s.recvWindow {
+		s.recvLock.Unlock()
+		s.session.returnAggregateChunks(s, head, tail, units, false, false)
+		return 0, true, ErrRecvWindowExceeded
+	}
+	copied, err := readAggregateFrame(conn, head, length)
+	s.recvWindow -= copied
+	if err != nil {
+		s.recvLock.Unlock()
+		s.session.returnAggregateChunks(s, head, tail, units, false, false)
+		return copied, true, err
+	}
+	if s.aggregateTail == nil {
+		s.aggregateHead = head
+	} else {
+		s.aggregateTail.next = head
+	}
+	s.aggregateTail = tail
+	s.aggregateBuffered += int(length)
+	s.aggregateUnits += units
+	s.session.trackAggregateBuffer(s)
+	s.recvLock.Unlock()
+	return copied, true, nil
 }
 
 // SetDeadline sets the read and write deadlines
@@ -612,6 +1038,9 @@ func (s *Stream) SetWriteDeadline(t time.Time) error {
 // This is useful when using Yamux in a connection pool to reduce
 // the idle memory utilization.
 func (s *Stream) Shrink() {
+	if s.session.aggregateEnabled() {
+		return
+	}
 	s.recvLock.Lock()
 	if s.recvBuf != nil && s.recvBuf.Len() == 0 {
 		// This also drops the bounded reusable spare chunks, returning an idle

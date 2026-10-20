@@ -118,7 +118,7 @@ func newDirectPooledHTTPTransport(tlsSkipVerify bool, timeout time.Duration, con
 	transport := base.Clone()
 	transport.DisableKeepAlives = false
 	transport.MaxIdleConns = 1024
-	transport.MaxIdleConnsPerHost = 32
+	transport.MaxIdleConnsPerHost = 128
 	maxConns := defaultPublicMaxConnectionsPerTarget
 	if len(configuredMaxConns) > 0 && configuredMaxConns[0] > 0 {
 		maxConns = configuredMaxConns[0]
@@ -180,6 +180,9 @@ func (p *directTransportPool) closeWhere(match func(directTransportKey) bool) {
 }
 
 func routeTargetTransportOrigin(target publicRouteTargetConfig) string {
+	if target.transportOrigin != "" {
+		return target.transportOrigin
+	}
 	if target.ParsedURL != nil && target.ParsedURL.Scheme != "" && target.ParsedURL.Host != "" {
 		return target.ParsedURL.Scheme + "://" + target.ParsedURL.Host
 	}

@@ -172,8 +172,8 @@ func TestRouteTargetTransportReconcileEvictsChangedAndRemovedTargets(t *testing.
 	keptDirectTransport := app.directTargetTransport(keptDirect)
 	changedDirectTransport := app.directTargetTransport(changedDirect)
 	_ = app.directTargetTransport(removedDirect)
-	keptAgentTransport := app.agentTargetTransport(agent, keptAgent)
-	changedAgentTransport := app.agentTargetTransport(agent, changedAgent)
+	keptAgentTransport := seedAgentRouteTransportForTest(app, agent, keptAgent)
+	changedAgentTransport := seedAgentRouteTransportForTest(app, agent, changedAgent)
 
 	previous := &publicProxySnapshot{RouteTargets: map[int64]publicRouteTargetConfig{
 		keptDirect.ID:    keptDirect,
@@ -207,10 +207,10 @@ func TestRouteTargetTransportReconcileEvictsChangedAndRemovedTargets(t *testing.
 	if got := app.directTargetTransport(changedDirect); got == changedDirectTransport {
 		t.Fatal("changed direct target kept stale pooled transport")
 	}
-	if got := app.agentTargetTransport(agent, keptAgent); got != keptAgentTransport {
+	if got := seedAgentRouteTransportForTest(app, agent, keptAgent); got != keptAgentTransport {
 		t.Fatal("unchanged agent target did not keep its pooled transport")
 	}
-	if got := app.agentTargetTransport(agent, changedAgent); got == changedAgentTransport {
+	if got := seedAgentRouteTransportForTest(app, agent, changedAgent); got == changedAgentTransport {
 		t.Fatal("changed agent target kept stale pooled transport")
 	}
 }

@@ -30,6 +30,36 @@ type Config struct {
 	// window size that we allow for a stream.
 	MaxStreamWindowSize uint32
 
+	// MaxIncomingStreams bounds peer-initiated stream objects from SYN
+	// allocation through final removal. Zero preserves legacy unlimited
+	// behavior (still subject to AcceptBacklog); -1 rejects every incoming SYN.
+	MaxIncomingStreams int
+
+	// InitialSessionWindowSize enables aggregate DATA flow control when it is
+	// non-zero. Both peers must negotiate and configure the same values before
+	// constructing the session. The window is shared by all streams in one
+	// direction in addition to each stream's own receive window.
+	InitialSessionWindowSize uint32
+
+	// MaxSessionWindowSize is the largest aggregate receive window that may be
+	// advertised through Session.GrowReceiveWindow. It also bounds aggregate
+	// WINDOW_UPDATE credit accepted from the peer.
+	MaxSessionWindowSize uint32
+
+	// MaxDataFrameSize bounds DATA frame payloads in aggregate flow-control
+	// mode. A smaller frame gives blocked streams regular opportunities to use
+	// newly available session credit.
+	MaxDataFrameSize uint32
+
+	// InitialStreamAllocationWindowSize is the initial per-stream share of the
+	// aggregate receive pool. It prevents one fragmented, stalled stream from
+	// consuming all session chunks.
+	InitialStreamAllocationWindowSize uint32
+
+	// MaxStreamAllocationWindowSize bounds explicit per-stream allocation
+	// growth.
+	MaxStreamAllocationWindowSize uint32
+
 	// StreamOpenTimeout is the maximum amount of time that a stream will
 	// be allowed to remain in pending state while waiting for an ack from the peer.
 	// Once the timeout is reached the session will be gracefully closed.
@@ -82,6 +112,43 @@ func VerifyConfig(config *Config) error {
 	}
 	if config.MaxStreamWindowSize < initialStreamWindow {
 		return fmt.Errorf("MaxStreamWindowSize must be larger than %d", initialStreamWindow)
+	}
+	if config.MaxIncomingStreams < -1 {
+		return fmt.Errorf("MaxIncomingStreams must be -1, zero, or positive")
+	}
+	aggregateValues := config.InitialSessionWindowSize != 0 || config.MaxSessionWindowSize != 0 || config.MaxDataFrameSize != 0 || config.InitialStreamAllocationWindowSize != 0 || config.MaxStreamAllocationWindowSize != 0
+	if aggregateValues {
+		if config.InitialSessionWindowSize == 0 || config.MaxSessionWindowSize == 0 || config.MaxDataFrameSize == 0 || config.InitialStreamAllocationWindowSize == 0 || config.MaxStreamAllocationWindowSize == 0 {
+			return fmt.Errorf("aggregate session window fields must all be non-zero")
+		}
+		for name, value := range map[string]uint32{
+			"InitialSessionWindowSize":          config.InitialSessionWindowSize,
+			"MaxSessionWindowSize":              config.MaxSessionWindowSize,
+			"InitialStreamAllocationWindowSize": config.InitialStreamAllocationWindowSize,
+			"MaxStreamAllocationWindowSize":     config.MaxStreamAllocationWindowSize,
+		} {
+			if value%AggregateWindowUnitSize != 0 {
+				return fmt.Errorf("%s must be a multiple of %d", name, AggregateWindowUnitSize)
+			}
+		}
+		if config.InitialSessionWindowSize > config.MaxSessionWindowSize {
+			return fmt.Errorf("InitialSessionWindowSize must not exceed MaxSessionWindowSize")
+		}
+		if config.MaxSessionWindowSize > AggregateMaxSessionWindowSize {
+			return fmt.Errorf("MaxSessionWindowSize must not exceed aggregate protocol ceiling %d", AggregateMaxSessionWindowSize)
+		}
+		if config.MaxDataFrameSize != AggregateMaxDataFrameSize {
+			return fmt.Errorf("MaxDataFrameSize must equal %d in aggregate mode", AggregateMaxDataFrameSize)
+		}
+		if config.InitialStreamAllocationWindowSize > config.InitialSessionWindowSize/aggregateStreamWindowDivisor {
+			return fmt.Errorf("InitialStreamAllocationWindowSize must not exceed one quarter of InitialSessionWindowSize")
+		}
+		if config.InitialStreamAllocationWindowSize > config.MaxStreamAllocationWindowSize {
+			return fmt.Errorf("InitialStreamAllocationWindowSize must not exceed MaxStreamAllocationWindowSize")
+		}
+		if config.MaxStreamAllocationWindowSize > config.MaxSessionWindowSize/aggregateStreamWindowDivisor {
+			return fmt.Errorf("MaxStreamAllocationWindowSize must not exceed one quarter of MaxSessionWindowSize")
+		}
 	}
 	if config.LogOutput != nil && config.Logger != nil {
 		return fmt.Errorf("both Logger and LogOutput may not be set, select one")

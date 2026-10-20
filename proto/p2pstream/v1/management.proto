@@ -2911,6 +2911,19 @@ message AgentStreamCapacitySummary {
   uint64 public_connection_limit_rejected = 48;
   uint64 public_connection_resource_rejected = 49;
   uint64 public_client_request_rejected = 50;
+  repeated ResourceOwnerSummary resource_owners = 51;
+  string adaptive_admission_role = 52;
+  int64 adaptive_stream_charge_bytes = 53;
+  int64 adaptive_stream_charge_file_descriptors = 54;
+}
+
+// Fixed-cardinality process resource ownership. Names are emitted by the
+// server from a closed enum and never contain request- or client-derived data.
+message ResourceOwnerSummary {
+  string name = 1;
+  int64 bytes = 2;
+  int64 file_descriptors = 3;
+  int64 reservations = 4;
 }
 
 // Managed updates are desired-state only. The server never sends executable

@@ -100,6 +100,58 @@ it is absent from `.env`. Change the Compose default to `0` or set
 `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` explicitly to use automatic limits.
 :::
 
+## Roll out aggregate tunnel resource accounting
+
+Upgrade the **server first**, validate existing agent traffic, then update a
+small agent canary before the remaining fleet. Keep the previous server and
+agent builds, configuration, and a consistent database backup. Protocol fallback
+does not establish compatibility with every older release or override the
+legacy-data preparation and managed-updater checks above.
+
+Mixed versions have different resource requirements:
+
+| Combination | What to expect |
+| --- | --- |
+| New agent, older server without `aggregate-v1` | Legacy fallback reserves about **173 MiB per tunnel lane** with the default 512 KiB receive window: about **693 MiB for four lanes**, before active-stream charges. These are accounting promises, not measured RSS. A small agent can refuse the session for insufficient headroom even when the older agent connected successfully. |
+| Older agent, new server | Legacy streams need a separate receive-storage reservation, about **641 KiB per stream** at the default window, in addition to the server stream base. This extra check can fail immediately after ordinary stream admission and return a capacity 503; it does not wait in the fair admission queue. |
+| New agent, new server | Negotiated `aggregate-v1` uses a separate control lane and the configured number of bulk lanes. With the default four bulk lanes, expect five physical tunnel sessions. |
+
+Before continuing the rollout, check agent connection logs for the negotiated
+mode, exercise each important agent-backed route and its health checks, and
+check for capacity 503s, repeated reconnects, or resource-pressure rejections.
+Confirm the canary negotiates `aggregate_flow_control=true` and retains its
+control and bulk connections. A disconnected legacy lane zero replaces the
+whole tunnel group; allow that reconnect to finish before judging readiness.
+Keep adequate headroom during either mixed-version interval. Do not disable
+resource accounting to force a connection.
+
+Review any explicit `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` override. Its
+historical full-stream value is now retained as a conservative **base**, with
+aggregate session pools or legacy receive storage charged separately. An
+unchanged explicit value can therefore reserve more total memory and admit
+fewer streams. The default `0` selects the owned server base automatically;
+see [Configuration](../reference/configuration) before changing an override.
+
+Cache-bypass event counts can increase because bypass attribution is now
+retained when forwarding, including requests with caching unavailable or
+disabled. This reporting change alone does not mean that previously cacheable
+responses stopped being cached.
+
+For a coordinated binary rollback, restore the previous agent builds while the
+new server is still available, verify their traffic and headroom, then use the
+supported server rollback procedure. Rolling the server back first can put new
+agents onto the larger legacy-session budget described above. Keep updater
+receipts and security floors intact.
+
+Database migration **21** only replaces seven event-ID indexes with indexes
+excluding NULL IDs; it does not rewrite event rows. Its down migration restores
+the original full indexes. This index operation is distinct from a binary
+rollback: older schema-20 binaries do not automatically undo migration 21, and
+managed server rollback still follows its snapshot/compatibility policy. It
+does not make the earlier schema cutovers reversible or relax the backup
+requirement below. Allow a maintenance window for index rebuilding on large
+event databases.
+
 ## Verify the upgrade
 
 - The management UI and **Overview** load without unsupported-state errors.

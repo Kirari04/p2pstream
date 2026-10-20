@@ -66,9 +66,12 @@ initial_secret = next(v for v in info()['Config']['Env'] if v.startswith('SECRET
 # The fixture binds the exact real registry image/index. The only nonpublished
 # artifacts are the catalog and its small installation descriptor.
 def fixture(version, commit, server_ref, updater_ref):
-    metadata = {'api': 1, 'version': version, 'commit': commit, 'source_schema_min': 17, 'source_schema_max': 20, 'target_schema': 20, 'runtime_api_min': 1, 'agent_protocol_min': 1, 'agent_protocol_max': 1, 'rollback': 'snapshot'}
+    # Generate compatibility with the production release tool from this source.
+    # A copied schema bound silently goes stale when migrations advance.
+    metadata_raw = docker('run', '--rm', '--network', 'none', images['helper'],
+        '/app/serverupdate-manifest', '--version', version, '--commit', commit,
+        '--output', '/dev/stdout').encode()
     desc = {'api': 1, 'version': version, 'commit': commit, 'channel': 'staging', 'bundle': 'p2pstream_' + version + '_docker.tar.gz', 'updater_images': {'linux/amd64': updater_ref, 'linux/arm64': updater_ref}}
-    metadata_raw = json.dumps(metadata, separators=(',', ':')).encode()
     desc_raw = json.dumps(desc, separators=(',', ':')).encode()
     bundle_buffer = io.BytesIO()
     with tarfile.open(fileobj=bundle_buffer, mode='w:gz') as archive:

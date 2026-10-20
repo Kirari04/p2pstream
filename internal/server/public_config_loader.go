@@ -514,6 +514,9 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			StaticResponseTemplateID: nullInt64Value(target.StaticResponseTemplateID),
 			ParsedURL:                parsed,
 		}
+		if parsed != nil {
+			config.transportOrigin = routeTargetTransportOrigin(config)
+		}
 		snap.RouteTargets[target.ID] = config
 		routeTargetsByRoute[target.RouteID] = append(routeTargetsByRoute[target.RouteID], config)
 	}
