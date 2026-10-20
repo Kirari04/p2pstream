@@ -221,9 +221,10 @@ func (r *ClientIdentityResolver) ResolveRequest(req *http.Request) *http.Request
 	if req == nil {
 		return nil
 	}
-	identity := r.Resolve(req)
-	ctx := WithClientIdentity(req.Context(), identity)
-	ctx = withClientIdentityHeaderNames(ctx, r.ConfiguredHeaderNames())
+	ctx := &resolvedClientIdentityContext{Context: req.Context(), identity: r.Resolve(req)}
+	if r != nil {
+		ctx.headerNames = r.headerNames
+	}
 	return req.WithContext(ctx)
 }
 
@@ -412,6 +413,27 @@ func validHTTPFieldName(value string) bool {
 type clientIdentityContextKey struct{}
 type clientIdentityHeaderNamesContextKey struct{}
 
+// resolvedClientIdentityContext owns Resolve's fresh identity and references the
+// resolver's immutable header names. Both exported readers return defensive
+// copies, so the two values can share one request-lifetime context allocation.
+// Other values, deadlines and cancellation remain delegated to the parent.
+type resolvedClientIdentityContext struct {
+	context.Context
+	identity    ClientIdentity
+	headerNames []string
+}
+
+func (c *resolvedClientIdentityContext) Value(key any) any {
+	switch key {
+	case clientIdentityContextKey{}:
+		return c
+	case clientIdentityHeaderNamesContextKey{}:
+		return c
+	default:
+		return c.Context.Value(key)
+	}
+}
+
 func WithClientIdentity(ctx context.Context, identity ClientIdentity) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
@@ -424,9 +446,20 @@ func ClientIdentityFromContext(ctx context.Context) (ClientIdentity, bool) {
 	if ctx == nil {
 		return ClientIdentity{}, false
 	}
-	identity, ok := ctx.Value(clientIdentityContextKey{}).(ClientIdentity)
+	var identity ClientIdentity
+	switch value := ctx.Value(clientIdentityContextKey{}).(type) {
+	case ClientIdentity:
+		identity = value
+	case *resolvedClientIdentityContext:
+		if value == nil {
+			return ClientIdentity{}, false
+		}
+		identity = value.identity
+	default:
+		return ClientIdentity{}, false
+	}
 	identity.MatchedSources = append([]string(nil), identity.MatchedSources...)
-	return identity, ok
+	return identity, true
 }
 
 func ClientIdentityPeer(ctx context.Context) (netip.Addr, bool) {
@@ -465,6 +498,14 @@ func ClientIdentityHeaderNames(ctx context.Context) []string {
 	if ctx == nil {
 		return []string{}
 	}
-	names, _ := ctx.Value(clientIdentityHeaderNamesContextKey{}).([]string)
+	var names []string
+	switch value := ctx.Value(clientIdentityHeaderNamesContextKey{}).(type) {
+	case []string:
+		names = value
+	case *resolvedClientIdentityContext:
+		if value != nil {
+			names = value.headerNames
+		}
+	}
 	return append([]string(nil), names...)
 }

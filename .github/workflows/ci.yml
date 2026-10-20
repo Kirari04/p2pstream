@@ -42,7 +42,8 @@ jobs:
   verify:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     name: Verify
-    runs-on: ubuntu-latest
+    # Keep the runner compatible with the Playwright version in bun.lock.
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
@@ -75,6 +76,13 @@ jobs:
 
       - name: Run Go tests
         run: go test ./...
+
+      - name: Race-test proxy resource ownership and request lifetimes
+        timeout-minutes: 5
+        run: >-
+          go test -race -timeout=3m
+          ./internal/agent ./internal/server ./internal/tunnel ./internal/tcpsocket
+          -run '^(TestAdaptiveAgentCapacityConcurrentAcquireReleaseConservesLeases|TestAdaptiveResourceOwnerLedgerConservesConcurrentReceiveCredit|TestServerAdaptiveRefresh|TestServerAdaptiveOverlappingSamples|TestServerAdaptiveAdmissionRechecks|TestPublicConcurrentClose|TestAccountedConcurrentClose|TestPublicConnectionPhaseLease|TestPublicHTTP2ConcurrentDecodedHeaders|TestPublicRequestChargesDecodedHeaders|TestPublicProxyContext|TestPublicProxyCleanup|TestPublicProxyResolutionPointer|TestResolvedIdentityContext|TestPreparePublicRetryRequestBody|TestPublicAgentRetryUnknownOversize|TestPublicRetryRequestWorkingCharge|TestPublicRetryResponse|TestPublicRetryWorkingChargeDenial|TestPublicAgentNoRule|TestPublicObservedResponseBody|TestPublicProxyCacheEvent|TestPublicDirectStreaming|TestPublicForwarded|TestTrafficShaperDecision|TestOwnedStreamResourceModels)'
 
       - name: Test public proxy throughput over a real TCP WAN
         timeout-minutes: 6
