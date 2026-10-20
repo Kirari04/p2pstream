@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { NAlert, NButton, NCard, NInput, NModal, NTag } from "naive-ui";
-import { ArrowUpRight, Check, Copy, Download, RefreshCw, ShieldCheck } from "@lucide/vue";
+import { Check, Copy, Download, RefreshCw, ShieldCheck, Wifi, WifiOff } from "@lucide/vue";
 import { selectedEnvironmentIdKey, selectedEnvironmentLabelKey, selectedEnvironmentBlockedKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { createAgentUpdatePolling } from "@/lib/agentUpdatePolling";
 import { serverSetupCommand } from "@/lib/serverSetup";
 import { messageFromError } from "@/lib/errors";
-import { parsePendingServerUpdate, serverUpdatePhaseLabel, serverUpdateTerminal, type PendingServerUpdate } from "@/lib/serverUpdates";
+import { parsePendingServerUpdate, serverUpdateDuration, serverUpdateTerminal, type PendingServerUpdate } from "@/lib/serverUpdates";
+import ServerUpdateProgress from "@/components/updates/ServerUpdateProgress.vue";
 import type { GetServerUpdateOverviewResponse, PreviewServerUpdateResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const client = useManagementClient();
@@ -21,6 +22,8 @@ const targetVersion = ref("");
 const busy = ref(false);
 const loading = ref(false);
 const error = ref("");
+const connectionError = ref("");
+const lastCheckedAt = ref(0);
 const copied = ref(false);
 const pending = ref<PendingServerUpdate | null>(null);
 const now = ref(Date.now());
@@ -29,6 +32,8 @@ let disposed = false;
 const scope = () => `${environmentId.value}\u0000${blocked.value}`;
 const storageKey = () => `p2pstream:server-update:${environmentId.value}`;
 const operation = computed(() => overview.value?.operation);
+const stale = computed(() => Boolean(connectionError.value || (overview.value?.executorConfigured && !overview.value.executorAvailable)));
+const checkedAgo = computed(() => lastCheckedAt.value ? serverUpdateDuration(Math.max(0, now.value - lastCheckedAt.value)) : "");
 const running = computed(() => Boolean(operation.value && !serverUpdateTerminal(operation.value.phase)));
 const planExpired = computed(() => !plan.value || Number(plan.value.expiresAtUnixMillis) <= now.value);
 const composeProject = ref("");
@@ -49,7 +54,7 @@ function loadPending() {
 const polling = createAgentUpdatePolling({
   scope,
   canPoll: () => !busy.value && !blocked.value && document.visibilityState !== "hidden",
-  load: (signal) => client.getServerUpdateOverview({}, { signal, timeoutMs: 90000 }),
+  load: (signal) => client.getServerUpdateOverview({}, { signal, timeoutMs: running.value || pending.value || stale.value ? 10000 : 90000 }),
   apply: (response) => {
     // An unavailable executor cannot contradict the last accepted operation.
     // Keep its progress visible while the independent updater reconnects.
@@ -58,11 +63,12 @@ const polling = createAgentUpdatePolling({
     }
     overview.value = response;
     now.value = Date.now();
+    lastCheckedAt.value = now.value;
+    connectionError.value = "";
     if (!targetVersion.value && response.target) targetVersion.value = response.target.version;
-    if (pending.value && response.operation?.id === pending.value.operationId) savePending(null);
-    error.value = "";
+    if (pending.value && response.operation?.id === pending.value.operationId) { savePending(null); error.value = ""; }
   },
-  error: (cause) => { error.value = messageFromError(cause); },
+  error: (cause) => { connectionError.value = messageFromError(cause); },
   loading: (value) => { loading.value = value; },
 });
 
@@ -126,7 +132,7 @@ async function copySetup() {
 watch(() => [environmentId.value, blocked.value], () => {
   actionRevision += 1;
   composeProject.value = ""; composeFiles.value = ""; composeEnvFiles.value = ""; composeDirectory.value = "";
-  busy.value = false; overview.value = null; plan.value = null; targetVersion.value = ""; error.value = ""; copied.value = false;
+  busy.value = false; overview.value = null; plan.value = null; targetVersion.value = ""; error.value = ""; connectionError.value = ""; lastCheckedAt.value = 0; copied.value = false;
   loadPending(); void polling.scopeChanged();
 });
 let clock: ReturnType<typeof setInterval>;
@@ -146,8 +152,16 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
     </div>
 
     <NAlert v-if="blocked" type="warning">{{ blocked }}</NAlert>
-    <NAlert v-if="error" :type="running || pending ? 'info' : 'error'" :title="running || pending ? 'Reconnecting to the selected server' : 'Unable to load server updates'">{{ error }}</NAlert>
+    <NAlert v-if="error" :type="running || pending ? 'info' : 'error'" :title="pending ? 'Update request needs confirmation' : 'Request could not complete'">{{ error }}</NAlert>
     <NAlert v-if="overview?.warning" type="warning">{{ overview.warning }}</NAlert>
+
+    <div v-if="overview || connectionError" class="update-connection" :class="{ 'update-connection--waiting': connectionError }" aria-label="Management connection">
+      <div><WifiOff v-if="connectionError" :size="16" /><Wifi v-else :size="16" /><strong>{{ connectionError ? 'Waiting for management' : 'Management responding' }}</strong><span v-if="lastCheckedAt">Last response {{ checkedAgo }} ago</span></div>
+      <p v-if="connectionError">The host updater runs independently. This connection status does not confirm an update outcome. {{ connectionError }}</p>
+      <p v-else>The management connection is separate from the host update outcome and public route health.</p>
+    </div>
+
+    <ServerUpdateProgress v-if="operation" :key="`${environmentId}:${operation.id}`" :operation="operation" :now="now" :environment="environmentLabel" :instance-id="overview?.instanceId || ''" :stale="stale" />
 
     <div class="update-summary">
       <div class="update-version">
@@ -177,18 +191,14 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <p class="muted-text">Supported: one Linux amd64/arm64 Compose server with a writable named <code>/data</code> volume. Native, rootless, Swarm, custom entrypoints, deployment hooks, external databases, and unsupported data layouts require host deployment procedures. Copied commands are rejected if this server’s identity, release, or deployment changed.</p>
     </NCard>
 
-    <NAlert v-if="overview?.executorConfigured" :type="overview.executorAvailable ? 'success' : 'warning'" :title="overview.executorAvailable ? (running ? 'Updater connected · update in progress' : 'Updates enabled · updater verified') : 'Updater needs attention'">
-      <template v-if="!overview.executorAvailable">Setup or the private updater connection could not be verified. On {{ environmentLabel }}’s Docker host run <code>sudo /etc/p2pstream-server-updater/manage status</code>, then <code>sudo /etc/p2pstream-server-updater/manage repair</code> if setup was interrupted. Refresh after recovery.</template>
+    <NAlert v-if="overview?.executorConfigured" :type="connectionError || !overview.executorAvailable ? 'warning' : operation && operation.phase !== 'succeeded' ? 'info' : 'success'" :title="connectionError ? 'Host updater · last confirmed status' : overview.executorAvailable ? (operation ? 'Host updater connected · operation recorded' : 'Updates enabled · updater verified') : 'Host updater unavailable'">
+      <template v-if="connectionError">Waiting for a fresh response from {{ environmentLabel }}. The operation panel retains its last confirmed state.</template>
+      <template v-else-if="!overview.executorAvailable"><span v-if="operation">The updater connection is unavailable. The operation panel preserves the last confirmed host state.</span><span v-else>Setup or the private updater connection could not be verified.</span> On {{ environmentLabel }}’s Docker host run <code>sudo /etc/p2pstream-server-updater/manage status</code>, then <code>sudo /etc/p2pstream-server-updater/manage repair</code> if setup was interrupted. Refresh after recovery.</template>
+      <template v-else-if="operation?.phase === 'recovery_required'">Resolve the host recovery above before applying settings or starting another update.</template>
+      <template v-else-if="running">Wait for the confirmed host outcome above before applying settings. The updater continues independently of this page.</template>
+      <template v-else-if="operation && operation.phase !== 'succeeded'">Review the recorded failure above and resolve its cause before previewing a release or applying deployment changes.</template>
       <template v-else>Settings remain editable in your Compose inputs. Apply changes with <code>sudo /etc/p2pstream-server-updater/manage apply</code>. Later software updates remain your choice.</template>
     </NAlert>
-
-    <NCard v-if="operation" :title="serverUpdatePhaseLabel(operation.phase)">
-      <div class="update-operation"><span>{{ operation.previousVersion }}</span><ArrowUpRight :size="18" /><strong>{{ operation.targetVersion }}</strong><NTag :type="operation.phase === 'succeeded' ? 'success' : operation.phase === 'recovery_required' ? 'error' : 'default'" size="small">{{ operation.phase.replaceAll('_', ' ') }}</NTag></div>
-      <p v-if="running && operation.phase !== 'recovery_required'">The updater continues on the remote host even if this page disconnects. Public traffic and agent tunnels reconnect after the server returns.</p>
-      <p v-if="operation.phase === 'recovery_required'">Recovery is paused. On the selected server’s Docker host run <code>sudo /etc/p2pstream-server-updater/manage recover-update</code> to retry data recovery once.</p>
-      <NAlert v-if="operation.detail" :type="operation.phase === 'rolled_back' ? 'warning' : 'error'">{{ operation.detail }}</NAlert>
-      <small class="muted-text">Operation {{ operation.id }}</small>
-    </NCard>
 
     <NAlert v-if="pending" type="info" title="Update request awaiting confirmation">
       Retrying uses the same operation ID, so it cannot create a second update.
@@ -223,6 +233,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 .update-eyebrow{font-size:.68rem;letter-spacing:.09em;font-weight:600;color:var(--app-text-muted)}
 .update-summary{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--app-border);border-radius:8px;overflow:hidden}.update-version{padding:1.5rem;display:grid;gap:.65rem;min-width:0}.update-version>strong{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;overflow-wrap:anywhere}.update-meta{display:flex;gap:.8rem;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:.75rem}
 .update-policy{padding:1.5rem;display:flex;gap:.8rem;align-items:flex-start;background:var(--app-panel-muted);border-left:1px solid var(--app-border)}.update-policy>svg{flex-shrink:0;color:var(--app-accent)}.update-policy p{font-size:.82rem;margin:.4rem 0 0;color:var(--app-text-muted)}
+.update-connection{padding:.8rem 1rem;border:1px solid var(--app-border);border-radius:6px;background:var(--app-panel-muted)}.update-connection>div{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.75rem}.update-connection svg{color:var(--app-success);flex-shrink:0}.update-connection strong{font-weight:500}.update-connection span{color:var(--app-text-muted);font-family:var(--font-mono);font-size:.65rem;margin-left:auto}.update-connection p{color:var(--app-text-muted);font-size:.72rem;line-height:1.6;margin:.4rem 0 0;overflow-wrap:anywhere}.update-connection--waiting svg{color:var(--app-warning)}
 .update-command,.update-actions,.update-operation{display:flex;align-items:center;gap:.75rem}.update-context{margin:1rem 0}.update-context label{display:grid;gap:.4rem;margin:.8rem 0}.update-command pre{margin:0;min-width:0;overflow:auto;max-height:32rem;white-space:pre-wrap;overflow-wrap:anywhere}.update-command{padding:.75rem 1rem;border:1px solid var(--app-border);border-radius:6px;justify-content:space-between;margin:1rem 0}.update-command code{overflow-wrap:anywhere;min-width:0}.update-actions .n-input{max-width:380px}.update-operation{flex-wrap:wrap;margin-bottom:.75rem}.update-blocker{margin-bottom:.75rem}.update-details{margin:1rem 0}.update-details code{display:block;overflow-wrap:anywhere;font-size:.7rem;margin-top:.75rem}.update-modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.25rem}.muted-text{font-size:.8rem}
 @media(max-width:640px){.update-heading{flex-direction:column}.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command{flex-direction:column;align-items:flex-start}}
 </style>

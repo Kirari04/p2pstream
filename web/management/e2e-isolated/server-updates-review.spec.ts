@@ -10,10 +10,11 @@ const url = 'https://updates-review.test/e2e/fixtures/server-updates.html';
 // replace only its fake host methods with manually controlled network replies.
 const reviewHarness = `
 const visible = ref(true);
-const review = window.__updateReview = { previews: [], overviews: [], starts: [], startReplies: [], holdOverview: false, failOverview: false, unavailableExecutor: false, loseStart: false, holdStart: false, mount: (value) => { visible.value = value; } };
+const review = window.__updateReview = { previews: [], overviews: [], overviewTimeouts: [], starts: [], startReplies: [], holdOverview: false, failOverview: false, unavailableExecutor: false, loseStart: false, holdStart: false, mount: (value) => { visible.value = value; } };
 for (const id of ['1', '2']) {
  const overview = clients[id].getServerUpdateOverview;
- clients[id].getServerUpdateOverview = async () => {
+ clients[id].getServerUpdateOverview = async (_request, options) => {
+  review.overviewTimeouts.push(options.timeoutMs);
   if (review.failOverview) throw new Error('server restarting');
   const value = await overview();
   if (review.unavailableExecutor) { value.executorAvailable = false; value.warning = 'Executor is restarting'; }
@@ -158,4 +159,22 @@ test('unmounted Start completion cannot rewrite the saved request of a replaceme
   await page.evaluate(() => (window as any).__updateReview.startReplies[0].resolve());
   expect(await page.evaluate(() => sessionStorage.getItem('p2pstream:server-update:1'))).toBe(record);
   await expect(page.getByRole('button', {name:'Retry same request'})).toBeVisible();
+});
+
+test('active operation status reads use a bounded deadline while initial verification retains its budget', async ({page}) => {
+  await page.goto(url+'?phase=validating');
+  await expect(page.getByRole('status').filter({hasText:'Validating the replacement'})).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__updateReview.overviewTimeouts[0])).toBe(90000);
+  await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts.at(-1))).toBe(10000);
+});
+
+test('an unavailable idle executor also bounds subsequent read deadlines', async ({page}) => {
+ await page.goto(url);
+ await expect(page.getByText('Updates enabled · updater verified',{exact:true})).toBeVisible();
+ await page.evaluate(() => { (window as any).__updateReview.unavailableExecutor = true; });
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await expect(page.getByText('Host updater unavailable',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts.at(-1))).toBe(10000);
 });
