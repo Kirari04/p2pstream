@@ -1,13 +1,173 @@
 package serverupdate
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"database/sql"
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 )
+
+func TestLiveBackupPreflightOnlyToleratesVanishedChildren(t *testing.T) {
+	for _, name := range []string{"child", "missing-source", "missing-state", "regular-source", "regular-state", "root-error", "outside-error", "permission", "canceled", "unknown-not-exist"} {
+		t.Run(name, func(t *testing.T) {
+			source, state := t.TempDir(), t.TempDir()
+			ctx := context.Background()
+			preflightErr := error(&fs.PathError{Op: "lstat", Path: filepath.Join(source, "cache", "vanished"), Err: fs.ErrNotExist})
+			switch name {
+			case "missing-source", "regular-source":
+				if err := os.Remove(source); err != nil {
+					t.Fatal(err)
+				}
+				if name == "regular-source" {
+					if err := os.WriteFile(source, nil, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			case "missing-state", "regular-state":
+				if err := os.Remove(state); err != nil {
+					t.Fatal(err)
+				}
+				if name == "regular-state" {
+					if err := os.WriteFile(state, nil, 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			case "root-error":
+				preflightErr = &fs.PathError{Op: "lstat", Path: source, Err: fs.ErrNotExist}
+			case "outside-error":
+				preflightErr = &fs.PathError{Op: "lstat", Path: filepath.Join(t.TempDir(), "vanished"), Err: fs.ErrNotExist}
+			case "permission":
+				preflightErr = &fs.PathError{Op: "lstat", Path: filepath.Join(source, "private"), Err: fs.ErrPermission}
+			case "canceled":
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			case "unknown-not-exist":
+				preflightErr = fs.ErrNotExist
+			}
+			err := liveBackupPreflightResult(ctx, source, state, preflightErr)
+			if name == "child" {
+				if err != nil {
+					t.Fatalf("live child disappearance should be inconclusive: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("preflight failure was ignored")
+			}
+			if name == "canceled" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("canceled preflight = %v", err)
+			}
+		})
+	}
+}
+
+func TestBackupVerificationChecksAllPersistedBytesBeforeRestore(t *testing.T) {
+	var archive bytes.Buffer
+	writer := tar.NewWriter(&archive)
+	if err := writer.WriteHeader(&tar.Header{Name: ".", Typeflag: tar.TypeDir, Mode: 0700, Uid: os.Getuid(), Gid: os.Getgid()}); err != nil {
+		t.Fatal(err)
+	}
+	const body = "last-good"
+	if err := writer.WriteHeader(&tar.Header{Name: "value", Typeflag: tar.TypeReg, Mode: 0600, Size: int64(len(body)), Uid: os.Getuid(), Gid: os.Getgid()}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write([]byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	// A tar reader ignores bytes after its terminator. They still belong to the
+	// protected file and must be included in the recorded and verified digest.
+	original := append(append([]byte(nil), archive.Bytes()...), []byte("bound trailer")...)
+	for _, name := range []string{"valid", "body", "file-padding", "trailer", "appended", "truncated-body", "truncated-header", "canceled"} {
+		t.Run(name, func(t *testing.T) {
+			contents := append([]byte(nil), original...)
+			digest := hash(original)
+			ctx := context.Background()
+			switch name {
+			case "body":
+				contents[1024] ^= 1
+			case "file-padding":
+				contents[1024+len(body)] ^= 1
+			case "trailer":
+				contents[len(contents)-1] ^= 1
+			case "appended":
+				contents = append(contents, 'x')
+			case "truncated-body":
+				contents = contents[:1024+len(body)-1]
+				digest = hash(contents) // A matching checksum cannot excuse invalid tar.
+			case "truncated-header":
+				contents = contents[:700]
+				digest = hash(contents)
+			case "canceled":
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithCancel(ctx)
+				cancel()
+			}
+			path := filepath.Join(t.TempDir(), "snapshot.tar")
+			if err := os.WriteFile(path, contents, 0600); err != nil {
+				t.Fatal(err)
+			}
+			data := t.TempDir()
+			keep := filepath.Join(data, "candidate-only")
+			if err := os.WriteFile(keep, []byte("keep until verified"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			err := restoreData(ctx, data, path, digest)
+			if name == "valid" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := os.ReadFile(filepath.Join(data, "value"))
+				if err != nil || string(got) != body {
+					t.Fatalf("restored body = %q, %v", got, err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("unverified snapshot restored")
+			}
+			if name == "canceled" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("canceled restore = %v", err)
+			}
+			got, readErr := os.ReadFile(keep)
+			if readErr != nil || string(got) != "keep until verified" {
+				t.Fatalf("candidate changed before verification: %q, %v", got, readErr)
+			}
+		})
+	}
+}
+
+func TestBackupVerificationRefusesArchiveSymlink(t *testing.T) {
+	data := t.TempDir()
+	if err := os.WriteFile(filepath.Join(data, "value"), []byte("last-good"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	archive := filepath.Join(t.TempDir(), "snapshot.tar")
+	digest, err := backupData(context.Background(), data, archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "linked.tar")
+	if err := os.Symlink(archive, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := restoreData(context.Background(), data, link, digest); err == nil {
+		t.Fatal("followed archive symlink")
+	}
+	got, err := os.ReadFile(filepath.Join(data, "value"))
+	if err != nil || string(got) != "last-good" {
+		t.Fatalf("candidate changed before verification: %q, %v", got, err)
+	}
+}
 
 func TestBackupRestoresDatabaseWALAndAuthorityTogether(t *testing.T) {
 	data := t.TempDir()

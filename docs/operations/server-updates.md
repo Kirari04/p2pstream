@@ -39,6 +39,8 @@ While enrolled, use `manage apply` instead of the original `docker compose up`. 
 
 The updater image/tools remain pinned when server software changes. A future release needing a new executor API requires a deliberate host-side executor upgrade; the UI cannot replace the Docker-authorized component.
 
+The progress display works with existing executors. Backup I/O and cleanup improvements belong to the executor binary, so updating only the server or browser does not apply them to an already pinned executor.
+
 ## Interrupted host setup and removal
 
 If setup or application fails, the controller attempts to restore the exact pre-operation deployment. If restoration cannot be verified, it retains a durable `recovery_required` phase, private snapshots and an exact recovery command. A canceled or killed process similarly leaves durable phases. Inspect and resume from the host:
@@ -85,15 +87,21 @@ A preview expires after ten minutes and binds the instance, installed version/im
 
 The server also owns the public proxy and agent tunnel listener. Replacement interrupts public requests and existing streams. Plan for reconnections; this is not a zero-downtime upgrade.
 
-Before stopping the server, the updater downloads both required image references, pauses management mutations and agent update polling, waits for in-flight management/certificate work, and rejects active agent rollouts or management TLS rotation. It then disables automatic container restart, stops the process, checks SQLite integrity and available backup space, and archives the whole `/data` tree, including SQLite/WAL, certificates, update authority, and cache.
+Before stopping the server, the updater downloads both required image references, pauses management mutations and agent update polling, checks backup layout and available space, waits for in-flight management/certificate work, and rejects active agent rollouts or management TLS rotation. The live backup check is advisory when cache files disappear during the scan. It repeats strictly after stopping the server; data growth or disk use between checks can still cause a backup failure.
+
+The updater then disables automatic container restart, stops the process, checks SQLite integrity, and archives the whole `/data` tree, including SQLite/WAL, certificates, update authority, and cache. The stopped backup remains necessary for a consistent rollback snapshot. Its persisted checksum and archive structure are verified together in one read. A larger data/cache volume still increases downtime; the updater does not omit cached data or copy a live database.
 
 Session login, logout, and the UI's read-only bootstrap remain available while the server is running so operators can reload the Updates page during validation or a paused recovery.
 
 The candidate is created stopped, has automatic restart disabled, and is then started. Acceptance requires the expected build, image, database schema and instance, running enabled listeners, and reconnection of all agents connected at preparation time. These checks must hold continuously for 120 seconds within a 300-second deadline. These are runtime readiness checks, not external synthetic requests to every route. An unrelated agent outage can therefore cause a rollback.
 
+Update duration is longer than the interruption: image downloads happen while the previous server runs, and the candidate can serve requests during the stability check. The page shows the last reported stage, actual elapsed time, and the freshness of its management connection separately. Stage time is not a stability countdown or a prediction of completion. A lost management connection does not establish that the update failed, and a restored management connection does not prove every public route is healthy.
+
+The result distinguishes **failed before replacement**, **previous version restored**, and **host recovery required**, with the reported reason and next steps. Keep the operation ID when investigating. If the UI cannot reconnect, inspect the host's status and logs rather than starting a second update.
+
 If acceptance fails, the updater stops the candidate, verifies the backup checksum, restores the complete data snapshot, and starts the previous image. It never relies on down-migrations. Data written after the snapshot is lost on rollback. Once either version passes validation, normal restart policy and management access are restored.
 
-The journal and observed release/security floors live outside application data and survive rollback. Three recent completed snapshots and the active operation’s snapshot are retained. Backups contain secrets and remain in the private state directory; keep a separate off-host backup policy. The current operation and its initiating admin/token identity are recorded in `state.json`.
+The journal and observed release/security floors live outside application data and survive rollback. After successful candidate validation and restart-policy restoration, retention cleanup keeps three recent completed snapshots and the active operation's snapshot. Cleanup runs after the candidate is serving; a cleanup error appears as a maintenance warning on a successful update and does not roll it back. Failed updates keep their snapshots for recovery, so check private backup storage if failures accumulate. Backups contain secrets and remain in the private state directory; keep a separate off-host backup policy. The current operation and its initiating admin/token identity are recorded in `state.json`.
 
 A restarted updater resumes an interrupted operation from its durable phase without requiring GitHub. If recovery itself fails, the operation becomes **Host recovery required** and stays paused across restarts. New updates remain blocked. Fix the reported host problem, such as insufficient disk space or Docker failure, then retry recovery once:
 

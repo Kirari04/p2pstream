@@ -235,6 +235,9 @@ func (d *ComposeDriver) Gate(enabled bool) error {
 }
 
 func (d *ComposeDriver) Prepare(ctx context.Context) (RuntimeStatus, error) {
+	if err := preflightLiveBackup(ctx, d.Config.DataDir, d.Config.StateDir); err != nil {
+		return RuntimeStatus{}, err
+	}
 	return d.runtime(ctx, "prepare")
 }
 
@@ -318,11 +321,14 @@ func (d *ComposeDriver) Backup(ctx context.Context, id string) (string, error) {
 	if err := checkDatabase(ctx, filepath.Join(d.Config.DataDir, "p2pstream.db")); err != nil {
 		return "", err
 	}
-	digest, err := backupData(ctx, d.Config.DataDir, filepath.Join(d.Config.StateDir, "backup-"+id+".tar"))
-	if err == nil {
-		err = pruneBackups(d.Config.StateDir, id)
+	return backupData(ctx, d.Config.DataDir, filepath.Join(d.Config.StateDir, "backup-"+id+".tar"))
+}
+
+func (d *ComposeDriver) CleanupBackups(ctx context.Context, id string) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	return digest, err
+	return pruneBackups(d.Config.StateDir, id)
 }
 func (d *ComposeDriver) Restore(ctx context.Context, id, digest string) error {
 	if err := d.requireExclusiveData(ctx); err != nil {
