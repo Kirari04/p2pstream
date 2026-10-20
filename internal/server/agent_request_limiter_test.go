@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/yamux"
+
 	"p2pstream/internal/tunnel"
 )
 
@@ -134,6 +136,68 @@ func TestAgentTunnelStreamConnDistinguishesAgentLossFromOriginEOF(t *testing.T) 
 		t.Fatalf("agent-loss read error = %v, want agent disconnected wrapping EOF", err)
 	}
 	_ = conn.Close()
+}
+
+func TestCapacityManagedStreamLeaseSurvivesUntilForcedYamuxCleanup(t *testing.T) {
+	left, right := net.Pipe()
+	config, err := tunnel.NewYamuxConfig(nil, tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.StreamCloseTimeout = 25 * time.Millisecond
+	client, err := yamux.Client(left, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := yamux.Server(right, config)
+	if err != nil {
+		_ = client.Close()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = client.Close()
+		_ = server.Close()
+	})
+
+	local, err := client.OpenStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer, err := server.AcceptStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer peer.Close()
+
+	manager := mustNewDefaultAgentStreamCapacityManager(2)
+	lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "route", "session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lease.markLive() {
+		t.Fatal("capacity lease did not become live")
+	}
+	managed := newCapacityManagedAgentTunnelStreamConn(local, nil, lease)
+	if err := managed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if state := lease.currentState(); state != agentStreamLeaseClosing {
+		t.Fatalf("lease state after local FIN = %s, want closing", state)
+	}
+	if got := manager.snapshot().Total.InUse; got != 1 {
+		t.Fatalf("capacity after local FIN = %d, want held until forced cleanup", got)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for manager.snapshot().Total.InUse != 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := manager.snapshot().Total.InUse; got != 0 {
+		t.Fatalf("capacity after Yamux close timeout = %d, want released", got)
+	}
+	if state := lease.currentState(); state != agentStreamLeaseReleased {
+		t.Fatalf("lease state after forced cleanup = %s, want released", state)
+	}
 }
 
 type delayedRemoteCloseConn struct {

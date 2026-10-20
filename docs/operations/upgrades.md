@@ -108,6 +108,45 @@ it is absent from `.env`. Change the Compose default to `0` or set
 - TLS, WAF, and local-auth settings are correct.
 - A test request succeeds for each important hostname.
 
+## Roll out proxy admission changes
+
+The stream-accounting changes retain the existing tunnel wire format and
+per-stream receive reservations. Each server and agent enforces its own resource
+budget, including when a fixed concurrency ceiling is configured.
+
+Prefer a staged server-first rollout. Verify fleet readiness, ordinary requests,
+TLS, cancellation and capacity errors before updating a small agent cohort.
+Then expand only after checking both processes' memory and descriptor headroom.
+Matching builds remain the preferred final state; unchanged wire format does
+not establish a compatibility test matrix or bypass the cutover requirements
+above.
+
+Review explicit limits before rollout:
+
+- `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` is a floor for the complete initial
+  server-stream estimate. Zero selects the derived estimate; a positive value
+  cannot reduce it. Larger values reserve more and can lower concurrency.
+- `SERVER_TUNNEL_MAX_CONCURRENT_STREAMS` and `TUNNEL_MAX_CONCURRENT_REQUESTS`
+  remain ceilings. Resource pressure can reject work below those ceilings.
+- `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` keeps kernel autotuning. An old
+  positive override still requests fixed buffers and can limit WAN throughput.
+
+The default initial promises are about 897 KiB per server stream and 1,409 KiB
+per agent stream, before additional receive-window growth and other owners.
+Small agents can reach their own budget before the server. Check rejection
+reasons rather than raising limits to reproduce an earlier concurrency count.
+See [Agent proxy performance](./agent-proxy-performance) for accounting details.
+
+Dashboard cache-bypass counts can rise after this upgrade without a caching-policy
+change. Forwarded requests now retain bypass attribution in their recorded event
+even when the cache decision stays on the request pipeline's stack. Previously,
+those requests could be omitted from the bypass count.
+
+If admission behavior requires rollback, retain the previous binary/image and
+configuration, drain affected work and use the supported update procedure.
+Binary rollback does not restore database compatibility across the v0.1.53
+cutover; the backup requirement below still applies.
+
 ## Roll back to an earlier version
 
 **Do not run a pre-v0.1.53 binary against a database upgraded by v0.1.53.** Stop

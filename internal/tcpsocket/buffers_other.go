@@ -9,3 +9,5 @@ func autoMemory(conn *net.TCPConn) (int64, error) {
 	// yet covered by the Linux measured-pressure contract.
 	return fixedMemory(conn, BaseMemoryBytes/4)
 }
+
+func configureNotSentLowat(*net.TCPConn, int) {}

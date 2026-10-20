@@ -126,12 +126,14 @@ func RunContext(ctx context.Context, opts Options) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	charge, err := tunnel.StreamMemoryCharge(opts.TunnelMaxStreamWindowBytes, opts.TunnelUpstreamSocketBufferBytes)
+	resourceModel, err := tunnel.AgentStreamResourceModel(opts.TunnelMaxStreamWindowBytes, opts.TunnelUpstreamSocketBufferBytes)
 	if err != nil {
 		return err
 	}
 	capacityConfig := sysmetrics.DefaultAdaptiveMemoryConfig()
-	capacityConfig.EstimatedBytesPerAdmission = charge
+	capacityConfig.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleAgentStream
+	capacityConfig.EstimatedBytesPerAdmission = resourceModel.MemoryBytes
+	capacityConfig.FileDescriptorsPerAdmission = resourceModel.FileDescriptors
 	controller, err := sysmetrics.NewAdaptiveMemoryController(capacityConfig, nil)
 	if err != nil {
 		return err
