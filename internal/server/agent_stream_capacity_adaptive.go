@@ -13,12 +13,12 @@ import (
 
 func newServerAdaptiveMemoryController(cfg *config.Config) *sysmetrics.AdaptiveMemoryController {
 	adaptive := sysmetrics.DefaultAdaptiveMemoryConfig()
+	adaptive.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleServerStream
+	adaptive.FileDescriptorsPerAdmission = 0
+	window := int64(0)
+	estimatedBytes := int64(0)
 	if cfg != nil {
-		charge, err := tunnel.StreamMemoryCharge(cfg.TunnelMaxStreamWindowBytes, 0)
-		if err != nil {
-			return nil
-		}
-		adaptive.EstimatedBytesPerAdmission = charge
+		window = cfg.TunnelMaxStreamWindowBytes
 		if cfg.ServerTunnelMemorySoftPercent > 0 {
 			adaptive.SoftLimitPercent = cfg.ServerTunnelMemorySoftPercent
 		}
@@ -31,10 +31,13 @@ func newServerAdaptiveMemoryController(cfg *config.Config) *sysmetrics.AdaptiveM
 		if cfg.ServerTunnelMemorySampleMillis > 0 {
 			adaptive.SampleInterval = time.Duration(cfg.ServerTunnelMemorySampleMillis) * time.Millisecond
 		}
-		if cfg.ServerTunnelEstimatedStreamBytes > adaptive.EstimatedBytesPerAdmission {
-			adaptive.EstimatedBytesPerAdmission = cfg.ServerTunnelEstimatedStreamBytes
-		}
+		estimatedBytes = cfg.ServerTunnelEstimatedStreamBytes
 	}
+	model, err := tunnel.ServerStreamResourceModel(window)
+	if err != nil {
+		return nil
+	}
+	adaptive.EstimatedBytesPerAdmission = max(estimatedBytes, model.MemoryBytes)
 	controller, err := sysmetrics.NewAdaptiveMemoryController(adaptive, nil)
 	if err != nil {
 		return nil

@@ -23,6 +23,13 @@ const (
 
 const publicInvalidRequestTargetErrorKind = "invalid_request_target"
 
+const publicProxyContextPoolCapacity = 256
+
+// The current pipeline registers three request admission releases, one WAF
+// release, and one response admission release. Keep those in the bounded
+// context; additional registrations still use the overflow slice.
+const publicProxyInlineCleanupCapacity = 5
+
 type publicProxyStage func(*publicProxyContext) publicProxyStageResult
 
 type publicProxyContext struct {
@@ -48,7 +55,50 @@ type publicProxyContext struct {
 	TrafficShaperDecision        publicTrafficShaperDecision
 	CacheDecision                *publicCacheDecision
 	RouteResolutionFailure       error
+	cleanupInline                [publicProxyInlineCleanupCapacity]func()
+	cleanupInlineCount           int
 	cleanup                      []func()
+}
+
+type boundedPublicProxyContextPool struct {
+	contexts chan *publicProxyContext
+}
+
+var reusablePublicProxyContexts = newBoundedPublicProxyContextPool(publicProxyContextPoolCapacity)
+
+func newBoundedPublicProxyContextPool(capacity int) *boundedPublicProxyContextPool {
+	if capacity < 0 {
+		capacity = 0
+	}
+	return &boundedPublicProxyContextPool{contexts: make(chan *publicProxyContext, capacity)}
+}
+
+func (p *boundedPublicProxyContextPool) acquire() *publicProxyContext {
+	if p != nil {
+		select {
+		case ctx := <-p.contexts:
+			*ctx = publicProxyContext{}
+			return ctx
+		default:
+		}
+	}
+	return &publicProxyContext{}
+}
+
+func (p *boundedPublicProxyContextPool) release(ctx *publicProxyContext) {
+	if ctx == nil {
+		return
+	}
+	// Drop every request, snapshot, decision, error, and cleanup reference
+	// before retaining the bounded container for another public request.
+	*ctx = publicProxyContext{}
+	if p == nil {
+		return
+	}
+	select {
+	case p.contexts <- ctx:
+	default:
+	}
 }
 
 var publicProxyStages = []publicProxyStage{
@@ -66,6 +116,7 @@ var publicProxyStages = []publicProxyStage{
 	routeResolutionStage,
 	redirectStage,
 	routeSelectionTraceStage,
+	publicResponseAdmissionStage,
 	cacheLookupStage,
 	activeTargetAccountingAndForwardStage,
 }
@@ -130,6 +181,16 @@ func validatePublicSiteAuthorityStage(ctx *publicProxyContext) publicProxyStageR
 }
 
 func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r *http.Request) *publicProxyContext {
+	ctx := &publicProxyContext{}
+	initializePublicProxyContext(ctx, app, listenerID, w, r)
+	return ctx
+}
+
+func initializePublicProxyContext(ctx *publicProxyContext, app *App, listenerID int64, w http.ResponseWriter, r *http.Request) {
+	if ctx == nil {
+		return
+	}
+	*ctx = publicProxyContext{}
 	var snap *publicProxySnapshot
 	if app != nil {
 		snap = app.currentPublicSnapshot()
@@ -140,19 +201,24 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 	} else {
 		r = applyPublicRequestBodyLimits(0, 0, w, r)
 	}
-	var requestBytes atomic.Uint64
+	var requestBytes *atomic.Uint64
 	if r.Body != nil && r.Body != http.NoBody {
-		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: &requestBytes}
+		// The body can outlive this pooled context. Give it an independent
+		// counter, and avoid allocating a counter for bodyless requests.
+		requestBytes = &atomic.Uint64{}
+		r.Body = &countingReadCloser{ReadCloser: r.Body, bytes: requestBytes}
 	}
 	bodyState, _ := r.Context().Value(publicRequestBodyStateContextKey{}).(*publicRequestBodyState)
 	recorder := &proxyResponseRecorder{ResponseWriter: w, request: r, requestBodyState: bodyState}
 	responseWriter := http.ResponseWriter(recorder)
-	observability := proxyRequestObservability{requestBytes: &requestBytes, responseRecorder: recorder}
-	trace := app.newTrafficRequestTrace(r, recorder, publicTracePathForRequest(app, snap, listenerID, r))
+	observability := proxyRequestObservability{requestBytes: requestBytes, responseRecorder: recorder}
+	trace := newPublicProxyTrafficTrace(app, r, recorder, func() string {
+		return publicTracePathForRequest(app, snap, listenerID, r)
+	})
 	if trace != nil {
 		trace.emitReceived(listenerID)
 	}
-	return &publicProxyContext{
+	*ctx = publicProxyContext{
 		App:            app,
 		ListenerID:     listenerID,
 		StartedAt:      time.Now(),
@@ -167,16 +233,31 @@ func newPublicProxyContext(app *App, listenerID int64, w http.ResponseWriter, r 
 	}
 }
 
+func newPublicProxyTrafficTrace(app *App, r *http.Request, recorder *proxyResponseRecorder, safePath func() string) *trafficRequestTrace {
+	if app == nil || app.TrafficTracer == nil {
+		return nil
+	}
+	if _, enabled := app.TrafficTracer.enabledLevel(); !enabled {
+		return nil
+	}
+	path := "/"
+	if safePath != nil {
+		path = safePath()
+	}
+	// Keep the tracer's own enabled check: settings can change after the fast
+	// path above and before trace construction completes.
+	return app.newTrafficRequestTrace(r, recorder, path)
+}
+
 func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.App != nil && ctx.App.agentStreamCapacity != nil {
-		headerBytes := defaultPublicMaxHeaderBytes
-		if ctx.App.Config != nil && ctx.App.Config.PublicMaxHeaderBytes > 0 {
-			headerBytes = ctx.App.Config.PublicMaxHeaderBytes
-		}
-		// Account for both header copies and bounded body-copy/runtime state.
-		// This is independent of physical tunnel streams: many HTTP/2 requests
-		// may share one connection without inheriting its concurrency budget.
-		requestBytes := int64(headerBytes)*2 + 64*1024
+		// The physical connection holds a parser allowance, not a hard bound on
+		// pre-handler allocations: many short HTTP/1 header keys can amplify
+		// their wire size. Actual process/cgroup pressure remains a separate
+		// guard. Each decoded request owns its retained headers independently,
+		// including HTTP/2 requests multiplexed on that connection. Relay buffers
+		// are charged only after policy/redirect handling, when serving a body.
+		requestBytes := saturatingAddInt64(publicRequestWorkingBytes, publicRequestHeaderMemory(ctx.Request))
 		if ctx.Request != nil && ctx.Request.ProtoMajor == 2 && ctx.Request.ContentLength != 0 {
 			// HTTP/2 can buffer upload data while the origin is stalled. The
 			// relay's copy buffer alone does not cover that receive credit.
@@ -184,9 +265,9 @@ func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult
 			if ctx.Request.ContentLength > 0 {
 				uploadCredit = min(uploadCredit, ctx.Request.ContentLength)
 			}
-			requestBytes += uploadCredit
+			requestBytes = saturatingAddInt64(requestBytes, uploadCredit)
 		}
-		release, ok, _ := ctx.App.tryReservePublicResource(requestBytes, 0)
+		release, ok, _ := ctx.App.tryReservePublicOwnedResource(adaptiveResourceOwnerPublicRequest, requestBytes, 0)
 		if !ok {
 			return rejectPublicRequestCapacity(ctx, "public_request_resource_pressure", "Public proxy resource pressure")
 		}
@@ -211,6 +292,50 @@ func publicRequestAdmissionStage(ctx *publicProxyContext) publicProxyStageResult
 	if ctx.Request != nil && ctx.Request.ContentLength > publicRequestBodyLimit(ctx.App) {
 		return rejectPublicRequestBodyTooLarge(ctx)
 	}
+	return publicProxyStageContinue
+}
+
+const publicRequestWorkingBytes = int64(32 * 1024)
+
+// publicRequestHeaderMemory counts decoded data, not HPACK/wire bytes. The
+// per-key/value allowances cover map entries, slice/string headers and rounding;
+// two copies cover routing/transport header clones without relying on sharing.
+// It performs no allocations and uses saturating arithmetic on public input.
+func publicRequestHeaderMemory(r *http.Request) int64 {
+	if r == nil {
+		return 0
+	}
+	bytes := int64(len(r.Method))
+	for _, value := range []string{r.Host, r.RequestURI} {
+		bytes = saturatingAddInt64(bytes, int64(len(value)))
+	}
+	if r.URL != nil {
+		for _, value := range []string{r.URL.Path, r.URL.RawPath, r.URL.RawQuery} {
+			bytes = saturatingAddInt64(bytes, int64(len(value)))
+		}
+	}
+	for key, values := range r.Header {
+		bytes = saturatingAddInt64(bytes, int64(len(key))+128)
+		for _, value := range values {
+			bytes = saturatingAddInt64(bytes, int64(len(value))+32)
+		}
+	}
+	return saturatingAddInt64(bytes, bytes)
+}
+
+// Both disk-cache/static responses and upstream responses need bounded copy
+// storage. Local rejects and redirects finish before this stage and therefore
+// do not compete with relay buffers. Existing security/policy ordering remains
+// ahead of cache lookup and forwarding.
+func publicResponseAdmissionStage(ctx *publicProxyContext) publicProxyStageResult {
+	if ctx.App == nil || ctx.App.agentStreamCapacity == nil {
+		return publicProxyStageContinue
+	}
+	release, ok, _ := ctx.App.tryReservePublicOwnedResource(adaptiveResourceOwnerPublicResponse, reverseProxyCopyBufferSize, 0)
+	if !ok {
+		return rejectPublicRequestCapacity(ctx, "public_response_resource_pressure", "Public proxy resource pressure")
+	}
+	ctx.deferCleanup(release)
 	return publicProxyStageContinue
 }
 
@@ -286,12 +411,29 @@ func (ctx *publicProxyContext) deferCleanup(fn func()) {
 	if fn == nil {
 		return
 	}
+	if ctx.cleanupInlineCount < len(ctx.cleanupInline) {
+		ctx.cleanupInline[ctx.cleanupInlineCount] = fn
+		ctx.cleanupInlineCount++
+		return
+	}
 	ctx.cleanup = append(ctx.cleanup, fn)
 }
 
 func (ctx *publicProxyContext) runCleanup() {
-	for i := len(ctx.cleanup) - 1; i >= 0; i-- {
-		ctx.cleanup[i]()
+	for len(ctx.cleanup) > 0 {
+		i := len(ctx.cleanup) - 1
+		fn := ctx.cleanup[i]
+		ctx.cleanup[i] = nil
+		ctx.cleanup = ctx.cleanup[:i]
+		fn()
+	}
+	ctx.cleanup = nil
+	for ctx.cleanupInlineCount > 0 {
+		ctx.cleanupInlineCount--
+		i := ctx.cleanupInlineCount
+		fn := ctx.cleanupInline[i]
+		ctx.cleanupInline[i] = nil
+		fn()
 	}
 }
 
@@ -395,7 +537,7 @@ func classifyPublicRequestPath(r *http.Request) publicPathIssueSet {
 }
 
 func containsPublicPathDotSegment(path string) bool {
-	for _, segment := range strings.Split(path, "/") {
+	for segment := range strings.SplitSeq(path, "/") {
 		if segment == "." || segment == ".." {
 			return true
 		}
@@ -827,7 +969,11 @@ func cacheLookupStage(ctx *publicProxyContext) publicProxyStageResult {
 		ctx.App.servePublicCacheHit(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, trafficShaperDecisionIfSelected(ctx.TrafficShaperDecision, ctx.TrafficShaperSelected), decision, ctx.Observability)
 		return publicProxyStageDone
 	case publicCacheStatusMiss:
-		ctx.CacheDecision = &decision
+		// Only a miss retains the decision during forwarding. Keeping this
+		// copy separate lets bypasses use stack storage, including listeners
+		// with caching disabled.
+		retainedDecision := decision
+		ctx.CacheDecision = &retainedDecision
 		if ctx.Trace != nil {
 			ctx.Trace.emit(
 				p2pstreamv1.TrafficTraceStage_TRAFFIC_TRACE_STAGE_CACHE_MISS,
@@ -873,9 +1019,9 @@ func activeTargetAccountingAndForwardStage(ctx *publicProxyContext) publicProxyS
 		return publicProxyStageDone
 	}
 	if ctx.Resolution.Target.Transport == publicRouteTargetTransportAgent {
-		ctx.App.proxyAgentTargetRequest(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+		ctx.App.proxyAgentTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
 		return publicProxyStageDone
 	}
-	ctx.App.proxyDirectTargetRequest(ctx.ResponseWriter, ctx.Request, ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
+	ctx.App.proxyDirectTargetRequestWithResolution(ctx.ResponseWriter, ctx.Request, &ctx.Resolution, ctx.Trace, shaper, ctx.CacheDecision, ctx.Observability)
 	return publicProxyStageDone
 }

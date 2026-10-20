@@ -61,7 +61,7 @@ Set these on the server process via `.env` or environment. They control manageme
 | `SERVER_TUNNEL_MEMORY_HARD_PERCENT` | `90`                       | New streams are rejected at this measured utilization; this admission watermark is not an instantaneous kernel-memory cap. Maximum `99`. |
 | `SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT` | `75`                   | Pressure remains hysteretic until utilization falls below this value. |
 | `SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS` | `100`                     | Mandatory host memory plus supplementary finite cgroup/Go constraints and process file-descriptor sampling interval; range `10`–`10000`. |
-| `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `0` | Auto-derived initial lifetime stream reservation (`1280 KiB` with default windows). Explicit range `1048576`–`1073741824` can increase that reservation; it never lowers the derived charge. Window growth reserves additional bytes separately. |
+| `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `0` | Auto-derived server stream reservation (`918144` bytes with default windows), including initial receive storage and server-owned stream state. Explicit range `1048576`–`1073741824` sets a floor for that complete initial reservation; it never lowers the derived charge. Window growth reserves additional bytes separately. |
 
 Compose overrides two binary defaults for stable-image compatibility:
 `PUBLIC_MAX_CONCURRENT_REQUESTS=2048` and `PUBLIC_MAX_CONNECTIONS_PER_TARGET=256`.

@@ -26,6 +26,13 @@ import (
 func TestRetryReplayBudgetSharesAdaptiveMemoryHeadroom(t *testing.T) {
 	usage := sysmetrics.MemoryUsage{UsedBytes: 80 << 20, LimitBytes: 100 << 20, Source: "test"}
 	manager := newAdaptiveServerCapacityForTest(t, 64, &usage)
+	// Leave four streams, the protected control slot, one replay buffer and
+	// less than one additional stream. Derive the fixture from the server's
+	// owned-resource charge rather than the historical agent socket envelope.
+	charge := manager.snapshot().AdaptiveStreamChargeBytes
+	replaySlots := ((3 << 20) + charge - 1) / charge
+	usage.UsedBytes = (90 << 20) - ((5+replaySlots)*charge + charge/2)
+	manager.refreshAdaptiveCapacity(true)
 	manager.registerSessionWithLimit("session", 64)
 	defer manager.unregisterSession("session")
 	app := &App{
@@ -42,8 +49,8 @@ func TestRetryReplayBudgetSharesAdaptiveMemoryHeadroom(t *testing.T) {
 		lease.markLive()
 		leases = append(leases, lease)
 	}
-	// The 90 MiB hard watermark leaves 10 MiB. Four stream reservations plus
-	// the protected health slot leave enough room for a 1 MiB replay payload,
+	// Four stream reservations plus the protected health slot leave enough
+	// room for a 1 MiB replay payload,
 	// charged at 3 MiB for io.ReadAll growth and its final copy. The buffer and
 	// stream grants share one atomic ledger, so another stream cannot spend the
 	// same remaining headroom.

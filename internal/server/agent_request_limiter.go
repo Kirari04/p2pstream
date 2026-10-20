@@ -39,7 +39,7 @@ func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, le
 		maximum = window[0]
 	}
 	growing := tunnel.NewGrowingConn(conn, maximum, func(bytes int64) (func(), bool) {
-		release, ok, _ := lease.manager.tryReserveAdaptiveExternal(bytes, 0)
+		release, ok, _ := lease.manager.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
 		return release, ok
 	})
 	return &agentTunnelStreamConn{

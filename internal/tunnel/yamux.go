@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"time"
 
 	"github.com/hashicorp/yamux"
@@ -17,7 +18,12 @@ const (
 	// AdaptivePerStreamOverheadBytes covers bounded TCP socket buffers, relay
 	// copy buffers, Yamux stream metadata, and allocator slack beyond receive
 	// credit itself. The stream charge is held until the stream lease closes.
-	AdaptivePerStreamOverheadBytes    = int64(768 * 1024)
+	AdaptivePerStreamOverheadBytes = int64(768 * 1024)
+	// AdaptiveServerStreamOverheadBytes covers the bounded userspace state the
+	// server owns for a logical Yamux stream beyond receive storage: stream and
+	// TLS metadata plus relay copy buffers and allocator slack. Origin TCP
+	// socket queues belong to the agent and are deliberately excluded.
+	AdaptiveServerStreamOverheadBytes = int64(256 * 1024)
 	DefaultAdaptiveReceiveWindowBytes = int64(512 * 1024)
 	DefaultAdaptiveStreamChargeBytes  = DefaultAdaptiveReceiveWindowBytes + AdaptivePerStreamOverheadBytes
 	MinimumAdaptiveStreamChargeBytes  = InitialStreamWindowSizeBytes + AdaptivePerStreamOverheadBytes
@@ -34,6 +40,58 @@ const (
 	DefaultUpstreamSocketBufferBytes  = int64(0) // kernel autotuning
 	MaxUpstreamSocketBufferBytes      = int64(16 * 1024 * 1024)
 )
+
+// StreamResourceModel describes resources owned by one admitted logical
+// stream in a particular process. FileDescriptors is the peak incremental
+// descriptor ownership while opening the stream.
+type StreamResourceModel struct {
+	MemoryBytes     int64
+	FileDescriptors int64
+}
+
+// ServerStreamResourceModel accounts only for resources created by a logical
+// Yamux stream in the server process. Admission does not create a physical
+// tunnel or public socket; charging either here would invent socket memory and
+// descriptors for multiplexed streams. Their baseline remains visible to the
+// process sampler, and accepted public sockets use separate lifetime owners.
+func ServerStreamResourceModel(windowBytes int64) (StreamResourceModel, error) {
+	window, err := InitialReceiveWindow(windowBytes)
+	if err != nil {
+		return StreamResourceModel{}, err
+	}
+	receiveBytes := yamux.ReceiveWindowMemory(uint32(window))
+	if receiveBytes > uint64(math.MaxInt64-AdaptiveServerStreamOverheadBytes) {
+		return StreamResourceModel{}, errors.New("server stream receive memory exceeds accounting range")
+	}
+	return StreamResourceModel{
+		MemoryBytes: int64(receiveBytes) + AdaptiveServerStreamOverheadBytes,
+	}, nil
+}
+
+// AgentStreamResourceModel adds the origin TCP queues and dial descriptors
+// that the agent actually owns. Two descriptors cover the temporary peak of
+// a dual-stack Happy Eyeballs dial; the settled origin connection owns one.
+// ReceiveWindowMemory includes chunk rounding and slack, so the default agent
+// charge is deliberately higher than the legacy 1.25 MiB estimate.
+func AgentStreamResourceModel(windowBytes, socketBufferBytes int64) (StreamResourceModel, error) {
+	model, err := ServerStreamResourceModel(windowBytes)
+	if err != nil {
+		return StreamResourceModel{}, err
+	}
+	buffer, err := NormalizeUpstreamSocketBufferBytes(socketBufferBytes)
+	if err != nil {
+		return StreamResourceModel{}, err
+	}
+	if buffer == 0 {
+		buffer = 128 * 1024
+	}
+	if buffer > (math.MaxInt64-model.MemoryBytes)/4 {
+		return StreamResourceModel{}, errors.New("agent origin socket memory exceeds accounting range")
+	}
+	model.MemoryBytes += 4 * buffer
+	model.FileDescriptors = 2
+	return model, nil
+}
 
 // StreamMemoryCharge covers initial receive credit and socket/relay overhead.
 // Linux auto TCP queues use the included baseline while actual growth is

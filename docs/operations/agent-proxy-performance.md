@@ -1,395 +1,139 @@
 # Agent proxy performance
 
-Agent forwarding reuses origin connections, shares resource admission across
-parallel tunnels, and expands receive credit only for sustained transfers.
-Automatic admission avoids the former low fixed request and connection ceilings.
-Explicit operator limits, parser/body limits and real memory/descriptor pressure
-still apply.
+Agent forwarding reuses origin connections and accounts for public sockets,
+requests and tunnel streams. Automatic admission combines measured memory and
+file-descriptor headroom with outstanding resource promises. Explicit policy
+limits, destination policy, parser/body limits and TLS trust still apply.
 
-## Defaults and upgrade behavior
+Read [upgrade and rollback guidance](./upgrades) before changing server and agent
+versions. Resource accounting runs independently in each process; a server's
+available capacity does not guarantee that an agent can admit the same work.
 
-- Four authenticated TLS/TCP tunnels per agent distribute public and remote
-  management traffic. Each origin has a reusable transport per lane, so one
-  HTTP/2 connection cannot pin all work to a single TCP tunnel. All lanes share
-  stream admission, update drain, health identity and revocation. A dropped lane
-  reconnects independently; a request whose connection was lost still follows
-  the configured replay rules.
-- Streams begin with at most 512 KiB receive credit. Smoothed consumption
-  and the recent minimum session RTT guide growth toward eight bandwidth-delay
-  products, using at least 2 ms for relay scheduling. Two supporting samples
-  are required, with at most one doubling per decision and a configurable
-  1 GiB ceiling. Slow streams do not grow just because they have transferred
-  many bytes. Unknown RTT holds the initial window; denied growth backs off
-  for one second. Shared Ping probes retain a bounded 30-second history, so
-  queued responses do not immediately inflate the target. A real increase in
-  path latency can take up to 30 seconds to replace the earlier minimum.
-  Every increase reserves its receive chunks and metadata before publishing
-  credit. Ordinary reads return credit at a quarter-window threshold; explicit
-  growth publishes new credit immediately. Initial and additional reservations
-  remain until peer FIN or forced stream cleanup. Receive storage uses lazy
-  64 KiB chunks and releases drained bulk storage, keeping a cache of up to 64
-  chunks (4 MiB per stream) for reuse. The cache is populated lazily rather
-  than preallocated, and this retention ceiling does not change the resource
-  reservation bound. Reclaiming storage does not revoke advertised credit or
-  release its reservation.
-- Linux public, direct-origin and agent-origin TCP sockets retain kernel
-  autotuning. Setting even a moderately sized `SO_RCVBUF` or `SO_SNDBUF`
-  disables autotuning and can severely limit a connection over a WAN. The
-  default agent `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` leaves both untouched;
-  an explicit positive value still requests fixed buffers. Non-Linux builds
-  retain the bounded 128 KiB-per-direction fallback.
-- Automatic Linux sockets carry a 512 KiB lifetime admission allowance for
-  connection overhead. This allowance is not a hard bound on kernel queues and
-  does not pre-reserve the `tcp_rmem` and `tcp_wmem` maxima: Linux grows queues
-  on demand while the adaptive controller requires host `MemTotal` and
-  `MemAvailable` on every sample and adds every finite cgroup constraint, a
-  finite Go memory limit when configured, and required process file-descriptor
-  usage versus `RLIMIT_NOFILE`. It samples every 100 ms by default. This is a
-  fail-closed admission signal, not an instantaneous hard cap on kernel queue
-  growth between samples. A missing, stale or invalid resource sample rejects
-  new work. Explicit positive socket sizes retain their full bounded charge,
-  including Linux's possible doubling of both requested buffers. Half-close and
-  idle pooling retain the applicable charge until physical close.
-- Public request, resolved-client, direct-peer and direct-origin connection
-  guards default to zero (automatic or disabled policy). Public sockets,
-  logical HTTP requests and direct-origin sockets still reserve resources.
-  HTTP/2 uploads also reserve their reachable receive credit, capped at 1 MiB
-  or the smaller declared body length; this does not limit total upload size.
-  HTTP/2 requests and receive-window growth consume memory, without consuming
-  fictitious file descriptors or an artificial fraction of physical stream slots.
-  Under actual resource exhaustion, direct-origin admission can close idle
-  keep-alive sockets before reserving a replacement. Active requests continue;
-  a failed replacement dial releases its reservation for the next request.
-  Early public socket and request admission misses schedule one bounded
-  asynchronous idle-pool sweep, then retry the ledger once without waiting for
-  socket or protocol close. A 100 ms cooldown prevents request waves from
-  causing cleanup stampedes. Each sweep touches at most one agent shard and one
-  direct transport, preserves active requests and control work, and may need a
-  later request after asynchronous close returns its reservation.
-  Admission does not temporarily exceed the memory/descriptor budget to keep
-  idle sockets warm.
-- Pool entries follow the shared stream budget; the separate 256-target ceiling
-  is gone. Warm hits avoid constructing a disposable HTTP transport. Remote
-  management requests now reuse pinned TLS connections, with invalidation on
-  trust/agent changes. Mutations can hand off only after a local admission
-  failure before any headers or body bytes were sent.
-- A busy agent at its negotiated stream limit waits inside the reusable HTTP
-  transport, allowing returning connections to serve queued requests. Opening
-  bursts queue fairly for up to ten seconds or the earlier request deadline.
-  Health admission uses 250 ms and treats local saturation as a skipped probe.
+## Connections and streams
 
-Existing explicit environment values remain limits. Remove old overrides to use
-automatic admission. Upgrade the server and agents together: both fixed and
-adaptive modes require explicit capacity headers. An explicit fixed
-`TUNNEL_MAX_CONCURRENT_REQUESTS` remains supported for controlled deployments;
-mixed releases must not be treated as a promise of retired legacy-header
-negotiation. Additional lanes start only after the primary handshake
-acknowledges support.
-No throughput improvement bypasses agent destination policy or TLS trust.
+The default agent configuration uses four parallel TLS/TCP tunnel connections.
+They share the agent's request limit. Origin connection reuse is scoped to the
+route, authenticated agent generation and tunnel lane. Active responses retain
+their ownership until body cleanup finishes.
 
-## TCP bandwidth regression and coverage
+Each stream reserves its own initial receive storage. Sustained transfers can
+grow the receive window only after reserving the additional storage. Advertised
+credit cannot be revoked while that stream remains open. Consuming data or
+returning a connection to an idle pool does not release the stream's lifetime
+reservation or guarantee a fall in process RSS.
 
-The published **v0.1.53-staging.91** is affected: public sockets were fixed at
-64 KiB per direction, while direct and agent origins defaulted to 128 KiB.
-The fixes described here restore TCP autotuning. Upgrade the server and agents
-together to a release containing these changes, and remove explicit
-socket/window overrides to use the new defaults. Increasing only
-`net.core.rmem_max`/`wmem_max` did not remove the affected release's
-application-imposed public cap.
+Public forwarding can wait for a reusable connection or join the bounded tunnel
+admission queue for transient opening, fairness or per-agent capacity constraints.
+The request's earlier cancellation or deadline still applies. Memory/descriptor
+pressure and full queues can reject new work; increasing queue lengths or retry
+counts does not create more resources. Health probes use bounded admission and
+can skip local saturation without declaring the origin unhealthy. They share
+the existing tunnel connections with public traffic.
 
-`scripts/test-proxy-wan.sh` runs in the required CI Verify job. It creates
-three disposable Linux network namespaces (server, router, client) with 80 ms
-RTT and 100 Mbit/s capacity. Delay is on the forwarding router, avoiding TCP
-Small Queues artifacts from applying netem at the sending endpoint. It tests
-HTTP/1.1 and HTTP/2 through the actual public HTTPS listener and routing stack,
-with direct origins and a real agent. A second topology puts the origin across
-the WAN to catch origin socket regressions. Transfers verify complete payload
-hashes and use the median of three runs against an unproxied control; admission,
-TLS, response status and negotiated HTTP versions are exercised too. HTTP/2
-uploads cover the public receive direction. The harness needs Linux `ip`, `tc`,
-`unshare`, `nsenter` and a curl build with HTTP/2. It uses unprivileged namespaces,
-or passwordless sudo on CI hosts that restrict user namespaces, and changes no
-host addresses, routes, qdiscs or sysctls.
+Cancellation, credential rotation and reconnect can terminate affected work. An
+already committed response cannot become a new HTTP error response: the client
+may receive its exact prefix followed by a truncated-body error. Inspect the
+recorded error kind as well as the response status. Automatic replay remains
+subject to the configured retry rules and request-body replayability.
 
-The new download test against the released source measured **1.17–1.18 MB/s**
-against a **9.72 MB/s** HTTPS control and failed its 65% relative-throughput
-floor. The fix measured **9.72–9.74 MB/s**, matching the control. This test catches
-the public socket regression that the older transport-only benchmark missed.
+## Resource settings
 
-A separate three-VM Multipass lab uses public HTTPS, four real TLS/Yamux lanes,
-WireGuard (MTU 1420) and nginx origins. With 80 ms RTT on both client and VPN
-links and unchanged guest OS buffer limits, three 128 MiB downloads measured:
+Zero-valued public request, client, peer and origin-connection policy settings
+select automatic admission or disable the corresponding fixed policy limit.
+They do not disable resource accounting. Explicit limits remain ceilings;
+resource pressure can admit fewer requests. Keep overrides that express an
+intentional deployment policy and review obsolete overrides before removing them.
 
-| Path | Median MB/s |
-| --- | ---: |
-| nginx HTTPS control, client link only | 36.52 |
-| Direct proxy through WireGuard | 23.25 |
-| Agent proxy through WireGuard | 16.82 |
-| Four agent downloads, 64 MiB each, aggregate | 39.79 |
+The adaptive controller samples host memory, finite cgroup constraints, an
+explicit Go memory limit when present, and process file-descriptor usage against
+`RLIMIT_NOFILE`. The default interval is 100 ms. Missing, stale or invalid resource
+samples reject new admissions. Active socket queues can grow between samples,
+so this controller is not a replacement for deployment memory limits.
 
-These include connection setup and TCP startup; shorter transfers differ
-substantially. They demonstrate removal of the fixed 1.4–1.5 MB/s ceiling, not
-NIC line-rate under every topology. VPN loss, congestion, OS autotuning maxima,
-TLS/relay work and explicit operator settings can still limit throughput.
-That run used the previous 64 MiB ceiling and lifetime-byte growth policy.
-The implementation below replaces that growth policy; initial credit remains
-512 KiB and growth can be denied when memory is unavailable.
+Initial stream reservations distinguish the processes' actual responsibilities:
 
-Reproduce the CI regression without a development server:
+| Owner | Default initial reservation | Descriptor accounting |
+| --- | --- | --- |
+| Server logical stream | 918,144 bytes (896.625 KiB), including receive storage and 256 KiB of stream overhead | No new physical socket per logical stream |
+| Agent stream and origin dial | 1,442,432 bytes (1,408.625 KiB), including the server-side stream model and a 512 KiB origin-socket allowance | Two descriptors cover the temporary dual-stack dial peak |
+
+These values use the default 512 KiB initial receive-window target, including
+chunk rounding and queue overhead. They are accounting promises rather than
+eager allocations or measured per-request consumption. Receive-window growth
+reserves additional memory separately. Other connection and request owners also
+consume the process budget.
+
+`SERVER_TUNNEL_ESTIMATED_STREAM_BYTES=0` selects the derived initial server-stream
+reservation. A positive value is a floor for that complete initial reservation:
+the larger of the configured estimate and the derived model applies. It cannot
+reduce the receive-storage charge. Review explicit values when upgrading;
+raising this floor can reduce concurrency even when measured RSS is low.
+
+Linux public, direct-origin and agent-origin sockets use kernel autotuning by
+default. `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` leaves socket buffers untouched.
+A positive value requests fixed buffers, which can constrain WAN throughput.
+Automatic sockets carry a conservative 512 KiB lifetime allowance rather than
+reserving the operating system's maximum possible queues. Half-close and idle
+pooling retain the relevant charge through physical close.
+
+Public connections also reserve parser, TLS and temporary handshake ownership.
+The handshake portion returns on activation; retained connection ownership does
+not. Requests reserve decoded metadata and applicable upload/body working space.
+A low RSS reading alone does not justify reducing those promises. See
+[public parser ownership](./proxy-public-parser-ownership).
+
+Under pressure, bounded asynchronous cleanup can retire eligible idle transport
+entries while preserving active work. Ownership returns after physical cleanup.
+A later request may be needed after that cleanup completes.
+
+## Investigating failures and delays
+
+Separate policy rejection, resource admission failure and upstream failure.
+Check the request event's status, error kind, route, target and agent, then
+correlate it with memory/descriptor pressure and configured limits. A single
+success-rate percentage mixes these causes.
+
+Keep these memory measurements distinct:
+
+- Process RSS and anonymous memory.
+- Cgroup charge, including file cache and kernel socket memory.
+- Go heap allocation and retained heap.
+- Reserved resource promises, active leases and physical connections.
+
+Idle socket closure and zero active leases do not imply that RSS immediately
+falls. Allocator retention and database cache have different lifetimes. Inspect
+both server and agent processes; each owns its own budget.
+
+Enable debug traffic tracing for a narrow route/sample when locating latency.
+Request events expose `connection_reused`, `tunnel_lane`,
+`connection_acquire_ms`, `tunnel_admission_ms`, `tunnel_open_ms`,
+`tunnel_handshake_ms`, `agent_dial_ms`, `agent_dns_ms`, `tls_handshake_ms` and
+`upstream_first_byte_ms`. These phases overlap: connection acquisition includes
+other phases, and first-byte timing starts before acquisition. Do not add them.
+Agent dial/DNS values require compatible peers. Reused requests normally have
+zero dial/open/TLS time.
+
+## Validation and limits
+
+The source includes regressions for resource ownership, cancellation, replay,
+header bursts and recovery. CI also defines finite real-TCP WAN and constrained
+memory integration checks:
 
 ```sh
 scripts/test-proxy-wan.sh
-```
-
-## Kernel-memory admission regression
-
-`scripts/test-proxy-memory.sh` runs a finite slow-reader burst in a disposable
-Docker cgroup with a 512 MiB memory limit and no swap or host network access.
-It retains touched application ballast, admits 24 real public TCP sockets, and
-fills their automatically tuned queues while clients stop reading. The test
-uses the production resource sampler and admission ledger, records independent
-host/cgroup constraints and kernel `memory.stat` socket bytes, holds the queues
-across multiple 100 ms samples, and requires memory-driven admission rejection
-without OOM events. Physical close must return reservations and restore
-admission. It runs in CI alongside the WAN throughput regression.
-
-```sh
 scripts/test-proxy-memory.sh
 ```
 
-This covers one constrained-memory burst. Admission sampling cannot bound all
-growth of already-active kernel queues between samples or after admission
-stops; deployment memory limits and the operating system remain relevant.
-Larger TCP maxima, more simultaneous transfers, and longer sampling intervals
-need workload-specific validation.
+Their Linux namespace, Docker and privilege requirements are documented in the
+scripts. They are not development servers or continuous production probes.
+Capacity and throughput depend on protocol, concurrency, payload, network loss,
+RTT, recording, memory limits and peer versions. Validate the deployment's mix;
+component allocation reductions do not establish whole-proxy throughput gains.
 
-## High-bandwidth profiling
-
-The 100 Mbit/s CI regression is not a gigabit capacity qualification. Further
-profiling on 2026-09-15 used the same three 2-vCPU, 2-GiB Ubuntu 24.04 VMs,
-512 MiB downloads, four authenticated TLS/Yamux lanes and WireGuard. An nginx
-relay fetched the same agent origin over the same VPN path as the direct proxy.
-Rates below are decimal MB/s and include transfer startup. This was a shared
-development host, not a dedicated performance runner.
-
-The following bullets are historical profiles of earlier window and
-growth implementations; they are retained for context and are not cache64
-measurements.
-
-- With 80 ms VPN RTT, the original 6 MiB receive / 4 MiB send autotuning
-  maxima limited fresh agent downloads to about 20–25 MB/s. Raising both
-  maxima to 32 MiB in the lab produced about 77–86 MB/s. An independent
-  reverse-direction iperf3 test increased from 35.8 to 128.6 MB/s for one
-  TCP flow. These were lab settings, not new application defaults.
-- On the path without added delay, allowing tunnel growth to 64 MiB produced
-  about 96–108 MB/s and a 421 MiB post-GC server heap after repeated downloads.
-  Roughly 414 MiB was retained by Yamux's `bytes.Buffer` receive storage.
-  A 2 MiB tunnel ceiling delivered about 101–109 MB/s with a 21 MiB heap in
-  the corresponding profile. Heap is distinct from RSS, kernel socket memory,
-  and the application's resource reservations.
-- Smaller windows are not appropriate everywhere. With the larger Linux
-  maxima and 80 ms VPN RTT, an 8 MiB tunnel ceiling delivered about 48–53 MB/s,
-  compared with about 77–86 MB/s at 64 MiB. That baseline replenished credit after
-  at least half its window becomes available, so a high-throughput path needs
-  headroom beyond a single bandwidth-delay product.
-- The profiled baseline grew credit with total consumed bytes, so even slow,
-  long-lived connections eventually reached the maximum. Its `bytes.Buffer`
-  capacity and transient reallocation could exceed logical receive credit.
-  This motivated the measured growth and bounded chunk storage now implemented.
-
-The final comparison used the lazy 64-chunk cache (64 KiB chunks,
-4 MiB retention ceiling per stream). It was not preallocated and did not alter
-the resource reservation bound. These are three cold-service alternating pairs
-on the same development lab, with 512 MiB HTTP/2 transfers; the parallel case
-used four 256 MiB transfers. They are lab comparisons, not a physical 10 Gbit/s
-qualification. The baseline was commit `463958f`, with the prior 64 MiB
-lifetime-byte growth policy; both builds retained Linux TCP autotuning, with
-32 MiB receive/send maxima in these runs. Each pair restarted the services
-and cleared the lab's saved TCP connection metrics.
-
-| Lab case | Baseline median MB/s (range) | Final median MB/s (range) |
-| --- | ---: | ---: |
-| LAN, one transfer | 112.4 (112.1–113.0) | 109.4 (101.5–110.0) |
-| VPN, 80 ms RTT, one transfer | 56.9 (56.7–78.8) | 81.1 (55.7–83.4) |
-| VPN, 80 ms RTT, four transfers | 91.2 (90.3–103.5) | 90.9 (90.7–106.2) |
-
-The VPN single-transfer series is bimodal in both modes, so the medians are
-descriptive rather than a capacity claim. An intermediate 512 KiB chunk cache
-had about a 15% lower parallel median and substantial allocation churn; it
-was rejected. Increasing reuse to 4 MiB recovered the parallel result while
-preserving the same accounting bound. The final LAN median was 2.6% below
-the baseline; this small sample does not establish throughput equivalence.
-
-With 80 ms RTT on both links, two pairs measured 51.9 MB/s for the baseline
-and 54.3 MB/s for the final build. Under 80 ms VPN RTT plus 5 ms jitter in
-each direction, four pairs measured medians of 22.3 and 17.1 MB/s respectively,
-with broad ranges of 17.4–26.2 and 15.7–59.2 MB/s. An nginx relay over the same
-jittered VPN measured 17.4 MB/s (15.9–20.3, three runs). TCP snapshots show
-congestion and retransmission variance; TCP receive-window metrics do not
-measure Yamux credit. These samples support a lab-network limitation but do
-not establish equal performance under jitter. With the original 6 MiB/4 MiB
-kernel maxima, two pairs measured 22.3 MB/s for the baseline and 17.5 MB/s
-for the final build (12.8–22.1 MB/s); that small comparison is also variable.
-
-Separate 30-second server profiles during repeated 512 MiB LAN downloads
-measured the following. Both captures include startup and a forced GC; they
-are diagnostic samples, not equal-byte CPU benchmarks.
-
-| Server measurement | Baseline | Final |
-| --- | ---: | ---: |
-| Retained Go heap after GC | 416.0 MiB | 16.0 MiB |
-| Cumulative Go allocations | 1,726.9 MiB | 59.0 MiB |
-| RSS after the traffic sequence | 548.2 MiB | 55.6 MiB |
-| Peak RSS | 859.1 MiB | 57.1 MiB |
-| Sampled CPU time | 12.38 s | 11.90 s |
-
-Baseline Yamux buffer growth retained about 407.9 MiB; final receive chunks
-retained about 7.4 MiB. Heap, RSS, kernel socket buffers and admission
-reservations are separate measurements. The profile supports a substantial
-allocation/retention improvement; it does not establish a CPU speedup.
-
-The new controller measures consumption over elapsed time, including time
-spent outside `Read`, and samples at intervals of at least one RTT or 10 ms.
-It smooths the measured rate, requires two growth-supporting samples,
-discards epochs spanning long idle gaps, and limits each increase.
-Existing advertised credit remains backed until
-the stream closes; it cannot safely shrink after being granted.
-Application-controlled Yamux receive credit, HTTP/2 upload credit, replay
-buffers, headers and request state retain strict lifetime reservations. Some
-resident application buffer memory is intentionally also present in measured
-usage; removing that conservatism requires actual per-buffer commit tracking.
-Increasing Linux TCP maxima can increase measured memory when traffic grows the
-queues, but does not increase the automatic socket's 512 KiB admission allowance.
-These measurements do not demonstrate 10 Gbit/s performance.
-
-The optional HTTP/2 diagnostic isolates receive-window behavior in a Go HTTPS
-server configured like the public listener. It is separate from the complete
-public-proxy CI test. At 80 ms RTT, median uploads were 161 Mbit/s for HTTP/1.1,
-87 Mbit/s with 1 MiB HTTP/2 connection/stream credit, and 182 Mbit/s with 3 MiB
-for both. Raising only the stream window left the 87 Mbit/s ceiling unchanged.
-The production upload window remains 1 MiB. Review showed that HTTP/2 reset
-streams can return connection credit while their handlers still retain unread
-bodies; a single connection reservation therefore cannot cover repeated reset
-waves. Larger windows need reservation for each body until cleanup, including
-bodies canceled before handler admission. The diagnostic has no application
-resource ledger and does not enable larger windows in production.
-
-```sh
-scripts/benchmark-http2-upload.sh
-go test ./internal/tunnel -run '^$' -bench '^BenchmarkTunnelYamuxThroughput$' -benchtime=1s -count=3
-go -C third_party/yamux test -run '^$' -bench '^BenchmarkTransportThroughput$' -benchtime=1s -count=3
-go -C third_party/yamux test -run '^$' -bench '^BenchmarkReceiveBufferFrameReuse$' -benchtime=1s -count=3
-```
-
-The loopback benchmarks compare chunk sizes, initial/window growth, TCP and
-TLS. Their throughput is not an end-to-end proxy capacity result. The coalescing
-adapter is test-only; its counters measure writes into the transport API,
-including TLS, rather than actual TCP writes or TLS records. Coalescing helped
-plain TCP in these runs but showed no improvement through TLS.
-
-For CPU, heap and contention profiles, build the optional lab-only profiler:
-
-```sh
-go build -tags labprofile -o /tmp/p2pstream-labprofile .
-```
-
-In an isolated lab, run the server or agent with
-`P2PSTREAM_LABPROFILE=1`, `P2PSTREAM_LABPROFILE_SECONDS=30` and a separate
-`P2PSTREAM_LABPROFILE_DIR` for each process. Optional
-`P2PSTREAM_LABPROFILE_BLOCK_RATE=1000000` and
-`P2PSTREAM_LABPROFILE_MUTEX_FRACTION=100` enable sampled contention profiles.
-The timer starts during process initialization, so captures include startup.
-Keep traffic running for the interval and wait for `labprofile finished` before
-stopping the process. Early termination can leave an incomplete capture.
-The profiler writes private local files and exposes no HTTP endpoint. Normal
-release builds exclude it. Compare throughput with unprofiled runs; forced GC
-and profiling can perturb execution.
-
-```sh
-go tool pprof -top /path/to/server/cpu.pprof
-go tool pprof -top -inuse_space /path/to/server/heap.pprof
-go tool pprof -top -alloc_space /path/to/server/heap.pprof
-```
-
-## Earlier transport measurements
-
-Local AMD Ryzen 9 6900HS, Linux amd64, Go 1.26.6. These are development
-benchmarks, not a production throughput guarantee.
-
-| Workload | Previous behavior / control | Updated behavior |
-| --- | --- | --- |
-| Warm GET allocation | About 6.3 KB and 69 allocations/request | 5.2–5.3 KB and 65 allocations; no new stream opens |
-| Warm HTTP/2 TLS POST, 1 KiB | About 8.4 KB and 91 allocations/request | About 6.9 KB and 86 allocations; no new stream opens |
-| 4 MiB download, one tunnel, simulated 40 ms RTT | Fixed 512 KiB: 6.8 MB/s | Growth to 2 MiB: 23.9 MB/s |
-| API requests alongside two bulk-download loops, simulated 40 ms RTT | One tunnel: median 167–169 ms, p95 172–210 ms | Four tunnels: median 41–42 ms, p95 45–87 ms |
-
-The WAN harness runs the real agent runtime through management TLS and an
-HTTP/2 TLS origin. A bounded, pipelined delay relay models propagation in both
-directions. It does **not** model packet loss, kernel congestion control or a
-specified bandwidth. Relay allocations are part of that harness, so use the
-separate warm microbenchmarks for allocation comparisons. WAN download results
-use three measured transfers; mixed results use two runs of 30 API requests.
-
-Validation includes 300 retained warm targets; 3,000 simultaneous logical
-requests from one client under sufficient synthetic resource headroom; the
-existing 4,096-stream capacity test; a 300-request burst through a legacy
-64-stream agent; primary-lane loss/reconnect/revocation; mutation replay safety;
-resource-exhaustion recovery; and receive-credit lifetime tests. The complete
-Go suite, targeted race tests and upstream Yamux race suite pass.
-
-Reproduce without starting a development server:
-
-```sh
-go test ./internal/server -run '^$' -bench '^BenchmarkAgentTransport(WarmKeepAliveGET|WarmHTTP2POST1KiB)$' -benchtime=3s -count=2
-go test ./internal/server -run '^$' -bench '^BenchmarkRealAgentWANDownload$' -benchtime=3x
-go test ./internal/server -run '^$' -bench '^BenchmarkRealAgentWANMixed$' -benchtime=30x -count=2
-go test -race ./internal/tunnel ./internal/sysmetrics ./internal/agent ./internal/server -run 'Growing|ExternalResources|ExternalBytes|RealAgent|EnvironmentAgent|Adaptive|AutomaticPublicAdmission|AgentTunnel|AgentTransportPool'
-```
-
-## Finding remaining delays
-
-Enable debug traffic tracing for a narrow route/sample. Request events expose
-`connection_reused`, `tunnel_lane`, `connection_acquire_ms`,
-`tunnel_admission_ms`, `tunnel_open_ms`, `tunnel_handshake_ms`, `agent_dial_ms`,
-`agent_dns_ms`, `tls_handshake_ms` and `upstream_first_byte_ms`.
-
-These phases overlap: connection acquisition includes admission, tunnel opening
-and TLS; first-byte time starts before connection acquisition. Do not add all
-fields together. Agent dial/DNS values come from the remote agent and require
-compatible peers. Reused requests normally have zero dial/open/TLS time. Normal
-traffic does not install these trace hooks or emit a per-request info log.
-
-Diagnose rejections from configured guards, queue exhaustion, memory headroom,
-file-descriptor headroom and sensor errors separately. Application-memory
-estimates are conservative and intentionally include resident bytes plus
-outstanding advertised credit; they protect that credit against simultaneous
-expansion between resource samples. Host sampling observes kernel queue growth
-but does not impose an instantaneous hard cap between samples. Physical stream
-and queue structures retain a 65,536 guard. The 256 opening backlog bounds
-outstanding Yamux handshakes, not lifetime requests. Old protocol peers and
-explicit settings may impose lower ceilings.
-
-## QUIC assessment
-
-QUIC remains an optional future transport experiment. Its independent streams
-can avoid delivery blocking between streams following packet loss, unlike
-streams sharing one TCP connection. See [RFC 9000, section 13](https://www.rfc-editor.org/rfc/rfc9000.html#section-13).
-The four-TCP-lane implementation provides useful isolation using the existing
-HTTPS upgrade path and is already measured here.
-
-The latency-only harness cannot justify adopting QUIC for loss recovery. A
-production QUIC option requires authenticated UDP ingress, stream/resource
-accounting, reconnect and update-drain parity, deployment compatibility and
-fallback behavior. Evaluate it next on an isolated network with controlled loss,
-bandwidth and RTT, comparing API p95/p99, bulk throughput, CPU and memory.
-No QUIC listener or new UDP exposure is introduced by this change.
-
-## Local Yamux extension
-
-`third_party/yamux` contains upstream v0.1.2 with its MPL-2.0 license and tests.
-The small extension exposes monotonic per-stream receive-window growth without
-changing the wire protocol. Its own module tests run separately in CI and Docker
-test stages because root `go test ./...` does not traverse nested modules. The
-full suite runs normally, followed by `go test -race -short ./...`: upstream's
-short mode excludes its 250 MiB and 16 GiB stress transfers from race
-instrumentation, while keeping both transfers in normal testing.
+The local `third_party/yamux` module retains its upstream MPL-2.0 license and
+tests. Its per-stream receive-window growth uses the existing wire format;
+applications reserve memory before advertising extra credit. See
+`third_party/yamux/P2PSTREAM.md` for the maintained changes. Root `go test ./...`
+does not traverse this nested module; CI defines its normal suite and
+`go test -race -short ./...` separately. Large upstream transfers remain in the
+normal suite.
