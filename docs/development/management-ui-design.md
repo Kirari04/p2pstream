@@ -92,3 +92,11 @@ Keep existing accessible names, `aria-*` attributes, `data-testid` values and
 visible button labels that the Playwright specs rely on (`e2e/`,
 `e2e-isolated/`, `docs-screenshots/`). If you rename one, update the spec in
 the same change.
+
+## Untrusted text
+
+Hostnames, paths, headers, error details, agent names and anything else
+derived from public traffic or remote environments are attacker-controlled.
+Keep rendering them through `diagnosticExcerpt` / `diagnosticInspectionText`
+(`src/lib/diagnosticText.ts`) inside `<bdi dir="ltr">` where the code already
+does. A redesign must never swap those for raw interpolation or `v-html`.
