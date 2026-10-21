@@ -2,6 +2,7 @@
 import { computed, h, ref, type HTMLAttributes } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
+  NAlert,
   NButton,
   NDataTable,
   NDropdown,
@@ -14,8 +15,8 @@ import type { DataTableColumns } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
 import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Pencil as PencilIcon } from "@lucide/vue";
+import { Play as PlayIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
-import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Search as SearchIcon } from "@lucide/vue";
 import { X as TimesIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
@@ -24,6 +25,10 @@ import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicSiteMigrationPanel from "@/components/PublicSiteMigrationPanel.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -65,14 +70,6 @@ type ProxySectionSummary = {
   detail: string;
   description: string;
 };
-type ProxySummaryFact =
-  | ProxySectionSummary
-  | {
-      key: "proxy";
-      label: string;
-      value: string;
-      detail: string;
-    };
 
 const managementClient = useManagementClient();
 const route = useRoute();
@@ -100,6 +97,12 @@ const proxyError = computed(
   () => status.value?.proxy?.lastError || status.value?.proxyLastError || "",
 );
 const proxySeverity = computed(() => severityForState(proxyState.value));
+const proxyTone = computed<"success" | "warning" | "error">(() => {
+  const tag = naiveTagType(proxySeverity.value);
+  if (tag === "success") return "success";
+  if (tag === "warning") return "warning";
+  return "error";
+});
 const listeners = computed(() => config.value?.listeners ?? []);
 const routes = computed(() => config.value?.routes ?? []);
 const sites = computed(() => config.value?.sites ?? []);
@@ -132,11 +135,12 @@ const displayedListeners = computed(() => {
       return left.name.localeCompare(right.name);
     });
 });
+const listenerTableWidth = 810;
 const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
   {
     title: "Listener",
     key: "listener",
-    minWidth: 280,
+    minWidth: 240,
     render: (listener) =>
       h("div", { class: "layout-grid min-width-zero space-xs" }, [
         h(
@@ -176,7 +180,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
   {
     title: "State",
     key: "state",
-    minWidth: 230,
+    minWidth: 190,
     render: (listener) =>
       h("div", { class: "layout-row layout-column space-2xs" }, [
         h(
@@ -215,8 +219,9 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
   {
     title: "Actions",
     key: "actions",
-    width: 260,
+    width: 230,
     align: "right",
+    fixed: "right",
     render: (listener) =>
       h("div", { class: "layout-row align-center align-end-row space-sm" }, [
         h(
@@ -244,7 +249,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
                   icon: () =>
                     listenerStatus(listener)?.running
                       ? h(TimesIcon, { class: "icon-sm" })
-                      : h(RefreshIcon, { class: "icon-sm" }),
+                      : h(PlayIcon, { class: "icon-sm" }),
                   default: () =>
                     listenerStatus(listener)?.running ? "Stop" : "Start",
                 },
@@ -303,6 +308,202 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
       ]),
   },
 ]);
+// Column widths sum to the scroll-x below so the table fits a 1280px viewport.
+const siteTableWidth = 920;
+const siteColumns = computed<DataTableColumns<PublicSite>>(() => [
+  {
+    title: "Site and listeners",
+    key: "site",
+    minWidth: 200,
+    render: (site) =>
+      h("div", { class: "site-table__identity" }, [
+        h("div", { class: "site-table__title-line" }, [
+          h(
+            "bdi",
+            {
+              class: "site-table__name",
+              dir: "auto",
+              title: diagnosticInspectionText(site.name),
+            },
+            diagnosticExcerpt(displayMigratedSiteName(site.name), 48).text,
+          ),
+          h(
+            "span",
+            { class: "mono-text copy-xs muted-text" },
+            `#${site.id.toString()}`,
+          ),
+        ]),
+        h(
+          "span",
+          {
+            class: "clip-text copy-xs muted-text",
+            title: diagnosticInspectionText(siteListenerSummary(site)),
+          },
+          diagnosticInspectionText(siteListenerSummary(site)),
+        ),
+      ]),
+  },
+  {
+    title: "Hostname mode",
+    key: "hosts",
+    minWidth: 270,
+    render: (site) =>
+      h("div", { class: "site-table__hosts" }, [
+        h("div", { class: "site-table__primary-host" }, [
+          h(
+            "span",
+            { class: "site-table__host-role" },
+            site.defaultSite ? "Default" : "Named",
+          ),
+          h(
+            "bdi",
+            {
+              class: "mono-text copy-xs clip-text",
+              dir: "ltr",
+              title: site.canonicalHostname || undefined,
+            },
+            site.defaultSite
+              ? "Any unmatched hostname"
+              : displayHostnamePattern(site.canonicalHostname) ||
+                  "No canonical hostname",
+          ),
+        ]),
+        !site.defaultSite && site.hosts.length
+          ? h("div", { class: "site-table__aliases" }, [
+              ...site.hosts.slice(0, 3).map((host) =>
+                h(
+                  "span",
+                  {
+                    key: host.id.toString(),
+                    class: "site-table__alias",
+                    title: host.hostnamePattern,
+                  },
+                  [
+                    h(
+                      "bdi",
+                      { dir: "ltr" },
+                      displayHostnamePattern(host.hostnamePattern),
+                    ),
+                    h(
+                      "span",
+                      { "aria-hidden": "true" },
+                      host.behavior === PublicSiteHostBehavior.REDIRECT
+                        ? "redirect"
+                        : "serve",
+                    ),
+                  ],
+                ),
+              ),
+              site.hosts.length > 3
+                ? h(
+                    "span",
+                    { class: "copy-xs muted-text" },
+                    `+${site.hosts.length - 3} more`,
+                  )
+                : null,
+            ])
+          : !site.defaultSite
+            ? h("span", { class: "copy-xs muted-text" }, "No hostnames yet")
+            : null,
+      ]),
+  },
+  {
+    title: "Readiness and routes",
+    key: "readiness",
+    width: 170,
+    render: (site) =>
+      h("div", { class: "site-table__operations" }, [
+        h(
+          NTag,
+          {
+            size: "small",
+            bordered: false,
+            type: site.readiness.some((item) => item.severity === 1)
+              ? "error"
+              : "success",
+          },
+          { default: () => publicSiteReadinessLabel(site) },
+        ),
+        h(
+          "span",
+          { class: "copy-xs muted-text" },
+          `${siteRouteCount(site)} ${siteRouteCount(site) === 1 ? "route" : "routes"}`,
+        ),
+        siteNeedsTls(site)
+          ? h(
+              NButton,
+              {
+                text: true,
+                type: "primary",
+                size: "tiny",
+                onClick: () => editSite(site),
+              },
+              { default: () => "Configure TLS" },
+            )
+          : null,
+      ]),
+  },
+  {
+    title: "State",
+    key: "state",
+    width: 120,
+    render: (site) =>
+      h(
+        "span",
+        {
+          class: [
+            "site-state",
+            { "site-state--inactive": !site.published || !site.enabled },
+          ],
+        },
+        [
+          h("span", { class: "site-state__dot", "aria-hidden": "true" }),
+          publicSiteLifecycleLabel(site),
+        ],
+      ),
+  },
+  {
+    title: "Actions",
+    key: "actions",
+    width: 160,
+    align: "right",
+    fixed: "right",
+    render: (site) =>
+      h("div", { class: "layout-row align-center align-end-row space-sm" }, [
+        h(
+          NButton,
+          {
+            secondary: true,
+            size: "small",
+            "aria-label": `Edit site ${diagnosticExcerpt(site.name, 48).text}`,
+            title: "Edit site",
+            onClick: () => editSite(site),
+          },
+          {
+            icon: () => h(PencilIcon, { class: "icon-sm" }),
+            default: () => "Edit",
+          },
+        ),
+        h(
+          NButton,
+          {
+            type: "error",
+            secondary: true,
+            size: "small",
+            "aria-label": `Delete site ${diagnosticExcerpt(site.name, 48).text}`,
+            title: siteRouteCount(site)
+              ? "Review Site routes before deletion"
+              : "Delete site",
+            onClick: () => void deleteSite(site),
+          },
+          {
+            icon: () => h(TrashIcon, { class: "icon-sm" }),
+            default: () => "Delete",
+          },
+        ),
+      ]),
+  },
+]);
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
 const { confirm } = useConfirmDialog();
@@ -323,16 +524,6 @@ const proxySections = computed<ProxySectionSummary[]>(() => [
     detail: `${runningListeners.value.toString()} running`,
     description: "Incoming endpoints where the proxy accepts connections.",
   },
-]);
-const summaryFacts = computed<ProxySummaryFact[]>(() => [
-  {
-    key: "proxy",
-    label: "Proxy",
-    value: proxyStateLabel(proxyState.value, status.value?.proxyRunning),
-    detail: proxyIsRunning.value ? "accepting traffic" : "not running",
-  },
-  proxySections.value[0],
-  proxySections.value[1],
 ]);
 const activeProxySection = computed<ProxySectionKey>(() =>
   normalizeProxySection(route.params.section),
@@ -500,6 +691,23 @@ function siteRouteCount(site: PublicSite): number {
   return routes.value.filter((route) => route.siteId === site.id).length;
 }
 
+function siteRowKey(site: PublicSite): string {
+  return site.id.toString();
+}
+
+function siteRowProps(site: PublicSite): Record<string, string> {
+  return {
+    "data-testid": `site-row-${site.id.toString()}`,
+  };
+}
+
+function siteNeedsTls(site: PublicSite): boolean {
+  return site.readiness.some((item) => {
+    const action = item.action.toLocaleLowerCase();
+    return action.includes("certificate") || action.includes("tls");
+  });
+}
+
 function siteListenerSummary(site: PublicSite): string {
   const names = publicSiteListenerIDs(site).map(
     (id) =>
@@ -539,21 +747,11 @@ async function deleteSite(site: PublicSite) {
 
 <template>
   <div v-if="dashboard" class="stack-xl">
-    <header class="page-toolbar">
-      <div class="page-toolbar__body">
-        <h1 class="margin-bottom-sm copy-2xl weight-bold">Proxy</h1>
-        <p id="proxy-page-description" class="copy-sm muted-text">
-          {{ activeProxyMeta.description }}
-        </p>
-      </div>
-      <div class="page-toolbar__actions" aria-live="polite">
-        <NTag
-          size="small"
-          :bordered="false"
-          :type="naiveTagType(proxySeverity)"
-        >
-          {{ proxyStateLabel(proxyState, status?.proxyRunning) }}
-        </NTag>
+    <PageHeader title="Proxy">
+      <template #description>
+        <span id="proxy-page-description">{{ activeProxyMeta.description }}</span>
+      </template>
+      <template #actions>
         <DisabledHint
           v-if="!proxyIsRunning"
           :disabled="Boolean(busyDisabledReason)"
@@ -561,11 +759,12 @@ async function deleteSite(site: PublicSite) {
         >
           <NButton
             type="primary"
+            size="small"
             :loading="isBusy && !proxyIsRunning"
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(true)"
           >
-            <template #icon><PlusIcon class="icon-md" /></template>
+            <template #icon><PlayIcon class="icon-sm" /></template>
             Start proxy
           </NButton>
         </DisabledHint>
@@ -576,44 +775,41 @@ async function deleteSite(site: PublicSite) {
         >
           <NButton
             type="error"
+            secondary
+            size="small"
             :loading="isBusy && proxyIsRunning"
             :disabled="Boolean(busyDisabledReason)"
             @click="setProxyRunning?.(false)"
           >
-            <template #icon><BanIcon class="icon-md" /></template>
+            <template #icon><BanIcon class="icon-sm" /></template>
             Stop proxy
           </NButton>
         </DisabledHint>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
-    <p
-      v-if="proxyError"
-      role="alert"
-      class="proxy-error round-md framed error-border error-surface pad-x-lg pad-y-md copy-sm error-text"
-    >
-      {{ diagnosticInspectionText(proxyError) }}
-    </p>
+    <NAlert v-if="proxyError" type="error" :bordered="false" class="proxy-error">
+      <bdi dir="ltr">{{ diagnosticInspectionText(proxyError) }}</bdi>
+    </NAlert>
 
-    <dl
-      class="summary-grid summary-grid--four proxy-summary-grid"
-      aria-label="Proxy configuration summary"
-    >
-      <div
-        v-for="fact in summaryFacts"
-        :key="fact.key"
-        class="proxy-summary-card"
-        :class="{
-          'proxy-summary-card--active': fact.key === activeProxySection,
-        }"
-      >
-        <dt>{{ fact.label }}</dt>
-        <dd>
-          <strong class="base-text">{{ fact.value }}</strong>
-          <small>{{ fact.detail }}</small>
-        </dd>
-      </div>
-    </dl>
+    <MetricStrip variant="strip" label="Proxy configuration summary">
+      <MetricCard
+        label="Proxy"
+        :value="proxyStateLabel(proxyState, status?.proxyRunning)"
+        :tone="proxyTone"
+        dot
+        :detail="proxyIsRunning ? 'Accepting traffic' : 'Not running'"
+        aria-live="polite"
+      />
+      <MetricCard
+        v-for="section in proxySections"
+        :key="section.key"
+        :label="section.label"
+        :value="section.value"
+        :detail="section.detail"
+        :class="{ 'proxy-metric--active': section.key === activeProxySection }"
+      />
+    </MetricStrip>
 
     <NTabs
       class="proxy-tabs"
@@ -635,187 +831,47 @@ async function deleteSite(site: PublicSite) {
           proxyTabProps('sites', `${sites.length.toString()} sites configured`)
         "
       >
-        <PublicSiteMigrationPanel
-          class="margin-bottom-lg"
-          :config="config"
-          @edit-route="editLegacyRoute"
-        />
-        <section class="surface-card hide-overflow">
-          <div
-            class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg"
+        <div class="stack-lg">
+          <PublicSiteMigrationPanel :config="config" @edit-route="editLegacyRoute" />
+          <SectionCard
+            title="Sites"
+            heading-id="proxy-sites-heading"
+            description="Build hostnames, listener behavior, and routes in one workspace, then publish when ready."
+            flush
           >
-            <div>
-              <h2 class="copy-base weight-semibold">Sites</h2>
-              <p class="margin-top-xs copy-sm muted-text">
-                Build hostnames, listener behavior, and routes in one workspace,
-                then publish when ready.
-              </p>
-            </div>
-            <NButton type="primary" size="small" @click="openAddSiteModal">
-              <template #icon><PlusIcon class="icon-sm" /></template>
-              Add Site
-            </NButton>
-          </div>
-          <div
-            v-if="sites.length"
-            class="site-table"
-            role="table"
-            aria-label="Configured virtual host sites"
-            :aria-rowcount="sites.length + 1"
-          >
-            <div class="site-table__header" role="row">
-              <span role="columnheader">Site and listeners</span>
-              <span role="columnheader">Hostname mode</span>
-              <span role="columnheader">Readiness and routes</span>
-              <span role="columnheader">State</span>
-              <span class="site-table__actions-heading" role="columnheader"
-                >Actions</span
-              >
-            </div>
+            <template #actions>
+              <NButton type="primary" size="small" @click="openAddSiteModal">
+                <template #icon><PlusIcon class="icon-sm" /></template>
+                Add Site
+              </NButton>
+            </template>
             <div
-              v-for="site in sites"
-              :key="site.id.toString()"
-              class="site-table__row"
-              role="row"
-              :data-testid="`site-row-${site.id.toString()}`"
+              v-if="sites.length"
+              role="region"
+              aria-label="Configured virtual host sites"
             >
-              <div class="site-table__identity" role="cell">
-                <div class="site-table__title-line">
-                  <bdi
-                    class="site-table__name"
-                    dir="auto"
-                    :title="diagnosticInspectionText(site.name)"
-                    >{{ diagnosticExcerpt(displayMigratedSiteName(site.name), 48).text }}</bdi
-                  >
-                  <span class="mono-text copy-xs muted-text"
-                    >#{{ site.id.toString() }}</span
-                  >
-                </div>
-                <p class="copy-xs muted-text">
-                  {{ siteListenerSummary(site) }}
-                </p>
-              </div>
-              <div class="site-table__hosts" role="cell">
-                <div class="site-table__primary-host">
-                  <span class="site-table__host-role">{{
-                    site.defaultSite ? "Default" : "Named"
-                  }}</span>
-                  <bdi
-                    class="mono-text copy-xs clip-text"
-                    dir="ltr"
-                    :title="site.canonicalHostname || undefined"
-                    >{{
-                    site.defaultSite
-                      ? "Any unmatched hostname"
-                      : displayHostnamePattern(site.canonicalHostname) ||
-                        "No canonical hostname"
-                  }}</bdi>
-                </div>
-                <div
-                  v-if="!site.defaultSite && site.hosts.length"
-                  class="site-table__aliases"
-                >
-                  <span
-                    v-for="host in site.hosts.slice(0, 3)"
-                    :key="host.id.toString()"
-                    class="site-table__alias"
-                    :title="host.hostnamePattern"
-                  >
-                    <bdi dir="ltr">{{ displayHostnamePattern(host.hostnamePattern) }}</bdi>
-                    <span aria-hidden="true">{{
-                      host.behavior === PublicSiteHostBehavior.REDIRECT
-                        ? "redirect"
-                        : "serve"
-                    }}</span>
-                  </span>
-                  <span v-if="site.hosts.length > 3" class="copy-xs muted-text"
-                    >+{{ site.hosts.length - 3 }} more</span
-                  >
-                </div>
-                <p v-else-if="!site.defaultSite" class="copy-xs muted-text">
-                  No hostnames yet
-                </p>
-              </div>
-              <div class="site-table__operations" role="cell">
-                <NTag
-                  size="small"
-                  :bordered="false"
-                  :type="
-                    site.readiness.some((item) => item.severity === 1)
-                      ? 'error'
-                      : 'success'
-                  "
-                  >{{ publicSiteReadinessLabel(site) }}</NTag
-                >
-                <span class="copy-xs muted-text"
-                  >{{ siteRouteCount(site) }}
-                  {{ siteRouteCount(site) === 1 ? "route" : "routes" }}</span
-                >
-                <NButton
-                  v-if="
-                    site.readiness.some(
-                      (item) =>
-                        item.action
-                          .toLocaleLowerCase()
-                          .includes('certificate') ||
-                        item.action.toLocaleLowerCase().includes('tls'),
-                    )
-                  "
-                  text
-                  size="tiny"
-                  @click="editSite(site)"
-                  >Configure TLS</NButton
-                >
-              </div>
-              <div class="site-table__state-cell" role="cell">
-                <span
-                  class="route-table__state"
-                  :class="{
-                    'route-table__state--disabled':
-                      !site.published || !site.enabled,
-                  }"
-                >
-                  <span
-                    class="route-table__state-dot"
-                    aria-hidden="true"
-                  ></span>
-                  {{ publicSiteLifecycleLabel(site) }}
-                </span>
-              </div>
-              <div class="site-table__actions" role="cell">
-                <NButton
-                  secondary
-                  size="small"
-                  :aria-label="`Edit site ${diagnosticExcerpt(site.name, 48).text}`"
-                  title="Edit site"
-                  @click="editSite(site)"
-                >
-                  <template #icon><PencilIcon class="icon-sm" /></template>
-                </NButton>
-                <NButton
-                  type="error"
-                  size="small"
-                  :aria-label="`Delete site ${diagnosticExcerpt(site.name, 48).text}`"
-                  :title="
-                    siteRouteCount(site)
-                      ? 'Review Site routes before deletion'
-                      : 'Delete site'
-                  "
-                  @click="deleteSite(site)"
-                >
-                  <template #icon><TrashIcon class="icon-sm" /></template>
-                </NButton>
-              </div>
+              <NDataTable
+                class="proxy-table"
+                :columns="siteColumns"
+                :data="sites"
+                :row-key="siteRowKey"
+                :row-props="siteRowProps"
+                :pagination="false"
+                :bordered="false"
+                :single-line="false"
+                :scroll-x="siteTableWidth"
+                size="small"
+              />
             </div>
-          </div>
-          <EmptyState
-            v-else
-            title="No sites configured"
-            description="Create a draft Site, add its listener assignments and routes, then publish it when readiness checks pass. Drafts never affect live traffic."
-            action-label="Add Site"
-            @action="openAddSiteModal"
-          />
-        </section>
+            <EmptyState
+              v-else
+              title="No sites configured"
+              description="Create a draft Site, add its listener assignments and routes, then publish it when readiness checks pass. Drafts never affect live traffic."
+              action-label="Add Site"
+              @action="openAddSiteModal"
+            />
+          </SectionCard>
+        </div>
       </NTabPane>
 
       <NTabPane
@@ -831,28 +887,21 @@ async function deleteSite(site: PublicSite) {
           )
         "
       >
-        <section class="surface-card hide-overflow">
-          <div
-            class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg"
-          >
-            <div>
-              <h2 class="copy-base weight-semibold">Public Listeners</h2>
-              <p class="margin-top-xs copy-sm muted-text">
-                Incoming endpoints where the proxy accepts connections.
-              </p>
-            </div>
+        <SectionCard
+          title="Public Listeners"
+          description="Incoming endpoints where the proxy accepts connections."
+          flush
+        >
+          <template #actions>
             <NButton type="primary" size="small" @click="openAddListenerModal">
               <template #icon><PlusIcon class="icon-sm" /></template>
               Add Listener
             </NButton>
-          </div>
-          <div
-            v-if="listeners.length"
-            class="divider-bottom frame-standard muted-bg pad-x-xl pad-y-md layout-row layout-column space-sm mq-md-row mq-md-align-end"
-          >
+          </template>
+          <div v-if="listeners.length" class="listener-filter">
             <NInput
               v-model:value="listenerFilterText"
-              class="grow-fill"
+              class="listener-filter__input"
               size="small"
               clearable
               :input-props="{ 'aria-label': 'Search public listeners' }"
@@ -860,40 +909,36 @@ async function deleteSite(site: PublicSite) {
             >
               <template #prefix><SearchIcon class="icon-sm" /></template>
             </NInput>
-            <span
-              class="listener-filter-count copy-xs muted-text"
-              aria-live="polite"
-            >
+            <span class="listener-filter__count copy-xs muted-text" aria-live="polite">
               {{ displayedListeners.length }} of {{ listeners.length }}
             </span>
           </div>
-          <div>
-            <NDataTable
-              v-if="displayedListeners.length"
-              :columns="listenerColumns"
-              :data="displayedListeners"
-              :row-key="listenerRowKey"
-              :row-props="listenerRowProps"
-              :pagination="false"
-              :bordered="false"
-              :single-line="false"
-              :scroll-x="920"
-              size="small"
-            />
-            <EmptyState
-              v-else-if="listeners.length"
-              title="No matching listeners"
-              description="Clear or adjust the listener search."
-            />
-            <EmptyState
-              v-else
-              title="No listeners configured"
-              description="Listeners accept public HTTP or HTTPS traffic on published ports."
-              action-label="Add Listener"
-              @action="openAddListenerModal"
-            />
-          </div>
-        </section>
+          <NDataTable
+            v-if="displayedListeners.length"
+            class="proxy-table"
+            :columns="listenerColumns"
+            :data="displayedListeners"
+            :row-key="listenerRowKey"
+            :row-props="listenerRowProps"
+            :pagination="false"
+            :bordered="false"
+            :single-line="false"
+            :scroll-x="listenerTableWidth"
+            size="small"
+          />
+          <EmptyState
+            v-else-if="listeners.length"
+            title="No matching listeners"
+            description="Clear or adjust the listener search."
+          />
+          <EmptyState
+            v-else
+            title="No listeners configured"
+            description="Listeners accept public HTTP or HTTPS traffic on published ports."
+            action-label="Add Listener"
+            @action="openAddListenerModal"
+          />
+        </SectionCard>
       </NTabPane>
     </NTabs>
 
@@ -902,66 +947,52 @@ async function deleteSite(site: PublicSite) {
 </template>
 
 <style scoped>
-.proxy-summary-card {
-  display: grid;
-  align-content: center;
-  gap: 0.25rem;
-}
-
-.proxy-summary-card dt,
-.proxy-summary-card small {
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.listener-filter-count {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-.proxy-summary-card dt {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
-.proxy-summary-card small {
-  overflow-wrap: anywhere;
-}
-
-.proxy-summary-card dd {
-  display: grid;
-  gap: 0.125rem;
-  min-width: 0;
-  margin: 0;
-}
-
-.proxy-summary-card strong {
-  overflow: hidden;
-  font-size: 1rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 650;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .proxy-error {
   overflow-wrap: anywhere;
 }
 
-.listener-error-disclosure {
+.proxy-metric--active :deep(.metric-card__label) {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.proxy-tabs {
+  min-width: 0;
+}
+
+.proxy-tabs :deep(.n-tabs-nav) {
+  margin-bottom: 1.25rem;
+}
+
+.listener-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.75rem 1.25rem;
+}
+
+.listener-filter__input {
+  max-width: 26rem;
+}
+
+.listener-filter__count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Cell content is rendered by column functions, so it needs :deep(). */
+.proxy-table :deep(.listener-error-disclosure) {
   max-width: 18rem;
 }
 
-.listener-error-disclosure summary {
+.proxy-table :deep(.listener-error-disclosure summary) {
   width: fit-content;
   cursor: pointer;
 }
 
-.listener-error-disclosure bdi {
+.proxy-table :deep(.listener-error-disclosure bdi) {
   display: block;
   max-height: 8rem;
   margin-top: 0.375rem;
@@ -970,283 +1001,79 @@ async function deleteSite(site: PublicSite) {
   white-space: pre-wrap;
 }
 
-.proxy-tabs {
-  min-width: 0;
-}
-
-.proxy-tabs :deep(.n-tabs-nav) {
-  margin-bottom: 1rem;
-}
-
-.proxy-tabs :deep(.n-tab-pane) {
-  padding-top: 0.25rem;
-}
-
-.workbench-section-header {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.workbench-section-header > :deep(.n-button) {
-  width: 100%;
-}
-
-.site-table {
-  container-type: inline-size;
-}
-
-.site-table__header,
-.site-table__row {
-  display: grid;
-  grid-template-columns: minmax(10rem, 0.75fr) minmax(18rem, 1.5fr) minmax(
-      9rem,
-      0.7fr
-    ) 6rem 5.25rem;
-  gap: 1rem;
-  align-items: center;
-  padding-inline: 1.25rem;
-}
-
-.site-table__header {
-  min-height: 2.25rem;
-  border-bottom: 1px solid var(--app-border-subtle);
-  background: var(--app-panel-muted);
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.site-table__actions-heading {
-  text-align: right;
-}
-
-.site-table__row {
-  min-height: 4.75rem;
-  padding-block: 0.625rem;
-  border-left: 3px solid var(--app-accent);
-  transition: background-color 160ms ease-out;
-}
-
-.site-table__row + .site-table__row {
-  border-top: 1px solid var(--app-border-subtle);
-}
-
-.site-table__row:hover,
-.site-table__row:focus-within {
-  background: var(--app-hover);
-}
-
-.site-table__identity,
-.site-table__hosts,
-.site-table__operations {
+.proxy-table :deep(.site-table__identity),
+.proxy-table :deep(.site-table__hosts),
+.proxy-table :deep(.site-table__operations) {
   display: grid;
   min-width: 0;
   gap: 0.25rem;
 }
 
-.site-table__title-line,
-.site-table__primary-host,
-.site-table__aliases {
+.proxy-table :deep(.site-table__operations) {
+  justify-items: start;
+}
+
+.proxy-table :deep(.site-table__title-line),
+.proxy-table :deep(.site-table__primary-host),
+.proxy-table :deep(.site-table__aliases) {
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 0.5rem;
 }
 
-.site-table__name {
+.proxy-table :deep(.site-table__aliases) {
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.proxy-table :deep(.site-table__name) {
   overflow: hidden;
+  color: var(--app-text);
   font-size: 0.875rem;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.site-table__host-role {
+.proxy-table :deep(.site-table__host-role) {
   flex: 0 0 auto;
-  border-radius: 3px;
-  padding: 0.0625rem 0.3125rem;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  border-radius: 6px;
+  padding: 0.0625rem 0.375rem;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
 }
 
-.site-table__aliases {
-  overflow: hidden;
-}
-
-.site-table__alias {
+.proxy-table :deep(.site-table__alias) {
   display: inline-flex;
   min-width: 0;
   max-width: 12rem;
   align-items: center;
   gap: 0.25rem;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 4px;
-  padding: 0.125rem 0.375rem;
+  border-radius: 6px;
+  padding: 0.0625rem 0.375rem;
+  background: var(--app-panel-muted);
   color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.6875rem;
 }
 
-.site-table__alias bdi {
+.proxy-table :deep(.site-table__alias bdi) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.site-table__alias span {
+.proxy-table :deep(.site-table__alias span) {
   flex: 0 0 auto;
   color: var(--app-text);
   font-family: var(--font-body);
-  font-size: 0.625rem;
-  font-weight: 600;
-}
-
-.site-table__operations {
-  justify-items: start;
-}
-
-.site-table__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.375rem;
-}
-
-.site-table__actions :deep(.n-button) {
-  width: 2.125rem;
-  min-width: 2.125rem;
-  padding-inline: 0;
-}
-
-.route-table {
-  min-width: 0;
-}
-
-.route-table__header,
-.route-table__row {
-  display: grid;
-  grid-template-columns:
-    minmax(13rem, 1.15fr)
-    minmax(15rem, 1.4fr)
-    minmax(7.75rem, 0.45fr)
-    7.5rem;
-  column-gap: 1rem;
-  align-items: center;
-  padding-inline: 1.25rem;
-}
-
-.route-table__header {
-  min-height: 2.25rem;
-  border-bottom: 1px solid var(--app-border-subtle);
-  background: var(--app-panel-muted);
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.route-table__actions-heading {
-  text-align: right;
-}
-
-.route-table__row {
-  min-height: 3.75rem;
-  padding-block: 0.5rem;
-  transition: background-color 160ms ease-out;
-}
-
-.route-table__row + .route-table__row {
-  border-top: 1px solid var(--app-border-subtle);
-}
-
-.route-table__row:hover,
-.route-table__row:focus-within {
-  background: var(--app-hover);
-}
-
-.route-table__identity,
-.route-table__destination,
-.route-table__status {
-  min-width: 0;
-}
-
-.route-table__primary-line {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.5rem;
-  line-height: 1.35;
-}
-
-.route-table__listener,
-.route-table__destination-label {
-  overflow: hidden;
-  color: var(--app-text);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  unicode-bidi: plaintext;
-  white-space: nowrap;
-}
-
-.route-table__id {
-  flex: 0 0 auto;
-  color: var(--app-text-muted);
   font-size: 0.6875rem;
 }
 
-.route-table__default,
-.route-table__access,
-.route-table__action {
-  flex: 0 0 auto;
-  border-radius: 4px;
-  padding: 0.0625rem 0.375rem;
-  background: var(--app-panel-muted);
-  color: var(--app-text-muted);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.route-table__access {
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-}
-
-.route-table__action--redirect {
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
-}
-
-.route-table__technical {
-  overflow: hidden;
-  margin: 0.125rem 0 0;
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  unicode-bidi: plaintext;
-  white-space: nowrap;
-}
-
-.route-table__status {
-  display: grid;
-  grid-template-columns: minmax(2.25rem, auto) 1fr;
-  align-items: center;
-  gap: 0.625rem;
-}
-
-.route-table__priority {
-  color: var(--app-text);
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-}
-
-.route-table__state {
+.proxy-table :deep(.site-state) {
   display: inline-flex;
   min-width: 0;
   align-items: center;
@@ -1257,7 +1084,7 @@ async function deleteSite(site: PublicSite) {
   white-space: nowrap;
 }
 
-.route-table__state-dot {
+.proxy-table :deep(.site-state__dot) {
   width: 0.4375rem;
   height: 0.4375rem;
   flex: 0 0 auto;
@@ -1265,123 +1092,17 @@ async function deleteSite(site: PublicSite) {
   background: currentColor;
 }
 
-.route-table__state--disabled {
+.proxy-table :deep(.site-state--inactive) {
   color: var(--app-text-muted);
 }
 
-.route-table__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.375rem;
-}
-
-.route-table__actions :deep(.n-button) {
-  width: 2.25rem;
-  min-width: 2.25rem;
-  padding-inline: 0;
-}
-
-@container (max-width: 56rem) {
-  .site-table__header {
-    display: none;
-  }
-
-  .site-table__row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.75rem;
-    padding-block: 0.875rem;
-  }
-
-  .site-table__hosts,
-  .site-table__operations,
-  .site-table__state-cell {
-    grid-column: 1 / -1;
-  }
-
-  .site-table__actions {
-    grid-column: 2;
-    grid-row: 1;
-  }
-}
-
-@media (max-width: 860px) {
-  .route-table__header {
-    display: none;
-  }
-
-  .route-table__row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "identity actions"
-      "destination destination"
-      "status status";
-    gap: 0.5rem 0.75rem;
-    min-height: 0;
-    padding-block: 0.75rem;
-  }
-
-  .route-table__identity {
-    grid-area: identity;
-  }
-
-  .route-table__destination {
-    grid-area: destination;
-  }
-
-  .route-table__status {
-    grid-area: status;
-    display: flex;
-  }
-
-  .route-table__priority::before {
-    content: "Priority ";
-    color: var(--app-text-muted);
-    font-family: var(--font-body);
-    font-weight: 400;
-  }
-
-  .route-table__actions {
-    grid-area: actions;
-  }
-}
-
-@media (max-width: 520px) {
-  .route-table__row {
+@media (max-width: 639px) {
+  .listener-filter {
     padding-inline: 1rem;
   }
 
-  .route-table__id {
-    display: none;
-  }
-
-  .route-table__actions {
-    gap: 0.25rem;
-  }
-
-  .route-table__actions :deep(.n-button) {
-    width: 2rem;
-    min-width: 2rem;
-  }
-}
-
-@media (pointer: coarse) {
-  .site-table__actions :deep(.n-button),
-  .route-table__actions :deep(.n-button) {
-    width: 2.75rem;
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
-}
-
-@media (min-width: 640px) {
-  .workbench-section-header {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .workbench-section-header > :deep(.n-button) {
-    width: auto;
+  .listener-filter__input {
+    max-width: none;
   }
 }
 </style>

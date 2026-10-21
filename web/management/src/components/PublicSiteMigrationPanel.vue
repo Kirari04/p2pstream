@@ -14,6 +14,7 @@ import {
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { diagnosticInspectionText } from "@/lib/diagnosticText";
 import { messageFromError } from "@/lib/errors";
 import {
   displayHostnamePattern,
@@ -228,7 +229,7 @@ function listenerLabel(id: bigint) {
       <div class="grow-fill">
         <h2
           id="migration-panel-title"
-          class="copy-sm weight-semibold base-text"
+          class="migration-panel__title"
         >
           {{ legacyRoutes.length }} standalone
           {{ legacyRoutes.length === 1 ? "route needs" : "routes need" }} a Site
@@ -272,7 +273,7 @@ function listenerLabel(id: bigint) {
     <div v-if="preview" class="migration-panel__preview">
       <div class="migration-panel__meta">
         <div>
-          <p class="copy-xs weight-semibold label-case letter-wide muted-text">
+          <p class="copy-sm weight-semibold base-text">
             Migration preview
           </p>
           <p class="margin-top-xs copy-xs muted-text">
@@ -362,7 +363,7 @@ function listenerLabel(id: bigint) {
       <div v-if="orderedIssues.length" class="migration-panel__issues-wrap">
         <div class="migration-panel__section-heading">
           <div>
-            <p class="copy-xs weight-semibold label-case letter-wide muted-text">
+            <p class="copy-sm weight-semibold base-text">
               {{ blockerIssues.length ? "Resolve before migration" : "Behavior review" }}
             </p>
             <p class="margin-top-xs copy-xs muted-text">
@@ -558,16 +559,40 @@ function listenerLabel(id: bigint) {
       role="alert"
       class="migration-panel__error copy-xs line-normal error-text"
     >
-      {{ migrationError }} Refresh the preview before retrying.
+      <bdi dir="ltr">{{ diagnosticInspectionText(migrationError) }}</bdi> Refresh the preview before retrying.
     </p>
   </section>
 </template>
 
 <style scoped>
-.migration-panel__error {
-  margin: 0;
+.migration-panel {
+  overflow: hidden;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 10px;
+  background: var(--app-panel);
+}
+.migration-panel__banner,
+.migration-panel__meta,
+.migration-panel__actions,
+.migration-issue {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+.migration-panel__banner {
   padding: 1rem 1.25rem;
-  overflow-wrap: anywhere;
+}
+.migration-panel__title {
+  color: var(--app-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.migration-panel__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--app-warning);
 }
 .migration-panel__scope,
 .migration-panel__acknowledgements {
@@ -585,37 +610,35 @@ function listenerLabel(id: bigint) {
 .migration-panel__acknowledgements {
   gap: 0.625rem;
   margin: 0;
-  border: 1px solid
-    color-mix(in srgb, var(--app-warning) 38%, var(--app-border));
-  border-radius: 0.5rem;
-  padding: 0.875rem;
-  background: color-mix(in srgb, var(--app-warning) 7%, var(--app-panel));
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: var(--app-panel-muted);
+}
+.migration-panel__preview {
+  display: grid;
+  gap: 1.25rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 1rem 1.25rem 1.25rem;
+}
+.migration-panel__meta,
+.migration-panel__actions {
+  justify-content: space-between;
 }
 .migration-readiness {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--app-error) 38%, var(--app-border));
-  border-radius: 0.5rem;
-  padding: 0.875rem;
-  background: color-mix(in srgb, var(--app-error) 7%, var(--app-panel));
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: var(--app-panel-muted);
 }
 .migration-readiness__mark {
   display: grid;
-  width: 2rem;
-  height: 2rem;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--app-error) 14%, var(--app-panel));
   color: var(--app-error);
 }
-.migration-readiness--review {
-  border-color: color-mix(in srgb, var(--app-warning) 38%, var(--app-border));
-  background: color-mix(in srgb, var(--app-warning) 7%, var(--app-panel));
-}
 .migration-readiness--review .migration-readiness__mark {
-  background: color-mix(in srgb, var(--app-warning) 14%, var(--app-panel));
   color: var(--app-warning);
 }
 .migration-panel__issues-wrap {
@@ -628,36 +651,71 @@ function listenerLabel(id: bigint) {
   justify-content: space-between;
   gap: 1rem;
 }
+/* Hairline-separated lists instead of nested bordered boxes. */
+.migration-panel__groups,
+.migration-panel__issues {
+  border-block: 1px solid var(--app-border-subtle);
+}
+.migration-group + .migration-group,
+.migration-issue + .migration-issue {
+  border-top: 1px solid var(--app-border-subtle);
+}
+.migration-issue {
+  align-items: flex-start;
+  padding: 0.75rem 0;
+}
 .migration-issue__routes {
   display: grid;
   gap: 0.5rem;
-}
-.migration-issue__affected summary,
-.migration-panel__proposal > summary {
-  cursor: pointer;
-}
-.migration-panel__proposal {
-  min-width: 0;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  background: var(--app-panel);
 }
 .migration-issue__route {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border-left: 2px solid color-mix(in srgb, var(--app-error) 55%, var(--app-border));
-  padding: 0.5rem 0.625rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
   background: var(--app-panel-muted);
+}
+.migration-issue__affected summary,
+.migration-panel__proposal > summary,
+.migration-group__routes summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.migration-panel__proposal {
+  min-width: 0;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1rem;
+}
+.migration-group {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) auto;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+}
+.migration-group > p {
+  grid-column: 1/-1;
+}
+.migration-group__facts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+.migration-group__facts span {
+  border-radius: 6px;
+  padding: 0.125rem 0.375rem;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 .migration-group__routes {
   grid-column: 1/-1;
   min-width: 0;
 }
 .migration-group__routes summary {
-  cursor: pointer;
   padding: 0.25rem 0;
 }
 .migration-route-list {
@@ -671,90 +729,25 @@ function listenerLabel(id: bigint) {
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.5rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
   background: var(--app-panel-muted);
-  border-radius: 0.25rem;
 }
 .migration-route-list p {
   overflow-wrap: anywhere;
 }
-.migration-panel {
-  overflow: hidden;
-  border: 1px solid
-    color-mix(in srgb, var(--app-warning) 45%, var(--app-border));
-  border-radius: 0.625rem;
-  background: color-mix(in srgb, var(--app-warning) 6%, var(--app-panel));
-}
-.migration-panel__banner,
-.migration-panel__meta,
-.migration-panel__actions,
-.migration-issue {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
-.migration-panel__banner {
-  padding: 1rem 1.25rem;
-}
-.migration-panel__icon {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--app-warning) 14%, var(--app-panel));
-  color: var(--app-warning);
-}
-.migration-panel__preview {
-  display: grid;
-  gap: 1rem;
-  border-top: 1px solid var(--app-border-subtle);
-  padding: 1rem 1.25rem;
-  background: var(--app-panel);
-}
-.migration-panel__meta,
 .migration-panel__actions {
-  justify-content: space-between;
-}
-.migration-panel__groups,
-.migration-panel__issues {
-  overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 0.5rem;
-}
-.migration-group {
-  display: grid;
-  grid-template-columns: minmax(10rem, 1fr) auto;
-  gap: 0.5rem 1rem;
-  padding: 0.75rem;
-}
-.migration-group + .migration-group,
-.migration-issue + .migration-issue {
   border-top: 1px solid var(--app-border-subtle);
-}
-.migration-group > p {
-  grid-column: 1/-1;
-}
-.migration-group__facts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.375rem;
-}
-.migration-group__facts span {
-  border-radius: 0.25rem;
-  padding: 0.125rem 0.375rem;
-  background: var(--app-panel-muted);
-  color: var(--app-text-muted);
-  font-size: 0.6875rem;
-}
-.migration-issue {
-  align-items: flex-start;
-  padding: 0.75rem;
+  padding-top: 1rem;
 }
 .migration-panel__actions > p {
   max-width: 44rem;
+}
+.migration-panel__error {
+  margin: 0;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 0.875rem 1.25rem;
+  overflow-wrap: anywhere;
 }
 @media (max-width: 640px) {
   .migration-panel__banner,
@@ -765,6 +758,14 @@ function listenerLabel(id: bigint) {
   .migration-issue {
     align-items: stretch;
     flex-direction: column;
+  }
+  .migration-panel__banner,
+  .migration-panel__preview,
+  .migration-panel__error {
+    padding-inline: 1rem;
+  }
+  .migration-panel__scope {
+    margin-inline: 1rem;
   }
   .migration-issue__route {
     align-items: stretch;

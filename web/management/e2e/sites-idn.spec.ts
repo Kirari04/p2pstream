@@ -18,11 +18,8 @@ test("shows IDN Site hostnames in Unicode while retaining ASCII DNS values", asy
   await authenticate(page, baseURL);
   await page.goto("/#/proxy/sites");
 
-  const surface = page
-    .locator("section.surface-card")
-    .filter({ has: page.getByRole("heading", { name: "Sites", exact: true }) });
+  const surface = page.getByRole("region", { name: "Sites", exact: true });
   await surface
-    .locator(".workbench-section-header")
     .getByRole("button", { name: "Add Site", exact: true })
     .click();
 

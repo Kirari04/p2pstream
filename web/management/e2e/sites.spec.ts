@@ -74,11 +74,8 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   await expect(
     page.getByRole("tab", { name: /routes configured/i }),
   ).toHaveCount(0);
-  const sitesSurface = page
-    .locator("section.surface-card")
-    .filter({ has: page.getByRole("heading", { name: "Sites", exact: true }) });
+  const sitesSurface = page.getByRole("region", { name: "Sites", exact: true });
   await sitesSurface
-    .locator(".workbench-section-header")
     .getByRole("button", { name: "Add Site", exact: true })
     .click();
 

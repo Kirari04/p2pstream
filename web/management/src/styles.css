@@ -2621,7 +2621,6 @@ body:has(.app-sidebar--mobile-open) {
   outline-offset: 1px;
 }
 
-.app-main .proxy-summary-grid,
 .app-main .policy-summary-grid {
   display: flex;
   overflow-x: auto;
@@ -2631,7 +2630,6 @@ body:has(.app-sidebar--mobile-open) {
   background: var(--app-panel);
 }
 
-.app-main .proxy-summary-card,
 .app-main .policy-summary-card {
   min-width: 10rem;
   min-height: 0;
@@ -2643,18 +2641,15 @@ body:has(.app-sidebar--mobile-open) {
   padding: 0.875rem 1rem;
 }
 
-.app-main .proxy-summary-card + .proxy-summary-card,
 .app-main .policy-summary-card + .policy-summary-card {
   border-left: 1px solid var(--app-border-subtle);
 }
 
-.app-main .proxy-summary-card--active,
 .app-main .policy-summary-card--active {
   background: var(--app-accent-soft);
   box-shadow: none;
 }
 
-.app-main .proxy-summary-card--active .base-text,
 .app-main .policy-summary-card--active .base-text {
   color: var(--app-text);
 }
