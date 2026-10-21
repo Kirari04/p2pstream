@@ -191,7 +191,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <template v-if="deploymentMigration">
         <p>Connect <strong>{{ environmentLabel }}</strong>’s existing updater to the managed Compose deployment. Run the complete migration block on its <strong>Docker host</strong>, from the directory containing the running deployment.</p>
         <div class="update-migration-facts" aria-label="Migration preserves deployment"><div><span>Current image</span><strong>Preserved</strong></div><div><span>Data volume</span><strong>Preserved</strong></div><div><span>Existing token</span><strong>Preserved</strong></div></div>
-        <NAlert type="warning" class="update-blocker">Migration restarts the server once. Public requests and agent tunnels are interrupted during this restart.</NAlert>
+        <NAlert type="warning" class="update-blocker">Migration restarts the server. Restoring a disconnected updater may require an additional restart. Public requests and agent tunnels are interrupted during these restarts.</NAlert>
         <p class="update-migration-copy">After migration, the original Compose files become bridges to the managed deployment, so ordinary <code>docker compose</code> commands use that deployment. The installer prints the saved editable paths.</p>
       </template>
       <template v-else>

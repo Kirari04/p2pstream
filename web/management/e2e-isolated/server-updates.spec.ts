@@ -233,7 +233,9 @@ test('configured legacy deployment offers an exact, environment-bound migration 
  await page.goto(url+'?migration&light');
  const card=page.locator('.update-migration');
  await expect(card.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
- await expect(card).toContainText('Migration restarts the server once');
+ await expect(card).toContainText('Migration restarts the server.');
+ await expect(card).toContainText('Restoring a disconnected updater may require an additional restart.');
+ await expect(card).not.toContainText('Migration restarts the server once');
  await expect(card.getByText('Preserved',{exact:true})).toHaveCount(3);
  await expect(card).toContainText('original Compose files become bridges');
  await expect(card).toContainText('*.p2pstream-input-*');
