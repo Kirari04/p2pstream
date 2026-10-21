@@ -60,12 +60,12 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
 - **`PageHeader`** (`title`, `description`, `level`; slots `badge`,
   `actions`): the top of every routed page. Primary action goes rightmost.
   Settings sub-pages use `level=2` because `Settings` owns the `h1`.
-- **`SectionCard`** (`title`, `description`, `flush`,
+- **`SectionCard`** (`title`, `description`, `flush`, `headingId`,
   `variant="card"|"plain"`; slots `badge`, `actions`, `footer`): every
   content section. Use `flush` for edge-to-edge tables. Use
   `variant="plain"` for a headed group inside another surface.
 - **`MetricStrip`** + **`MetricCard`** (`label`, `value`, `detail`,
-  `tone`, `dot`, `textValue`): key numbers. Set `textValue` when the value
+  `tone`, `dot`, `textValue`, `wrapDetail`): key numbers. Set `textValue` when the value
   is a word such as "Running" so tiles keep it in the sans font. Use `variant="strip"` on Calm pages and
   `variant="tiles"` on monitor pages.
 - `EmptyState`, `DisabledHint`, `AccessibleSelect`: unchanged.

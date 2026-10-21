@@ -7,6 +7,8 @@ withDefaults(defineProps<{
   /** "card" is a bordered panel; "plain" is a headed group with no frame, for use inside another surface. */
   variant?: "card" | "plain";
   headingLevel?: 2 | 3 | 4;
+  /** Id for the heading so the section (or a parent) can reference it with aria-labelledby. */
+  headingId?: string;
 }>(), {
   flush: false,
   variant: "card",
@@ -15,11 +17,11 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <section class="section-card" :class="[`section-card--${variant}`, { 'section-card--flush': flush }]">
+  <section class="section-card" :class="[`section-card--${variant}`, { 'section-card--flush': flush }]" :aria-labelledby="headingId && title ? headingId : undefined">
     <header v-if="title || description || $slots.actions || $slots.badge" class="section-card__header">
       <div class="section-card__heading">
         <div class="section-card__title-row">
-          <component :is="`h${headingLevel}`" v-if="title" class="section-card__title">{{ title }}</component>
+          <component :is="`h${headingLevel}`" v-if="title" :id="headingId" class="section-card__title">{{ title }}</component>
           <slot name="badge" />
         </div>
         <p v-if="description || $slots.description" class="section-card__description">

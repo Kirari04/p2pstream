@@ -272,7 +272,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
     </PageHeader>
 
     <MetricStrip variant="tiles" label="Proxy health" class="overview-health">
-      <MetricCard label="Proxy health" :value="proxyStateLabel(proxyState)" :tone="proxyStateTone(proxyState)" dot text-value :detail="`${runningListeners}/${enabledListeners} listeners running`" />
+      <MetricCard label="Proxy health" :value="proxyStateLabel(proxyState)" :tone="proxyStateTone(proxyState)" dot text-value :detail="`${runningListeners}/${enabledListeners} listeners running`" wrap-detail />
       <MetricCard label="Requests" :value="formatNumber(selectedWindow?.proxyRequests)" :detail="selectedRequestRate()" />
       <MetricCard label="Success" :value="selectedWindow?.proxyRequests ? formatPercent(successRate(selectedWindow)) : '—'" :detail="selectedWindow?.proxyRequests ? `${formatNumber(nonSuccessRequests(selectedWindow))} non-success` : 'Needs traffic'" />
       <MetricCard label="Latency" :value="formatDuration(selectedWindow?.proxyAvgDurationMs)" :detail="`max ${formatDuration(selectedWindow?.proxyMaxDurationMs)}`" />
@@ -281,6 +281,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
       <MetricCard
         label="Tunnel streams"
         :value="`${formatNumber(agentStreamCapacity?.totalInUse)}/${formatNumber(agentStreamCapacity?.totalCapacity)}`"
+         wrap-detail
         :detail="`pooled ${formatNumber(agentStreamCapacity?.pooledInUse)}/${formatNumber(agentStreamCapacity?.pooledCapacity)} · ${formatNumber(agentStreamCapacity?.closing)} closing · ${formatNumber(agentStreamCapacity?.waiters)} waiting`"
       />
     </MetricStrip>
@@ -423,9 +424,6 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
 }
 
-.overview-health :deep(.metric-card__detail) {
-  white-space: normal;
-}
 
 .overview-meta {
   color: var(--app-text-muted);

@@ -8,10 +8,13 @@ withDefaults(defineProps<{
   dot?: boolean;
   /** The value is a word (e.g. "Running"), not a number; keep it in the sans font inside monitor tiles. */
   textValue?: boolean;
+  /** Let a long detail line wrap instead of truncating with an ellipsis. */
+  wrapDetail?: boolean;
 }>(), {
   tone: "default",
   dot: false,
   textValue: false,
+  wrapDetail: false,
 });
 </script>
 
@@ -22,7 +25,7 @@ withDefaults(defineProps<{
       <span v-if="dot" class="metric-card__dot" aria-hidden="true" />
       <slot name="value">{{ value }}</slot>
     </dd>
-    <dd v-if="detail || $slots.detail" class="metric-card__detail">
+    <dd v-if="detail || $slots.detail" class="metric-card__detail" :class="{ 'metric-card__detail--wrap': wrapDetail }">
       <slot name="detail">{{ detail }}</slot>
     </dd>
     <slot />
@@ -83,5 +86,11 @@ withDefaults(defineProps<{
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.metric-card__detail--wrap {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 </style>
