@@ -68,6 +68,14 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
   `tone`, `dot`, `textValue`, `wrapDetail`): key numbers. Set `textValue` when the value
   is a word such as "Running" so tiles keep it in the sans font. Use `variant="strip"` on Calm pages and
   `variant="tiles"` on monitor pages.
+- **`SegmentedControl`** (`v-model`, `options`, `label`): small mutually
+  exclusive pickers such as time windows. It renders buttons with
+  `aria-pressed` inside a labelled group.
+- **`.command-block`** (global class on a `pre`): shell commands and
+  one-time snippets.
+- **`useNarrowScreen()`** (`src/composables/useMediaQuery.ts`): the
+  phone breakpoint (below 640px) for layouts that must change in script,
+  for example table columns.
 - `EmptyState`, `DisabledHint`, `AccessibleSelect`: unchanged.
 
 ## Patterns
