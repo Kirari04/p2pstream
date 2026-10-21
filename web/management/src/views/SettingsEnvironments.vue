@@ -80,7 +80,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Environment",
     key: "environment",
-    minWidth: 300,
+    minWidth: 220,
     render: (environment) => h("div", { class: "layout-grid space-xs min-width-zero" }, [
       h("bdi", {
         class: "clip-text weight-medium base-text",
@@ -113,7 +113,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Trust & certificate",
     key: "trust",
-    minWidth: 320,
+    minWidth: 220,
     render: (environment) => h("div", { class: "layout-grid min-width-zero space-xs" }, [
       h(NTag, { size: "small", bordered: false, type: naiveTagType(trustSeverity(environment.trustState)), class: "fit-width" }, {
         default: () => trustLabel(environment.trustState),
@@ -135,7 +135,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Reachability",
     key: "testResult",
-    minWidth: 230,
+    minWidth: 190,
     render: (environment) => h("div", { class: "layout-grid min-width-zero space-xs", "aria-live": "polite" }, [
       h(
         NTag,
@@ -143,7 +143,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         { default: () => testResultLabel(environment) },
       ),
       testResultCheckedAt(environment)
-        ? h("p", { class: "mono-text copy-xs base-text" }, formatDate(testResultCheckedAt(environment)))
+        ? h("p", { class: "copy-xs muted-text" }, `Checked ${formatDate(testResultCheckedAt(environment))}`)
         : null,
       testResultMessage(environment)
         ? h(
@@ -161,10 +161,10 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Actions",
     key: "actions",
-    width: 290,
+    width: 250,
     align: "right",
-    render: (environment) => h("div", { class: "layout-row align-center align-end-row space-sm" }, [
-      h(NButton, {
+    render: (environment) => h("div", { class: "layout-row wrap-items align-center align-end-row space-sm" }, [
+      environmentNeedsCertificateAction(environment) ? h(NButton, {
         secondary: true,
         size: "small",
         "aria-label": `${environmentCertificateActionLabel(environment)} for ${safeEnvironmentName(environment)}`,
@@ -175,7 +175,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
           ? h(CheckIcon, { class: "icon-sm" })
           : h(RefreshIcon, { class: "icon-sm" }),
         default: () => environmentCertificateActionLabel(environment),
-      }),
+      }) : null,
       h(
         DisabledHint,
         { disabled: Boolean(testEnvironmentDisabledReason(environment)), reason: testEnvironmentDisabledReason(environment) },
@@ -192,7 +192,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
       ),
       h(NDropdown, {
         trigger: "click",
-        options: environmentMenuOptions(),
+        options: environmentMenuOptions(environment),
         show: activeEnvironmentMenuId.value === environmentKey(environment),
         menuProps: () => ({
           id: environmentMenuId(environment),
@@ -304,22 +304,22 @@ function runEnvironmentCertificateAction(environment: Environment) {
   void discoverCertificate(environment);
 }
 
-function environmentMenuOptions(): DropdownOption[] {
+function environmentNeedsCertificateAction(environment: Environment): boolean {
+  return environmentCertificateAction(environment) === "trust" || !certificateForEnvironment(environment);
+}
+
+function environmentMenuOptions(environment: Environment): DropdownOption[] {
   const disabled = Boolean(busyDisabledReason.value);
-  return [
-    {
-      label: "Edit environment",
-      key: "edit",
-      disabled,
-      props: { role: "menuitem", "aria-disabled": disabled ? "true" : "false" },
-    },
-    {
-      label: "Delete environment",
-      key: "delete",
-      disabled,
-      props: { role: "menuitem", "aria-disabled": disabled ? "true" : "false" },
-    },
-  ];
+  const props = { role: "menuitem", "aria-disabled": disabled ? "true" : "false" } as const;
+  const options: DropdownOption[] = [];
+  if (!environmentNeedsCertificateAction(environment)) {
+    options.push({ label: environmentCertificateActionLabel(environment), key: "certificate", disabled, props });
+  }
+  options.push(
+    { label: "Edit environment", key: "edit", disabled, props },
+    { label: "Delete environment", key: "delete", disabled, props },
+  );
+  return options;
 }
 
 function environmentMenuId(environment: Environment): string {
@@ -327,6 +327,10 @@ function environmentMenuId(environment: Environment): string {
 }
 
 function handleEnvironmentMenuSelect(environment: Environment, key: string) {
+  if (key === "certificate") {
+    runEnvironmentCertificateAction(environment);
+    return;
+  }
   if (key === "edit") {
     openEditEnvironment(environment);
     return;
@@ -650,7 +654,7 @@ function handleTrustModalUpdate(show: boolean) {
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1140"
+        :scroll-x="880"
         :loading="isLoading"
         size="small"
       />
@@ -674,7 +678,7 @@ function handleTrustModalUpdate(show: boolean) {
       <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitEnvironment">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
-          <NInput v-model:value="environmentForm.name" size="small" required />
+          <NInput v-model:value="environmentForm.name" size="small" placeholder="Production" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Management URL
@@ -693,6 +697,11 @@ function handleTrustModalUpdate(show: boolean) {
               {{ option.label }}
             </NButton>
           </NButtonGroup>
+          <span class="copy-xs weight-normal muted-text">
+            {{ environmentForm.transport === EnvironmentTransport.AGENT
+              ? "Requests are relayed through a connected local agent."
+              : "This instance connects to the management URL directly." }}
+          </span>
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Local Agent
@@ -702,18 +711,27 @@ function handleTrustModalUpdate(show: boolean) {
           Access Token
           <NInput
             v-model:value="environmentForm.accessToken"
+            type="password"
+            show-password-on="click"
             size="small"
+            autocomplete="off"
             :placeholder="environmentForm.id ? 'Leave blank to keep existing token' : 'p2pat_...'"
             :required="!environmentForm.id"
           />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Response Header Timeout
-          <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
+          <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" placeholder="10000" required>
+            <template #suffix>ms</template>
+          </NInputNumber>
+          <span class="copy-xs weight-normal muted-text">Between 1,000 and 300,000 ms.</span>
         </label>
-        <NCheckbox v-model:checked="environmentForm.enabled">
-          Enabled
-        </NCheckbox>
+        <div class="layout-grid space-2xs">
+          <NCheckbox v-model:checked="environmentForm.enabled">
+            Enabled
+          </NCheckbox>
+          <span class="copy-xs muted-text">Disabled environments stay registered but cannot be selected or proxied.</span>
+        </div>
         <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
           <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
