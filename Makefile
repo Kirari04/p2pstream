@@ -139,9 +139,10 @@ verify-clean-tree:
 verify: verify-clean-tree
 	@$(MAKE) generate
 	@$(MAKE) verify-clean-tree
-	@bash -n scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
+	@bash -n scripts/setup-server-updater.sh scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
 	@scripts/test-agent-lifecycle.sh
 	@python3 -I scripts/test-server-updater-host.py
+	@python3 -I scripts/test-setup-server-updater.py
 	@go test ./...
 	@cd third_party/yamux && go test ./... && go test -race -short ./...
 	@go vet ./...

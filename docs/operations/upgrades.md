@@ -5,10 +5,16 @@
 Existing server-updater enrollments retain their pinned executor and original
 Compose workflow after a server-only upgrade. Update the server to a published
 release supporting coordinated deployment first, then use **System → Server
-Updates → Upgrade deployment integration**. Its verified host command installs
+Updates → Upgrade host updater** (called **Upgrade deployment integration** in
+older UI versions). Its host command installs
 the matching executor and migrates the original Compose entry points to the
 current canonical deployment. It preserves the current image, installation ID,
 credentials, data and release floors. Fresh enrollment uses this layout directly.
+
+The host updater does not self-update. An ordinary server update keeps it pinned,
+and repeating setup only validates an already healthy installation. The one-time
+migration is the explicit upgrade path for the legacy deployment integration;
+later host-updater upgrades require the applicable release's host procedure.
 
 After migration, ordinary `docker compose up -d --force-recreate` keeps the
 updater and current image. Edit the saved `.p2pstream-input-…` files and `.env`,
