@@ -307,6 +307,22 @@ class Host:
         if self.config.get('deployment_protocol') == 2:
             self.command('record-runtime', '--config', str(self.directory / 'config.json'))
 
+    def handoff_recovery_controller(self, bundle):
+        # The outer release bootstrap verifies the complete bundle hash. Before
+        # replacing recovery code, also bind this copy to the verified module
+        # currently executing and reject special files or partial bundles.
+        bundle = Path(bundle)
+        for name in BUNDLE_FILES:
+            info = (bundle / name).lstat()
+            require(stat.S_ISREG(info.st_mode) and info.st_size <= 262144, 'Unsafe or incomplete verified recovery bundle')
+        controller = (bundle / 'server-updater-host.py').read_bytes()
+        require(controller == Path(__file__).read_bytes(), 'Recovery controller differs from the executing verified installation helper')
+        target = self.directory / 'server-updater-host.py'
+        require(not os.path.lexists(target) or stat.S_ISREG(target.lstat().st_mode), 'Installed recovery controller must be a regular file')
+        # Existing manage launchers invoke this stable path. Publish and fsync
+        # compatible recovery code before writing any journal phase it owns.
+        atomic(target, controller)
+
     def source_bridges(self):
         plan = self.journal.get('source_bridge')
         if not plan:
@@ -768,7 +784,7 @@ class Host:
             identity = self.data_identity()
         require(identity == self.journal['installation'] == self.config['instance_id'], 'Installation identity changed; refusing recreation')
 
-    def prepare_recreation(self, detached=False):
+    def prepare_recreation(self, detached=False, before_persist=None):
         current = self.current_model_path().read_bytes()
         model = decode(current)
         image_id = decode(docker('image', 'inspect', model['services']['p2pstream']['image']).stdout)[0]['Id']
@@ -800,6 +816,8 @@ class Host:
         receipt = {'model_sha256': digest(current), 'config_sha256': digest((self.directory / 'config.json').read_bytes()),
                    'image_id': image_id, 'container_id': info['Id'], 'accepted_hash': accepted, 'canonical_hash': canonical,
                    'installation': self.config['instance_id'], 'data_volume': self.config['data_volume'], 'detached': detached}
+        if before_persist:
+            before_persist()
         self.phase('recreating', recreation=receipt, error='')
 
     def recreate_server(self):
@@ -1009,15 +1027,16 @@ def install(args, options):
                     # The verified installation bundle may be newer than the
                     # installed host controller. Recover only an exact legacy
                     # source recreation using its saved executor and credentials
-                    # before attempting protocol migration. No controller or
-                    # executor replacement is needed for this bounded repair.
+                    # before attempting protocol migration. Hand off compatible
+                    # recovery code before its first durable phase; retain the
+                    # saved executor, credentials and update floors.
                     if isinstance(error, UnsettledHelper) or host.config.get('deployment_protocol', 0) != 0 or host.journal['phase'] != 'healthy':
                         raise
                     host.idle()
                     existing = host.server_container()
                     if existing['Config']['Labels'].get('com.docker.compose.config-hash') == host.canonical_hash():
                         raise  # A socket/server failure is not a detached binding.
-                    host.prepare_recreation(detached=True)
+                    host.prepare_recreation(detached=True, before_persist=lambda: host.handoff_recovery_controller(args.bundle))
                     host.recreate_server()
                     # Repair deliberately replaced the selected container. Bind
                     # subsequent installation/migration checks to its identity,

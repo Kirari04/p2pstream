@@ -205,6 +205,26 @@ class Lifecycle(unittest.TestCase):
         self.info['Id'] = 'native-container'
         self.info['Config']['Labels']['com.docker.compose.config-hash'] = 'a' * 64
         self.info['Config']['Labels'].pop('p2pstream.server-update.instance', None)
+    def installed_repair(self):
+        spec = importlib.util.spec_from_file_location('installed_recovery', self.state / 'server-updater-host.py')
+        installed = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installed)
+        outer = self
+        fixture = host.Host
+        class InstalledHost(installed.Host):
+            def __init__(self):
+                super().__init__(outer.state)
+            command = fixture.command
+            compose = fixture.compose
+            status_socket = fixture.status_socket
+            wait_socket = fixture.wait_socket
+            healthy = fixture.healthy
+            wait_healthy = fixture.wait_healthy
+            wait_original = fixture.wait_original
+            def data_identity(self):
+                return outer.identity
+        with patch.object(installed, 'STATE', self.state), patch.object(installed, 'Host', InstalledHost), patch.object(installed, 'docker', self.docker), patch.object(installed, 'local_engine', return_value='amd64'), patch.object(installed, 'Failure', host.Failure), patch.object(installed, 'UnsettledHelper', host.UnsettledHelper):
+            installed.manage(argparse.Namespace(action='repair'))
     def test_fresh_custom_context_and_idempotent_rerun(self):
         self.install()
         cfg = (self.state / 'config.json').read_bytes()
@@ -397,10 +417,12 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(self.restart_count, 3)  # Exact repair, then explicit migration.
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
 
-    def test_verified_ordinary_install_repairs_legacy_binding_without_upgrading_tools(self):
+    def test_verified_ordinary_install_hands_off_controller_without_upgrading_executor(self):
         self.install()
         cfg = (self.state / 'config.json').read_bytes()
-        controller = (self.state / 'server-updater-host.py').read_bytes()
+        old_controller = b'# old controller does not know the recreating journal phase\n'
+        host.atomic(self.state / 'server-updater-host.py', old_controller)
+        launcher = (self.state / 'manage').read_bytes()
         model = (self.state / 'compose.json').read_bytes()
         self.detach()
         before = len(self.commands)
@@ -409,8 +431,103 @@ class Lifecycle(unittest.TestCase):
         self.assertFalse(self.detached)
         self.assertEqual((self.state / 'config.json').read_bytes(), cfg)
         self.assertEqual((self.state / 'compose.json').read_bytes(), model)
-        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), controller)
+        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), (self.bundle / 'server-updater-host.py').read_bytes())
+        self.assertEqual((self.state / 'manage').read_bytes(), launcher)
         self.assertFalse(any(item[0] == 'docker' and item[1][0] == 'pull' for item in self.commands[before:]))
+
+    def test_delivery_repair_interruption_before_handoff_preserves_old_phase_and_server(self):
+        self.install()
+        old = b'# installed legacy controller\n'
+        host.atomic(self.state / 'server-updater-host.py', old)
+        self.detach()
+        original = host.atomic
+        def interrupted(path, *args, **kwargs):
+            if path == self.state / 'server-updater-host.py':
+                raise KeyboardInterrupt()
+            return original(path, *args, **kwargs)
+        with patch.object(host, 'atomic', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.install()
+        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), old)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(self.restart_count, 1)
+        self.assertTrue(self.info['State']['Running'])
+
+    def test_delivery_repair_handoff_precedes_new_phase_and_installed_controller_can_resume(self):
+        self.install()
+        host.atomic(self.state / 'server-updater-host.py', b'# legacy controller\n')
+        self.detach()
+        original = host.Host.phase
+        def interrupted(controller, phase, **values):
+            if phase == 'recreating':
+                self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), (self.bundle / 'server-updater-host.py').read_bytes())
+                raise KeyboardInterrupt()
+            return original(controller, phase, **values)
+        with patch.object(host.Host, 'phase', interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.installed_repair()
+        self.assertEqual(self.restart_count, 2)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_delivery_repair_installed_controller_recovers_stopped_or_missing_current_model(self):
+        self.install()
+        current = host.read_json(self.state / 'compose.json')
+        current_image = 'ghcr.io/test/repo@sha256:' + 'e' * 64
+        current['services']['p2pstream']['image'] = current_image
+        host.atomic(self.state / 'compose.json', current)
+        cfg = (self.state / 'config.json').read_bytes()
+        original = host.Host.compose
+        for missing in [False, True]:
+            with self.subTest(missing=missing):
+                host.atomic(self.state / 'server-updater-host.py', b'# obsolete legacy recovery\n')
+                self.detach()
+                def interrupted(controller, *args, **kwargs):
+                    if args[0] == 'up' and args[-1] == 'p2pstream':
+                        self.info['State']['Running'] = False
+                        self.server_inventory = b'' if missing else None
+                        raise KeyboardInterrupt()
+                    return original(controller, *args, **kwargs)
+                with patch.object(host.Host, 'compose', interrupted):
+                    with self.assertRaises(KeyboardInterrupt):
+                        self.install()
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recreating')
+                self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), (self.bundle / 'server-updater-host.py').read_bytes())
+                self.installed_repair()
+                self.assertEqual(host.decode(self.models_started[-1])['services']['p2pstream']['image'], current_image)
+                self.assertEqual((self.state / 'config.json').read_bytes(), cfg)
+                self.assertEqual(host.read_json(self.state / 'enrolled-compose.json')['services']['p2pstream']['image'], REF)
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_delivery_repair_rejects_mismatched_bundle_before_handoff_or_phase(self):
+        self.install()
+        old = b'# legacy recovery controller\n'
+        host.atomic(self.state / 'server-updater-host.py', old)
+        self.detach()
+        controller = self.bundle / 'server-updater-host.py'
+        controller.write_bytes(controller.read_bytes() + b'\n')
+        with self.assertRaisesRegex(host.Failure, 'differs from the executing verified'):
+            self.install()
+        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), old)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(self.restart_count, 1)
+
+    def test_delivery_repair_rejects_special_bundle_member_before_controller_handoff(self):
+        self.install()
+        old = b'# installed legacy controller\n'
+        host.atomic(self.state / 'server-updater-host.py', old)
+        self.detach()
+        member = self.bundle / '.env.example'
+        outside = self.path / 'outside-env-example'
+        outside.write_bytes(member.read_bytes())
+        member.unlink()
+        member.symlink_to(outside)
+        with self.assertRaisesRegex(host.Failure, 'Unsafe or incomplete verified recovery bundle'):
+            self.install()
+        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), old)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(self.restart_count, 1)
 
     def test_verified_install_does_not_apply_legacy_recovery_to_protocol_two(self):
         self.managed = True

@@ -190,20 +190,21 @@ assert not any(mount['Destination'] == '/run/p2pstream-server-update' for mount 
 assert json.loads(docker('inspect', updater))[0]['State']['Running']
 wait(lambda: docker('exec', detached_container, '/app/p2pstream', 'server-health'))
 rejected(lambda: host.manage(argparse.Namespace(action='status')), 'private diagnostic')
-saved_controller = (host.STATE / 'server-updater-host.py').read_bytes()
+saved_launcher = (host.STATE / 'manage').read_bytes()
 # Invoke the freshly verified installation helper, not the installed controller
 # whose older repair implementation may lack detached-binding recovery.
 host.install(args, options)
 current_container = info()['Id']
 assert current_container != detached_container and info()['Config']['Image'] == images['baseline']
 assert (host.STATE / 'config.json').read_bytes() == config
-assert (host.STATE / 'server-updater-host.py').read_bytes() == saved_controller
+assert (host.STATE / 'server-updater-host.py').read_bytes() == Path('/review/install-bundle/server-updater-host.py').read_bytes()
+assert (host.STATE / 'manage').read_bytes() == saved_launcher
 assert docker('exec', current_container, '/app/p2pstream', 'server-installation-identity') == installation
 assert next(value for value in info()['Config']['Env'] if value.startswith('SECRET=')) == initial_secret
 assert any(mount['Destination'] == '/run/p2pstream-server-update' for mount in info()['Mounts'])
 assert compose('ps', '-q', 'observer') == observer
 host.manage(argparse.Namespace(action='status'))
-checks += ['managed-recreate-no-orphan', 'native-recreate-reproduces-orphan-and-stripped-binding', 'verified-install-repairs-legacy-binding-without-tool-upgrade', 'repair-preserves-data-identity-token-settings']
+checks += ['managed-recreate-no-orphan', 'native-recreate-reproduces-orphan-and-stripped-binding', 'verified-install-hands-off-controller-and-repairs-legacy-binding', 'repair-preserves-executor-data-identity-token-settings']
 
 # Refuse to silently adopt source settings which differ from the last managed
 # deployment, even when the immutable image and installation still match.
