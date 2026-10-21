@@ -66,7 +66,11 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/setup-server-updater.sh scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
+        run: |
+          sh -n scripts/setup-server-updater.sh
+          for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh; do
+            bash -n "$script" || exit 1
+          done
 
       - name: Test Docker release installation and host lifecycle
         run: |

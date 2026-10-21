@@ -139,7 +139,10 @@ verify-clean-tree:
 verify: verify-clean-tree
 	@$(MAKE) generate
 	@$(MAKE) verify-clean-tree
-	@bash -n scripts/setup-server-updater.sh scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh
+	@sh -n scripts/setup-server-updater.sh
+	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh; do \
+		bash -n "$$script" || exit 1; \
+	done
 	@scripts/test-agent-lifecycle.sh
 	@python3 -I scripts/test-server-updater-host.py
 	@python3 -I scripts/test-setup-server-updater.py
