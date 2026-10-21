@@ -14,7 +14,7 @@ import { environmentsKey, isBusyKey, reloadEnvironmentsKey } from "@/composables
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
-import { editorDrawerWidth, modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { editorDrawerWidth, modalCardStyle, modalScrollableContentStyle, naiveTagType } from "@/lib/naiveUi";
 import type {
   Agent,
   Environment,
@@ -582,13 +582,9 @@ function certificateSubject(cert: EnvironmentCertificate | undefined): string {
   return diagnosticInspectionText(cert.subject || cert.dnsNames[0] || cert.ipAddresses[0] || "Unknown subject");
 }
 
-function certificateSanSummary(cert: EnvironmentCertificate | undefined): string {
-  if (!cert) return "";
-  const names = [...cert.dnsNames, ...cert.ipAddresses];
-  if (!names.length) return "";
-  const safeNames = names.map(diagnosticInspectionText);
-  if (safeNames.length <= 2) return safeNames.join(", ");
-  return `${safeNames.slice(0, 2).join(", ")} +${safeNames.length - 2}`;
+function certificateSanNames(cert: EnvironmentCertificate | undefined): string[] {
+  if (!cert) return [];
+  return [...cert.dnsNames, ...cert.ipAddresses].map(diagnosticInspectionText);
 }
 
 function formatFingerprint(value: string): string {
@@ -732,6 +728,7 @@ function handleTrustModalUpdate(show: boolean) {
       preset="card"
       title="Trust Certificate"
       :style="modalCardStyle('34rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       @update:show="handleTrustModalUpdate"
     >
@@ -765,11 +762,19 @@ function handleTrustModalUpdate(show: boolean) {
                 {{ diagnosticInspectionText(certificateTrustCertificate.issuer) }}
               </p>
             </div>
-            <div v-if="certificateSanSummary(certificateTrustCertificate)" class="layout-grid space-2xs">
+            <div v-if="certificateSanNames(certificateTrustCertificate).length" class="layout-grid space-xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">Names</p>
-              <p class="clip-text copy-sm base-text" :title="certificateSanSummary(certificateTrustCertificate)">
-                {{ certificateSanSummary(certificateTrustCertificate) }}
-              </p>
+              <div class="layout-row wrap-items space-xs">
+                <NTag
+                  v-for="name in certificateSanNames(certificateTrustCertificate)"
+                  :key="name"
+                  size="small"
+                  :bordered="false"
+                  class="tag-wrap max-full mono-text"
+                >
+                  {{ name }}
+                </NTag>
+              </div>
             </div>
             <div class="layout-grid space-2xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">Valid Until</p>

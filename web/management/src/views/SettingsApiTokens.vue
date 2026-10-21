@@ -20,7 +20,7 @@ import EmptyState from "@/components/EmptyState.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
-import { editorDrawerWidth, modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { editorDrawerWidth, modalCardStyle, modalScrollableContentStyle, naiveTagType } from "@/lib/naiveUi";
 import type { ManagementAccessToken } from "@/gen/proto/p2pstream/v1/management_pb";
 import { messageFromError } from "@/lib/errors";
 
@@ -438,6 +438,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       preset="card"
       title="API Token Created"
       :style="modalCardStyle('38rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       :mask-closable="false"
       :close-on-esc="false"

@@ -72,6 +72,23 @@
   box-sizing: border-box;
 }
 
+/* Spacing comes from layout utilities (gap/margin classes), not UA defaults. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+figure,
+pre,
+dl,
+dd,
+hr {
+  margin: 0;
+}
+
 html {
   min-height: 100%;
   font-family: var(--font-body);
@@ -560,6 +577,17 @@ samp {
 .wrap-anywhere {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.n-tag.tag-wrap {
+  height: auto;
+  min-height: var(--n-height);
+  padding-block: 0.125rem;
+}
+
+.n-tag.tag-wrap .n-tag__content {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .preserve-lines {
