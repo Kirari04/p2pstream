@@ -79,6 +79,10 @@ func (a *App) serverDeploymentMigrationCommand(ctx context.Context) (string, str
 	if command == "" {
 		return "", unavailable
 	}
+	const options = " --COMPOSE_OPTIONS--"
+	if strings.HasPrefix(command, "(set -o pipefail; curl ") && strings.Count(command, " | sudo sh -s -- ") == 1 && strings.Count(command, options) == 1 && strings.HasSuffix(command, options+")") {
+		return strings.Replace(command, options, " --migrate-deployment"+options, 1), ""
+	}
 	const enrollment = " install --bundle "
 	if strings.Count(command, enrollment) != 1 {
 		return "", "The installed release does not provide a supported deployment migration command."
