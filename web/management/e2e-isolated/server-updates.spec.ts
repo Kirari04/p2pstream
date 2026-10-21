@@ -46,7 +46,7 @@ test('switching environments discards an in-flight preview and routes the next o
  await page.goto(url+'?slow');
  await page.getByRole('button',{name:'Preview update',exact:true}).click();
  await page.locator('#switch').click();
- await expect(page.getByText('INSTALLED ON Local')).toBeVisible();
+ await expect(page.getByText('Installed on Local')).toBeVisible();
  // The second preview is deliberately started before the first completes.
  await page.getByRole('button',{name:'Preview update',exact:true}).click();
  const dialog=page.getByRole('dialog');
@@ -85,7 +85,7 @@ test('setup uses selected server identity and supports custom ordered Compose in
  await page.screenshot({path:testInfo.outputPath('release-setup-mobile.png'),fullPage:true,animations:'disabled'});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('#switch').click();
- await expect(page.getByText('INSTALLED ON Local')).toBeVisible();
+ await expect(page.getByText('Installed on Local')).toBeVisible();
  await page.getByRole('button',{name:'Copy setup command',exact:true}).click();
  const switched = await page.evaluate(()=>navigator.clipboard.readText());
  expect(switched).toContain("'22222222-2222-4222-8222-222222222222'");
@@ -147,7 +147,7 @@ test('management disconnection preserves progress and never creates a failed out
  await expect(page.getByRole('status').filter({hasText:'Validating the replacement'})).toBeVisible();
  await page.getByRole('button',{name:'Refresh status',exact:true}).click();
  await expect(page.getByText('Waiting for management',{exact:true})).toBeVisible();
- await expect(page.getByText('LAST CONFIRMED HOST STAGE',{exact:true})).toBeVisible();
+ await expect(page.getByText('Last confirmed host stage',{exact:true})).toBeVisible();
  await expect(page.getByRole('status').filter({hasText:'Validating the replacement'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Preview update',exact:true})).toBeDisabled();
  await expect(page.getByText('Update stopped before activation',{exact:true})).toHaveCount(0);
@@ -170,7 +170,7 @@ test('switching environment clears operation, freshness, and diagnostic identity
  await page.goto(url+'?phase=validating');
  await expect(page.getByRole('region',{name:'Server update operation'})).toBeVisible();
  await page.locator('#switch').click();
- await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
+ await expect(page.getByText('Installed on Local',{exact:true})).toBeVisible();
  await expect(page.getByRole('region',{name:'Server update operation'})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Preview update',exact:true})).toBeEnabled();
  await expect(page.getByText('33333333-3333-4333-8333-333333333333',{exact:false})).toHaveCount(0);
@@ -212,7 +212,7 @@ test('stale download progress describes sequencing without asserting current ava
  await page.goto(url+'?phase=pulling&disconnect');
  await expect(page.getByText('Download before restart',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Refresh status',exact:true}).click();
- await expect(page.getByText('LAST CONFIRMED HOST STAGE',{exact:true})).toBeVisible();
+ await expect(page.getByText('Last confirmed host stage',{exact:true})).toBeVisible();
  await expect(page.getByText('Download before restart',{exact:true})).toBeVisible();
  await expect(page.getByText('Server stays online',{exact:false})).toHaveCount(0);
  await expect(page.getByText('current server stays online',{exact:false})).toHaveCount(0);
@@ -259,7 +259,7 @@ test('configured legacy deployment offers an exact, environment-bound migration 
  expect(copied).toBe(expected);
  await page.screenshot({path:testInfo.outputPath('deployment-migration-desktop-light.png'),fullPage:true,animations:'disabled'});
  await page.locator('#switch').click();
- await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
+ await expect(page.getByText('Installed on Local',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Copy migration command',exact:true}).click();
  const switched=await page.evaluate(()=>navigator.clipboard.readText());
  expect(switched).toContain("'22222222-2222-4222-8222-222222222222'");
@@ -294,7 +294,7 @@ test('older configured remotes without a migration offer retain their existing c
  await page.goto(url+'?migration&migration-first-only');
  await expect(page.getByText('Upgrade host updater',{exact:true})).toBeVisible();
  await page.locator('#switch').click();
- await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
+ await expect(page.getByText('Installed on Local',{exact:true})).toBeVisible();
  await expect(page.getByText('Upgrade host updater',{exact:true})).toHaveCount(0);
  await expect(page.getByText('ordinary docker compose',{exact:false})).toHaveCount(0);
  await expect(page.getByText('Updates enabled · updater verified',{exact:true})).toBeVisible();
@@ -320,7 +320,7 @@ test('an unconfirmed update request hides migration until its outcome is known',
 test('one-line installer copies the exact server recipe with shell-safe custom context', async ({page}) => {
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
  await page.goto(url+'?setup');
- await expect(page.getByText('ONE-LINE COMMAND',{exact:true})).toBeVisible();
+ await expect(page.getByText('One-line command',{exact:true})).toBeVisible();
  await page.getByText('Custom Compose project or files',{exact:true}).click();
  await page.getByLabel('Compose project name',{exact:true}).fill("prod 'west'");
  await page.getByLabel('Compose files',{exact:true}).fill("compose.yaml\nprod 'quoted' $(touch never).yaml");
@@ -337,8 +337,8 @@ test('one-line installer copies the exact server recipe with shell-safe custom c
 test('older server multiline recipes remain complete and are never relabeled one-line', async ({page}) => {
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
  await page.goto(url+'?setup&multiline');
- await expect(page.getByText('COMPLETE SETUP BLOCK',{exact:true})).toBeVisible();
- await expect(page.getByText('ONE-LINE COMMAND',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Complete setup block',{exact:true})).toBeVisible();
+ await expect(page.getByText('One-line command',{exact:true})).toHaveCount(0);
  await expect(page.getByText('Run the complete setup block',{exact:false})).toBeVisible();
  const expected="(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py install --bundle /tmp/verified-release --expect-installation '11111111-1111-4111-8111-111111111111' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' --\n)";
  await page.getByRole('button',{name:'Copy setup command',exact:true}).click();
