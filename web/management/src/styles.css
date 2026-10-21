@@ -2320,6 +2320,12 @@ body:has(.app-sidebar--mobile-open) {
   padding: 1.25rem;
 }
 
+/* Headed group inside an editor drawer, separated from the previous group by a hairline. */
+.editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
 .editor-drawer-form {
   min-height: 0;
   align-content: start;

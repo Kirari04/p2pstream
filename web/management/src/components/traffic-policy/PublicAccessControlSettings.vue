@@ -1159,11 +1159,6 @@ function groupSummary(policy: PublicAccessPolicy): string {
   background: var(--app-panel-muted);
 }
 
-.editor-group {
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 1.25rem;
-}
-
 @media (max-width: 47.99rem) {
   .access-control__row {
     align-items: flex-start;

@@ -362,11 +362,6 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
-.editor-group {
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 1.25rem;
-}
-
 /* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
 label.layout-grid {
   align-content: start;

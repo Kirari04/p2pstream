@@ -82,11 +82,6 @@ defineExpose({ validationReason });
   gap: 1rem;
 }
 
-.editor-group {
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 1.25rem;
-}
-
 .match-head {
   display: flex;
   align-items: flex-start;
