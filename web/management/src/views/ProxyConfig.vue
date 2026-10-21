@@ -902,10 +902,6 @@ async function deleteSite(site: PublicSite) {
 </template>
 
 <style scoped>
-.proxy-summary-grid {
-  margin: 0;
-}
-
 .proxy-summary-card {
   display: grid;
   align-content: center;

@@ -370,6 +370,7 @@ function toNumber(value: bigint): number {
 }
 
 .panel-heading p {
+  margin-top: 0.25rem;
   color: var(--app-text-muted);
   font-size: 0.82rem;
 }
@@ -523,6 +524,7 @@ function toNumber(value: bigint): number {
 .retry-detail-card__heading p,
 .retry-empty-state p,
 .retry-definition {
+  margin-top: 0.125rem;
   color: var(--app-text-muted);
   font-size: 0.72rem;
 }
@@ -782,6 +784,10 @@ function toNumber(value: bigint): number {
 
   .retry-kpis > div:nth-child(4) {
     border-left: 0;
+  }
+
+  .retry-kpis > div:nth-child(3n + 1) {
+    padding-left: 0;
   }
 
   .retry-kpis > div:nth-child(n + 4) {

@@ -536,6 +536,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 .overview-header p,
 .panel-heading p,
 .metric-subline {
+  margin-top: 0.25rem;
   color: var(--app-text-muted);
   font-size: 0.82rem;
 }

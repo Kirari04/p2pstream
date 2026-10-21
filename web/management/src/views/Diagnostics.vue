@@ -824,6 +824,7 @@ function capacityConstraintLabel(constraint: string): string {
 
 .diagnostics-header p,
 .panel-heading p {
+  margin-top: 0.25rem;
   color: var(--app-text-muted);
   font-size: 0.82rem;
 }
