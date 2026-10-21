@@ -242,6 +242,9 @@ assert new_config['instance_id'] == old_config['instance_id'] and new_config['bo
 config = (host.STATE / 'config.json').read_bytes()
 assert new_config['token'].encode() not in Path(new_config['deployment_file']).read_bytes()
 assert Path(new_config['deployment_file']).stat().st_mode & 0o777 == 0o640
+compose_versions = {'managed': docker('compose', 'version', '--short'), 'native': docker('--config', '/review/native-docker', 'compose', 'version', '--short')}
+assert compose_versions['managed'].lstrip('v') != compose_versions['native'].lstrip('v'), compose_versions
+native_checks = []
 for native_options in [[], options]:
     native = subprocess.run(['docker', '--config', '/review/native-docker', 'compose', *native_options, 'up', '-d', '--force-recreate'], cwd=source, check=True, capture_output=True, text=True)
     assert 'orphan' not in (native.stdout + native.stderr).lower()
@@ -250,6 +253,10 @@ for native_options in [[], options]:
     assert info()['Config']['Image'] == images['baseline']
     assert docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity') == installation
     assert (host.STATE / 'config.json').read_bytes() == config
+    managed_hash = docker('compose', '-p', project, '-f', new_config['deployment_file'], 'config', '--hash', 'p2pstream').split()[1]
+    native_hash = info()['Config']['Labels']['com.docker.compose.config-hash']
+    native_checks.append({'context': 'original-files' if native_options else 'default', 'managed_hash': managed_hash, 'native_hash': native_hash, 'receipt_fallback_required': native_hash != managed_hash})
+Path('/review/installation-compose-compatibility.json').write_text(json.dumps({'versions': compose_versions, 'recreations': native_checks}))
 observer = compose('ps', '-q', 'observer')
 current_container = info()['Id']
 managed_output = managed('recreate')
@@ -261,7 +268,9 @@ assert compose('ps', '-q', 'observer') == observer
 current_container = info()['Id']
 plan = host.read_json(host.STATE / 'host.json')['source_bridge']['files']
 override = Path(next(item['editable'] for item in plan if item['path'] == str(override)))
-checks += ['explicit-migration-repairs-legacy-binding-before-transition', 'explicit-legacy-migration-preserves-credentials-floors', 'default-and-original-multifile-native-compose-no-orphan', 'native-compose-version-runtime-receipt', 'managed-recreate-after-verified-native-hash', 'canonical-model-private-without-token']
+checks += ['explicit-migration-repairs-legacy-binding-before-transition', 'explicit-legacy-migration-preserves-credentials-floors', 'default-and-original-multifile-native-compose-no-orphan', 'different-compose-version-compatible', 'managed-recreate-after-verified-native-hash', 'canonical-model-private-without-token']
+if any(check['receipt_fallback_required'] for check in native_checks):
+    checks.append('native-compose-hash-mismatch-runtime-receipt')
 
 # A missing socket must never be considered enabled merely because config exists.
 controller = host.Host()

@@ -170,14 +170,23 @@ def main():
         # The current canonical image, including an update committed since
         # enrollment, must survive an ordinary default Compose recreation.
         expected_image = json.loads(canonical.read_text())["services"]["p2pstream"]["image"]
+        compose_versions = {"managed": docker("compose", "version", "--short"), "native": docker("--config", "/review/native-docker", "compose", "version", "--short")}
+        assert compose_versions["managed"].lstrip("v") != compose_versions["native"].lstrip("v"), compose_versions
         native = subprocess.run(["docker", "--config", "/review/native-docker", "compose", "up", "-d", "--force-recreate"], cwd=state, capture_output=True, text=True, check=True)
         assert "orphan" not in native.stderr.lower(), native.stderr
         wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
         recreated = compose(canonical, "ps", "-q", "p2pstream")
         recreated_info = json.loads(docker("inspect", recreated))[0]
+        managed_hash = compose(canonical, "config", "--hash", "p2pstream").split()[1]
+        native_hash = recreated_info["Config"]["Labels"]["com.docker.compose.config-hash"]
         assert recreated_info["Config"]["Image"] == expected_image
         assert recreated_info["Config"]["Labels"]["p2pstream.server-update.instance"] == json.loads((state / "config.json").read_text())["instance_id"]
         assert any(m["Destination"] == "/run/p2pstream-server-update" and not m["RW"] for m in recreated_info["Mounts"])
+        docker("run", "--rm", "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock",
+            "-e", "REVIEW_CONFIG=" + str(state / "config.json"), helper,
+            "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewRuntimeReceipt$")
+        receipt_check = json.loads((state / "native-runtime-receipt.json").read_text())
+        assert receipt_check["runtime_receipt_verified_directly"] and receipt_check["native_hash"] == native_hash
         # Exercise the shipped serve command, its ownership lock, and the
         # actual non-root manager -> authenticated private-socket boundary.
         compose(canonical, "up", "-d", "p2pstream-server-updater")
@@ -202,7 +211,7 @@ def main():
         assert checked["instance_id"] == config["instance_id"] and checked["ready"]
         duplicate = subprocess.run(["docker", "exec", updater, "/app/p2pstream", "server-updater", "recover", "--config", str(state / "config.json")], capture_output=True, text=True)
         assert duplicate.returncode != 0 and "another executor owns" in duplicate.stdout + duplicate.stderr
-        (state / "production-command-checks.json").write_text(json.dumps({"operation": actual, "maintenance_bootstrap": "passed", "duplicate_executor_refused": True, "deployment_protocol": 2, "native_recreation_preserved_image": expected_image}))
+        (state / "production-command-checks.json").write_text(json.dumps({"operation": actual, "maintenance_bootstrap": "passed", "duplicate_executor_refused": True, "deployment_protocol": 2, "native_recreation_preserved_image": expected_image, "compose_versions": compose_versions, "managed_hash": managed_hash, "native_hash": native_hash, "receipt_fallback_required": native_hash != managed_hash}))
         print("PASS " + args.scenario + ": agent route, TLS authority, snapshot, journal, restart policy, read-only runtime, production UDS/auth/lock", flush=True)
     finally:
         docker("update", "--restart=no", executor)

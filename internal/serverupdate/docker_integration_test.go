@@ -78,6 +78,64 @@ func TestDockerReviewEnroll(t *testing.T) {
 	}
 }
 
+// Adjacent Compose versions can produce the same service hash. Independently
+// exercise the receipt verifier against a real native-created runtime so that
+// cross-version compatibility does not silently skip fingerprint validation.
+func TestDockerReviewRuntimeReceipt(t *testing.T) {
+	if os.Getenv("REVIEW_CONFIG") == "" {
+		t.Skip("isolated Docker fixture required")
+	}
+	c := dockerReviewConfig(t)
+	d := &ComposeDriver{Config: c}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	model, err := os.ReadFile(c.DeploymentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := d.container(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := d.inspectContainer(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	native, err := d.command(ctx, "--config", "/review/native-docker", "compose", "version", "--short")
+	if err != nil {
+		t.Fatal(err)
+	}
+	managed, err := d.command(ctx, "compose", "version", "--short")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nativeVersion := strings.TrimPrefix(strings.TrimSpace(string(native)), "v")
+	managedVersion := strings.TrimPrefix(strings.TrimSpace(string(managed)), "v")
+	if nativeVersion == managedVersion || strings.TrimPrefix(info.Config.Labels["com.docker.compose.version"], "v") != nativeVersion {
+		t.Fatal("receipt rehearsal requires a runtime created by the distinct native Compose version")
+	}
+	if err := d.VerifyRuntimeReceipt(ctx, model, id); err != nil {
+		t.Fatal("real native runtime differs from the trusted managed receipt", err)
+	}
+	if _, _, _, err := d.Inspect(ctx); err != nil {
+		t.Fatal("native runtime failed enrolled identity or writer checks", err)
+	}
+	hashes, err := d.compose(ctx, "config", "--hash", "p2pstream")
+	fields := strings.Fields(string(hashes))
+	if err != nil || len(fields) != 2 {
+		t.Fatal("cannot record managed configuration hash", err)
+	}
+	nativeHash := info.Config.Labels["com.docker.compose.config-hash"]
+	result, err := json.Marshal(map[string]any{"native_version": nativeVersion, "managed_version": managedVersion,
+		"native_hash": nativeHash, "managed_hash": fields[1], "receipt_fallback_required": nativeHash != fields[1], "runtime_receipt_verified_directly": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := AtomicWrite(filepath.Join(c.StateDir, "native-runtime-receipt.json"), result, 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Native Compose does not take the host lock. Rehearse its actual competing
 // container while the production driver owns offline data, then retain a stale
 // generation waiter across the handoff to a freshly allowed generation.

@@ -109,15 +109,28 @@ docker cp scripts/test-server-updater-docker.py "$daemon:/review/test-server-upd
 docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" "$registry_image" \
   | guest docker load >"$artifact_dir/load-images.log"
 
-# Retain the daemon image's native Compose for operator compatibility checks.
-# Managed operations use the updater's pinned executable; native recreation
-# must also work when its equivalent model has a different Compose hash.
-native_compose_path=$(guest docker info --format '{{range .ClientInfo.Plugins}}{{if eq .Name "compose"}}{{.Path}}{{end}}{{end}}')
-[[ $native_compose_path == /* ]] || { echo "Guest native Compose plugin is missing." >&2; exit 1; }
+# Use a genuinely different, checksum-pinned upstream Compose release for
+# operator compatibility checks. The daemon image currently ships the same
+# version as our updater, so retaining its plugin would not test this boundary.
+# Checksums: https://github.com/docker/compose/releases/download/v2.39.1/checksums.txt
+native_compose_release=2.39.1
+case $(guest uname -m) in
+  x86_64) native_compose_arch=x86_64; native_compose_sha256=a5ea28722d5da628b59226626f7d6c33c89a7ed19e39f750645925242044c9d2 ;;
+  aarch64) native_compose_arch=aarch64; native_compose_sha256=7b2627ed76f7dcb0d93f649f185af912372229b4c09762a3cd1db5be5255632b ;;
+  *) echo "Unsupported native Compose fixture architecture." >&2; exit 1 ;;
+esac
+native_compose_url="https://github.com/docker/compose/releases/download/v$native_compose_release/docker-compose-linux-$native_compose_arch"
 guest mkdir -p /review/native-docker/cli-plugins
-guest cp "$native_compose_path" /review/native-docker/cli-plugins/docker-compose
+guest wget -q -O /review/native-docker/cli-plugins/docker-compose "$native_compose_url"
+guest python3 - "$native_compose_sha256" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+assert hashlib.sha256(Path('/review/native-docker/cli-plugins/docker-compose').read_bytes()).hexdigest() == sys.argv[1], 'Native Compose checksum mismatch'
+PY
 guest chmod 0755 /review/native-docker/cli-plugins/docker-compose
 native_compose_version=$(guest docker --config /review/native-docker compose version --short)
+[[ ${native_compose_version#v} == "$native_compose_release" ]] || { echo "Unexpected native Compose version." >&2; exit 1; }
 
 # Use precisely the Compose executable shipped in the tested updater for
 # managed setup and deterministic operation hashes.
@@ -131,11 +144,12 @@ guest mv /tmp/review-compose /usr/local/lib/docker/cli-plugins/docker-compose
 guest chmod 0755 /usr/local/bin/docker /usr/local/lib/docker/cli-plugins/docker-compose
 compose_version=$(guest docker compose version --short)
 [[ ${compose_version#v} == 2.39.2 ]] || { echo "Expected updater Compose 2.39.2, got $compose_version." >&2; exit 1; }
-guest python3 - "$compose_version" "$native_compose_version" <<'PY'
+[[ ${compose_version#v} != "${native_compose_version#v}" ]] || { echo "Native and managed Compose versions must differ." >&2; exit 1; }
+guest python3 - "$compose_version" "$native_compose_version" "$native_compose_url" "$native_compose_sha256" <<'PY'
 import json
 from pathlib import Path
 import sys
-Path('/review/compose-versions.json').write_text(json.dumps({'managed': sys.argv[1], 'native': sys.argv[2]}))
+Path('/review/compose-versions.json').write_text(json.dumps({'managed': sys.argv[1], 'native': sys.argv[2], 'native_url': sys.argv[3], 'native_sha256': sys.argv[4]}))
 PY
 echo "Managed Compose $compose_version; native recreation Compose $native_compose_version."
 
