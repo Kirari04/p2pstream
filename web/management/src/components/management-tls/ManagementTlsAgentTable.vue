@@ -85,5 +85,5 @@ function formatTime(value: bigint): string {
 </script>
 
 <template>
-  <NDataTable :columns="columns" :data="[...agents]" :row-key="(agent: ManagementTlsAgentRollout) => agent.agentId.toString()" :pagination="false" :bordered="false" :single-line="false" :scroll-x="848" size="small" />
+  <NDataTable :columns="columns" :data="[...agents]" :row-key="(agent: ManagementTlsAgentRollout) => agent.agentId.toString()" :pagination="false" :bordered="false" :scroll-x="848" size="small" />
 </template>

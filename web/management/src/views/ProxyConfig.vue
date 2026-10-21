@@ -858,7 +858,7 @@ async function deleteSite(site: PublicSite) {
                 :row-props="siteRowProps"
                 :pagination="false"
                 :bordered="false"
-                :single-line="false"
+               
                 :scroll-x="siteTableWidth"
                 size="small"
               />
@@ -922,7 +922,7 @@ async function deleteSite(site: PublicSite) {
             :row-props="listenerRowProps"
             :pagination="false"
             :bordered="false"
-            :single-line="false"
+           
             :scroll-x="listenerTableWidth"
             size="small"
           />

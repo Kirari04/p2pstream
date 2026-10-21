@@ -648,7 +648,7 @@ function handleTrustModalUpdate(show: boolean) {
         :row-key="environmentRowKey"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
+       
         :scroll-x="800"
         :loading="isLoading"
         size="small"

@@ -364,7 +364,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
           :row-key="tokenRowKey"
           :pagination="false"
           :bordered="false"
-          :single-line="false"
+         
           :scroll-x="760"
           :loading="isLoading"
           size="small"

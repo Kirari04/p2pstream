@@ -733,7 +733,7 @@ watch(tlsDnsCredentials, () => {
         :row-props="tlsRowProps"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
+       
         :scroll-x="certificateTableWidth"
         table-layout="fixed"
         size="small"
@@ -770,7 +770,7 @@ watch(tlsDnsCredentials, () => {
         :row-key="credentialRowKey"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
+       
         :scroll-x="900"
         table-layout="fixed"
         size="small"

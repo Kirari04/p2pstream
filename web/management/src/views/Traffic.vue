@@ -577,7 +577,7 @@ onBeforeUnmount(() => {
         :row-props="traceRowProps"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
+       
         :scroll-x="730"
         size="small"
       />

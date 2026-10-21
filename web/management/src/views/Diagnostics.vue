@@ -733,7 +733,7 @@ function capacityConstraintLabel(constraint: string): string {
             :row-key="sampleRowKey"
             :pagination="false"
             :bordered="false"
-            :single-line="false"
+           
             :scroll-x="944"
             size="small"
           />

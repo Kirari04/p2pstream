@@ -276,7 +276,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
         :row-props="templateRowProps"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
+       
         :scroll-x="960"
         table-layout="fixed"
         size="small"

@@ -399,7 +399,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
         :row-key="hotspotRowKey"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
+       
         :scroll-x="770"
         size="small"
       />
