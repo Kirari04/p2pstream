@@ -157,13 +157,12 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
 <template>
   <div class="server-updates">
-    <div class="update-heading">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
       <div>
-        <div class="update-eyebrow">SERVER SOFTWARE · {{ environmentLabel }}</div>
-        <h2>Keep your server current</h2>
-        <p>Verified releases, a data backup, and recovery to the previous version.</p>
+        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Server Updates</h4>
+        <p class="copy-sm muted-text">Verified releases for <bdi dir="ltr">{{ environmentLabel }}</bdi>, with a data backup and recovery to the previous version.</p>
       </div>
-      <NButton :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="16" /></template>Refresh status</NButton>
+      <NButton secondary size="small" :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="14" /></template>Refresh status</NButton>
     </div>
 
     <NAlert v-if="blocked" type="warning">{{ blocked }}</NAlert>
@@ -260,7 +259,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
 <style scoped>
 .server-updates{display:grid;gap:1.25rem;max-width:1040px}
-.update-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:1.5rem}.update-heading h2{font-size:1.5rem;margin:.35rem 0}.update-heading p{margin:0;color:var(--app-text-muted)}
+.server-updates :deep(.n-card-content){display:grid;gap:.75rem}.server-updates :deep(.n-card-content)>.update-command,.server-updates :deep(.n-card-content)>.update-context,.server-updates :deep(.n-card-content)>.update-migration-facts,.server-updates :deep(.n-card-content)>.update-migration-settings,.server-updates :deep(.n-card-content)>.update-blocker{margin:0}.update-context[open]>p{margin:.6rem 0 0}
 .update-eyebrow{font-size:.68rem;letter-spacing:.09em;font-weight:600;color:var(--app-text-muted)}
 .update-summary{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--app-border);border-radius:8px;overflow:hidden}.update-version{padding:1.5rem;display:grid;gap:.65rem;min-width:0}.update-version>strong{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;overflow-wrap:anywhere}.update-meta{display:flex;gap:.8rem;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:.75rem}
 .update-policy{padding:1.5rem;display:flex;gap:.8rem;align-items:flex-start;background:var(--app-panel-muted);border-left:1px solid var(--app-border)}.update-policy>svg{flex-shrink:0;color:var(--app-accent)}.update-policy p{font-size:.82rem;margin:.4rem 0 0;color:var(--app-text-muted)}
@@ -269,6 +268,6 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 .update-actions,.update-operation{display:flex;align-items:center;gap:.75rem}.update-context{margin:1rem 0}.update-context label{display:grid;gap:.4rem;margin:.8rem 0}
 .update-command{margin:1rem 0;border:1px solid var(--app-border);border-radius:6px;overflow:hidden;background:var(--app-panel-muted);min-width:0}.update-command-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem .75rem;border-bottom:1px solid var(--app-border)}.update-command-toolbar>span{font-family:var(--font-mono);font-size:.6rem;font-weight:500;letter-spacing:.08em;color:var(--app-text-muted)}.update-command pre{margin:0;padding:1rem;max-height:14rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--font-mono);font-size:.72rem;line-height:1.85;tab-size:2}.update-command pre:focus-visible{outline:2px solid var(--app-accent);outline-offset:-2px}.update-command code{font:inherit}.update-command--multiline pre{max-height:18rem}.update-host-policy{font-size:.76rem;line-height:1.7;margin:.75rem 0 0;padding-top:.75rem;border-top:1px solid var(--app-border)}
 .update-actions .n-input{max-width:380px}.update-operation{flex-wrap:wrap;margin-bottom:.75rem}.update-blocker{margin-bottom:.75rem}.update-details{margin:1rem 0}.update-details code{display:block;overflow-wrap:anywhere;font-size:.7rem;margin-top:.75rem}.update-modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.25rem}.muted-text{font-size:.8rem}
-@media(max-width:640px){.update-heading{flex-direction:column}.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command pre{padding:.8rem;font-size:.68rem}.update-command-toolbar{padding:.5rem .65rem}.update-command-toolbar>span{font-size:.56rem}}
+@media(max-width:640px){.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command pre{padding:.8rem;font-size:.68rem}.update-command-toolbar{padding:.5rem .65rem}.update-command-toolbar>span{font-size:.56rem}}
 @media(max-width:420px){.update-migration-facts{grid-template-columns:1fr}.update-migration-facts>div{display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem}.update-migration-facts>div+div{border-left:0;border-top:1px solid var(--app-border)}}
 </style>
