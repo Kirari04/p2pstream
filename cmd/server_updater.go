@@ -32,7 +32,7 @@ func init() {
 	var configPath string
 	serve := &cobra.Command{Use: "serve", Short: "Serve the private update socket and recover interrupted deployments", RunE: func(cmd *cobra.Command, args []string) error { return serveServerUpdater(configPath, false) }}
 	serve.Flags().StringVar(&configPath, "config", "/etc/p2pstream-server-updater/config.json", "locally installed executor configuration")
-	var directory, model, image, updater, installation, releaseDirectory string
+	var directory, deploymentDirectory, model, image, updater, installation, releaseDirectory string
 	enroll := &cobra.Command{Use: "enroll", Short: "Adopt a trusted, resolved Compose model (local installation only)", RunE: func(cmd *cobra.Command, args []string) error {
 		data, err := os.ReadFile(model)
 		if err != nil {
@@ -61,9 +61,13 @@ func init() {
 		if installation == "" {
 			return errors.New("--installation is required; read it from the running server before enrollment")
 		}
+		if deploymentDirectory != "" {
+			return serverupdate.EnrollManagedInstallation(directory, deploymentDirectory, data, image, updater, buildinfo.Version, buildinfo.RepositorySlug(), floor, installation)
+		}
 		return serverupdate.EnrollInstallation(directory, data, image, updater, buildinfo.Version, buildinfo.RepositorySlug(), floor, installation)
 	}}
 	enroll.Flags().StringVar(&directory, "directory", "/etc/p2pstream-server-updater", "private enrollment directory")
+	enroll.Flags().StringVar(&deploymentDirectory, "deployment-directory", "", "root-owned group-readable canonical deployment directory (protocol 2)")
 	enroll.Flags().StringVar(&model, "compose", "", "resolved Compose JSON")
 	enroll.Flags().StringVar(&image, "image", "", "installed release digest")
 	enroll.Flags().StringVar(&releaseDirectory, "release-directory", "", "protected verified release assets for offline enrollment")
@@ -127,6 +131,45 @@ func init() {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
 	}}
 	check.Flags().StringVar(&configPath, "config", "/etc/p2pstream-server-updater/config.json", "executor configuration")
+	for _, action := range []string{"runtime-block", "runtime-allow", "runtime-detach", "record-runtime"} {
+		var path string
+		guard := &cobra.Command{Use: action, Short: "Coordinate deployment ownership (trusted host controller only)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+			if os.Geteuid() != 0 {
+				return errors.New("deployment coordination must run as root")
+			}
+			info, err := os.Lstat(path)
+			if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 {
+				return errors.New("executor configuration must be a private regular file")
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			var cfg serverupdate.ComposeConfig
+			if err := json.Unmarshal(data, &cfg); err != nil {
+				return err
+			}
+			if err := cfg.Validate(); err != nil {
+				return err
+			}
+			driver := &serverupdate.ComposeDriver{Config: cfg}
+			switch action {
+			case "runtime-block":
+				return driver.BlockRuntime(cmd.Context())
+			case "runtime-allow":
+				return driver.AllowRuntime(cmd.Context())
+			case "runtime-detach":
+				return driver.DetachRuntime(cmd.Context())
+			default:
+				return driver.RecordCurrentRuntimeReceipt(cmd.Context())
+			}
+		}}
+		guard.Flags().StringVar(&path, "config", "/etc/p2pstream-server-updater/config.json", "executor configuration")
+		command.AddCommand(guard)
+	}
+	rootCmd.AddCommand(&cobra.Command{Use: "server-deployment-capabilities", Short: "Report immutable deployment capabilities without opening application data", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(serverupdate.DeploymentCapabilities{RuntimeGuard: 2, Version: buildinfo.Version, Commit: buildinfo.Commit})
+	}})
 	command.AddCommand(serve, enroll, recover, configure, check)
 	rootCmd.AddCommand(&cobra.Command{Use: "server-installation-identity", Short: "Read the existing data-backed installation identity", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		dir := os.Getenv("CONFIG_DIR")
@@ -141,11 +184,11 @@ func init() {
 		return nil
 	}})
 	rootCmd.AddCommand(&cobra.Command{Use: "server-health", Short: "Verify the local management listener using its persisted certificate", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.Load()
+		cfg, err := config.LoadReadOnly()
 		if err != nil {
 			return err
 		}
-		serverTLS, enabled, err := server.NewManagementTLSConfig(cfg)
+		serverTLS, enabled, err := server.ReadManagementTLSConfig(cfg)
 		if err != nil {
 			return err
 		}

@@ -49,6 +49,7 @@ def main():
         raise SystemExit("Requires the disposable review VM and its local-only registry")
     state = Path("/review") / args.scenario
     project = "review-" + args.scenario
+    canonical = Path(str(state) + "-deployment") / "compose.json"
     executor = project + "-executor"
     images = json.loads(Path("/review/images.json").read_text())
     helper = images["helper"]
@@ -83,11 +84,27 @@ def main():
         original = state / "original.json"
         original.write_text(json.dumps(model))
         compose(original, "up", "-d")
+        baseline_container = compose(original, "ps", "-q", "p2pstream")
+        installation = wait_for(lambda: docker("exec", baseline_container, "/app/p2pstream", "server-installation-identity"))
         (state / "model.json").write_text(compose(original, "config", "--format", "json"))
         env = ["-e", "REVIEW_STATE=" + str(state), "-e", "REVIEW_SCENARIO=" + args.scenario,
-               "-e", "REVIEW_BASELINE=" + images["baseline"], "-e", "REVIEW_HELPER=" + helper]
+               "-e", "REVIEW_BASELINE=" + images["baseline"], "-e", "REVIEW_HELPER=" + helper,
+               "-e", "REVIEW_INSTALLATION=" + installation]
         docker("run", "--rm", "-v", "/review:/review", *env, helper, "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewEnroll$")
-        compose(state / "compose.json", "up", "-d", "p2pstream")
+        def runtime_action(action):
+            return docker("run", "--rm", "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock",
+                "-v", project + "-data:/server-data", helper, "/app/p2pstream", "server-updater", action,
+                "--config", str(state / "config.json"))
+
+        runtime_action("runtime-block")
+        compose(canonical, "stop", "p2pstream")
+        compose(canonical, "up", "--no-start", "--no-deps", "--no-build", "--pull", "never", "p2pstream")
+        runtime_action("runtime-allow")
+        docker("start", compose(canonical, "ps", "--all", "-q", "p2pstream"))
+        wait_for(lambda: docker("exec", compose(canonical, "ps", "-q", "p2pstream"), "/app/p2pstream", "server-health") or True)
+        runtime_action("record-runtime")
+        # This facade exercises the ordinary default-file Compose entry point.
+        (state / "compose.yaml").write_text(json.dumps({"name": project, "include": [str(canonical)]}))
 
         wait_for(lambda: rpc("GetSetupState", {}) or True)
         rpc("SetupAdmin", {"username": "reviewadmin", "password": "Review-only-password-123!", "setupToken": "review-setup-token-0123456789abcdef"})
@@ -102,7 +119,7 @@ def main():
                 "agentSelector": {"matchLabels": {"p2pstream.io/agent-id": "review-agent"}},
                 "agentLoadBalancing": "PUBLIC_ROUTE_TARGET_LOAD_BALANCING_ROUND_ROBIN"}]})
         rpc("PublishPublicSite", {"id": site["id"]})
-        container = compose(state / "compose.json", "ps", "-q", "p2pstream")
+        container = compose(canonical, "ps", "-q", "p2pstream")
         ca = docker("exec", container, "cat", "/data/certs/management/ca.crt.pem")
         (state / "initial-ca.pem").write_text(ca)
         docker("run", "-d", "--name", project + "-upstream", "--network", project + "_default", "--network-alias", "upstream", "--restart", "unless-stopped", "p2pstream-review:upstream")
@@ -112,6 +129,12 @@ def main():
             images["baseline"], "/app/p2pstream", "agent")
         wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
         c = json.loads((state / "config.json").read_text())
+        assert c["deployment_protocol"] == 2 and c["deployment_file"] == str(canonical)
+        docker("run", "--rm", "--label", "p2pstream.server-update.executor=" + c["instance_id"],
+            "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-v", project + "-data:/server-data",
+            "-e", "REVIEW_CONFIG=" + str(state / "config.json"), helper,
+            "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewNativeGuard$")
+        wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
         docker("run", "-d", "--name", executor, "--restart", "unless-stopped" if args.scenario == "reboot-committing" else "no", "--read-only", "--tmpfs", "/tmp", "--cap-drop", "ALL",
             "--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER", "--cap-add", "NET_BIND_SERVICE",
             "--label", "p2pstream.server-update.executor=" + c["instance_id"],
@@ -122,7 +145,7 @@ def main():
 
     if args.scenario in ("kill-validating", "reboot-committing") and not args.resume:
         wait_for(lambda: (state / "checkpoint").exists(), 180)
-        c = compose(state / "compose.json", "ps", "-q", "p2pstream")
+        c = compose(canonical, "ps", "-q", "p2pstream")
         policy = docker("inspect", "-f", "{{.HostConfig.RestartPolicy.Name}}", c)
         assert policy == "no", policy
         print("CHECKPOINT " + (state / "checkpoint").read_text(), flush=True)
@@ -137,16 +160,27 @@ def main():
         if (state / "failed").exists() or not (state / "passed.json").exists() or docker("inspect", "-f", "{{.RestartCount}}", executor) != "0":
             raise AssertionError(docker("logs", executor))
         wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
-        container = compose(state / "compose.json", "ps", "-q", "p2pstream")
+        container = compose(canonical, "ps", "-q", "p2pstream")
         info = json.loads(docker("inspect", container))[0]
         assert info["HostConfig"]["RestartPolicy"]["Name"] == "unless-stopped"
         assert info["HostConfig"]["ReadonlyRootfs"]
         assert not any(m["Destination"] == "/var/run/docker.sock" for m in info["Mounts"])
         assert docker("exec", container, "cat", "/data/certs/management/ca.crt.pem") == (state / "initial-ca.pem").read_text()
         (state / "executor.log").write_text(docker("logs", executor))
+        # The current canonical image, including an update committed since
+        # enrollment, must survive an ordinary default Compose recreation.
+        expected_image = json.loads(canonical.read_text())["services"]["p2pstream"]["image"]
+        native = subprocess.run(["docker", "--config", "/review/native-docker", "compose", "up", "-d", "--force-recreate"], cwd=state, capture_output=True, text=True, check=True)
+        assert "orphan" not in native.stderr.lower(), native.stderr
+        wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
+        recreated = compose(canonical, "ps", "-q", "p2pstream")
+        recreated_info = json.loads(docker("inspect", recreated))[0]
+        assert recreated_info["Config"]["Image"] == expected_image
+        assert recreated_info["Config"]["Labels"]["p2pstream.server-update.instance"] == json.loads((state / "config.json").read_text())["instance_id"]
+        assert any(m["Destination"] == "/run/p2pstream-server-update" and not m["RW"] for m in recreated_info["Mounts"])
         # Exercise the shipped serve command, its ownership lock, and the
         # actual non-root manager -> authenticated private-socket boundary.
-        compose(state / "compose.json", "up", "-d", "p2pstream-server-updater")
+        compose(canonical, "up", "-d", "p2pstream-server-updater")
         wait_for(lambda: (state / "control/control.sock").exists())
         config = json.loads((state / "config.json").read_text())
         expected = json.loads((state / "passed.json").read_text())
@@ -163,15 +197,17 @@ def main():
         except urllib.error.HTTPError as error:
             assert error.code == 503
         (state / "control/maintenance").unlink()
-        updater = compose(state / "compose.json", "ps", "-q", "p2pstream-server-updater")
+        updater = compose(canonical, "ps", "-q", "p2pstream-server-updater")
+        checked = json.loads(docker("exec", updater, "/app/p2pstream", "server-updater", "check", "--config", str(state / "config.json")))
+        assert checked["instance_id"] == config["instance_id"] and checked["ready"]
         duplicate = subprocess.run(["docker", "exec", updater, "/app/p2pstream", "server-updater", "recover", "--config", str(state / "config.json")], capture_output=True, text=True)
         assert duplicate.returncode != 0 and "another executor owns" in duplicate.stdout + duplicate.stderr
-        (state / "production-command-checks.json").write_text(json.dumps({"operation": actual, "maintenance_bootstrap": "passed", "duplicate_executor_refused": True}))
+        (state / "production-command-checks.json").write_text(json.dumps({"operation": actual, "maintenance_bootstrap": "passed", "duplicate_executor_refused": True, "deployment_protocol": 2, "native_recreation_preserved_image": expected_image}))
         print("PASS " + args.scenario + ": agent route, TLS authority, snapshot, journal, restart policy, read-only runtime, production UDS/auth/lock", flush=True)
     finally:
         docker("update", "--restart=no", executor)
         docker("stop", executor)
-        compose(state / "compose.json", "stop", "p2pstream", "p2pstream-server-updater")
+        compose(canonical, "stop", "p2pstream", "p2pstream-server-updater")
         docker("stop", project + "-agent", project + "-upstream")
 
 

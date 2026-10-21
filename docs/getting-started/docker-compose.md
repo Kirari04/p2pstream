@@ -74,7 +74,7 @@ Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even
 
 ## Apply settings after updater enrollment
 
-Keep the original Compose files and `.env` as your editable inputs. The installed controller records their absolute source directory, project and ordered files. Change the host ports, management hostname or other supported settings there, then run:
+New enrollment turns the original Compose entry points into references to the current managed deployment. Edit the saved `.p2pstream-input-…` copies printed by setup and the same `.env`. The controller records their directory, project and ordered files. Change supported settings there, then run:
 
 ```bash
 sudo /etc/p2pstream-server-updater/manage apply
@@ -83,7 +83,7 @@ sudo /etc/p2pstream-server-updater/manage status
 
 The controller validates the running deployment, refuses hooks/builds, data-layout changes and changes to other services/resources, preserves the **current** software digest and private connection, restarts the server once, and verifies health. It restores the exact pre-apply configuration on failure where possible. `P2PSTREAM_IMAGE` in the original input is deliberately ignored during enrolled configuration application; choose software updates in **System → Server Updates**. Use a separate Compose project for services you want to manage independently.
 
-Read-only enrolled inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `manage logs`. Do not run the original `docker compose up` while enrolled: it bypasses this supported validation and removes the private connection. See [recovery and removal](../operations/server-updates).
+Read-only inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `manage logs`. After new enrollment or explicit migration, ordinary `docker compose up -d --force-recreate` retains the current image and updater connection. It recreates already-applied settings; edits still use `manage apply`. Older enrollments need the [deployment migration](../operations/server-updates#migrate-an-existing-enrollment) before ordinary recreation is supported.
 
 ## Runtime Effects
 

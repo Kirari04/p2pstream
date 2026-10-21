@@ -68,7 +68,22 @@ func (a *App) GetServerUpdateOverview(ctx context.Context, req *connect.Request[
 	out.Target = serverReleaseProto(r.Overview.Target)
 	out.Operation = serverOperationProto(r.Overview.Operation)
 	out.Blockers = r.Overview.Current.Blocked
+	if a.Config.ServerUpdateRuntimeProtocol == 0 && (r.Overview.Operation == nil || r.Overview.Operation.Terminal()) {
+		out.SetupCommand, out.SetupUnavailable = a.serverDeploymentMigrationCommand(ctx)
+	}
 	return connect.NewResponse(out), nil
+}
+
+func (a *App) serverDeploymentMigrationCommand(ctx context.Context) (string, string) {
+	command, unavailable := a.serverInstallationCommand(ctx)
+	if command == "" {
+		return "", unavailable
+	}
+	const enrollment = " install --bundle "
+	if strings.Count(command, enrollment) != 1 {
+		return "", "The installed release does not provide a supported deployment migration command."
+	}
+	return strings.Replace(command, enrollment, " install --migrate-deployment --bundle ", 1), ""
 }
 
 func (a *App) PreviewServerUpdate(ctx context.Context, req *connect.Request[p2pstreamv1.PreviewServerUpdateRequest]) (*connect.Response[p2pstreamv1.PreviewServerUpdateResponse], error) {

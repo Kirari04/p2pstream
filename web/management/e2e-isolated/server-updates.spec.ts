@@ -227,3 +227,82 @@ test('recovery blocks applying settings and uses a neutral connected-updater ban
  expect(await banner.locator('.n-alert__icon').evaluate((icon)=>getComputedStyle(icon).color)).not.toBe(successColor);
  await expect(page.getByRole('button',{name:'Preview update',exact:true})).toBeDisabled();
 });
+
+test('configured legacy deployment offers an exact, environment-bound migration command with Compose options', async ({page},testInfo) => {
+ await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+ await page.goto(url+'?migration&light');
+ const card=page.locator('.update-migration');
+ await expect(card.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
+ await expect(card).toContainText('Migration restarts the server once');
+ await expect(card.getByText('Preserved',{exact:true})).toHaveCount(3);
+ await expect(card).toContainText('original Compose files become bridges');
+ await expect(card).toContainText('*.p2pstream-input-*');
+ await expect(card).toContainText('paths printed by the installer');
+ await card.getByText('Custom Compose project or files',{exact:true}).click();
+ await page.getByLabel('Compose project name',{exact:true}).fill('production');
+ await page.getByLabel('Compose files',{exact:true}).fill('compose.yaml\nproduction with spaces.yaml');
+ await page.getByLabel('Compose environment files',{exact:true}).fill('.env.production');
+ await page.getByLabel('Compose project directory',{exact:true}).fill('/srv/my deployment');
+ await card.getByRole('button',{name:'Copy migration command',exact:true}).click();
+ const copied=await page.evaluate(()=>navigator.clipboard.readText());
+ const expected="(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py install --migrate-deployment --bundle /tmp/verified-release --expect-installation '11111111-1111-4111-8111-111111111111' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' -- -p 'production' -f 'compose.yaml' -f 'production with spaces.yaml' --env-file '.env.production' --project-directory '/srv/my deployment'\n)";
+ expect(copied).toBe(expected);
+ await page.screenshot({path:testInfo.outputPath('deployment-migration-desktop-light.png'),fullPage:true,animations:'disabled'});
+ await page.locator('#switch').click();
+ await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Copy migration command',exact:true}).click();
+ const switched=await page.evaluate(()=>navigator.clipboard.readText());
+ expect(switched).toContain("--expect-installation '22222222-2222-4222-8222-222222222222'");
+ expect(switched).not.toContain('--project-directory');
+ expect(switched).not.toContain("-p 'production'");
+});
+
+test('migration remains readable on mobile dark and supports copying after clipboard failure', async ({page},testInfo) => {
+ await page.setViewportSize({width:390,height:844});
+ await page.addInitScript(() => Object.defineProperty(navigator,'clipboard',{value:{writeText:async()=>{throw new Error('clipboard denied');}}}));
+ await page.goto(url+'?migration');
+ await page.getByRole('button',{name:'Copy migration command',exact:true}).click();
+ await expect(page.getByText('Select and copy the migration command below.',{exact:true})).toBeVisible();
+ await expect(page.locator('.update-command pre')).toContainText('install --migrate-deployment --bundle');
+ await page.screenshot({path:testInfo.outputPath('deployment-migration-mobile-dark.png'),fullPage:true,animations:'disabled'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+
+test('migration prerequisites preserve the reported reason without inventing a command', async ({page},testInfo) => {
+ const reason='Release metadata expired: <img src=x onerror=alert(1)>';
+ await page.goto(url+'?migration&migration-unavailable&unavailable-detail='+encodeURIComponent(reason));
+ const card=page.locator('.update-migration');
+ await expect(card.getByText('Migration command unavailable',{exact:true})).toBeVisible();
+ await expect(card).toContainText(reason);
+ await expect(card.locator('img')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy migration command',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy complete setup',exact:true})).toHaveCount(0);
+ await page.screenshot({path:testInfo.outputPath('deployment-migration-unavailable.png'),fullPage:true,animations:'disabled'});
+});
+
+test('older configured remotes without a migration offer retain their existing controls', async ({page}) => {
+ await page.goto(url+'?migration&migration-first-only');
+ await expect(page.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
+ await page.locator('#switch').click();
+ await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
+ await expect(page.getByText('Upgrade deployment integration',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('ordinary docker compose',{exact:false})).toHaveCount(0);
+ await expect(page.getByText('Updates enabled · updater verified',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Preview update',exact:true})).toBeEnabled();
+});
+
+test('an active update hides a previous migration offer', async ({page}) => {
+ await page.goto(url+'?migration&phase=validating');
+ await expect(page.getByRole('status').filter({hasText:'Validating the replacement'})).toBeVisible();
+ await expect(page.getByText('Upgrade deployment integration',{exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy migration command',exact:true})).toHaveCount(0);
+});
+
+test('an unconfirmed update request hides migration until its outcome is known', async ({page}) => {
+ await page.addInitScript(() => sessionStorage.setItem('p2pstream:server-update:1',JSON.stringify({instanceId:'11111111-1111-4111-8111-111111111111',operationId:'33333333-3333-4333-8333-333333333333',planToken:'pending-plan'})));
+ await page.goto(url+'?migration');
+ await expect(page.getByRole('button',{name:'Retry same request',exact:true})).toBeVisible();
+ await expect(page.getByText('Upgrade deployment integration',{exact:true})).toHaveCount(0);
+ await page.getByRole('button',{name:'Clear saved request',exact:true}).click();
+ await expect(page.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
+});

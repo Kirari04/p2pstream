@@ -27,7 +27,7 @@ func preflightLiveBackup(ctx context.Context, source, destinationDir string) err
 	if err := checkBackupDirectories(ctx, source, destinationDir); err != nil {
 		return err
 	}
-	return liveBackupPreflightResult(ctx, source, destinationDir, preflightBackup(ctx, source, destinationDir))
+	return scanBackupPreflight(ctx, source, destinationDir, true, backupPreflightIO{filepath.WalkDir, syscall.Statfs})
 }
 
 func checkBackupDirectories(ctx context.Context, paths ...string) error {
@@ -69,24 +69,48 @@ func liveBackupPreflightResult(ctx context.Context, source, destinationDir strin
 
 // preflightBackup strictly checks supported data and sufficient backup space.
 func preflightBackup(ctx context.Context, source, destinationDir string) error {
+	return scanBackupPreflight(ctx, source, destinationDir, false, backupPreflightIO{filepath.WalkDir, syscall.Statfs})
+}
+
+// Keep filesystem operations local to a scan so tests can deterministically
+// reproduce a disappearing child without racing a mutating directory or using
+// global hooks.
+type backupPreflightIO struct {
+	walkDir func(string, fs.WalkDirFunc) error
+	statfs  func(string, *syscall.Statfs_t) error
+}
+
+func scanBackupPreflight(ctx context.Context, source, destinationDir string, live bool, filesystem backupPreflightIO) error {
+	walkError := func(err error) error {
+		if live {
+			return liveBackupPreflightResult(ctx, source, destinationDir, err)
+		}
+		return err
+	}
 	var size uint64
-	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
+	err := filesystem.walkDir(source, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			return walkError(err)
 		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && !info.Mode().IsRegular() {
-			return errors.New("data contains a link or special file; manual backup required")
-		}
 		name, err := filepath.Rel(source, path)
 		if err != nil || !validBackupName(name) {
 			return errors.New("data contains an unsupported filename; manual backup required")
+		}
+		if IsRuntimeReservedName(name) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return walkError(err)
+		}
+		if !info.IsDir() && !info.Mode().IsRegular() {
+			return errors.New("data contains a link or special file; manual backup required")
 		}
 		size += uint64(info.Size()) + 1024
 		return nil
@@ -94,8 +118,13 @@ func preflightBackup(ctx context.Context, source, destinationDir string) error {
 	if err != nil {
 		return err
 	}
+	if live {
+		if err := checkBackupDirectories(ctx, source, destinationDir); err != nil {
+			return err
+		}
+	}
 	var space syscall.Statfs_t
-	if err := syscall.Statfs(destinationDir, &space); err != nil {
+	if err := filesystem.statfs(destinationDir, &space); err != nil {
 		return err
 	}
 	if space.Bavail*uint64(space.Bsize) < size+size/10+(64<<20) {
@@ -123,6 +152,16 @@ func backupData(ctx context.Context, source, destination string) (string, error)
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		name, err := filepath.Rel(source, path)
+		if err != nil || !validBackupName(name) {
+			return errors.New("data changed to an unsupported filename during backup")
+		}
+		if IsRuntimeReservedName(name) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
@@ -134,10 +173,7 @@ func backupData(ctx context.Context, source, destination string) (string, error)
 		if err != nil {
 			return err
 		}
-		header.Name, err = filepath.Rel(source, path)
-		if err != nil || !validBackupName(header.Name) {
-			return errors.New("data changed to an unsupported filename during backup")
-		}
+		header.Name = name
 		if err := writer.WriteHeader(header); err != nil {
 			return err
 		}
@@ -289,6 +325,9 @@ func restoreData(ctx context.Context, destination, backup, digest string) error 
 		return err
 	}
 	for _, entry := range entries {
+		if IsRuntimeReservedName(entry.Name()) {
+			continue
+		}
 		if err := root.RemoveAll(entry.Name()); err != nil {
 			return err
 		}
@@ -314,6 +353,11 @@ func restoreData(ctx context.Context, destination, backup, digest string) error 
 		name := header.Name
 		if !validBackupName(name) {
 			return errors.New("invalid backup entry")
+		}
+		// Historical archives may contain these names. Consume their bodies but
+		// never restore a stale owner or replace the inode held by a live lease.
+		if IsRuntimeReservedName(name) {
+			continue
 		}
 		switch header.Typeflag {
 		case tar.TypeDir:

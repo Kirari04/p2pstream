@@ -109,8 +109,18 @@ docker cp scripts/test-server-updater-docker.py "$daemon:/review/test-server-upd
 docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" "$registry_image" \
   | guest docker load >"$artifact_dir/load-images.log"
 
-# Use precisely the Compose executable shipped in the tested updater. Enrolled
-# config hashes differ between Compose versions even for equivalent models.
+# Retain the daemon image's native Compose for operator compatibility checks.
+# Managed operations use the updater's pinned executable; native recreation
+# must also work when its equivalent model has a different Compose hash.
+native_compose_path=$(guest docker info --format '{{range .ClientInfo.Plugins}}{{if eq .Name "compose"}}{{.Path}}{{end}}{{end}}')
+[[ $native_compose_path == /* ]] || { echo "Guest native Compose plugin is missing." >&2; exit 1; }
+guest mkdir -p /review/native-docker/cli-plugins
+guest cp "$native_compose_path" /review/native-docker/cli-plugins/docker-compose
+guest chmod 0755 /review/native-docker/cli-plugins/docker-compose
+native_compose_version=$(guest docker --config /review/native-docker compose version --short)
+
+# Use precisely the Compose executable shipped in the tested updater for
+# managed setup and deterministic operation hashes.
 copy_container=$(guest docker create --entrypoint /bin/true "$helper_image")
 guest docker cp "$copy_container:/usr/local/bin/docker" /tmp/review-docker
 guest docker cp "$copy_container:/usr/local/lib/docker/cli-plugins/docker-compose" /tmp/review-compose
@@ -121,6 +131,13 @@ guest mv /tmp/review-compose /usr/local/lib/docker/cli-plugins/docker-compose
 guest chmod 0755 /usr/local/bin/docker /usr/local/lib/docker/cli-plugins/docker-compose
 compose_version=$(guest docker compose version --short)
 [[ ${compose_version#v} == 2.39.2 ]] || { echo "Expected updater Compose 2.39.2, got $compose_version." >&2; exit 1; }
+guest python3 - "$compose_version" "$native_compose_version" <<'PY'
+import json
+from pathlib import Path
+import sys
+Path('/review/compose-versions.json').write_text(json.dumps({'managed': sys.argv[1], 'native': sys.argv[2]}))
+PY
+echo "Managed Compose $compose_version; native recreation Compose $native_compose_version."
 
 guest docker run --detach --name review-registry --publish 127.0.0.1:80:5000 "$registry_image" >/dev/null
 guest python3 - <<'PY'

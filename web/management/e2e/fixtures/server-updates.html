@@ -33,9 +33,11 @@ const clients = Object.fromEntries(['1','2'].map((id) => [id, {
   reads += 1;
   if (query.has('disconnect') && reads > 1) throw new Error('management connection interrupted');
   const setup = query.has('setup') || query.has('legacy') || (query.has('enroll') && reads < 2);
+  const migration = query.has('migration') && (!query.has('migration-first-only') || id === '1');
   return create(schemas.GetServerUpdateOverviewResponseSchema, {instanceId:setup ? '' : ids[id],version:'v0.1.53-staging.90',commit:'a'.repeat(40),channel:'staging',executorConfigured:!setup,executorAvailable:!setup,target:setup ? undefined : target,operation:operations[id],
     installationId:query.has('legacy') ? '' : ids[id], architecture:'arm64', repository:'server/repository',
-    setupCommand:setup && !query.has('legacy') ? "(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py --expect-installation '"+ids[id]+"' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' --COMPOSE_OPTIONS--\n)" : ''});
+    setupCommand:(setup && !query.has('legacy') || migration && !query.has('migration-unavailable')) ? "(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py install "+(migration ? "--migrate-deployment " : "")+"--bundle /tmp/verified-release --expect-installation '"+ids[id]+"' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' --COMPOSE_OPTIONS--\n)" : '',
+    setupUnavailable:migration && query.has('migration-unavailable') ? query.get('unavailable-detail') || 'The installed release metadata has expired. Manually deploy a compatible published release, then refresh.' : ''});
  },
  previewServerUpdate: async () => {
   await new Promise(resolve => setTimeout(resolve, query.has('slow') ? 700 : 30));

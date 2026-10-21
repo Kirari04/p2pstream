@@ -57,7 +57,11 @@ func TestDockerReviewEnroll(t *testing.T) {
 		t.Fatal(err)
 	}
 	floor := Floor{Sequence: 9000, SecurityEpoch: 1, MinimumSafeVersion: "v0.1.53-staging.9000", ManifestSHA256: strings.Repeat("a", 64)}
-	if err := Enroll(directory, model, os.Getenv("REVIEW_BASELINE"), os.Getenv("REVIEW_HELPER"), "v0.1.53-staging.9000", "review/p2pstream", floor); err != nil {
+	deploymentDirectory := directory + "-deployment"
+	if err := os.Mkdir(deploymentDirectory, 0750); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnrollManagedInstallation(directory, deploymentDirectory, model, os.Getenv("REVIEW_BASELINE"), os.Getenv("REVIEW_HELPER"), "v0.1.53-staging.9000", "review/p2pstream", floor, os.Getenv("REVIEW_INSTALLATION")); err != nil {
 		t.Fatal(err)
 	}
 	var c ComposeConfig
@@ -72,6 +76,133 @@ func TestDockerReviewEnroll(t *testing.T) {
 	if err := AtomicWrite(filepath.Join(directory, "config.json"), b, 0600); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// Native Compose does not take the host lock. Rehearse its actual competing
+// container while the production driver owns offline data, then retain a stale
+// generation waiter across the handoff to a freshly allowed generation.
+func TestDockerReviewNativeGuard(t *testing.T) {
+	if os.Getenv("REVIEW_CONFIG") == "" {
+		t.Skip("isolated Docker fixture required")
+	}
+	c := dockerReviewConfig(t)
+	if c.DeploymentProtocol != 2 {
+		t.Fatal("native recreation rehearsal requires protocol 2")
+	}
+	c.HealthyDwellSeconds, c.HealthTimeoutSeconds = 1, 60
+	d := &ComposeDriver{Config: c}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	defer d.releaseRuntimeLease()
+	baseline, image, _, err := d.Inspect(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Gate(true); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Stop(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.command(ctx, "--config", "/review/native-docker", "compose", "--project-name", c.Project, "--project-directory", filepath.Dir(c.DeploymentFile), "-f", c.DeploymentFile,
+		"up", "-d", "--no-deps", "--no-build", "--pull", "never", "--force-recreate", "p2pstream"); err != nil {
+		t.Fatal(err)
+	}
+	id, err := d.container(ctx)
+	if err != nil || id == "" {
+		t.Fatal("native recreation did not create a waiting server", err)
+	}
+	if _, err := d.command(ctx, "exec", id, "/app/p2pstream", "server-health"); err == nil {
+		t.Fatal("native recreation opened the management listener during offline ownership")
+	}
+	if err := d.requireOfflineLease(); err != nil {
+		t.Fatal("native recreation altered blocked data ownership", err)
+	}
+	if _, err := d.Backup(ctx, uuid.NewString()); err == nil {
+		t.Fatal("offline backup ignored the separately running native container")
+	}
+	if err := d.Stop(ctx); err != nil {
+		t.Fatal(err)
+	}
+	model, err := os.ReadFile(c.DeploymentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service, err := receiptService(model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleName := c.Project + "-stale-generation"
+	args := []string{"run", "-d", "--name", staleName, "--network", "none", "--read-only", "--tmpfs", "/tmp", "--cap-drop", "ALL", "--cap-add", "NET_BIND_SERVICE",
+		"--mount", "type=volume,source=" + c.DataVolume + ",target=/data", "--mount", "type=bind,source=" + c.ControlDir + ",target=" + RuntimeControlDir + ",readonly"}
+	for key, value := range receiptMap(service["environment"]) {
+		text, ok := value.(string)
+		if !ok {
+			t.Fatal("unexpected fixture environment type")
+		}
+		args = append(args, "--env", key+"="+text)
+	}
+	args = append(args, image)
+	if _, err := d.command(ctx, args...); err != nil {
+		t.Fatal(err)
+	}
+	defer d.command(context.Background(), "rm", "--force", staleName)
+	// Deploy writes a fresh generation while still holding the lease, then
+	// allows that generation before releasing it. The old waiter must fail.
+	if err := d.Deploy(ctx, image); err != nil {
+		t.Fatal(err)
+	}
+	replacement, err := d.container(ctx)
+	if err != nil || replacement == "" {
+		t.Fatal("missing newly allowed replacement", err)
+	}
+	// Either waiting process can win the released lease. Stop the newly
+	// allowed candidate without changing admission, so the stale waiter must
+	// get a turn and validate the new generation deterministically.
+	if _, err := d.command(ctx, "stop", "--time", "30", replacement); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		raw, err := d.command(ctx, "inspect", staleName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var states []struct {
+			State struct {
+				Running  bool
+				ExitCode int
+			}
+		}
+		if err := json.Unmarshal(raw, &states); err != nil || len(states) != 1 {
+			t.Fatal("invalid stale container inspection", err)
+		}
+		if !states[0].State.Running {
+			logs, _ := d.command(ctx, "logs", staleName)
+			if states[0].State.ExitCode == 0 || !strings.Contains(string(logs), "runtime start is blocked") {
+				t.Fatalf("stale generation did not fail at admission: exit=%d logs=%s", states[0].State.ExitCode, logs)
+			}
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+	if _, err := d.command(ctx, "start", replacement); err != nil {
+		t.Fatal(err)
+	}
+	release := Release{Version: baseline.Version, Commit: baseline.Commit, Image: image, Metadata: Metadata{TargetSchema: baseline.Schema}}
+	if err := d.Healthy(ctx, release, baseline); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Gate(false); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Native force-recreate could not write offline data; stale generation was rejected after lease handoff")
 }
 
 type dockerReviewDriver struct {

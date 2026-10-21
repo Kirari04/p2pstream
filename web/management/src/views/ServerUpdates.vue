@@ -41,6 +41,8 @@ const composeFiles = ref("");
 const composeEnvFiles = ref("");
 const composeDirectory = ref("");
 const setupCommand = computed(() => serverSetupCommand(overview.value?.setupCommand ?? "", { project: composeProject.value, files: composeFiles.value, envFiles: composeEnvFiles.value, directory: composeDirectory.value }));
+const deploymentMigration = computed(() => Boolean(overview.value?.executorConfigured && (overview.value.setupCommand || overview.value.setupUnavailable)));
+const showSetup = computed(() => Boolean(overview.value && !running.value && !pending.value && !blocked.value && (!overview.value.executorConfigured || deploymentMigration.value)));
 const actionIsCurrent = (revision: number, requestScope: string) => !disposed && revision === actionRevision && requestScope === scope();
 
 function savePending(value: PendingServerUpdate | null) {
@@ -54,7 +56,9 @@ function loadPending() {
 const polling = createAgentUpdatePolling({
   scope,
   canPoll: () => !busy.value && !blocked.value && document.visibilityState !== "hidden",
-  load: (signal) => client.getServerUpdateOverview({}, { signal, timeoutMs: running.value || pending.value || stale.value ? 10000 : 90000 }),
+  // Idle reads may resolve and verify the release catalog. A previous failure
+  // must not keep canceling that work with the shorter operation-status budget.
+  load: (signal) => client.getServerUpdateOverview({}, { signal, timeoutMs: running.value || pending.value ? 10000 : 90000 }),
   apply: (response) => {
     // An unavailable executor cannot contradict the last accepted operation.
     // Keep its progress visible while the independent updater reconnects.
@@ -126,9 +130,19 @@ async function start(retry = false) {
 }
 
 async function copySetup() {
-  try { await navigator.clipboard.writeText(setupCommand.value); copied.value = true; } catch { error.value = "Select and copy the setup command below."; }
+  if (!setupCommand.value || busy.value || running.value || pending.value || blocked.value) return;
+  const revision = actionRevision;
+  const requestScope = scope();
+  const migration = deploymentMigration.value;
+  try {
+    await navigator.clipboard.writeText(setupCommand.value);
+    if (actionIsCurrent(revision, requestScope)) copied.value = true;
+  } catch {
+    if (actionIsCurrent(revision, requestScope)) error.value = migration ? "Select and copy the migration command below." : "Select and copy the setup command below.";
+  }
 }
 
+watch(setupCommand, () => { copied.value = false; });
 watch(() => [environmentId.value, blocked.value], () => {
   actionRevision += 1;
   composeProject.value = ""; composeFiles.value = ""; composeEnvFiles.value = ""; composeDirectory.value = "";
@@ -172,9 +186,18 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <div class="update-policy"><ShieldCheck :size="22" /><div><strong>You choose when to update</strong><p>Unattended updates are off. The installed image stays pinned until you select another release.</p></div></div>
     </div>
 
-    <NCard v-if="overview && !overview.executorConfigured" title="Enable server updates">
-      <p>Run the complete block on <strong>{{ environmentLabel }}</strong>’s <strong>Docker host</strong>, from the directory containing its running Compose deployment and <code>.env</code>. It verifies this installation and release, installs the independent updater, and restarts the server once.</p>
-      <NAlert type="warning" class="update-blocker">The updater receives host-level Docker authority. Enable it only on the intended host. Public traffic and agent tunnels reconnect after the restart.</NAlert>
+    <NCard v-if="overview && showSetup" :title="deploymentMigration ? 'Upgrade deployment integration' : 'Enable server updates'" :class="{ 'update-migration': deploymentMigration }">
+      <template v-if="deploymentMigration" #header-extra><NTag size="small" :bordered="false" type="info">One-time migration</NTag></template>
+      <template v-if="deploymentMigration">
+        <p>Connect <strong>{{ environmentLabel }}</strong>’s existing updater to the managed Compose deployment. Run the complete migration block on its <strong>Docker host</strong>, from the directory containing the running deployment.</p>
+        <div class="update-migration-facts" aria-label="Migration preserves deployment"><div><span>Current image</span><strong>Preserved</strong></div><div><span>Data volume</span><strong>Preserved</strong></div><div><span>Existing token</span><strong>Preserved</strong></div></div>
+        <NAlert type="warning" class="update-blocker">Migration restarts the server once. Public requests and agent tunnels are interrupted during this restart.</NAlert>
+        <p class="update-migration-copy">After migration, the original Compose files become bridges to the managed deployment, so ordinary <code>docker compose</code> commands use that deployment. The installer prints the saved editable paths.</p>
+      </template>
+      <template v-else>
+        <p>Run the complete block on <strong>{{ environmentLabel }}</strong>’s <strong>Docker host</strong>, from the directory containing its running Compose deployment and <code>.env</code>. It verifies this installation and release, installs the independent updater, and restarts the server once.</p>
+        <NAlert type="warning" class="update-blocker">The updater receives host-level Docker authority. Enable it only on the intended host. Public traffic and agent tunnels reconnect after the restart.</NAlert>
+      </template>
       <template v-if="setupCommand">
         <details class="update-context"><summary>Custom Compose project or files</summary>
           <p>Use the same options as the running deployment. Paths are relative to the directory where you paste the block. Leave these blank for the default Compose context.</p>
@@ -183,10 +206,12 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
           <label>Environment files (one per line)<NInput v-model:value="composeEnvFiles" type="textarea" aria-label="Compose environment files" placeholder=".env" :autosize="{ minRows: 1, maxRows: 3 }" /></label>
           <label>Project directory override<NInput v-model:value="composeDirectory" aria-label="Compose project directory" placeholder="Leave blank to use the deployment directory" /></label>
         </details>
-        <div class="update-command"><pre><code>{{ setupCommand }}</code></pre><NButton size="small" @click="copySetup"><template #icon><Check v-if="copied" :size="16" /><Copy v-else :size="16" /></template>{{ copied ? 'Copied' : 'Copy complete setup' }}</NButton></div>
+        <div class="update-command"><pre><code>{{ setupCommand }}</code></pre><NButton size="small" :disabled="busy" @click="copySetup"><template #icon><Check v-if="copied" :size="16" /><Copy v-else :size="16" /></template>{{ copied ? 'Copied' : deploymentMigration ? 'Copy migration command' : 'Copy complete setup' }}</NButton></div>
         <p class="muted-text">Release {{ overview.version }} · Linux {{ overview.architecture }} · Installation {{ overview.installationId.slice(0, 8) }}. Requires Bash, curl, Python 3.9+, sudo, and local rootful Docker with Compose. GitHub and the publisher are the download trust source; checksums bind the downloaded content.</p>
-        <p class="muted-text">Keep this page open: it refreshes after the restart and confirms updater availability. Edit your original Compose files and <code>.env</code> afterward, then use <code>sudo /etc/p2pstream-server-updater/manage apply</code> to apply settings while preserving the pinned release.</p>
+        <div v-if="deploymentMigration" class="update-migration-settings"><strong>Settings after migration</strong><p>Edit the saved Compose inputs named <code>*.p2pstream-input-*</code> and the recorded environment files using the paths printed by the installer. Apply settings with <code>sudo /etc/p2pstream-server-updater/manage apply</code>.</p></div>
+        <p class="muted-text">Keep this page open: it refreshes after the restart and confirms updater availability. Use the editable input paths reported by the installer when changing settings, then run <code>sudo /etc/p2pstream-server-updater/manage apply</code> to preserve the pinned release.</p>
       </template>
+      <NAlert v-else-if="deploymentMigration" type="warning" title="Migration command unavailable">{{ overview.setupUnavailable || 'This server did not provide a supported verified migration command.' }} Resolve the reported prerequisite, then refresh. Continue using the existing host controller until migration completes.</NAlert>
       <NAlert v-else type="info" title="Manual release upgrade required">{{ overview.setupUnavailable || 'This server does not provide a verified installation bundle and installation identity. Manually deploy a published release with Docker installation support, then refresh this page.' }}</NAlert>
       <p class="muted-text">Supported: one Linux amd64/arm64 Compose server with a writable named <code>/data</code> volume. Native, rootless, Swarm, custom entrypoints, deployment hooks, external databases, and unsupported data layouts require host deployment procedures. Copied commands are rejected if this server’s identity, release, or deployment changed.</p>
     </NCard>
@@ -197,7 +222,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <template v-else-if="operation?.phase === 'recovery_required'">Resolve the host recovery above before applying settings or starting another update.</template>
       <template v-else-if="running">Wait for the confirmed host outcome above before applying settings. The updater continues independently of this page.</template>
       <template v-else-if="operation && operation.phase !== 'succeeded'">Review the recorded failure above and resolve its cause before previewing a release or applying deployment changes.</template>
-      <template v-else>Settings remain editable in your Compose inputs. Apply changes with <code>sudo /etc/p2pstream-server-updater/manage apply</code>. Later software updates remain your choice.</template>
+      <template v-else>Use the editable input paths recorded by your host controller when changing settings. Apply changes with <code>sudo /etc/p2pstream-server-updater/manage apply</code>. Later software updates remain your choice.</template>
     </NAlert>
 
     <NAlert v-if="pending" type="info" title="Update request awaiting confirmation">
@@ -234,6 +259,8 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 .update-summary{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--app-border);border-radius:8px;overflow:hidden}.update-version{padding:1.5rem;display:grid;gap:.65rem;min-width:0}.update-version>strong{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;overflow-wrap:anywhere}.update-meta{display:flex;gap:.8rem;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:.75rem}
 .update-policy{padding:1.5rem;display:flex;gap:.8rem;align-items:flex-start;background:var(--app-panel-muted);border-left:1px solid var(--app-border)}.update-policy>svg{flex-shrink:0;color:var(--app-accent)}.update-policy p{font-size:.82rem;margin:.4rem 0 0;color:var(--app-text-muted)}
 .update-connection{padding:.8rem 1rem;border:1px solid var(--app-border);border-radius:6px;background:var(--app-panel-muted)}.update-connection>div{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.75rem}.update-connection svg{color:var(--app-success);flex-shrink:0}.update-connection strong{font-weight:500}.update-connection span{color:var(--app-text-muted);font-family:var(--font-mono);font-size:.65rem;margin-left:auto}.update-connection p{color:var(--app-text-muted);font-size:.72rem;line-height:1.6;margin:.4rem 0 0;overflow-wrap:anywhere}.update-connection--waiting svg{color:var(--app-warning)}
+.update-migration{border-top:3px solid var(--app-accent)}.update-migration-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:1rem 0;border:1px solid var(--app-border);border-radius:6px;background:var(--app-panel-muted)}.update-migration-facts>div{display:grid;gap:.3rem;padding:.8rem 1rem}.update-migration-facts>div+div{border-left:1px solid var(--app-border)}.update-migration-facts span{font-size:.7rem;color:var(--app-text-muted)}.update-migration-facts strong{font-family:var(--font-mono);font-size:.75rem;font-weight:500}.update-migration-copy{font-size:.82rem;line-height:1.65}.update-migration-settings{padding:.8rem 1rem;border-left:2px solid var(--app-accent);background:var(--app-panel-muted);margin:1rem 0}.update-migration-settings>strong{font-size:.8rem}.update-migration-settings p{font-size:.78rem;line-height:1.7;margin:.4rem 0 0}.update-migration-settings code{overflow-wrap:anywhere}
 .update-command,.update-actions,.update-operation{display:flex;align-items:center;gap:.75rem}.update-context{margin:1rem 0}.update-context label{display:grid;gap:.4rem;margin:.8rem 0}.update-command pre{margin:0;min-width:0;overflow:auto;max-height:32rem;white-space:pre-wrap;overflow-wrap:anywhere}.update-command{padding:.75rem 1rem;border:1px solid var(--app-border);border-radius:6px;justify-content:space-between;margin:1rem 0}.update-command code{overflow-wrap:anywhere;min-width:0}.update-actions .n-input{max-width:380px}.update-operation{flex-wrap:wrap;margin-bottom:.75rem}.update-blocker{margin-bottom:.75rem}.update-details{margin:1rem 0}.update-details code{display:block;overflow-wrap:anywhere;font-size:.7rem;margin-top:.75rem}.update-modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.25rem}.muted-text{font-size:.8rem}
 @media(max-width:640px){.update-heading{flex-direction:column}.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command{flex-direction:column;align-items:flex-start}}
+@media(max-width:420px){.update-migration-facts{grid-template-columns:1fr}.update-migration-facts>div{display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem}.update-migration-facts>div+div{border-left:0;border-top:1px solid var(--app-border)}}
 </style>
