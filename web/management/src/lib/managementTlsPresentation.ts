@@ -66,3 +66,12 @@ export function managementTlsRotationStep(phase: ManagementTlsRotationPhase): nu
   if (phase === ManagementTlsRotationPhase.RETIRING) return 4;
   return 0;
 }
+
+/** Human label for an in-progress rotation phase; empty when idle or unknown. */
+export function managementTlsPhaseLabel(phase: ManagementTlsRotationPhase, cleanupTitle: string): string {
+  if (phase === ManagementTlsRotationPhase.DISTRIBUTING) return "Distributing trust";
+  if (phase === ManagementTlsRotationPhase.ACTIVE) return "Certificate active";
+  if (phase === ManagementTlsRotationPhase.RETIRING) return "Retiring old trust";
+  if (phase === ManagementTlsRotationPhase.CLEANING_UP) return cleanupTitle;
+  return "";
+}

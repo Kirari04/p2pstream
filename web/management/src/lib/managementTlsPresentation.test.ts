@@ -9,6 +9,7 @@ import {
   managementCertificateExpiryStatus,
   managementCertificateExpiryWarning,
   managementTlsAgentDetail,
+  managementTlsPhaseLabel,
   managementTlsRotationStep,
   summarizeManagementTlsFleet,
 } from "./managementTlsPresentation";
@@ -59,5 +60,11 @@ describe("management TLS presentation", () => {
     expect(managementTlsRotationStep(ManagementTlsRotationPhase.ACTIVE)).toBe(3);
     expect(managementTlsRotationStep(ManagementTlsRotationPhase.RETIRING)).toBe(4);
     expect(managementTlsRotationStep(ManagementTlsRotationPhase.CLEANING_UP)).toBe(0);
+  });
+
+  test("labels in-progress phases and stays empty when idle", () => {
+    expect(managementTlsPhaseLabel(ManagementTlsRotationPhase.IDLE, "Cleanup")).toBe("");
+    expect(managementTlsPhaseLabel(ManagementTlsRotationPhase.DISTRIBUTING, "Cleanup")).toBe("Distributing trust");
+    expect(managementTlsPhaseLabel(ManagementTlsRotationPhase.CLEANING_UP, "Rollback trust cleanup")).toBe("Rollback trust cleanup");
   });
 });

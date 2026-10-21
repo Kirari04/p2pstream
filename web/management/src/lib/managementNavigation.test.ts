@@ -70,6 +70,15 @@ describe("managementNavigation", () => {
     ]);
   });
 
+  test("keeps Management TLS active and labeled on its rotation subpage", () => {
+    const system = MANAGEMENT_NAVIGATION.find((group) => group.key === "system");
+    const managementTls = system?.items.find((item) => item.key === "management-tls");
+    expect(managementTls).toBeDefined();
+    expect(isManagementNavigationItemActive(managementTls!, "/settings/management-tls/rotation")).toBe(true);
+    expect(managementBreadcrumbsForPath("/settings/management-tls/rotation").map((crumb) => crumb.label)).toEqual(["System", "Management TLS"]);
+    expect(isManagementNavigationItemActive(managementTls!, "/settings/management-tls-other")).toBe(false);
+  });
+
   test("returns the deepest route label with a safe fallback", () => {
     expect(managementRouteLabel("/proxy/sites")).toBe("Sites");
     expect(managementRouteLabel("/proxy/listeners")).toBe("Listeners");

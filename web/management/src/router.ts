@@ -11,6 +11,7 @@ const ServerUpdates = () => import('./views/ServerUpdates.vue');
 const SettingsApiTokens = () => import('./views/SettingsApiTokens.vue');
 const SettingsEnvironments = () => import('./views/SettingsEnvironments.vue');
 const SettingsManagementTls = () => import('./views/SettingsManagementTls.vue');
+const SettingsManagementTlsRotation = () => import('./views/SettingsManagementTlsRotation.vue');
 const ProxyConfig = () => import('./views/ProxyConfig.vue');
 const TrafficPolicies = () => import('./views/TrafficPolicies.vue');
 const ResponseTemplates = () => import('./views/ResponseTemplates.vue');
@@ -45,6 +46,7 @@ const routes = [
       { path: 'environments', name: 'settings-environments', component: SettingsEnvironments },
       { path: 'api-tokens', name: 'settings-api-tokens', component: SettingsApiTokens },
       { path: 'management-tls', name: 'settings-management-tls', component: SettingsManagementTls },
+      { path: 'management-tls/rotation', name: 'settings-management-tls-rotation', component: SettingsManagementTlsRotation },
       { path: 'updates', name: 'settings-updates', component: ServerUpdates },
     ],
   },
