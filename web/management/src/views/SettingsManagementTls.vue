@@ -54,22 +54,22 @@ const agentColumns: DataTableColumns<ManagementTlsAgentRollout> = [
   {
     title: "Agent",
     key: "agent",
-    minWidth: 180,
-    render: (agent) => h("div", { class: "layout-grid space-xxs" }, [
-      h("span", { class: "weight-medium" }, agent.agentName || agent.agentPublicId),
-      h("code", { class: "copy-2xs muted-text" }, agent.agentPublicId),
+    minWidth: 170,
+    render: (agent) => h("div", { class: "layout-grid space-2xs min-width-zero" }, [
+      h("span", { class: "clip-text weight-medium" }, agent.agentName || agent.agentPublicId),
+      h("code", { class: "clip-text copy-2xs muted-text", title: agent.agentPublicId }, agent.agentPublicId),
     ]),
   },
   {
     title: "Connection",
     key: "connected",
-    width: 120,
+    width: 104,
     render: (agent) => h(NTag, { size: "small", bordered: false, type: agent.connected ? "success" : "default" }, { default: () => agent.enabled ? (agent.connected ? "Online" : "Offline") : "Disabled" }),
   },
   {
     title: "Trust state",
     key: "state",
-    width: 180,
+    width: 160,
     render: (agent) => h("div", { class: "layout-row align-center space-xs" }, [
       h(NTag, { size: "small", bordered: false, type: rolloutTagType(agent.state) }, { default: () => rolloutLabel(agent.state) }),
       agent.needsTrustAttention ? h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Attention" }) : null,
@@ -78,19 +78,19 @@ const agentColumns: DataTableColumns<ManagementTlsAgentRollout> = [
   {
     title: "Version",
     key: "version",
-    width: 120,
+    width: 104,
     render: (agent) => h("code", { class: "copy-xs" }, agent.agentVersion ? diagnosticExcerpt(agent.agentVersion, 48).text : "Unknown"),
   },
   {
     title: "Last report",
     key: "reported",
-    width: 170,
+    width: 150,
     render: (agent) => h("span", { class: "copy-xs muted-text" }, formatTime(agent.reportedAtUnixMillis)),
   },
   {
     title: "Detail",
     key: "detail",
-    minWidth: 220,
+    minWidth: 160,
     render: (agent) => h("span", { class: "copy-xs muted-text wrap-anywhere" }, agent.errorDetail ? diagnosticExcerpt(agent.errorDetail, 160).text : rolloutDetail(agent)),
   },
 ];
@@ -239,6 +239,16 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
 
 <template>
   <div class="stack-xl management-tls-page">
+    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
+      <div>
+        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Management TLS</h4>
+        <p class="copy-sm muted-text">Certificate serving this management UI and the CA bundle agents use to trust it.</p>
+      </div>
+      <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh certificate status" @click="refresh()">
+        <template #icon><RefreshIcon class="icon-sm" /></template>
+        Refresh
+      </NButton>
+    </div>
     <NAlert v-if="remoteSelected" type="warning" :bordered="false">
       Management TLS changes are intentionally local-only. Select the Local environment to operate on the certificate serving this UI.
     </NAlert>
@@ -271,7 +281,6 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
         <div class="layout-row align-center space-sm">
           <NTag v-if="phase !== ManagementTlsRotationPhase.IDLE" type="info" :bordered="false">{{ phase === ManagementTlsRotationPhase.CLEANING_UP ? cleanupTitle : phase === ManagementTlsRotationPhase.DISTRIBUTING ? 'Distributing trust' : phase === ManagementTlsRotationPhase.ACTIVE ? 'Certificate active' : 'Retiring old trust' }}</NTag>
           <NTag :type="rotation?.tlsEnabled ? 'success' : 'error'" :bordered="false">{{ rotation?.tlsEnabled ? 'TLS enabled' : 'TLS disabled' }}</NTag>
-          <NButton quaternary :loading="loading && !operation" aria-label="Refresh certificate status" @click="refresh()"><template #icon><RefreshIcon class="icon-sm" /></template></NButton>
         </div>
       </div>
 
@@ -338,7 +347,7 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
         <span :style="{ width: `${rolloutPercent}%` }" />
       </div>
 
-      <NDataTable :columns="agentColumns" :data="rotation?.agents ?? []" :row-key="(agent: ManagementTlsAgentRollout) => agent.agentId.toString()" :pagination="false" :bordered="false" :single-line="false" :scroll-x="980" size="small" />
+      <NDataTable :columns="agentColumns" :data="rotation?.agents ?? []" :row-key="(agent: ManagementTlsAgentRollout) => agent.agentId.toString()" :pagination="false" :bordered="false" :single-line="false" :scroll-x="848" size="small" />
 
       <div v-if="phase !== ManagementTlsRotationPhase.IDLE" class="layout-row layout-column space-sm mq-sm-row">
         <template v-if="phase === ManagementTlsRotationPhase.DISTRIBUTING">
@@ -377,7 +386,7 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
 .management-tls-page { gap: 1.25rem; }
 .tls-mark { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; color: var(--app-accent); background: var(--app-accent-soft); }
 .cert-grid { display: grid; gap: 0.875rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.cert-card { padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.75rem; background: var(--app-panel-muted); display: grid; gap: 0.75rem; min-width: 0; }
+.cert-card { padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.75rem; background: var(--app-panel-muted); display: grid; align-content: start; gap: 0.75rem; min-width: 0; }
 .cert-card--staged { border-style: dashed; }
 .cert-facts { display: grid; gap: 0.45rem; margin: 0; }
 .cert-facts div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.75rem; font-size: 0.75rem; }
