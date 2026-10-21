@@ -41,7 +41,7 @@ func managedRuntimeFixture(t *testing.T) (*ComposeDriver, RuntimeOwner) {
 	cfg.Docker = filepath.Join(dir, "docker")
 	// Model Docker's stopped creation independently of the owner marker. The
 	// stop assertion observes the durable guard at the external side effect.
-	script := `#!/usr/bin/python3
+	script := `#!/usr/bin/env python3
 import json,pathlib,sys
 root=pathlib.Path(__file__).parent
 args=sys.argv[1:]

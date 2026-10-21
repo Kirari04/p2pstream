@@ -335,6 +335,24 @@ class Lifecycle(unittest.TestCase):
                     self.install()
                 self.assertFalse((self.state / 'config.json').exists())
 
+    def test_custom_project_probe_anchors_derived_name_without_using_project_flag(self):
+        original_docker = self.docker
+        observed = []
+        def environment(*args, **kwargs):
+            if '--environment' in args:
+                self.assertNotIn('-p', args)
+                self.assertNotIn('--project-name', args)
+                inputs = [value for index, value in enumerate(args) if index and args[index - 1] == '-f']
+                self.assertEqual(len(inputs), 3)
+                self.assertEqual(host.read_json(Path(inputs[-1])), {'name': 'custom-project'})
+                observed.append(inputs[-1])
+                return subprocess.CompletedProcess(args, 0, b'COMPOSE_PROJECT_NAME=custom-project\n', b'')
+            return original_docker(*args, **kwargs)
+        with patch.object(host, 'docker', environment):
+            self.install()
+        self.assertEqual(len(observed), 1)
+        self.assertFalse(Path(observed[0]).exists())
+
     def test_incompatible_migration_capabilities_preserve_legacy_state_and_sources(self):
         self.install()
         cfg = (self.state / 'config.json').read_bytes()
@@ -363,6 +381,66 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(cfg['deployment_protocol'], 2)
         self.assertEqual(self.restart_count, 2)
         self.assertNotIn(cfg['token'].encode(), Path(cfg['deployment_file']).read_bytes())
+
+    def test_verified_migration_repairs_broken_legacy_binding_before_transition(self):
+        self.install()
+        old_cfg = host.read_json(self.state / 'config.json')
+        self.detach()
+        self.managed = True
+        self.args.migrate_deployment = True
+        self.install()
+        cfg = host.read_json(self.state / 'config.json')
+        self.assertEqual(cfg['deployment_protocol'], 2)
+        self.assertEqual(cfg['token'], old_cfg['token'])
+        self.assertEqual(cfg['instance_id'], old_cfg['instance_id'])
+        self.assertEqual(cfg['data_volume'], old_cfg['data_volume'])
+        self.assertEqual(self.restart_count, 3)  # Exact repair, then explicit migration.
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_verified_ordinary_install_repairs_legacy_binding_without_upgrading_tools(self):
+        self.install()
+        cfg = (self.state / 'config.json').read_bytes()
+        controller = (self.state / 'server-updater-host.py').read_bytes()
+        model = (self.state / 'compose.json').read_bytes()
+        self.detach()
+        before = len(self.commands)
+        self.install()
+        self.assertEqual(self.restart_count, 2)
+        self.assertFalse(self.detached)
+        self.assertEqual((self.state / 'config.json').read_bytes(), cfg)
+        self.assertEqual((self.state / 'compose.json').read_bytes(), model)
+        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), controller)
+        self.assertFalse(any(item[0] == 'docker' and item[1][0] == 'pull' for item in self.commands[before:]))
+
+    def test_verified_install_does_not_apply_legacy_recovery_to_protocol_two(self):
+        self.managed = True
+        self.install()
+        self.detach()
+        with self.assertRaisesRegex(host.Failure, 'outside the enrolled deployment'):
+            self.install()
+        self.assertEqual(self.restart_count, 1)
+
+    def test_verified_migration_refuses_legacy_drift_before_repair_or_tool_replacement(self):
+        self.install()
+        controller = (self.state / 'server-updater-host.py').read_bytes()
+        config = (self.state / 'config.json').read_bytes()
+        self.detach()
+        self.args.migrate_deployment = True
+        self.info['Image'] = 'sha256:other'
+        with self.assertRaisesRegex(host.Failure, 'Running image changed'):
+            self.install()
+        self.assertEqual(self.restart_count, 1)
+        self.assertEqual((self.state / 'server-updater-host.py').read_bytes(), controller)
+        self.assertEqual((self.state / 'config.json').read_bytes(), config)
+
+    def test_verified_migration_never_repairs_during_active_update(self):
+        self.install()
+        self.detach()
+        self.args.migrate_deployment = True
+        host.atomic(self.state / 'state.json', {'operation': {'id': 'active', 'phase': 'validating'}})
+        with self.assertRaisesRegex(host.Failure, 'paused data recovery is active'):
+            self.install()
+        self.assertEqual(self.restart_count, 1)
 
     def test_legacy_migration_resumes_same_conversion_after_source_interruption(self):
         self.install()

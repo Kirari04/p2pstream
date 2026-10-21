@@ -238,6 +238,10 @@ test('configured legacy deployment offers an exact, environment-bound migration 
  await expect(card).toContainText('original Compose files become bridges');
  await expect(card).toContainText('*.p2pstream-input-*');
  await expect(card).toContainText('paths printed by the installer');
+ const enabled=page.locator('.n-alert').filter({hasText:'Updates enabled · updater verified'});
+ await expect(enabled).toContainText('Complete the one-time migration above to enable ordinary Compose recreation.');
+ await expect(enabled).toContainText('Until then, apply settings through your existing host controller.');
+ await expect(enabled).not.toContainText('Use the editable input paths recorded by your host controller');
  await card.getByText('Custom Compose project or files',{exact:true}).click();
  await page.getByLabel('Compose project name',{exact:true}).fill('production');
  await page.getByLabel('Compose files',{exact:true}).fill('compose.yaml\nproduction with spaces.yaml');

@@ -232,7 +232,14 @@ def source_layout(source_dir, files, project, owned_aliases=None):
     for name in ('compose.override.yaml', 'compose.override.yml', 'docker-compose.override.yaml', 'docker-compose.override.yml'):
         path = directory / name
         require(not os.path.lexists(path) or str(path) in files, 'An unrelated automatic Compose override exists; include or resolve it before enrollment')
-    environment = docker('compose', *[part for path in files for part in ('-f', path)], 'config', '--environment', cwd=source_dir)
+    # Compose exposes its effective project name here even when it was only
+    # derived from the directory. A final name-only override anchors that default
+    # to the selected project without using -p, which would hide an explicit
+    # conflicting COMPOSE_PROJECT_NAME from the source .env.
+    with tempfile.TemporaryDirectory(prefix='p2pstream-compose-project-') as tmp:
+        selected = Path(tmp) / 'selected-project.json'
+        atomic(selected, {'name': project})
+        environment = docker('compose', *[part for path in files for part in ('-f', path)], '-f', str(selected), 'config', '--environment', cwd=source_dir)
     values = {}
     if environment.returncode == 0:
         for line in environment.stdout.decode().splitlines():
@@ -996,10 +1003,37 @@ def install(args, options):
             if host.journal['phase'] != 'removed':
                 require(host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options, 'Use the recorded Compose context for this enrollment')
             if host.journal['phase'] == 'healthy':
-                host.healthy()
+                try:
+                    host.healthy()
+                except (Failure, OSError, ValueError) as error:
+                    # The verified installation bundle may be newer than the
+                    # installed host controller. Recover only an exact legacy
+                    # source recreation using its saved executor and credentials
+                    # before attempting protocol migration. No controller or
+                    # executor replacement is needed for this bounded repair.
+                    if isinstance(error, UnsettledHelper) or host.config.get('deployment_protocol', 0) != 0 or host.journal['phase'] != 'healthy':
+                        raise
+                    host.idle()
+                    existing = host.server_container()
+                    if existing['Config']['Labels'].get('com.docker.compose.config-hash') == host.canonical_hash():
+                        raise  # A socket/server failure is not a detached binding.
+                    host.prepare_recreation(detached=True)
+                    host.recreate_server()
+                    # Repair deliberately replaced the selected container. Bind
+                    # subsequent installation/migration checks to its identity,
+                    # rather than treating the expected replacement as drift.
+                    ids = docker('compose', *options, 'ps', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split()
+                    require(len(ids) == 1, 'Expected one repaired server before deployment migration')
+                    container = decode(docker('inspect', ids[0]).stdout)[0]
+                    identity = docker('exec', ids[0], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip()
+                    require(identity == args.expect_installation, 'Installation changed after legacy binding repair')
+                    image = decode(docker('image', 'inspect', container['Image']).stdout)[0]
+                    model_raw = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
+                    model = decode(model_raw)
+                    data_volume = validate_running(container, model, image, arch, args)
                 migration_requested = bool(getattr(args, 'migrate_deployment', False) and host.config.get('deployment_protocol') != 2)
                 if not migration_requested:
-                    print('Enrollment already healthy; no restart and credentials unchanged.')
+                    print('Enrollment healthy; current image and credentials preserved.')
                     return
         # Reuse the saved tools, pins and credentials, never the downloaded
         # helper, to resume an interrupted enrollment.

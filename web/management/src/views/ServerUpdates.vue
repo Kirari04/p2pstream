@@ -222,6 +222,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <template v-else-if="operation?.phase === 'recovery_required'">Resolve the host recovery above before applying settings or starting another update.</template>
       <template v-else-if="running">Wait for the confirmed host outcome above before applying settings. The updater continues independently of this page.</template>
       <template v-else-if="operation && operation.phase !== 'succeeded'">Review the recorded failure above and resolve its cause before previewing a release or applying deployment changes.</template>
+      <template v-else-if="deploymentMigration">Complete the one-time migration above to enable ordinary Compose recreation. Until then, apply settings through your existing host controller.</template>
       <template v-else>Use the editable input paths recorded by your host controller when changing settings. Apply changes with <code>sudo /etc/p2pstream-server-updater/manage apply</code>. Later software updates remain your choice.</template>
     </NAlert>
 
