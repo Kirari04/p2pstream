@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { NAlert, NButton, NButtonGroup, NSkeleton, NTag } from "naive-ui";
+import { NAlert, NButton, NSkeleton, NTag } from "naive-ui";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import {
   availabilityObservedMillis,
   availabilityRangeTicks,
@@ -16,6 +20,7 @@ import type {
   AvailabilityWindow,
 } from "@/lib/agentAvailability";
 import { formatLongDuration, formatPercent } from "@/lib/dashboardStats";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 import type { GetAgentAvailabilityResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 
 const props = defineProps<{
@@ -34,7 +39,11 @@ const emit = defineEmits<{
   retry: [];
 }>();
 
-const windowOptions: AvailabilityWindow[] = ["24h", "7d", "30d"];
+const windowOptions: Array<{ value: AvailabilityWindow; label: string }> = [
+  { value: "24h", label: "24h" },
+  { value: "7d", label: "7d" },
+  { value: "30d", label: "30d" },
+];
 const chart = {
   width: 960,
   height: 224,
@@ -77,7 +86,7 @@ const isZoomed = computed(() => Boolean(zoomRange.value));
 const hasDenseActivity = computed(() => recentAvailabilityFocusRange(fullSegments.value) !== null);
 const selectedAgentValue = computed(() => props.selectedAgentId || null);
 const chartLabel = computed(() => {
-  const agent = props.availability?.agentName || props.selectedAgentId || "Selected agent";
+  const agent = diagnosticExcerpt(props.availability?.agentName || props.selectedAgentId || "Selected agent", 64).text;
   return `${agent} availability over ${props.window}: ${formatPercent(props.availability?.uptimePercent)} uptime`;
 });
 const observationDetail = computed(() => {
@@ -220,25 +229,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="surface-card agent-availability-card" aria-labelledby="agent-availability-title">
-    <div class="agent-availability-card__header">
-      <div>
-        <div class="agent-availability-card__title-row">
-          <h4 id="agent-availability-title">Availability history</h4>
-          <NTag
-            v-if="availability"
-            size="small"
-            :bordered="false"
-            :type="availability.connected ? 'success' : 'error'"
-          >
-            {{ availability.connected ? 'Online now' : 'Offline now' }}
-          </NTag>
-          <NTag v-if="availability" size="small" :bordered="false" type="default" class="agent-availability-card__freshness">
-            {{ freshnessLabel }}
-          </NTag>
-        </div>
-        <p>Exact management connection state—no synthetic ping or smoothed gaps.</p>
-      </div>
+  <SectionCard
+    title="Availability history"
+    description="Exact management connection state—no synthetic ping or smoothed gaps."
+    class="agent-availability-card"
+    aria-label="Availability history"
+  >
+    <template v-if="availability" #badge>
+      <NTag size="small" :bordered="false" :type="availability.connected ? 'success' : 'error'">
+        {{ availability.connected ? 'Online now' : 'Offline now' }}
+      </NTag>
+      <span class="agent-availability-card__freshness">{{ freshnessLabel }}</span>
+    </template>
+    <template #actions>
       <div class="agent-availability-card__controls">
         <AccessibleSelect
           :value="selectedAgentValue"
@@ -250,69 +253,45 @@ onBeforeUnmount(() => {
           class="agent-availability-card__agent-select"
           @update:value="handleAgentSelection"
         />
-        <NButtonGroup size="small" role="group" aria-label="Availability window">
-          <NButton
-            v-for="label in windowOptions"
-            :key="label"
-            attr-type="button"
-            :aria-pressed="window === label"
-            :type="window === label ? 'primary' : 'default'"
-            @click="emit('update:window', label)"
-          >
-            {{ label }}
-          </NButton>
-        </NButtonGroup>
+        <SegmentedControl
+          :model-value="window"
+          :options="windowOptions"
+          label="Availability window"
+          @update:model-value="emit('update:window', $event)"
+        />
       </div>
-    </div>
+    </template>
 
     <div v-if="!selectedAgentId" class="agent-availability-card__empty">
-      <div class="agent-availability-card__empty-signal" aria-hidden="true">
-        <span /><span /><span /><span /><span />
-      </div>
-      <div>
-        <strong>Select an agent to inspect availability</strong>
-        <p>The chart will reconstruct online sessions and outage gaps across the selected window.</p>
-      </div>
+      <strong>Select an agent to inspect availability</strong>
+      <p>The chart will reconstruct online sessions and outage gaps across the selected window.</p>
     </div>
 
-    <template v-else>
-      <NAlert v-if="error" :type="availability ? 'warning' : 'error'" :show-icon="false" class="agent-availability-card__alert">
+    <div v-else class="agent-availability-card__content">
+      <NAlert v-if="error" :type="availability ? 'warning' : 'error'" :show-icon="false" :bordered="false">
         <div class="agent-availability-card__alert-content">
-          <span>{{ error }}</span>
+          <bdi dir="ltr">{{ diagnosticInspectionText(error) }}</bdi>
           <NButton secondary size="tiny" attr-type="button" @click="emit('retry')">Retry</NButton>
         </div>
       </NAlert>
 
       <div v-if="loading && !availability" class="agent-availability-card__loading" aria-label="Loading agent availability">
-        <div class="agent-availability-card__stats">
-          <NSkeleton v-for="index in 4" :key="index" text :repeat="2" />
-        </div>
-        <NSkeleton height="14rem" />
+        <NSkeleton text :repeat="2" />
+        <NSkeleton height="12rem" />
       </div>
 
       <div v-else-if="availability" class="agent-availability-card__body" :aria-busy="loading">
-        <dl class="agent-availability-card__stats">
-          <div>
-            <dt>Availability</dt>
-            <dd>{{ formatPercent(availability.uptimePercent) }}</dd>
-            <small>{{ observationDetail }}</small>
-          </div>
-          <div>
-            <dt>Total downtime</dt>
-            <dd>{{ formatAvailabilityDuration(availability.downtimeMillis) }}</dd>
-            <small>inside observed range</small>
-          </div>
-          <div>
-            <dt>Disconnects</dt>
-            <dd>{{ availability.disconnectCount.toString() }}</dd>
-            <small>completed sessions</small>
-          </div>
-          <div>
-            <dt>Longest outage</dt>
-            <dd>{{ formatAvailabilityDuration(availability.longestDowntimeMillis) }}</dd>
-            <small>continuous offline time</small>
-          </div>
-        </dl>
+        <MetricStrip label="Availability summary">
+          <MetricCard label="Availability" :value="formatPercent(availability.uptimePercent)" :detail="observationDetail" />
+          <MetricCard label="Total downtime" :value="formatAvailabilityDuration(availability.downtimeMillis)" detail="Inside observed range" />
+          <MetricCard
+            label="Disconnects"
+            :value="availability.disconnectCount.toString()"
+            :tone="availability.disconnectCount > 0n ? 'warning' : 'default'"
+            detail="Completed sessions"
+          />
+          <MetricCard label="Longest outage" :value="formatAvailabilityDuration(availability.longestDowntimeMillis)" detail="Continuous offline time" />
+        </MetricStrip>
 
         <figure class="agent-availability-chart">
           <div class="agent-availability-chart__viewport">
@@ -325,6 +304,7 @@ onBeforeUnmount(() => {
               <title>{{ chartLabel }}</title>
               <line class="agent-availability-chart__grid" :x1="chart.left" :x2="chart.width - chart.right" :y1="chart.onlineY" :y2="chart.onlineY" />
               <line class="agent-availability-chart__grid" :x1="chart.left" :x2="chart.width - chart.right" :y1="chart.offlineY" :y2="chart.offlineY" />
+              <line class="agent-availability-chart__baseline" :x1="chart.left" :x2="chart.width - chart.right" :y1="plotBottom" :y2="plotBottom" />
               <text class="agent-availability-chart__state-label" :x="chart.left - 12" :y="chart.onlineY + 4" text-anchor="end">Online</text>
               <text class="agent-availability-chart__state-label" :x="chart.left - 12" :y="chart.offlineY + 4" text-anchor="end">Offline</text>
 
@@ -365,11 +345,11 @@ onBeforeUnmount(() => {
               </g>
 
               <g v-for="(tick, index) in ticks" :key="tick">
-                <line class="agent-availability-chart__tick" :x1="xFor(tick)" :x2="xFor(tick)" :y1="plotBottom" :y2="plotBottom + 6" />
+                <line class="agent-availability-chart__tick" :x1="xFor(tick)" :x2="xFor(tick)" :y1="plotBottom" :y2="plotBottom + 5" />
                 <text
                   class="agent-availability-chart__tick-label"
                   :x="xFor(tick)"
-                  :y="plotBottom + 24"
+                  :y="plotBottom + 22"
                   :text-anchor="index === 0 ? 'start' : index === ticks.length - 1 ? 'end' : 'middle'"
                 >
                   {{ tickLabel(tick, index) }}
@@ -396,9 +376,9 @@ onBeforeUnmount(() => {
                   :y="tooltipY"
                   :width="tooltipWidth"
                   :height="tooltipHeight"
-                  rx="5"
+                  rx="8"
                 />
-                <text class="agent-availability-chart__tooltip-title" :x="tooltipX + 12" :y="tooltipY + 20">
+                <text class="agent-availability-chart__tooltip-title" :x="tooltipX + 12" :y="tooltipY + 21">
                   {{ tooltipTitle }}
                 </text>
                 <text class="agent-availability-chart__tooltip-detail" :x="tooltipX + 12" :y="tooltipY + 39">
@@ -408,8 +388,8 @@ onBeforeUnmount(() => {
             </svg>
           </div>
           <figcaption>
-            <span><i class="agent-availability-chart__legend agent-availability-chart__legend--online" />Online</span>
-            <span><i class="agent-availability-chart__legend agent-availability-chart__legend--offline" />Offline</span>
+            <span class="agent-availability-chart__legend-item"><i class="agent-availability-chart__legend agent-availability-chart__legend--online" />Online</span>
+            <span class="agent-availability-chart__legend-item"><i class="agent-availability-chart__legend agent-availability-chart__legend--offline" />Offline</span>
             <span class="agent-availability-chart__hint">Hover or focus a segment; activate it to inspect.</span>
             <div class="agent-availability-chart__actions">
               <NTag v-if="isZoomed" size="small" :bordered="false" type="info">Focused view</NTag>
@@ -430,51 +410,24 @@ onBeforeUnmount(() => {
         </figure>
         <p class="visually-hidden" aria-live="polite">{{ hoveredSegment ? `${tooltipTitle}. ${tooltipDetail}` : '' }}</p>
       </div>
-    </template>
-  </section>
+    </div>
+  </SectionCard>
 </template>
 
 <style scoped>
-.agent-availability-card {
-  overflow: hidden;
+.agent-availability-card__freshness {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.agent-availability-card__header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
-  border-bottom: 1px solid var(--app-border);
-  padding: 1rem 1.25rem;
-}
-
-.agent-availability-card__title-row,
 .agent-availability-card__controls,
 .agent-availability-card__alert-content,
 .agent-availability-chart figcaption {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.65rem;
-}
-
-.agent-availability-card__title-row h4 {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.agent-availability-card__freshness {
-  color: var(--app-text-muted);
-}
-
-.agent-availability-card__header p,
-.agent-availability-card__empty p {
-  margin: 0.25rem 0 0;
-  color: var(--app-text-muted);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  gap: 0.625rem;
 }
 
 .agent-availability-card__controls {
@@ -487,113 +440,44 @@ onBeforeUnmount(() => {
 }
 
 .agent-availability-card__empty {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 2rem 1.25rem;
+  display: grid;
+  gap: 0.25rem;
+  padding: 1.5rem 0 0.75rem;
+  text-align: center;
 }
 
 .agent-availability-card__empty strong {
   color: var(--app-text);
   font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.agent-availability-card__empty-signal {
-  display: flex;
-  align-items: end;
-  gap: 3px;
-  width: 3.5rem;
-  height: 2.25rem;
-  flex: 0 0 auto;
-  border-bottom: 1px solid var(--app-border);
+.agent-availability-card__empty p {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
-.agent-availability-card__empty-signal span {
-  width: 0.4rem;
-  border-radius: 2px 2px 0 0;
-  background: var(--app-border);
-}
-
-.agent-availability-card__empty-signal span:nth-child(1) { height: 35%; }
-.agent-availability-card__empty-signal span:nth-child(2) { height: 70%; }
-.agent-availability-card__empty-signal span:nth-child(3) { height: 48%; }
-.agent-availability-card__empty-signal span:nth-child(4) { height: 90%; }
-.agent-availability-card__empty-signal span:nth-child(5) { height: 62%; }
-
-.agent-availability-card__alert {
-  margin: 1rem 1.25rem 0;
+.agent-availability-card__content,
+.agent-availability-card__loading,
+.agent-availability-card__body {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
 }
 
 .agent-availability-card__alert-content {
   justify-content: space-between;
+  overflow-wrap: anywhere;
 }
 
-.agent-availability-card__loading,
-.agent-availability-card__body {
-  display: grid;
-  gap: 1rem;
-  padding: 1rem 1.25rem 1.25rem;
-}
-
-.agent-availability-card__stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--app-panel-muted) 58%, transparent);
-}
-
-.agent-availability-card__stats > * {
-  display: grid;
-  align-content: center;
-  gap: 0.25rem;
-  min-width: 0;
-  padding: 0.8rem 0.9rem;
-}
-
-.agent-availability-card__stats > *:nth-child(even) {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.agent-availability-card__stats > *:nth-child(n + 3) {
-  border-top: 1px solid var(--app-border-subtle);
-}
-
-.agent-availability-card__stats dt {
-  color: var(--app-text-muted);
-  font-size: 0.675rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.agent-availability-card__stats dd {
-  margin: 0;
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 1.25rem;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.agent-availability-card__stats small {
-  overflow: hidden;
-  color: var(--app-text-muted);
-  font-size: 0.72rem;
-  line-height: 1.35;
-  text-overflow: ellipsis;
+.agent-availability-card__body :deep(.metric-card__detail) {
+  white-space: normal;
 }
 
 .agent-availability-chart {
+  min-width: 0;
   margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--app-panel-muted) 70%, transparent), transparent 74%),
-    var(--app-panel);
 }
 
 .agent-availability-chart__viewport {
@@ -611,7 +495,13 @@ onBeforeUnmount(() => {
 .agent-availability-chart__grid {
   pointer-events: none;
   stroke: var(--app-border-subtle);
-  stroke-dasharray: 3 5;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.agent-availability-chart__baseline {
+  pointer-events: none;
+  stroke: var(--app-border-subtle);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -619,8 +509,8 @@ onBeforeUnmount(() => {
 .agent-availability-chart__state-label,
 .agent-availability-chart__tick-label {
   fill: var(--app-text-muted);
-  font-family: var(--font-mono);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .agent-availability-chart__region {
@@ -630,31 +520,40 @@ onBeforeUnmount(() => {
 
 .agent-availability-chart__region:hover,
 .agent-availability-chart__region:focus {
-  opacity: 0.18;
+  opacity: 0.16;
 }
 
 .agent-availability-chart__region:focus {
   outline: none;
-  stroke: var(--app-accent);
+  stroke: var(--app-focus);
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }
 
 .agent-availability-chart__region--online {
   fill: var(--app-success);
-  opacity: 0.06;
+  opacity: 0.045;
 }
 
 .agent-availability-chart__region--offline {
   fill: var(--app-error);
-  opacity: 0.075;
+  opacity: 0.06;
 }
 
 .agent-availability-chart__state-line,
 .agent-availability-chart__transition {
   pointer-events: none;
-  stroke-width: 2.5;
+  stroke-linecap: round;
   vector-effect: non-scaling-stroke;
+}
+
+.agent-availability-chart__state-line {
+  stroke-width: 2;
+}
+
+.agent-availability-chart__transition {
+  stroke-width: 1;
+  opacity: 0.55;
 }
 
 .agent-availability-chart__state-line--online,
@@ -669,7 +568,7 @@ onBeforeUnmount(() => {
 
 .agent-availability-chart__tick {
   pointer-events: none;
-  stroke: var(--app-border);
+  stroke: var(--app-border-subtle);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -679,8 +578,9 @@ onBeforeUnmount(() => {
 }
 
 .agent-availability-chart__crosshair {
-  stroke: color-mix(in srgb, var(--app-text-muted) 70%, transparent);
-  stroke-dasharray: 3 3;
+  stroke: var(--app-text-muted);
+  stroke-dasharray: 2 3;
+  stroke-opacity: 0.6;
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -700,43 +600,43 @@ onBeforeUnmount(() => {
 }
 
 .agent-availability-chart__tooltip-panel {
-  fill: color-mix(in srgb, var(--app-panel) 96%, var(--app-text) 4%);
-  stroke: var(--app-border);
+  fill: var(--app-panel);
+  stroke: var(--app-border-subtle);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 
 .agent-availability-chart__tooltip-title {
   fill: var(--app-text);
-  font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .agent-availability-chart__tooltip-detail {
   fill: var(--app-text-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }
 
 .agent-availability-chart figcaption {
-  min-height: 2.5rem;
+  min-height: 2.25rem;
   border-top: 1px solid var(--app-border-subtle);
-  padding: 0.65rem 0.85rem;
+  padding-top: 0.625rem;
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
-.agent-availability-chart figcaption span {
+.agent-availability-chart__legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.375rem;
 }
 
 .agent-availability-chart__legend {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 2px;
+  width: 0.875rem;
+  height: 2px;
+  border-radius: 999px;
 }
 
 .agent-availability-chart__legend--online { background: var(--app-success); }
@@ -750,33 +650,19 @@ onBeforeUnmount(() => {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.375rem;
 }
 
 @media (min-width: 720px) {
-  .agent-availability-card__header {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-
   .agent-availability-card__controls {
     width: auto;
+    flex-wrap: nowrap;
     justify-content: flex-end;
   }
 
   .agent-availability-card__agent-select {
-    width: min(24rem, 32vw);
-    flex-basis: 18rem;
-  }
-
-  .agent-availability-card__stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .agent-availability-card__stats > * + * {
-    border-top: 0;
-    border-left: 1px solid var(--app-border-subtle);
+    width: min(22rem, 30vw);
+    flex-basis: 16rem;
   }
 
   .agent-availability-chart svg {
@@ -785,16 +671,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 479px) {
-  .agent-availability-card__controls .n-button-group,
-  .agent-availability-card__controls .n-button {
-    flex: 1 1 0;
-  }
-
-  .agent-availability-card__controls .n-button-group {
-    display: flex;
-    width: 100%;
-  }
-
   .agent-availability-chart__hint {
     display: none !important;
   }

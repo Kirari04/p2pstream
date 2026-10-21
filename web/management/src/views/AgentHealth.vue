@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { computed, h, inject, nextTick, ref, watch } from "vue";
+import { computed, h, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { NButton, NDataTable, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
+import { NAlert, NButton, NDataTable, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns, DropdownDividerOption, DropdownOption } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
 import { Check as CheckIcon } from "@lucide/vue";
 import { Ellipsis as EllipsisIcon } from "@lucide/vue";
-import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Search as SearchIcon } from "@lucide/vue";
@@ -16,6 +15,10 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import AgentAvailabilityChart from "@/components/AgentAvailabilityChart.vue";
 import AgentEditorModal from "@/components/editors/AgentEditorModal.vue";
 import AgentSetupModal from "@/components/AgentSetupModal.vue";
@@ -107,9 +110,20 @@ const connectedAgentPercent = computed(() => {
   if (!enabledAgents.value) return 0;
   return Math.round((connectedAgentCount.value / enabledAgents.value) * 100);
 });
-const connectedAgentPercentStyle = computed(() => ({
-  transform: `scaleX(${Math.min(100, Math.max(0, connectedAgentPercent.value)) / 100})`,
-}));
+const versionDriftCount = computed(() => agentsNeedingUpdate.value + agentsWithBuildMismatch.value + agentsWithUnverifiedBuild.value);
+const versionDriftDetail = computed(() => {
+  if (!totalAgents.value) return "No agents registered";
+  const parts = [
+    agentsNeedingUpdate.value ? `${agentsNeedingUpdate.value} update${agentsNeedingUpdate.value === 1 ? "" : "s"} available` : "",
+    agentsWithBuildMismatch.value ? `${agentsWithBuildMismatch.value} build mismatch${agentsWithBuildMismatch.value === 1 ? "" : "es"}` : "",
+    agentsWithUnverifiedBuild.value ? `${agentsWithUnverifiedBuild.value} build unverified` : "",
+  ].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "All builds match the server";
+});
+const registeredDetail = computed(() => {
+  if (!totalAgents.value) return "None yet";
+  return disabledAgents.value ? `${enabledAgents.value} enabled · ${disabledAgents.value} disabled` : `${enabledAgents.value} enabled`;
+});
 const fleetStatusType = computed<"success" | "warning" | "error" | "default">(() => {
   if (!totalAgents.value) return "default";
   if (connectedAgentCount.value === enabledAgents.value && enabledAgents.value > 0) return "success";
@@ -129,37 +143,23 @@ const fleetSummary = computed(() => {
   return `${offlineEnabledAgents.value} enabled agent${offlineEnabledAgents.value === 1 ? "" : "s"} offline.`;
 });
 const runtimeMetrics = computed(() => [
-  {
-    label: "Memory sys",
-    value: `${bigIntLabel(status.value?.latestAgentStats?.memorySysMb)} MB`,
-    detail: "latest sample",
-  },
-  {
-    label: "Goroutines",
-    value: bigIntLabel(status.value?.latestAgentStats?.numGoroutine),
-    detail: "latest sample",
-  },
+  sampledMetric("Memory sys", status.value?.latestAgentStats?.memorySysMb, " MB", "Latest sample"),
+  sampledMetric("Goroutines", status.value?.latestAgentStats?.numGoroutine, "", "Latest sample"),
   {
     label: "Active requests",
     value: activeAgentRequests.value.toString(),
-    detail: "across agents",
+    detail: "Across agents",
   },
-  {
-    label: "Avg memory",
-    value: `${bigIntLabel(oneHourWindow.value?.agentAvgMemoryMb)} MB`,
-    detail: "1h window",
-  },
-  {
-    label: "Max memory",
-    value: `${bigIntLabel(dayWindow.value?.agentMaxMemoryMb)} MB`,
-    detail: "24h window",
-  },
-  {
-    label: "Max goroutines",
-    value: bigIntLabel(dayWindow.value?.agentMaxGoroutines),
-    detail: "24h window",
-  },
+  sampledMetric("Avg memory", oneHourWindow.value?.agentAvgMemoryMb, " MB", "1h window"),
+  sampledMetric("Max memory", dayWindow.value?.agentMaxMemoryMb, " MB", "24h window"),
+  sampledMetric("Max goroutines", dayWindow.value?.agentMaxGoroutines, "", "24h window"),
 ]);
+
+/** Agent process samples are never legitimately zero, so a missing or zero sample reads as a quiet empty. */
+function sampledMetric(label: string, value: bigint | undefined, unit: string, detail: string) {
+  if (value === undefined || value === 0n) return { label, value: "—", detail: "No samples yet" };
+  return { label, value: `${bigIntLabel(value)}${unit}`, detail };
+}
 const activeAgentSection = computed<AgentSectionKey>(() => normalizeAgentSection(route.params.section));
 const activeAgentSectionMeta = computed(() =>
   agentSections.find((section) => section.key === activeAgentSection.value) ?? agentSections[0],
@@ -220,6 +220,26 @@ const uninstallReleaseRepository = ref(defaultReleaseRepository());
 const uninstallCopyLabel = ref("Copy");
 let uninstallCopyReset: number | undefined;
 
+/** Sums to the table's scroll width, which must stay inside the card at a 1280px viewport. */
+const AGENT_COLUMN_WIDTHS = { agent: 210, status: 160, capacity: 170, version: 140, actions: 256 } as const;
+/** Narrow screens stack each agent into one cell instead of scrolling a wide table under a pinned column. */
+const compactLayout = ref(false);
+let compactLayoutQuery: MediaQueryList | undefined;
+
+function syncCompactLayout(query: MediaQueryList | MediaQueryListEvent) {
+  compactLayout.value = query.matches;
+}
+
+onMounted(() => {
+  compactLayoutQuery = window.matchMedia("(max-width: 639px)");
+  syncCompactLayout(compactLayoutQuery);
+  compactLayoutQuery.addEventListener("change", syncCompactLayout);
+});
+
+onBeforeUnmount(() => {
+  compactLayoutQuery?.removeEventListener("change", syncCompactLayout);
+});
+
 const sessionPagination = computed(() => ({ page: sessionPage.value, pageSize: 12 }));
 
 const busyDisabledReason = computed(() => isBusy?.value ? BUSY_REASON : "");
@@ -247,171 +267,78 @@ async function selectAgentSection(value: string | number) {
   await router.push(section.path);
 }
 
-const agentColumns = computed<DataTableColumns<Agent>>(() => [
-  {
-    title: "Agent",
-    key: "agent",
-    minWidth: 300,
-    render: (agent) => h("div", { class: "agent-cell" }, [
-      h("div", { class: "agent-cell__header" }, [
-        h("bdi", {
-          class: "agent-cell__name",
-          dir: "ltr",
-          title: diagnosticInspectionText(agent.name),
-        }, diagnosticExcerpt(agent.name, 64).text),
-      ]),
-      h("p", {
-        class: "agent-cell__id mono-text",
-        title: diagnosticInspectionText(agent.publicId),
-      }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
-      h("div", { class: "agent-cell__mobile-build" }, [
-        renderAgentVersion(agent, true),
-        renderAgentCapacity(agent, true),
-      ]),
-      h("details", { class: "agent-exact-details" }, [
-        h("summary", {
-          "aria-label": agentActionLabel("Show exact identity and selectors for", agent),
-        }, `Identity & selectors · ${agentUserLabels(agent).length} label${agentUserLabels(agent).length === 1 ? "" : "s"}`),
-        h("div", { class: "agent-exact-details__body" }, [
-          h("div", { class: "agent-exact-field" }, [
-            h("span", "Agent ID"),
-            h("code", { class: "mono-text" }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
-          ]),
-          h("div", { class: "agent-exact-field" }, [
-            h("span", "Exact selector"),
-            h("code", { class: "mono-text" }, [
-              h("bdi", { dir: "ltr" }, diagnosticInspectionText(AGENT_ID_SYSTEM_LABEL_KEY)),
-              "=",
-              h("bdi", { dir: "ltr" }, diagnosticInspectionText(exactAgentSelectorValue(agent))),
-            ]),
-          ]),
-          h("div", { class: "agent-exact-field" }, [
-            h("span", "User labels"),
-            agentUserLabels(agent).length
-              ? h("ul", { class: "agent-exact-labels" }, agentUserLabels(agent).map((label) => h("li", { key: label.id }, [
-                  h("code", { class: "mono-text" }, [
-                    h("bdi", { dir: "ltr" }, diagnosticInspectionText(label.key)),
-                    "=",
-                    h("bdi", { dir: "ltr" }, diagnosticInspectionText(label.value)),
-                  ]),
-                ])))
-              : h("p", { class: "copy-xs muted-text" }, "No user labels"),
-          ]),
+const agentColumns = computed<DataTableColumns<Agent>>(() => compactLayout.value
+  ? [
+      {
+        title: "Agent",
+        key: "agent",
+        render: (agent) => renderAgentIdentity(agent, true),
+      },
+    ]
+  : [
+      {
+        title: "Agent",
+        key: "agent",
+        minWidth: AGENT_COLUMN_WIDTHS.agent,
+        render: (agent) => renderAgentIdentity(agent),
+      },
+      {
+        title: "Status",
+        key: "health",
+        width: AGENT_COLUMN_WIDTHS.status,
+        render: (agent) => renderAgentStatus(agent),
+      },
+      {
+        title: "Capacity",
+        key: "capacity",
+        width: AGENT_COLUMN_WIDTHS.capacity,
+        render: (agent) => renderAgentCapacity(agent),
+      },
+      {
+        title: "Version",
+        key: "version",
+        width: AGENT_COLUMN_WIDTHS.version,
+        render: (agent) => renderAgentVersion(agent),
+      },
+      {
+        title: "Actions",
+        key: "actions",
+        width: AGENT_COLUMN_WIDTHS.actions,
+        align: "right",
+        fixed: "right",
+        render: (agent) => renderAgentActions(agent),
+      },
+    ]);
+const agentTableScrollX = computed(() => compactLayout.value
+  ? undefined
+  : Object.values(AGENT_COLUMN_WIDTHS).reduce((sum, width) => sum + width, 0));
+const sessionColumns = computed<DataTableColumns<AgentConnectionSession>>(() => compactLayout.value
+  ? [
+      {
+        title: "Session",
+        key: "agent",
+        render: (session) => h("div", { class: "agent-session-cell" }, [
+          renderSessionAgent(session),
+          h("p", { class: "agent-meta" }, session.active
+            ? `Since ${formatDate(session.connectedAtUnixMillis)}`
+            : `${formatDate(session.connectedAtUnixMillis)} · ${formatLongDuration(session.durationMillis)}`),
         ]),
-      ]),
-    ]),
-  },
-  {
-    title: "Health & reliability",
-    key: "health",
-    width: 260,
-    render: (agent) => h("div", { class: "agent-state-cell" }, [
-      h("div", { class: "agent-state-cell__status" }, [
-        h("span", { class: ["agent-state-dot", `agent-state-dot--${agentOperationalState(agent)}`], "aria-hidden": "true" }),
-        h("span", { class: "weight-semibold base-text" }, agentOperationalStateLabel(agent)),
-      ]),
-      h("p", { class: "agent-state-cell__duration mono-text copy-xs muted-text" }, currentAgentStateSummary(agent)),
-      h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, "Fleet uptime"),
-        h("strong", { class: "mono-text base-text" }, agentUptimePercentLabel(agent)),
-      ]),
-      h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, "Connect / drop"),
-        h("strong", { class: "mono-text base-text" }, agentConnectionCounts(agent)),
-      ]),
-      h("p", { class: "agent-subline mono-text muted-text" }, agentLastTransitionLabel(agent)),
-    ]),
-  },
-  {
-    title: "Capacity",
-    key: "capacity",
-    width: 270,
-    render: (agent) => renderAgentCapacity(agent),
-  },
-  {
-    title: "Version",
-    key: "version",
-    width: 220,
-    render: (agent) => renderAgentVersion(agent),
-  },
-  {
-    title: "Actions",
-    key: "actions",
-    width: 330,
-    align: "right",
-    render: (agent) => h("div", { class: "agent-row-actions" }, [
-      h(NButton, {
-        secondary: true,
-        size: "small",
-        "aria-label": agentActionLabel("Investigate", agent),
-        onClick: () => void investigateAgent(agent),
-      }, { icon: () => h(SearchIcon, { class: "icon-sm" }), default: () => "Investigate" }),
-      h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
-        default: () => h(NButton, {
-          secondary: true,
-          size: "small",
-          "aria-label": agentActionLabel("Edit", agent),
-          disabled: Boolean(busyDisabledReason.value),
-          onClick: () => editAgent(agent),
-        }, { icon: () => h(PencilIcon, { class: "icon-sm" }), default: () => "Edit" }),
-      }),
-      h(NDropdown, {
-        trigger: "click",
-        placement: "bottom-end",
-        show: openAgentActionMenuId.value === agent.id.toString(),
-        options: agentLifecycleOptions(agent),
-        menuProps: () => ({
-          id: agentActionMenuId(agent),
-          role: "menu",
-          "aria-label": agentActionLabel("Lifecycle actions for", agent),
-        }),
-        nodeProps: (option: DropdownOption) => ({
-          role: "menuitem",
-          "aria-disabled": option.disabled ? ("true" as const) : undefined,
-        }),
-        onUpdateShow: (show: boolean) => setAgentActionMenuOpen(agent, show),
-        onSelect: (key: string | number) => handleAgentLifecycleAction(agent, String(key)),
-      }, {
-        default: () => h(NButton, {
-          secondary: true,
-          size: "small",
-          "aria-label": agentActionLabel("More actions for", agent),
-          "aria-haspopup": "menu",
-          "aria-controls": agentActionMenuId(agent),
-          "aria-expanded": openAgentActionMenuId.value === agent.id.toString() ? "true" : "false",
-        }, { icon: () => h(EllipsisIcon, { class: "icon-sm" }), default: () => "More" }),
-      }),
-    ]),
-  },
-]);
-const sessionColumns = computed<DataTableColumns<AgentConnectionSession>>(() => [
-  {
-    title: "Agent",
-    key: "agent",
-    minWidth: 220,
-    render: (session) => h("div", [
-      h("p", {
-        class: "agent-session-value weight-medium base-text",
-        title: diagnosticInspectionText(sessionAgentLabel(session)),
-      }, [h("bdi", { dir: "ltr" }, diagnosticExcerpt(sessionAgentLabel(session), 64).text)]),
-      sessionAgentDetail(session)
-        ? h("p", {
-            class: "agent-session-value mono-text copy-xs muted-text",
-            title: diagnosticInspectionText(sessionAgentDetail(session)),
-          }, [h("bdi", { dir: "ltr" }, diagnosticExcerpt(sessionAgentDetail(session), 64).text)])
-        : null,
-    ]),
-  },
-  { title: "Started", key: "started", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, formatDate(session.connectedAtUnixMillis)) },
-  { title: "Ended", key: "ended", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, session.active ? "—" : formatDate(session.disconnectedAtUnixMillis)) },
-  { title: "Duration", key: "duration", width: 150, render: (session) => h("span", { class: "mono-text copy-xs" }, formatLongDuration(session.durationMillis)) },
-  {
-    title: "State",
-    key: "state",
-    width: 120,
-    render: (session) => h(NTag, { size: "small", bordered: false, type: session.active ? "success" : "default" }, { default: () => session.active ? "Active" : "Closed" }),
-  },
-]);
+      },
+      { title: "State", key: "state", width: 88, render: (session) => renderSessionState(session) },
+    ]
+  : [
+      {
+        title: "Agent",
+        key: "agent",
+        minWidth: 200,
+        render: (session) => renderSessionAgent(session),
+      },
+      { title: "Started", key: "started", width: 176, render: (session) => h("span", { class: "agent-table-date" }, formatDate(session.connectedAtUnixMillis)) },
+      { title: "Ended", key: "ended", width: 176, render: (session) => h("span", { class: "agent-table-date" }, session.active ? "—" : formatDate(session.disconnectedAtUnixMillis)) },
+      { title: "Duration", key: "duration", width: 112, render: (session) => h("span", { class: "agent-table-date" }, formatLongDuration(session.durationMillis)) },
+      { title: "State", key: "state", width: 88, render: (session) => renderSessionState(session) },
+    ]);
+const sessionTableScrollX = computed(() => compactLayout.value ? undefined : 200 + 176 + 176 + 112 + 88);
 
 watch(
   [
@@ -491,11 +418,6 @@ function agentConnectionCounts(agent: Agent): string {
   return `${uptime.connectionCount.toString()} / ${uptime.disconnectCount.toString()}`;
 }
 
-function agentLastTransitionLabel(agent: Agent): string {
-  if (agentConnected(agent)) return `Last connected ${formatDate(agentLastConnected(agent))}`;
-  return `Last disconnected ${formatDate(agentLastDisconnected(agent))}`;
-}
-
 function agentLastConnected(agent: Agent): bigint | undefined {
   const value = uptimeForAgent(agent)?.lastConnectedAtUnixMillis ?? agent.lastConnectedAtUnixMillis;
   return value === 0n ? undefined : value;
@@ -526,49 +448,173 @@ function buildStatusForAgent(agent: Agent) {
   });
 }
 
-function renderAgentVersion(agent: Agent, compact = false) {
+function renderAgentIdentity(agent: Agent, compact = false) {
+  return h("div", { class: "agent-cell" }, [
+    h("bdi", {
+      class: "agent-cell__name",
+      dir: "ltr",
+      title: diagnosticInspectionText(agent.name),
+    }, diagnosticExcerpt(agent.name, 64).text),
+    h("p", {
+      class: "agent-cell__id mono-text",
+      title: diagnosticInspectionText(agent.publicId),
+    }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
+    compact
+      ? h("div", { class: "agent-cell__compact" }, [
+          renderAgentStatus(agent),
+          renderAgentCapacity(agent, true),
+          renderAgentVersion(agent),
+        ])
+      : null,
+    renderAgentDetails(agent),
+    compact ? renderAgentActions(agent) : null,
+  ]);
+}
+
+function renderAgentDetails(agent: Agent) {
+  const labels = agentUserLabels(agent);
+  return h("details", { class: "agent-exact-details" }, [
+    h("summary", {
+      "aria-label": agentActionLabel("Show exact identity and selectors for", agent),
+    }, `Identity & selectors · ${labels.length} label${labels.length === 1 ? "" : "s"}`),
+    h("div", { class: "agent-exact-details__body" }, [
+      h("div", { class: "agent-exact-field" }, [
+        h("span", "Agent ID"),
+        h("code", { class: "mono-text" }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
+      ]),
+      h("div", { class: "agent-exact-field" }, [
+        h("span", "Exact selector"),
+        h("code", { class: "mono-text" }, [
+          h("bdi", { dir: "ltr" }, diagnosticInspectionText(AGENT_ID_SYSTEM_LABEL_KEY)),
+          "=",
+          h("bdi", { dir: "ltr" }, diagnosticInspectionText(exactAgentSelectorValue(agent))),
+        ]),
+      ]),
+      h("div", { class: "agent-exact-field" }, [
+        h("span", "User labels"),
+        labels.length
+          ? h("ul", { class: "agent-exact-labels" }, labels.map((label) => h("li", { key: label.id }, [
+              h("code", { class: "mono-text" }, [
+                h("bdi", { dir: "ltr" }, diagnosticInspectionText(label.key)),
+                "=",
+                h("bdi", { dir: "ltr" }, diagnosticInspectionText(label.value)),
+              ]),
+            ])))
+          : h("p", { class: "agent-meta" }, "No user labels"),
+      ]),
+      h("dl", { class: "agent-runtime-details", "aria-label": "Runtime details" },
+        agentRuntimeDetails(agent).map((item) => h("div", { key: item.label, class: "agent-runtime-details__item" }, [
+          h("dt", item.label),
+          h("dd", { class: item.tone ? `${item.tone}-text` : undefined }, [h("bdi", { dir: "ltr" }, item.value)]),
+        ])),
+      ),
+    ]),
+  ]);
+}
+
+interface AgentRuntimeDetail {
+  label: string;
+  value: string;
+  tone?: "warning";
+}
+
+function agentRuntimeDetails(agent: Agent): AgentRuntimeDetail[] {
+  const capacity = summarizeAgentCapacity(agent);
+  const commit = shortBuildCommit(agent.commit);
+  const connected = agentConnected(agent);
+  const details: AgentRuntimeDetail[] = [
+    { label: "Uptime", value: agentUptimePercentLabel(agent) },
+    { label: "Connect / drop", value: agentConnectionCounts(agent) },
+    connected
+      ? { label: "Last connected", value: formatDate(agentLastConnected(agent)) }
+      : { label: "Last disconnected", value: formatDate(agentLastDisconnected(agent)) },
+  ];
+  if (capacity.state === "offline") {
+    details.push({ label: "Capacity", value: "Negotiated when the agent reconnects" });
+  } else if (capacity.state === "unreported") {
+    details.push({ label: "Capacity", value: "Update this agent to expose tunnel capacity.", tone: "warning" });
+  } else {
+    details.push(
+      capacity.adaptive
+        ? { label: "Current allowance", value: capacity.admissionLimit.toString() }
+        : { label: "Advertised", value: capacity.advertised.toString() },
+      {
+        label: capacity.adaptive
+          ? `Memory${capacity.memorySource ? ` · ${diagnosticExcerpt(capacity.memorySource, 24).text}` : ""}`
+          : "Process memory",
+        value: agentCapacityMemoryLabel(capacity),
+      },
+    );
+    if (capacity.adaptive) {
+      details.push(
+        { label: "File descriptors", value: agentCapacityFileDescriptorLabel(capacity) },
+        { label: "Protocol guard", value: capacity.negotiated.toString() },
+      );
+    }
+    if (capacity.sensorDegraded) {
+      details.push({
+        label: "Resource sensor",
+        value: capacity.lastGoodUnixMillis
+          ? `Unavailable · last good ${formatDate(capacity.lastGoodUnixMillis)}`
+          : "Unavailable · new streams are paused",
+        tone: "warning",
+      });
+    }
+  }
+  details.push({ label: "Build", value: commit ? diagnosticInspectionText(commit) : "Not reported" });
+  if (status.value?.version) {
+    details.push({ label: "Server", value: diagnosticExcerpt(status.value.version, 24).text });
+  }
+  return details;
+}
+
+function renderAgentStatus(agent: Agent) {
+  const state = agentOperationalState(agent);
+  const uptime = uptimeForAgent(agent);
+  return h("div", { class: "agent-status" }, [
+    h("p", { class: "agent-status__label" }, [
+      h("span", { class: ["agent-state-dot", `agent-state-dot--${state}`], "aria-hidden": "true" }),
+      h("span", agentOperationalStateLabel(agent)),
+    ]),
+    h("p", { class: "agent-meta" }, currentAgentStateSummary(agent)),
+    uptime && agentUptimePercentLabel(agent) !== "—"
+      ? h("p", { class: "agent-meta" }, `${agentUptimePercentLabel(agent)} uptime`)
+      : null,
+  ]);
+}
+
+function renderAgentVersion(agent: Agent) {
   const build = buildStatusForAgent(agent);
   const version = agent.version ? diagnosticExcerpt(agent.version, 32).text : "Unknown";
-  const commit = shortBuildCommit(agent.commit);
-  const serverVersion = diagnosticExcerpt(status.value?.version ?? "", 24).text;
-  const details = [
-    commit ? `build ${diagnosticInspectionText(commit)}` : "",
-    status.value?.version ? `server ${serverVersion}` : "",
-  ].filter(Boolean).join(" · ");
-  return h("div", { class: ["agent-version-cell", compact && "agent-version-cell--compact"] }, [
-    h("div", { class: "agent-version-cell__header" }, [
-      h("code", {
-        class: "mono-text agent-version-cell__value",
-        title: agent.version ? diagnosticInspectionText(agent.version) : "Agent version has not been reported",
-      }, [h("bdi", { dir: "ltr" }, version)]),
-      h(NTag, {
-        size: "small",
-        bordered: false,
-        type: agentBuildStatusType(build.state),
-      }, { default: () => build.label }),
-    ]),
-    compact ? null : h("p", { class: "agent-version-cell__detail mono-text muted-text" }, details || "Waiting for a compatible heartbeat"),
+  return h("div", { class: "agent-version" }, [
+    h("code", {
+      class: "agent-version__value mono-text",
+      title: agent.version ? diagnosticInspectionText(agent.version) : "Agent version has not been reported",
+    }, [h("bdi", { dir: "ltr" }, version)]),
+    h(NTag, {
+      size: "small",
+      bordered: false,
+      type: agentBuildStatusType(build.state),
+    }, { default: () => build.label }),
   ]);
 }
 
 function renderAgentCapacity(agent: Agent, compact = false) {
   const capacity = summarizeAgentCapacity(agent);
   if (capacity.state === "offline") {
-    return h("div", { class: ["agent-capacity-cell", compact && "agent-capacity-cell--compact"] }, [
-      h("div", { class: "agent-capacity-cell__header" }, [
-        h("strong", { class: "agent-capacity-cell__value" }, "Tunnel offline"),
-        h(NTag, { size: "small", bordered: false, type: "default" }, { default: () => "Unavailable" }),
+    return h("div", { class: "agent-capacity" }, [
+      h("p", { class: "agent-capacity__header" }, [
+        h("span", { class: "agent-capacity__value muted-text" }, "Tunnel offline"),
       ]),
-      compact ? null : h("p", { class: "agent-subline muted-text" }, "Capacity is negotiated when the agent reconnects."),
+      compact ? null : h("p", { class: "agent-meta" }, "Capacity unavailable"),
     ]);
   }
   if (capacity.state === "unreported") {
-    return h("div", { class: ["agent-capacity-cell", compact && "agent-capacity-cell--compact"] }, [
-      h("div", { class: "agent-capacity-cell__header" }, [
-        h("strong", { class: "agent-capacity-cell__value" }, "Not reported"),
+    return h("div", { class: "agent-capacity" }, [
+      h("p", { class: "agent-capacity__header" }, [
+        h("span", { class: "agent-capacity__value" }, "Not reported"),
         h(NTag, { size: "small", bordered: false, type: "warning" }, { default: () => "Legacy agent" }),
       ]),
-      compact ? null : h("p", { class: "agent-subline warning-text" }, "Update this agent to expose tunnel capacity."),
     ]);
   }
 
@@ -582,49 +628,101 @@ function renderAgentCapacity(agent: Agent, compact = false) {
     : capacity.state === "degraded" ? "warning"
     : capacity.adaptive ? "success"
     : capacity.state === "server_capped" ? "warning" : "info";
-  const memory = capacity.memoryUsageBytes !== undefined && capacity.memoryLimitBytes !== undefined && capacity.memoryLimitBytes > 0n
-    ? `${formatBytes(capacity.memoryUsageBytes)} / ${formatBytes(capacity.memoryLimitBytes)}${capacity.memoryPercent === undefined ? "" : ` · ${capacity.memoryPercent.toFixed(1)}%`}`
-    : capacity.memorySysMb === undefined ? "No sample" : `${bigIntLabel(capacity.memorySysMb)} MB process`;
-  const headline = capacity.adaptive ? "Adaptive admission" : `${capacity.negotiated.toString()} streams`;
-  const fileDescriptors = capacity.fileDescriptorsUsed !== undefined && capacity.fileDescriptorsLimit !== undefined && capacity.fileDescriptorsLimit > 0n
-    ? `${capacity.fileDescriptorsUsed.toString()} / ${capacity.fileDescriptorsLimit.toString()}${capacity.fileDescriptorsPercent === undefined ? "" : ` · ${capacity.fileDescriptorsPercent.toFixed(1)}%`}`
-    : "No sample";
-  return h("div", { class: ["agent-capacity-cell", compact && "agent-capacity-cell--compact"] }, [
-    h("div", { class: "agent-capacity-cell__header" }, [
-      h("strong", { class: "agent-capacity-cell__value" }, headline),
+  const headline = capacity.adaptive ? "Adaptive" : `${capacity.negotiated.toString()} streams`;
+  return h("div", { class: "agent-capacity" }, [
+    h("p", { class: "agent-capacity__header" }, [
+      h("span", { class: "agent-capacity__value" }, headline),
       h(NTag, { size: "small", bordered: false, type: stateType }, { default: () => stateLabel }),
     ]),
-    h("p", { class: "agent-capacity-cell__summary mono-text" }, `${capacity.active.toString()} active · ${capacity.headroom.toString()} immediately available`),
+    h("p", { class: "agent-meta" }, `${capacity.active.toString()} active · ${capacity.headroom.toString()} available`),
     compact ? null : h("div", {
-      class: "agent-capacity-meter",
+      class: "agent-capacity__meter",
       role: "progressbar",
       "aria-label": "Tunnel stream utilization",
       "aria-valuemin": 0,
       "aria-valuemax": 100,
       "aria-valuenow": capacity.utilizationPercent,
     }, [h("span", { style: { transform: `scaleX(${capacity.utilizationPercent / 100})` } })]),
-    compact ? null : h("div", { class: "agent-capacity-cell__details" }, [
-      h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, capacity.adaptive ? "Current allowance" : "Advertised"),
-        h("strong", { class: "mono-text base-text" }, capacity.adaptive ? capacity.admissionLimit.toString() : capacity.advertised.toString()),
-      ]),
-      h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, capacity.adaptive ? `Memory${capacity.memorySource ? ` · ${capacity.memorySource}` : ""}` : "Process memory"),
-        h("strong", { class: "mono-text base-text" }, memory),
-      ]),
-      capacity.adaptive ? h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, "File descriptors"),
-        h("strong", { class: "mono-text base-text" }, fileDescriptors),
-      ]) : null,
-      capacity.sensorDegraded ? h("p", { class: "agent-subline warning-text" }, capacity.lastGoodUnixMillis
-        ? `Resource sensor unavailable · last good ${formatDate(capacity.lastGoodUnixMillis)}`
-        : "Resource sensor unavailable · new streams are paused") : null,
-      capacity.adaptive ? h("p", { class: "agent-metric-line" }, [
-        h("span", { class: "muted-text" }, "Protocol guard"),
-        h("strong", { class: "mono-text base-text" }, capacity.negotiated.toString()),
-      ]) : null,
-    ]),
   ]);
+}
+
+function agentCapacityMemoryLabel(capacity: ReturnType<typeof summarizeAgentCapacity>): string {
+  if (capacity.memoryUsageBytes !== undefined && capacity.memoryLimitBytes !== undefined && capacity.memoryLimitBytes > 0n) {
+    return `${formatBytes(capacity.memoryUsageBytes)} / ${formatBytes(capacity.memoryLimitBytes)}${capacity.memoryPercent === undefined ? "" : ` · ${capacity.memoryPercent.toFixed(1)}%`}`;
+  }
+  return capacity.memorySysMb === undefined ? "No sample" : `${bigIntLabel(capacity.memorySysMb)} MB process`;
+}
+
+function agentCapacityFileDescriptorLabel(capacity: ReturnType<typeof summarizeAgentCapacity>): string {
+  if (capacity.fileDescriptorsUsed !== undefined && capacity.fileDescriptorsLimit !== undefined && capacity.fileDescriptorsLimit > 0n) {
+    return `${capacity.fileDescriptorsUsed.toString()} / ${capacity.fileDescriptorsLimit.toString()}${capacity.fileDescriptorsPercent === undefined ? "" : ` · ${capacity.fileDescriptorsPercent.toFixed(1)}%`}`;
+  }
+  return "No sample";
+}
+
+function renderAgentActions(agent: Agent) {
+  return h("div", { class: "agent-row-actions" }, [
+    h(NButton, {
+      secondary: true,
+      size: "small",
+      "aria-label": agentActionLabel("Investigate", agent),
+      onClick: () => void investigateAgent(agent),
+    }, { default: () => "Investigate" }),
+    h(DisabledHint, { disabled: Boolean(busyDisabledReason.value), reason: busyDisabledReason.value }, {
+      default: () => h(NButton, {
+        secondary: true,
+        size: "small",
+        "aria-label": agentActionLabel("Edit", agent),
+        disabled: Boolean(busyDisabledReason.value),
+        onClick: () => editAgent(agent),
+      }, { default: () => "Edit" }),
+    }),
+    h(NDropdown, {
+      trigger: "click",
+      placement: "bottom-end",
+      show: openAgentActionMenuId.value === agent.id.toString(),
+      options: agentLifecycleOptions(agent),
+      menuProps: () => ({
+        id: agentActionMenuId(agent),
+        role: "menu",
+        "aria-label": agentActionLabel("Lifecycle actions for", agent),
+      }),
+      nodeProps: (option: DropdownOption) => ({
+        role: "menuitem",
+        "aria-disabled": option.disabled ? ("true" as const) : undefined,
+      }),
+      onUpdateShow: (show: boolean) => setAgentActionMenuOpen(agent, show),
+      onSelect: (key: string | number) => handleAgentLifecycleAction(agent, String(key)),
+    }, {
+      default: () => h(NButton, {
+        secondary: true,
+        size: "small",
+        "aria-label": agentActionLabel("More actions for", agent),
+        "aria-haspopup": "menu",
+        "aria-controls": agentActionMenuId(agent),
+        "aria-expanded": openAgentActionMenuId.value === agent.id.toString() ? "true" : "false",
+      }, { icon: () => h(EllipsisIcon, { class: "icon-sm" }), default: () => "More" }),
+    }),
+  ]);
+}
+
+function renderSessionAgent(session: AgentConnectionSession) {
+  return h("div", { class: "agent-session-cell" }, [
+    h("p", {
+      class: "agent-session-value agent-session-value--name",
+      title: diagnosticInspectionText(sessionAgentLabel(session)),
+    }, [h("bdi", { dir: "ltr" }, diagnosticExcerpt(sessionAgentLabel(session), 64).text)]),
+    sessionAgentDetail(session)
+      ? h("p", {
+          class: "agent-session-value mono-text agent-meta",
+          title: diagnosticInspectionText(sessionAgentDetail(session)),
+        }, [h("bdi", { dir: "ltr" }, diagnosticExcerpt(sessionAgentDetail(session), 64).text)])
+      : null,
+  ]);
+}
+
+function renderSessionState(session: AgentConnectionSession) {
+  return h(NTag, { size: "small", bordered: false, type: session.active ? "success" : "default" }, { default: () => session.active ? "Active" : "Closed" });
 }
 
 function agentBuildStatusType(state: AgentBuildState): "default" | "success" | "warning" | "info" {
@@ -1010,26 +1108,25 @@ async function copyUninstallSnippet() {
 </script>
 
 <template>
-  <div v-if="dashboard && status" class="agent-page stack-xl">
-    <div class="agent-page__header">
-      <div class="min-width-zero">
-        <div class="agent-title-row">
-          <h3 class="copy-xl weight-bold">Agents</h3>
-          <NTag size="small" :bordered="false" :type="fleetStatusType">{{ fleetStatusLabel }}</NTag>
-        </div>
-        <p class="muted-text copy-sm">{{ activeAgentSectionMeta.description }}</p>
-      </div>
-      <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
-          <template #icon><PlusIcon class="icon-sm" /></template>
-          Add Agent
-        </NButton>
-      </DisabledHint>
-    </div>
+  <div v-if="dashboard && status" class="agent-page">
+    <PageHeader title="Agents" :description="activeAgentSectionMeta.description">
+      <template #badge>
+        <NTag size="small" :bordered="false" :type="fleetStatusType">{{ fleetStatusLabel }}</NTag>
+      </template>
+      <template #actions>
+        <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+          <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
+            <template #icon><PlusIcon class="icon-sm" /></template>
+            Add Agent
+          </NButton>
+        </DisabledHint>
+      </template>
+    </PageHeader>
 
     <NTabs
       class="agent-section-tabs"
       type="line"
+      size="small"
       :value="activeAgentSection"
       @update:value="selectAgentSection"
     >
@@ -1041,50 +1138,38 @@ async function copyUninstallSnippet() {
       />
     </NTabs>
 
-    <section v-if="activeAgentSection === 'fleet'" class="surface-card agent-overview">
-      <div class="agent-overview__main">
-        <div class="agent-overview__heading">
-          <p class="stat-label">Fleet connection</p>
-          <strong>{{ connectedAgentCount }}/{{ enabledAgents }}</strong>
-        </div>
-        <div class="agent-connection-meter" aria-hidden="true">
-          <span :style="connectedAgentPercentStyle"></span>
-        </div>
-        <p class="copy-sm muted-text">{{ fleetSummary }}</p>
-        <div class="agent-overview__tags">
-          <NTag size="small" :bordered="false" type="info">{{ totalAgents }} registered</NTag>
-          <NTag size="small" :bordered="false" type="success">{{ enabledAgents }} enabled</NTag>
-          <NTag v-if="disabledAgents" size="small" :bordered="false" type="warning">{{ disabledAgents }} disabled</NTag>
-          <NTag v-if="agentsNeedingUpdate" size="small" :bordered="false" type="warning">
-            {{ agentsNeedingUpdate }} update{{ agentsNeedingUpdate === 1 ? '' : 's' }} available
-          </NTag>
-          <NTag v-if="agentsWithBuildMismatch" size="small" :bordered="false" type="warning">
-            {{ agentsWithBuildMismatch }} build mismatch{{ agentsWithBuildMismatch === 1 ? '' : 'es' }}
-          </NTag>
-          <NTag v-if="agentsWithUnverifiedBuild" size="small" :bordered="false" type="warning">
-            {{ agentsWithUnverifiedBuild }} build unverified
-          </NTag>
-        </div>
-      </div>
-
-      <div class="agent-overview__metrics">
-        <div class="agent-overview__metric">
-          <span>Fleet uptime</span>
-          <strong>{{ formatPercent(fleetUptime) }}</strong>
-          <small>{{ retentionDaysLabel }} retention</small>
-        </div>
-        <div class="agent-overview__metric">
-          <span>Longest live session</span>
-          <strong>{{ formatLongDuration(longestCurrentUptimeMillis) }}</strong>
-          <small>current uptime</small>
-        </div>
-        <div class="agent-overview__metric">
-          <span>Recent disconnects</span>
-          <strong :class="recentDisconnects ? 'warning-text' : 'base-text'">{{ recentDisconnects }}</strong>
-          <small>last 24h</small>
-        </div>
-      </div>
-    </section>
+    <MetricStrip v-if="activeAgentSection === 'fleet'" label="Fleet summary" class="agent-fleet-strip">
+      <MetricCard
+        label="Fleet connection"
+        :value="enabledAgents ? `${connectedAgentCount}/${enabledAgents}` : '—'"
+        :tone="fleetStatusType === 'default' ? 'muted' : fleetStatusType"
+        :dot="Boolean(enabledAgents)"
+        :detail="fleetSummary"
+      />
+      <MetricCard label="Registered" :value="String(totalAgents)" :detail="registeredDetail" />
+      <MetricCard
+        label="Fleet uptime"
+        :value="formatPercent(fleetUptime)"
+        :detail="fleetUptime === null ? 'No uptime history yet' : `${retentionDaysLabel} retention`"
+      />
+      <MetricCard
+        label="Longest live session"
+        :value="formatLongDuration(longestCurrentUptimeMillis)"
+        :detail="longestCurrentUptimeMillis > 0 ? 'Current uptime' : 'No live session'"
+      />
+      <MetricCard
+        label="Recent disconnects"
+        :value="String(recentDisconnects)"
+        :tone="recentDisconnects ? 'warning' : 'default'"
+        detail="Last 24 hours"
+      />
+      <MetricCard
+        label="Version drift"
+        :value="totalAgents ? String(versionDriftCount) : '—'"
+        :tone="versionDriftCount ? 'warning' : 'default'"
+        :detail="versionDriftDetail"
+      />
+    </MetricStrip>
 
     <AgentAvailabilityChart
       v-if="activeAgentSection === 'activity'"
@@ -1100,31 +1185,36 @@ async function copyUninstallSnippet() {
       @retry="retryAgentAvailability"
     />
 
-    <section v-if="activeAgentSection === 'activity'" class="surface-card agent-runtime-card">
-      <div class="agent-section-header">
-        <div>
-          <h4>Runtime pressure</h4>
-          <p>Latest agent process stats plus rolling dashboard windows.</p>
-        </div>
-        <NTag size="small" :bordered="false" type="default">{{ activeAgentRequests }} active requests</NTag>
-      </div>
-      <div class="agent-runtime-grid">
-        <div v-for="metric in runtimeMetrics" :key="metric.label" class="agent-runtime-metric">
-          <span>{{ metric.label }}</span>
-          <strong>{{ metric.value }}</strong>
-          <small>{{ metric.detail }}</small>
-        </div>
-      </div>
-    </section>
+    <SectionCard
+      v-if="activeAgentSection === 'activity'"
+      title="Runtime pressure"
+      description="Latest agent process stats plus rolling dashboard windows."
+    >
+      <template #badge>
+        <NTag size="small" :bordered="false">{{ activeAgentRequests }} active requests</NTag>
+      </template>
+      <MetricStrip label="Runtime pressure">
+        <MetricCard
+          v-for="metric in runtimeMetrics"
+          :key="metric.label"
+          :label="metric.label"
+          :value="metric.value"
+          :tone="metric.value === '—' ? 'muted' : 'default'"
+          :detail="metric.detail"
+        />
+      </MetricStrip>
+    </SectionCard>
 
-    <section v-if="activeAgentSection === 'fleet'" class="surface-card hide-overflow agent-table-card">
-      <div class="agent-section-header agent-section-header--table">
-        <div>
-          <h4>Registered agents</h4>
-          <p>Offline enabled agents are shown first. Expand identity details only when you need exact selectors.</p>
-        </div>
-        <NTag size="small" :bordered="false" type="default">{{ totalAgents }} total</NTag>
-      </div>
+    <SectionCard
+      v-if="activeAgentSection === 'fleet'"
+      title="Registered agents"
+      description="Offline enabled agents first. Expand identity details for exact selectors and runtime data."
+      flush
+      class="agent-table-card"
+    >
+      <template #badge>
+        <NTag size="small" :bordered="false">{{ totalAgents }} total</NTag>
+      </template>
       <div v-if="agents.length" class="agent-table-toolbar">
         <NInput
           v-model:value="agentSearch"
@@ -1143,7 +1233,7 @@ async function copyUninstallSnippet() {
           :options="agentStateOptions"
           class="agent-state-filter"
         />
-        <p class="agent-filter-summary copy-xs muted-text" aria-live="polite">{{ filteredAgentSummary }}</p>
+        <p class="agent-filter-summary" aria-live="polite">{{ filteredAgentSummary }}</p>
       </div>
       <NDataTable
         v-if="filteredAgents.length"
@@ -1153,13 +1243,13 @@ async function copyUninstallSnippet() {
         :row-props="agentRowProps"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
-        :scroll-x="1260"
+       
+        :scroll-x="agentTableScrollX"
         size="small"
       />
-      <div v-else-if="agents.length" class="agent-filter-empty">
-        <p class="weight-semibold base-text">No agents match these filters</p>
-        <p class="copy-sm muted-text">Try another name, ID, label, or connection state.</p>
+      <div v-else-if="agents.length" class="agent-empty">
+        <p class="agent-empty__title">No agents match these filters</p>
+        <p class="agent-empty__description">Try another name, ID, label, or connection state.</p>
         <NButton secondary size="small" @click="clearAgentFilters">Clear filters</NButton>
       </div>
       <EmptyState
@@ -1169,35 +1259,37 @@ async function copyUninstallSnippet() {
         action-label="Add Agent"
         @action="openAddAgentModal"
       />
-    </section>
+    </SectionCard>
 
-    <section v-if="activeAgentSection === 'activity'" class="surface-card hide-overflow agent-table-card">
-      <div class="agent-section-header agent-section-header--table">
-        <div>
-          <h4>Recent connection sessions</h4>
-          <p>Connection lifetime history retained for {{ retentionDaysLabel }}.</p>
+    <SectionCard
+      v-if="activeAgentSection === 'activity'"
+      title="Recent connection sessions"
+      :description="`Connection lifetime history retained for ${retentionDaysLabel}.`"
+      flush
+      class="agent-table-card"
+    >
+      <template #badge>
+        <NTag size="small" :bordered="false">{{ filteredAgentConnections.length }} sessions</NTag>
+      </template>
+      <template v-if="investigatedAgentPublicId || inspectedSegmentSummary" #actions>
+        <div v-if="investigatedAgentPublicId" class="agent-filter-chip">
+          <NTag size="small" :bordered="false" type="warning">
+            Investigating <bdi dir="ltr">{{ diagnosticExcerpt(investigatedAgent?.name || investigatedAgentPublicId, 64).text }}</bdi>
+          </NTag>
+          <NButton
+            secondary
+            size="tiny"
+            :aria-label="`Clear investigation for agent ⁨${diagnosticExcerpt(investigatedAgentPublicId, 64).text}⁩`"
+            @click="clearInvestigatedAgent"
+          >
+            Clear
+          </NButton>
         </div>
-        <div class="agent-activity-context">
-          <div v-if="investigatedAgentPublicId" class="agent-investigation-filter">
-            <NTag size="small" :bordered="false" type="warning">
-              Investigating <bdi dir="ltr">{{ diagnosticExcerpt(investigatedAgent?.name || investigatedAgentPublicId, 64).text }}</bdi>
-            </NTag>
-            <NButton
-              secondary
-              size="tiny"
-              :aria-label="`Clear investigation for agent \u2068${diagnosticExcerpt(investigatedAgentPublicId, 64).text}\u2069`"
-              @click="clearInvestigatedAgent"
-            >
-              Clear
-            </NButton>
-          </div>
-          <div v-if="inspectedSegmentSummary" class="agent-chart-selection">
-            <NTag size="small" :bordered="false" type="info">{{ inspectedSegmentSummary }}</NTag>
-            <NButton text size="tiny" attr-type="button" @click="clearInspectedAvailabilitySegment">Clear selection</NButton>
-          </div>
-          <NTag size="small" :bordered="false" type="default">{{ filteredAgentConnections.length }} sessions</NTag>
+        <div v-if="inspectedSegmentSummary" class="agent-filter-chip">
+          <NTag size="small" :bordered="false" type="info">{{ inspectedSegmentSummary }}</NTag>
+          <NButton text size="tiny" attr-type="button" @click="clearInspectedAvailabilitySegment">Clear selection</NButton>
         </div>
-      </div>
+      </template>
       <NDataTable
         v-if="filteredAgentConnections.length"
         :columns="sessionColumns"
@@ -1206,22 +1298,22 @@ async function copyUninstallSnippet() {
         :row-props="sessionRowProps"
         :pagination="sessionPagination"
         :bordered="false"
-        :single-line="false"
-        :scroll-x="870"
+       
+        :scroll-x="sessionTableScrollX"
         size="small"
         @update:page="sessionPage = $event"
       />
+      <div v-else-if="investigatedAgentPublicId" class="agent-empty">
+        <p class="agent-empty__title">No connection sessions</p>
+        <p class="agent-empty__description">No retained connection sessions match this agent.</p>
+        <NButton secondary size="small" @click="clearInvestigatedAgent">Show all sessions</NButton>
+      </div>
       <EmptyState
         v-else
         title="No connection sessions"
-        :description="investigatedAgentPublicId
-          ? 'No retained connection sessions match this agent.'
-          : 'Agent connection sessions will appear after registered agents connect to management.'"
+        description="Agent connection sessions will appear after registered agents connect to management."
       />
-      <div v-if="investigatedAgentPublicId && !filteredAgentConnections.length" class="agent-filter-empty__action">
-        <NButton secondary size="small" @click="clearInvestigatedAgent">Show all sessions</NButton>
-      </div>
-    </section>
+    </SectionCard>
 
     <AgentEditorModal
       ref="agentEditor"
@@ -1239,18 +1331,18 @@ async function copyUninstallSnippet() {
       :bordered="false"
       @update:show="handleRotateModalUpdate"
     >
-      <div v-if="rotateAgentToConfirm" class="layout-grid space-xl">
-        <div class="layout-grid space-sm">
-          <p class="copy-sm base-text">Rotate the token for <bdi class="agent-inline-hostile" dir="ltr" :title="diagnosticInspectionText(rotateAgentToConfirm.name)">{{ diagnosticExcerpt(rotateAgentToConfirm.name, 72).text }}</bdi>?</p>
-          <p class="copy-sm line-relaxed muted-text">
+      <div v-if="rotateAgentToConfirm" class="agent-modal">
+        <div class="agent-modal__copy">
+          <p class="agent-modal__lead">Rotate the token for <bdi class="agent-inline-hostile" dir="ltr" :title="diagnosticInspectionText(rotateAgentToConfirm.name)">{{ diagnosticExcerpt(rotateAgentToConfirm.name, 72).text }}</bdi>?</p>
+          <p class="agent-modal__muted">
             The new token will be shown once. The active agent connection will be disconnected immediately. In-flight requests through this agent may fail, and future connections and stats reports must use the new token.
           </p>
         </div>
-        <div class="round-md framed frame-standard muted-bg pad-md">
-          <span class="margin-bottom-xs flow-box copy-xs weight-medium label-case letter-wide muted-text">Agent ID</span>
-          <code class="agent-modal-value flow-box scroll-x mono-text copy-xs base-text"><bdi dir="ltr">{{ diagnosticInspectionText(rotateAgentToConfirm.publicId) }}</bdi></code>
+        <div class="agent-modal__field">
+          <span class="agent-modal__label">Agent ID</span>
+          <code class="agent-modal-value agent-modal__inset mono-text"><bdi dir="ltr">{{ diagnosticInspectionText(rotateAgentToConfirm.publicId) }}</bdi></code>
         </div>
-        <div class="layout-row align-end-row space-md">
+        <div class="agent-modal__actions">
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
             <NButton secondary attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal">Cancel</NButton>
           </DisabledHint>
@@ -1270,37 +1362,36 @@ async function copyUninstallSnippet() {
       :bordered="false"
       @update:show="handleUninstallModalUpdate"
     >
-      <div v-if="uninstallAgent" class="layout-grid space-xl">
-        <div class="layout-grid space-md mq-md-cols-two">
-          <div class="layout-grid space-xs">
-            <span class="copy-xs weight-medium label-case letter-wide muted-text">Agent</span>
-            <bdi class="agent-modal-value round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-sm base-text" dir="ltr" :title="diagnosticInspectionText(uninstallAgent.name)">{{ diagnosticExcerpt(uninstallAgent.name, 72).text }}</bdi>
+      <div v-if="uninstallAgent" class="agent-modal">
+        <dl class="agent-modal__identity">
+          <div class="agent-modal__field">
+            <dt class="agent-modal__label">Agent</dt>
+            <dd><bdi class="agent-modal-value" dir="ltr" :title="diagnosticInspectionText(uninstallAgent.name)">{{ diagnosticExcerpt(uninstallAgent.name, 72).text }}</bdi></dd>
           </div>
-          <div class="layout-grid space-xs">
-            <span class="copy-xs weight-medium label-case letter-wide muted-text">Agent ID</span>
-            <code class="agent-modal-value scroll-x round-md framed frame-standard muted-bg pad-x-md pad-y-sm mono-text copy-xs base-text"><bdi dir="ltr">{{ diagnosticInspectionText(uninstallAgent.publicId) }}</bdi></code>
+          <div class="agent-modal__field">
+            <dt class="agent-modal__label">Agent ID</dt>
+            <dd><code class="agent-modal-value mono-text"><bdi dir="ltr">{{ diagnosticInspectionText(uninstallAgent.publicId) }}</bdi></code></dd>
           </div>
-        </div>
+        </dl>
 
-        <div class="warning-panel pad-md copy-xs line-normal">
-          <p class="weight-semibold label-case letter-wide">Remote host full purge</p>
-          <p class="margin-top-xs deemphasized">
+        <NAlert type="warning" :bordered="false" title="Remote host full purge">
+          <p>
             Run this command on the Linux host where the shell installer was used. It stops and removes the systemd service, deletes the config directory and binary, and removes the p2pstream service user and group.
           </p>
-          <p class="margin-top-sm deemphasized">
+          <p class="agent-modal__alert-followup">
             This does not delete the management agent record. Delete or disable the agent here after the host is removed.
           </p>
-        </div>
+        </NAlert>
 
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          GitHub Repository
+        <label class="agent-modal__field">
+          <span class="agent-modal__label">GitHub Repository</span>
           <NInput v-model:value="uninstallReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
         </label>
 
-        <p v-if="uninstallSnippetError" class="error-panel pad-md copy-xs line-normal">{{ uninstallSnippetError }}</p>
-        <pre v-else class="max-height-sm scroll-any round-md framed frame-standard muted-bg pad-lg copy-xs line-normal base-text"><code>{{ uninstallSnippet }}</code></pre>
+        <NAlert v-if="uninstallSnippetError" type="error" :bordered="false">{{ uninstallSnippetError }}</NAlert>
+        <pre v-else class="agent-command-block"><code>{{ uninstallSnippet }}</code></pre>
 
-        <div class="layout-row align-end-row space-md">
+        <div class="agent-modal__actions">
           <NButton secondary attr-type="button" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet">{{ uninstallCopyLabel }}</NButton>
           <NButton type="primary" attr-type="button" @click="closeUninstallModal">Done</NButton>
         </div>
@@ -1311,160 +1402,33 @@ async function copyUninstallSnippet() {
   </div>
 </template>
 
-<style>
-.agent-page__header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1rem;
-}
-
-.agent-title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.35rem;
+<style scoped>
+.agent-page {
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem;
 }
 
 .agent-section-tabs {
   min-width: 0;
+  margin-top: -0.25rem;
 }
 
-.agent-section-tabs .n-tabs-nav {
+.agent-section-tabs :deep(.n-tabs-nav) {
   margin-bottom: 0;
 }
 
-.agent-overview {
-  display: grid;
-  gap: 1rem;
-  padding: 1rem;
+.agent-fleet-strip :deep(.metric-card__detail) {
+  white-space: normal;
 }
 
-.agent-overview__main {
-  display: grid;
-  align-content: start;
-  gap: 0.75rem;
-  min-width: 0;
-}
-
-.agent-overview__heading {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.agent-overview__heading strong {
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-.agent-connection-meter {
-  height: 0.5rem;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--app-panel-muted);
-}
-
-.agent-connection-meter span {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--app-accent), var(--app-success));
-  transform-origin: left center;
-  transition: transform 180ms ease;
-}
-
-.agent-overview__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.agent-overview__metrics {
-  display: grid;
-  overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-}
-
-.agent-overview__metric {
-  display: grid;
-  gap: 0.35rem;
-  min-width: 0;
-  padding: 0.85rem;
-}
-
-.agent-overview__metric + .agent-overview__metric {
-  border-top: 1px solid var(--app-border-subtle);
-}
-
-.agent-overview__metric span,
-.agent-runtime-metric span {
-  color: var(--app-text-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.agent-overview__metric strong,
-.agent-runtime-metric strong {
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.agent-overview__metric small,
-.agent-runtime-metric small {
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-}
-
-.agent-runtime-card,
-.agent-table-card {
-  overflow: hidden;
-}
-
-.agent-section-header {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  border-bottom: 1px solid var(--app-border);
-  padding: 1rem 1.25rem;
-}
-
-.agent-section-header h4 {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.agent-section-header p {
-  margin: 0.25rem 0 0;
-  color: var(--app-text-muted);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
+/* Registered agents and sessions tables */
 .agent-table-toolbar {
   display: grid;
   align-items: center;
   gap: 0.75rem;
   border-bottom: 1px solid var(--app-border-subtle);
-  padding: 0.75rem 1rem;
-  background: var(--app-panel-muted);
+  padding: 0.75rem 1.25rem;
 }
 
 .agent-search-input,
@@ -1474,9 +1438,11 @@ async function copyUninstallSnippet() {
 
 .agent-filter-summary {
   margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
 }
 
-.agent-filter-empty {
+.agent-empty {
   display: grid;
   justify-items: center;
   gap: 0.5rem;
@@ -1484,40 +1450,26 @@ async function copyUninstallSnippet() {
   text-align: center;
 }
 
-.agent-filter-empty p {
-  margin: 0;
+.agent-empty__title {
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.agent-filter-empty__action {
-  display: flex;
-  justify-content: center;
-  margin-top: -1.75rem;
-  padding: 0 1.25rem 2.5rem;
+.agent-empty__description {
+  margin-bottom: 0.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
 }
 
-.agent-activity-context {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.agent-investigation-filter {
+.agent-filter-chip {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.375rem;
 }
 
-.agent-chart-selection {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.agent-investigation-filter .n-tag,
-.agent-chart-selection .n-tag {
+.agent-filter-chip :deep(.n-tag) {
   min-width: 0;
   max-width: 20rem;
   overflow: hidden;
@@ -1526,63 +1478,65 @@ async function copyUninstallSnippet() {
   unicode-bidi: isolate;
 }
 
-.agent-table-card .n-data-table-th,
-.agent-table-card .n-data-table-td {
-  padding: 0.7rem 0.75rem;
+.agent-table-card :deep(.n-data-table-th),
+.agent-table-card :deep(.n-data-table-td) {
+  padding: 0.75rem;
+  vertical-align: top;
 }
 
-.agent-table-card .n-data-table-tr.agent-session-row--highlighted .n-data-table-td {
-  background: color-mix(in srgb, var(--app-accent) 11%, var(--app-panel)) !important;
+.agent-table-card :deep(.n-data-table-th:first-child),
+.agent-table-card :deep(.n-data-table-td:first-child) {
+  padding-left: 1.25rem;
 }
 
-.agent-table-card .n-data-table-tr.agent-session-row--highlighted .n-data-table-td:first-child {
-  box-shadow: inset 3px 0 0 var(--app-accent);
+.agent-table-card :deep(.n-data-table-th:last-child),
+.agent-table-card :deep(.n-data-table-td:last-child) {
+  padding-right: 1.25rem;
 }
 
-.agent-runtime-grid {
+.agent-table-card :deep(.n-data-table-tr.agent-session-row--highlighted .n-data-table-td) {
+  background: color-mix(in srgb, var(--app-accent) 10%, var(--app-panel)) !important;
+}
+
+.agent-table-card :deep(.n-data-table-tr.agent-session-row--highlighted .n-data-table-td:first-child) {
+  box-shadow: inset 2px 0 0 var(--app-accent);
+}
+
+.agent-table-card :deep(.agent-meta) {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.agent-table-card :deep(.agent-table-date) {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Agent identity cell */
+.agent-table-card :deep(.agent-cell) {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.agent-runtime-metric {
-  display: grid;
-  gap: 0.35rem;
   min-width: 0;
-  border-top: 1px solid var(--app-border-subtle);
-  padding: 1rem;
+  gap: 0.125rem;
 }
 
-.agent-runtime-metric:nth-child(odd) {
-  border-right: 1px solid var(--app-border-subtle);
-}
-
-.agent-cell {
-  display: grid;
-  gap: 0.3rem;
-  min-width: 0;
-}
-
-.agent-cell__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.agent-cell__name {
+.agent-table-card :deep(.agent-cell__name) {
   display: block;
   min-width: 0;
-  max-width: 24rem;
   overflow: hidden;
   color: var(--app-text);
-  font-weight: 700;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
   unicode-bidi: isolate;
 }
 
-.agent-cell__id {
+.agent-table-card :deep(.agent-cell__id) {
   min-width: 0;
   overflow: hidden;
   margin: 0;
@@ -1593,248 +1547,211 @@ async function copyUninstallSnippet() {
   unicode-bidi: isolate;
 }
 
-.agent-cell__mobile-build {
-  display: none;
+.agent-table-card :deep(.agent-cell__compact) {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
-.agent-exact-details {
+.agent-table-card :deep(.agent-exact-details) {
   min-width: 0;
-  margin-top: 0.1rem;
+  margin-top: 0.25rem;
 }
 
-.agent-exact-details summary {
+.agent-table-card :deep(.agent-exact-details summary) {
   width: fit-content;
   max-width: 100%;
-  cursor: pointer;
+  border-radius: 4px;
   color: var(--app-text-muted);
-  font-size: 0.6875rem;
-  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.75rem;
   line-height: 1.5;
 }
 
-.agent-exact-details[open] summary {
-  margin-bottom: 0.55rem;
+.agent-table-card :deep(.agent-exact-details summary:hover),
+.agent-table-card :deep(.agent-exact-details[open] summary) {
   color: var(--app-text);
 }
 
-.agent-exact-details__body {
+.agent-table-card :deep(.agent-exact-details summary:focus-visible) {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
+}
+
+.agent-table-card :deep(.agent-exact-details__body) {
   display: grid;
-  gap: 0.6rem;
   max-width: 100%;
-  max-height: 14rem;
+  max-height: 24rem;
+  gap: 0.625rem;
   overflow: auto;
-  border-left: 2px solid var(--app-border);
-  padding: 0.25rem 0 0.25rem 0.65rem;
+  margin-top: 0.5rem;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.625rem 0.75rem;
 }
 
-.agent-exact-field {
+.agent-table-card :deep(.agent-exact-field) {
   display: grid;
-  gap: 0.2rem;
   min-width: 0;
+  gap: 0.125rem;
 }
 
-.agent-exact-field > span {
+.agent-table-card :deep(.agent-exact-field > span),
+.agent-table-card :deep(.agent-runtime-details dt) {
   color: var(--app-text-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
 }
 
-.agent-exact-field code {
+.agent-table-card :deep(.agent-exact-field code) {
   display: block;
   max-width: 100%;
   color: var(--app-text);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   overflow-wrap: anywhere;
   unicode-bidi: isolate;
 }
 
-.agent-exact-labels {
+.agent-table-card :deep(.agent-exact-labels) {
   display: grid;
-  gap: 0.2rem;
   min-width: 0;
+  gap: 0.125rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.agent-state-cell {
+.agent-table-card :deep(.agent-runtime-details) {
   display: grid;
-  gap: 0.4rem;
-  min-width: 0;
-}
-
-.agent-state-cell__status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.agent-state-dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-border) 50%, transparent);
-}
-
-.agent-state-dot--connected {
-  background: var(--app-success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-success) 18%, transparent);
-}
-
-.agent-state-dot--offline {
-  background: var(--app-warning);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-warning) 18%, transparent);
-}
-
-.agent-state-dot--disabled {
-  background: var(--app-text-muted);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text-muted) 14%, transparent);
-}
-
-.agent-state-cell__duration {
-  min-height: 1.15rem;
+  gap: 0.25rem;
   margin: 0;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 0.625rem;
+}
+
+.agent-table-card :deep(.agent-runtime-details__item) {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 0.75rem;
+}
+
+.agent-table-card :deep(.agent-runtime-details dd) {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+  text-align: right;
 }
 
-.agent-compact-stack {
+.agent-table-card :deep(.agent-runtime-details dd.warning-text) {
+  color: var(--app-warning);
+}
+
+/* Status, capacity and version cells */
+.agent-table-card :deep(.agent-status),
+.agent-table-card :deep(.agent-capacity),
+.agent-table-card :deep(.agent-version) {
   display: grid;
-  gap: 0.35rem;
   min-width: 0;
+  align-content: start;
+  gap: 0.25rem;
 }
 
-.agent-capacity-cell {
-  display: grid;
-  min-width: 0;
-  gap: 0.42rem;
-  border-left: 2px solid color-mix(in srgb, var(--app-info) 55%, var(--app-border));
-  padding-left: 0.7rem;
-}
-
-.agent-capacity-cell__header {
+.agent-table-card :deep(.agent-status__label),
+.agent-table-card :deep(.agent-capacity__header) {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem;
-}
-
-.agent-capacity-cell__value {
+  gap: 0.375rem 0.5rem;
+  margin: 0;
   color: var(--app-text);
   font-size: 0.8125rem;
-  font-weight: 750;
-  letter-spacing: -0.015em;
+  font-weight: 500;
 }
 
-.agent-capacity-cell__summary {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: 0.6875rem;
-  line-height: 1.4;
+.agent-table-card :deep(.agent-status__label) {
+  flex-wrap: nowrap;
+  align-items: flex-start;
 }
 
-.agent-capacity-meter {
+.agent-table-card :deep(.agent-state-dot) {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  margin-top: 0.375rem;
+  border-radius: 50%;
+  background: var(--app-text-muted);
+}
+
+.agent-table-card :deep(.agent-state-dot--connected) {
+  background: var(--app-success);
+}
+
+.agent-table-card :deep(.agent-state-dot--offline) {
+  background: var(--app-warning);
+}
+
+.agent-table-card :deep(.agent-capacity__value) {
+  font-variant-numeric: tabular-nums;
+}
+
+.agent-table-card :deep(.agent-capacity__meter) {
   position: relative;
-  height: 0.3rem;
+  height: 3px;
   overflow: hidden;
+  margin-top: 0.125rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--app-border) 68%, transparent);
+  background: var(--app-border-subtle);
 }
 
-.agent-capacity-meter > span {
+.agent-table-card :deep(.agent-capacity__meter > span) {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--app-info), var(--app-success));
+  background: var(--app-accent);
   transform-origin: left center;
   transition: transform 180ms ease-out;
 }
 
-.agent-capacity-cell__details {
-  display: grid;
-  gap: 0.22rem;
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 0.38rem;
+.agent-table-card :deep(.agent-version) {
+  justify-items: start;
 }
 
-.agent-capacity-cell--compact {
-  gap: 0.2rem;
-  margin-top: 0.35rem;
-}
-
-.agent-version-cell {
-  display: grid;
-  min-width: 0;
-  gap: 0.4rem;
-}
-
-.agent-version-cell__header {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.agent-version-cell__value {
+.agent-table-card :deep(.agent-version__value) {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
   color: var(--app-text);
   font-size: 0.75rem;
-  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
   unicode-bidi: isolate;
 }
 
-.agent-version-cell__detail {
-  min-width: 0;
-  overflow: hidden;
-  margin: 0;
-  font-size: 0.6875rem;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  unicode-bidi: isolate;
-}
-
-.agent-version-cell--compact {
-  gap: 0;
-}
-
-.agent-metric-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin: 0;
-  font-size: 0.75rem;
-}
-
-.agent-metric-line strong {
-  font-weight: 700;
-  text-align: right;
-}
-
-.agent-subline {
-  margin: 0;
-  font-size: 0.6875rem;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.agent-row-actions {
+.agent-table-card :deep(.agent-row-actions) {
   display: flex;
   flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 0.45rem;
+  gap: 0.375rem;
 }
 
-.agent-session-value {
+.agent-table-card :deep(.agent-cell .agent-row-actions) {
+  justify-content: flex-start;
+  margin-top: 0.625rem;
+}
+
+/* Sessions */
+.agent-table-card :deep(.agent-session-cell) {
+  display: grid;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.agent-table-card :deep(.agent-session-value) {
   max-width: 20rem;
   overflow: hidden;
   margin: 0;
@@ -1843,11 +1760,78 @@ async function copyUninstallSnippet() {
   unicode-bidi: isolate;
 }
 
+.agent-table-card :deep(.agent-session-value--name) {
+  color: var(--app-text);
+  font-weight: 500;
+}
+
+/* Modals (teleported, so these classes are used directly in this template) */
+.agent-modal {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.agent-modal__copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.agent-modal__lead {
+  color: var(--app-text);
+  font-size: 0.875rem;
+}
+
+.agent-modal__muted {
+  color: var(--app-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.agent-modal__identity {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+}
+
+.agent-modal__identity dd {
+  margin: 0;
+}
+
+.agent-modal__field {
+  display: grid;
+  min-width: 0;
+  gap: 0.375rem;
+}
+
+.agent-modal__label {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.agent-modal__inset {
+  display: block;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.5rem 0.75rem;
+}
+
 .agent-modal-value {
+  display: block;
   min-width: 0;
   max-width: 100%;
+  color: var(--app-text);
+  font-size: 0.8125rem;
   overflow-wrap: anywhere;
   unicode-bidi: isolate;
+}
+
+code.agent-modal-value {
+  font-size: 0.75rem;
+}
+
+.agent-modal__alert-followup {
+  margin-top: 0.5rem;
 }
 
 .agent-inline-hostile {
@@ -1860,84 +1844,73 @@ async function copyUninstallSnippet() {
   unicode-bidi: isolate;
 }
 
-@media (max-width: 639px) {
-  .agent-cell__mobile-build {
-    display: block;
-    margin-top: 0.15rem;
-  }
+.agent-command-block {
+  max-height: 16rem;
+  overflow: auto;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  padding: 0.875rem 1rem;
+  white-space: pre;
+}
+
+.agent-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 @media (min-width: 640px) {
-  .agent-page__header,
-  .agent-section-header {
-    flex-direction: row;
-    align-items: flex-end;
-    justify-content: space-between;
-  }
-
-  .agent-overview__metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .agent-overview__metric + .agent-overview__metric {
-    border-top: 0;
-    border-left: 1px solid var(--app-border-subtle);
-  }
-
-  .agent-runtime-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .agent-runtime-metric {
-    border-right: 1px solid var(--app-border-subtle);
-  }
-
-  .agent-runtime-metric:nth-child(3n) {
-    border-right: 0;
-  }
-
   .agent-table-toolbar {
-    grid-template-columns: minmax(14rem, 1fr) 12rem auto;
+    grid-template-columns: minmax(14rem, 1fr) 13rem auto;
   }
 
   .agent-filter-summary {
     justify-self: end;
     text-align: right;
   }
+
+  .agent-modal__identity {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-@media (min-width: 960px) {
-  .agent-overview {
-    grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.4fr);
-    align-items: stretch;
-    padding: 1.25rem;
+@media (max-width: 639px) {
+  .agent-table-toolbar {
+    padding-inline: 1rem;
   }
 
-  .agent-overview__metrics {
-    align-self: stretch;
+  .agent-table-card :deep(.n-data-table-th:first-child),
+  .agent-table-card :deep(.n-data-table-td:first-child) {
+    padding-left: 1rem;
   }
 
-  .agent-runtime-grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .agent-runtime-metric {
-    border-right: 1px solid var(--app-border-subtle);
-  }
-
-  .agent-runtime-metric:nth-child(3n) {
-    border-right: 1px solid var(--app-border-subtle);
-  }
-
-  .agent-runtime-metric:nth-child(6n) {
-    border-right: 0;
+  .agent-table-card :deep(.n-data-table-th:last-child),
+  .agent-table-card :deep(.n-data-table-td:last-child) {
+    padding-right: 1rem;
   }
 }
 
 @media (pointer: coarse) {
-  .agent-row-actions .n-button,
-  .agent-exact-details summary {
+  .agent-table-card :deep(.agent-row-actions .n-button),
+  .agent-table-card :deep(.agent-exact-details summary) {
     min-height: 2.75rem;
+  }
+
+  .agent-table-card :deep(.agent-exact-details summary) {
+    display: flex;
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-table-card :deep(.agent-capacity__meter > span) {
+    transition: none;
   }
 }
 </style>

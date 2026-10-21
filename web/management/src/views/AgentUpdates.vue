@@ -1,19 +1,21 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, h, inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { NAlert, NButton, NCheckbox, NInput, NInputNumber, NModal, NSpin, NTab, NTabs, NTag } from "naive-ui";
+import { NAlert, NButton, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSpin, NTab, NTabs, NTag } from "naive-ui";
+import type { DataTableColumns } from "naive-ui";
 import {
-  ArrowRight as ArrowRightIcon,
   CheckCircle2 as CheckIcon,
   CirclePause as PauseIcon,
   CirclePlay as PlayIcon,
-  Fingerprint as FingerprintIcon,
-  PackageCheck as PackageIcon,
   RefreshCw as RefreshIcon,
   RotateCcw as RetryIcon,
-  ShieldCheck as ShieldIcon,
   TriangleAlert as WarningIcon,
 } from "@lucide/vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
+import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 import { dashboardKey, isBusyKey, runManagementActionKey, selectedEnvironmentIdKey, selectedEnvironmentBlockedKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { messageFromError } from "@/lib/errors";
@@ -261,6 +263,130 @@ function toggleAgent(agent: AgentUpdateOverviewAgent, checked: boolean) {
   previewFingerprint.value = "";
 }
 
+/** Narrow screens stack each enrollment row into one cell instead of scrolling under a pinned column. */
+const ENROLLMENT_COLUMN_WIDTHS = { agent: 200, updater: 230, tunnel: 170, traffic: 96, actions: 196 } as const;
+const compactLayout = ref(false);
+let compactLayoutQuery: MediaQueryList | undefined;
+
+function syncCompactLayout(query: MediaQueryList | MediaQueryListEvent) {
+  compactLayout.value = query.matches;
+}
+
+const enrollmentColumns = computed<DataTableColumns<AgentUpdateOverviewAgent>>(() => compactLayout.value
+  ? [
+      {
+        title: "Agent",
+        key: "agent",
+        render: (agent) => h("div", { class: "update-cell update-cell--stacked" }, [
+          renderEnrollmentIdentity(agent),
+          h("div", { class: "update-cell" }, [h("span", { class: "update-meta" }, "Pinned updater"), renderEnrollmentUpdater(agent)]),
+          h("div", { class: "update-cell" }, [h("span", { class: "update-meta" }, "Live tunnel"), renderEnrollmentTunnel(agent)]),
+          h("p", { class: "update-meta" }, agent.cordoned ? "Traffic cordoned" : "Traffic eligible"),
+          renderEnrollmentActions(agent),
+        ]),
+      },
+    ]
+  : [
+      { title: "Agent", key: "agent", minWidth: ENROLLMENT_COLUMN_WIDTHS.agent, render: (agent) => renderEnrollmentIdentity(agent) },
+      { title: "Pinned updater", key: "updater", width: ENROLLMENT_COLUMN_WIDTHS.updater, render: (agent) => renderEnrollmentUpdater(agent) },
+      { title: "Live tunnel", key: "tunnel", width: ENROLLMENT_COLUMN_WIDTHS.tunnel, render: (agent) => renderEnrollmentTunnel(agent) },
+      {
+        title: "Traffic",
+        key: "traffic",
+        width: ENROLLMENT_COLUMN_WIDTHS.traffic,
+        render: (agent) => h("span", { class: agent.cordoned ? "update-value warning-text" : "update-value" }, agent.cordoned ? "Cordoned" : "Eligible"),
+      },
+      {
+        title: "Actions",
+        key: "actions",
+        width: ENROLLMENT_COLUMN_WIDTHS.actions,
+        align: "right",
+        fixed: "right",
+        render: (agent) => renderEnrollmentActions(agent),
+      },
+    ]);
+const enrollmentScrollX = computed(() => compactLayout.value
+  ? undefined
+  : Object.values(ENROLLMENT_COLUMN_WIDTHS).reduce((sum, width) => sum + width, 0));
+
+function renderEnrollmentIdentity(agent: AgentUpdateOverviewAgent) {
+  return h("div", { class: "update-identity" }, [
+    h("span", { class: ["update-state-dot", { "update-state-dot--online": agent.connected }], "aria-hidden": "true" }),
+    h("div", { class: "update-cell" }, [
+      h("bdi", { class: "update-name", dir: "ltr", title: diagnosticInspectionText(agent.name) }, diagnosticExcerpt(agent.name, 64).text),
+      h("p", { class: "update-id mono-text", title: diagnosticInspectionText(agent.agentPublicId) }, [
+        h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.agentPublicId)),
+      ]),
+    ]),
+  ]);
+}
+
+function renderEnrollmentUpdater(agent: AgentUpdateOverviewAgent) {
+  if (!agent.updaterEnrolled) {
+    return h("div", { class: "update-cell" }, [
+      h("span", { class: "update-value muted-text" }, "Not enrolled"),
+      h("p", { class: "update-meta" }, "One-time host setup required"),
+    ]);
+  }
+  const fresh = updaterIsFresh(agent);
+  return h("div", { class: "update-cell" }, [
+    h("p", { class: "update-inline" }, [
+      h("code", { class: "update-value mono-text", title: diagnosticInspectionText(agent.updaterVersion || "enrolled") }, [
+        h("bdi", { dir: "ltr" }, agent.updaterVersion ? diagnosticExcerpt(agent.updaterVersion, 32).text : "Enrolled"),
+      ]),
+      h(NTag, { size: "small", bordered: false, type: fresh ? "success" : "warning" }, { default: () => fresh ? "Managed" : "Worker stale" }),
+    ]),
+    h("p", { class: "update-meta" }, sentenceCase(updaterLastSeenLabel(agent))),
+  ]);
+}
+
+function renderEnrollmentTunnel(agent: AgentUpdateOverviewAgent) {
+  return h("div", { class: "update-cell" }, [
+    h("code", { class: "update-value mono-text", title: diagnosticInspectionText(agent.tunnelVersion || "unreported") }, [
+      h("bdi", { dir: "ltr" }, agent.tunnelVersion ? diagnosticExcerpt(agent.tunnelVersion, 32).text : "Unreported"),
+    ]),
+    agent.tunnelCommit
+      ? h("p", { class: "update-meta mono-text", title: diagnosticInspectionText(agent.tunnelCommit) }, [
+          h("bdi", { dir: "ltr" }, shortDigest(diagnosticInspectionText(agent.tunnelCommit))),
+        ])
+      : null,
+  ]);
+}
+
+function renderEnrollmentActions(agent: AgentUpdateOverviewAgent) {
+  if (!agent.updaterEnrolled) {
+    return h("div", { class: "update-actions" }, [
+      h(NButton, {
+        secondary: true,
+        size: "small",
+        disabled: isBusy.value || !agent.tunnelVersion || !agent.tunnelCommit,
+        onClick: () => enableManagedUpdates(agent),
+      }, { default: () => "Enable managed updates" }),
+    ]);
+  }
+  return h("div", { class: "update-actions" }, [
+    h("span", {
+      title: agent.activeAssignmentId ? "Recovery must finish before replacing updater enrollment." : "Refresh the pinned updater while preserving the live tunnel binary.",
+    }, [
+      h(NButton, {
+        secondary: true,
+        size: "small",
+        disabled: campaignBusy.value || Boolean(agent.activeAssignmentId) || !trustedTarget.value || !managementAuthority.value,
+        onClick: () => repairUpdater(agent),
+      }, { default: () => "Repair updater" }),
+    ]),
+    agent.activeAssignmentId ? h("p", { class: "update-meta" }, "Finish campaign recovery before repair.") : null,
+  ]);
+}
+
+function enrollmentRowKey(agent: AgentUpdateOverviewAgent): string {
+  return agent.agentPublicId;
+}
+
+function sentenceCase(value: string): string {
+  return value ? `${value.charAt(0).toLocaleUpperCase()}${value.slice(1)}` : value;
+}
+
 function shortDigest(value: string): string {
   return value ? `${value.slice(0, 10)}…${value.slice(-8)}` : "unavailable";
 }
@@ -348,243 +474,209 @@ watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
   previewFingerprint.value = "";
   void polling.scopeChanged();
 }, { flush: "sync" });
-onMounted(() => { void polling.start(); });
-onUnmounted(() => polling.stop());
+onMounted(() => {
+  compactLayoutQuery = window.matchMedia("(max-width: 639px)");
+  syncCompactLayout(compactLayoutQuery);
+  compactLayoutQuery.addEventListener("change", syncCompactLayout);
+  void polling.start();
+});
+onUnmounted(() => {
+  compactLayoutQuery?.removeEventListener("change", syncCompactLayout);
+  polling.stop();
+});
 </script>
 
 <template>
-  <div class="agent-updates stack-xl">
-    <header class="agent-updates__header">
-      <div>
-        <div class="agent-updates__eyebrow"><ShieldIcon aria-hidden="true" /> Release control</div>
-        <h3 class="copy-xl weight-bold">Agent Updates</h3>
-        <p class="muted-text copy-sm">Signed desired state, route-aware rollout waves, and verified recovery.</p>
-      </div>
-      <div class="agent-updates__actions">
+  <div class="agent-updates">
+    <PageHeader title="Agents" description="Trusted releases, rollout safety, and managed agent update campaigns.">
+      <template #actions>
         <NButton secondary size="small" :loading="loading" :disabled="isBusy" @click="refresh">
           <template #icon><RefreshIcon class="icon-sm" /></template>
           Refresh status
         </NButton>
         <NButton type="primary" size="small" :disabled="!trustedTarget || !managementAuthority || !enrolledAgents.length || isBusy" @click="openPlan">
           Plan rollout
-          <template #icon><ArrowRightIcon class="icon-sm" /></template>
         </NButton>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
-    <NTabs class="agent-updates__tabs" type="line" value="updates" @update:value="selectSection">
+    <NTabs class="agent-updates__tabs" type="line" size="small" value="updates" @update:value="selectSection">
       <NTab v-for="section in sections" :key="section.key" :name="section.key" :tab="section.label" />
     </NTabs>
 
     <NAlert v-if="operationError" type="error" :bordered="false" closable @close="operationError = ''">
-      {{ operationError }}
+      <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
     </NAlert>
     <NAlert v-if="managementAuthorityWarning" type="warning" :bordered="false">
-      Managed update control is fail-closed: {{ managementAuthorityWarning }}. Public proxy traffic is unaffected.
+      Managed update control is fail-closed: <bdi dir="ltr">{{ diagnosticInspectionText(managementAuthorityWarning) }}</bdi>. Public proxy traffic is unaffected.
     </NAlert>
 
-    <NSpin :show="loading && !overview" content-class="stack-lg">
+    <NSpin :show="loading && !overview" content-class="agent-updates__content">
+      <MetricStrip label="Fleet update readiness">
+        <MetricCard
+          label="Managed hosts"
+          :value="agents.length ? `${enrolledAgents.length}/${agents.length}` : '—'"
+          :detail="agents.length ? `${readinessPercent}% have a pinned rescue updater` : 'No agents registered'"
+        />
+        <MetricCard label="Online managed" :value="String(onlineManagedAgents)" detail="Connected with a recent updater check-in" />
+        <MetricCard
+          label="Setup required"
+          :value="String(unsupportedAgents)"
+          :tone="unsupportedAgents ? 'warning' : 'default'"
+          detail="One-time host enrollment; no token rotation"
+        />
+        <MetricCard label="Unavailable budget" :value="String(activeCampaigns.length)" detail="Running or paused campaigns" />
+      </MetricStrip>
 
-    <section class="agent-release-deck" aria-labelledby="release-deck-title">
-      <div class="agent-release-deck__signal" aria-hidden="true">
-        <span /><span /><span /><span />
-      </div>
-      <div class="agent-release-deck__identity">
-        <div class="agent-release-deck__icon"><PackageIcon aria-hidden="true" /></div>
-        <div>
-          <p class="stat-label">Management release</p>
-          <h4 id="release-deck-title">{{ trustedTarget?.version || serverVersion }}</h4>
-          <p>{{ trustedTarget ? `Trusted target · sequence ${trustedTarget.releaseSequence}` : "No trusted release target is currently available." }}</p>
-        </div>
-      </div>
-      <div class="agent-release-deck__integrity">
-        <FingerprintIcon aria-hidden="true" />
-        <div class="agent-release-deck__details">
-          <span>Release identity</span>
-          <strong class="mono-text">{{ shortDigest(selectedTargetDigest) }}</strong>
-        </div>
-        <NTag size="small" :bordered="false" :type="trustedTarget ? 'success' : 'warning'">
-          {{ trustedTarget ? "Verified" : "Unavailable" }}
-        </NTag>
-      </div>
-      <div class="agent-release-deck__integrity">
-        <ShieldIcon aria-hidden="true" />
-        <div class="agent-release-deck__details">
-          <span>Command authority</span>
-          <strong class="mono-text">{{ managementAuthority ? shortDigest(managementAuthority.keyId) : "unavailable" }}</strong>
-          <small v-if="managementAuthority">epoch {{ managementAuthority.epoch }}</small>
-        </div>
-        <NTag size="small" :bordered="false" :type="managementAuthority ? 'success' : 'warning'">
-          {{ managementAuthority ? "Pinned" : "Unavailable" }}
-        </NTag>
-      </div>
-    </section>
+      <SectionCard title="Management release" class="agent-release">
+        <template #badge>
+          <NTag size="small" :bordered="false" :type="trustedTarget && managementAuthority ? 'success' : 'warning'">
+            {{ trustedTarget && managementAuthority ? "Trusted" : "Unavailable" }}
+          </NTag>
+        </template>
+        <dl class="agent-release__grid">
+          <div class="agent-release__item">
+            <dt>Target release</dt>
+            <dd class="agent-release__value mono-text">
+              <bdi dir="ltr">{{ diagnosticExcerpt(trustedTarget?.version || serverVersion, 48).text }}</bdi>
+            </dd>
+            <dd class="agent-release__detail">{{ trustedTarget ? `Trusted target · sequence ${trustedTarget.releaseSequence}` : "No trusted release target is currently available." }}</dd>
+          </div>
+          <div class="agent-release__item">
+            <dt>Release identity</dt>
+            <dd class="agent-release__value mono-text" :title="selectedTargetDigest || undefined">{{ selectedTargetDigest ? shortDigest(selectedTargetDigest) : "—" }}</dd>
+            <dd class="agent-release__detail">
+              <NTag size="small" :bordered="false" :type="trustedTarget ? 'success' : 'warning'">{{ trustedTarget ? "Verified" : "Unavailable" }}</NTag>
+            </dd>
+          </div>
+          <div class="agent-release__item">
+            <dt>Command authority</dt>
+            <dd class="agent-release__value mono-text" :title="managementAuthority?.keyId || undefined">{{ managementAuthority ? shortDigest(managementAuthority.keyId) : "—" }}</dd>
+            <dd class="agent-release__detail">
+              <NTag size="small" :bordered="false" :type="managementAuthority ? 'success' : 'warning'">{{ managementAuthority ? "Pinned" : "Unavailable" }}</NTag>
+              <span v-if="managementAuthority">Epoch {{ managementAuthority.epoch }}</span>
+            </dd>
+          </div>
+        </dl>
+      </SectionCard>
 
-    <section class="agent-update-metrics" aria-label="Fleet update readiness">
-      <article>
-        <span>Managed hosts</span>
-        <strong>{{ enrolledAgents.length }}/{{ agents.length }}</strong>
-        <small>{{ readinessPercent }}% have a pinned rescue updater</small>
-      </article>
-      <article>
-        <span>Online managed</span>
-        <strong>{{ onlineManagedAgents }}</strong>
-        <small>connected hosts with a recent updater check-in</small>
-      </article>
-      <article>
-        <span>Setup required</span>
-        <strong>{{ unsupportedAgents }}</strong>
-        <small>need one-time host enrollment; no token rotation</small>
-      </article>
-      <article>
-        <span>Unavailable budget</span>
-        <strong>{{ activeCampaigns.length }}</strong>
-        <small>running or paused campaigns</small>
-      </article>
-    </section>
+      <div class="agent-update-grid">
+        <SectionCard title="Safety gates before activation" description="Every rollout follows the same desired-state contract.">
+          <template #badge><NTag size="small" :bordered="false">Desired state</NTag></template>
+          <ol class="agent-rollout-steps">
+            <li class="agent-rollout-step agent-rollout-step--ready">
+              <span class="agent-rollout-step__marker"><CheckIcon aria-hidden="true" /></span>
+              <div><strong>Verify</strong><small>Signer, digest, compatibility</small></div>
+            </li>
+            <li class="agent-rollout-step">
+              <span class="agent-rollout-step__marker">2</span>
+              <div><strong>Stage</strong><small>Download while traffic remains live</small></div>
+            </li>
+            <li class="agent-rollout-step">
+              <span class="agent-rollout-step__marker">3</span>
+              <div><strong>Drain</strong><small>Cordon and preserve route quorum</small></div>
+            </li>
+            <li class="agent-rollout-step">
+              <span class="agent-rollout-step__marker">4</span>
+              <div><strong>Prove</strong><small>Fresh tunnel and healthy dwell</small></div>
+            </li>
+          </ol>
+        </SectionCard>
 
-    <div class="agent-update-grid">
-      <section class="surface-card agent-rollout-rail">
-        <div class="surface-card__header">
-          <div>
-            <p class="stat-label">Rollout contract</p>
-            <h4>Safety gates before activation</h4>
-          </div>
-          <NTag size="small" :bordered="false" type="default">Desired state</NTag>
-        </div>
-        <div class="agent-rollout-rail__steps">
-          <div class="agent-rollout-step agent-rollout-step--ready">
-            <span><CheckIcon aria-hidden="true" /></span>
-            <div><strong>Verify</strong><small>signer, digest, compatibility</small></div>
-          </div>
-          <div class="agent-rollout-step">
-            <span>02</span>
-            <div><strong>Stage</strong><small>download while traffic remains live</small></div>
-          </div>
-          <div class="agent-rollout-step">
-            <span>03</span>
-            <div><strong>Drain</strong><small>cordon and preserve route quorum</small></div>
-          </div>
-          <div class="agent-rollout-step">
-            <span>04</span>
-            <div><strong>Prove</strong><small>fresh tunnel and healthy dwell</small></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="surface-card agent-update-policy">
-        <div class="surface-card__header">
-          <div>
-            <p class="stat-label">Fleet policy</p>
-            <h4>{{ trustedTarget && managementAuthority ? "Route-aware activation ready" : "Update control is fail-closed" }}</h4>
-          </div>
-          <NTag size="small" :bordered="false" :type="trustedTarget && managementAuthority ? 'success' : 'warning'">{{ trustedTarget && managementAuthority ? "Enforced" : "Unavailable" }}</NTag>
-        </div>
-        <div class="agent-update-policy__body">
-          <div class="agent-update-policy__notice">
+        <SectionCard :title="trustedTarget && managementAuthority ? 'Route-aware activation ready' : 'Update control is fail-closed'">
+          <template #badge>
+            <NTag size="small" :bordered="false" :type="trustedTarget && managementAuthority ? 'success' : 'warning'">{{ trustedTarget && managementAuthority ? "Enforced" : "Unavailable" }}</NTag>
+          </template>
+          <p class="agent-update-policy__notice">
             <WarningIcon aria-hidden="true" />
-            <p>Activation never proceeds unless the route retains its configured eligible-agent quorum, the privileged helper attests the exact artifact, and the new tunnel survives its health dwell.</p>
-          </div>
-          <dl>
-            <div><dt>Target</dt><dd>{{ trustedTarget?.version || "No trusted release" }}</dd></div>
+            <span>Activation never proceeds unless the route retains its configured eligible-agent quorum, the privileged helper attests the exact artifact, and the new tunnel survives its health dwell.</span>
+          </p>
+          <dl class="agent-update-policy">
+            <div><dt>Target</dt><dd><bdi dir="ltr">{{ trustedTarget ? diagnosticExcerpt(trustedTarget.version, 48).text : "No trusted release" }}</bdi></dd></div>
             <div><dt>Canary</dt><dd>1 agent · 2 minute dwell</dd></div>
             <div><dt>Wave</dt><dd>Explicit bounded size · route-aware</dd></div>
             <div><dt>Force</dt><dd>Never automatic</dd></div>
           </dl>
-        </div>
-      </section>
-    </div>
+        </SectionCard>
+      </div>
 
-    <section class="surface-card agent-update-fleet">
-      <div class="surface-card__header">
-        <div>
-          <p class="stat-label">Host trust</p>
-          <h4>Updater enrollment</h4>
-          <p v-if="trustedTarget" class="muted-text copy-xs">This target requires pinned updater {{ trustedTarget.minimumUpdaterVersion }} or newer. Repair updates the pinned updater and keeps the live tunnel binary.</p>
-        </div>
-        <NTag size="small" :bordered="false">{{ enrolledAgents.length }}/{{ agents.length }} enrolled</NTag>
-      </div>
-      <div v-if="agents.length" class="agent-update-fleet__rows">
-        <div v-for="agent in agents" :key="agent.agentPublicId" class="agent-update-fleet__row">
-          <span class="agent-update-fleet__state" :class="{ 'agent-update-fleet__state--online': agent.connected }" aria-hidden="true" />
-          <div class="agent-update-fleet__identity">
-            <strong>{{ agent.name }}</strong>
-            <small class="mono-text">{{ agent.agentPublicId }}</small>
-          </div>
-          <div><span>Pinned rescue</span><strong>{{ agent.updaterEnrolled ? (agent.updaterVersion || "enrolled") : "not enrolled" }}</strong><small v-if="agent.updaterEnrolled">{{ updaterLastSeenLabel(agent) }}</small></div>
-          <div><span>Live tunnel</span><strong>{{ agent.tunnelVersion || "unreported" }}</strong><small v-if="agent.tunnelCommit" class="mono-text">{{ shortDigest(agent.tunnelCommit) }}</small></div>
-          <div><span>Traffic</span><strong>{{ agent.cordoned ? "cordoned" : "eligible" }}</strong></div>
-          <div v-if="agent.updaterEnrolled" class="agent-update-fleet__controls">
-            <NTag size="small" :bordered="false" :type="updaterIsFresh(agent) ? 'success' : 'warning'">{{ updaterIsFresh(agent) ? "Managed" : "Worker stale" }}</NTag>
-            <span :title="agent.activeAssignmentId ? 'Recovery must finish before replacing updater enrollment.' : 'Refresh the pinned updater while preserving the live tunnel binary.'">
-              <NButton secondary size="tiny" :disabled="campaignBusy || Boolean(agent.activeAssignmentId) || !trustedTarget || !managementAuthority" @click="repairUpdater(agent)">Repair updater</NButton>
-            </span>
-            <small v-if="agent.activeAssignmentId">Finish campaign recovery before repair.</small>
-          </div>
-          <NButton v-else secondary size="tiny" :disabled="isBusy || !agent.tunnelVersion || !agent.tunnelCommit" @click="enableManagedUpdates(agent)">Enable managed updates</NButton>
-        </div>
-      </div>
-      <div v-else class="agent-update-empty">No agents are registered.</div>
-    </section>
+      <SectionCard title="Updater enrollment" flush class="agent-update-table">
+        <template #description>
+          <template v-if="trustedTarget">
+            This target requires pinned updater <bdi dir="ltr">{{ diagnosticExcerpt(trustedTarget.minimumUpdaterVersion, 32).text }}</bdi> or newer. Repair updates the pinned updater and keeps the live tunnel binary.
+          </template>
+          <template v-else>Hosts with a pinned rescue updater can be updated from this page.</template>
+        </template>
+        <template #badge><NTag size="small" :bordered="false">{{ enrolledAgents.length }}/{{ agents.length }} enrolled</NTag></template>
+        <NDataTable
+          v-if="agents.length"
+          :columns="enrollmentColumns"
+          :data="agents"
+          :row-key="enrollmentRowKey"
+          :pagination="false"
+          :bordered="false"
+         
+          :scroll-x="enrollmentScrollX"
+          size="small"
+        />
+        <p v-else class="agent-update-empty">No agents are registered.</p>
+      </SectionCard>
 
-    <section class="surface-card agent-update-campaigns">
-      <div class="surface-card__header">
-        <div>
-          <p class="stat-label">Execution history · refreshes every 5 seconds</p>
-          <h4>Update campaigns</h4>
-        </div>
-      </div>
-      <div v-if="campaigns.length" class="agent-update-campaigns__rows">
-        <article v-for="campaign in campaigns" :key="campaign.id.toString()" class="agent-update-campaign">
-          <div class="agent-update-campaign__summary">
-            <div class="agent-update-campaign__identity">
-              <NTag size="small" :bordered="false" :type="campaignTag(campaign.state)">{{ campaignLabel(campaign.state) }}</NTag>
-              <strong>{{ campaign.name }}</strong>
-              <small>{{ campaign.target?.version }} · generation {{ campaign.generation }}</small>
-            </div>
-            <div class="agent-update-campaign__metric agent-update-campaign__healthy"><span>Proven healthy</span><strong>{{ assignmentProgress(campaign) }}</strong></div>
-            <div class="agent-update-campaign__metric agent-update-campaign__wave"><span>Wave / unavailable</span><strong>{{ campaign.policy?.waveSize || 0n }} / {{ campaign.policy?.maxUnavailable || 0n }}</strong></div>
-            <div class="agent-update-campaign__actions">
-              <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING" quaternary size="tiny" :disabled="campaignBusy" @click="changeCampaign(campaign, 'pause')"><template #icon><PauseIcon /></template>Pause</NButton>
-              <NButton v-if="campaign.state === AgentUpdateCampaignState.PAUSED" quaternary size="tiny" :disabled="campaignBusy || !canResumeUpdateCampaign(campaign)" :title="canResumeUpdateCampaign(campaign) ? undefined : 'Recover reserved hosts or retry failed assignments before resuming.'" @click="changeCampaign(campaign, 'resume')"><template #icon><PlayIcon /></template>Resume</NButton>
-              <NButton v-if="recoverableUpdateAssignments(campaign).length" quaternary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, true)"><template #icon><RetryIcon /></template>Recover agents</NButton>
-              <NButton v-if="retryableStageAssignments(campaign).length" quaternary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, false)"><template #icon><RetryIcon /></template>Retry failed</NButton>
-              <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED" quaternary size="tiny" type="error" :disabled="campaignBusy" @click="changeCampaign(campaign, 'cancel')">Cancel</NButton>
-            </div>
-          </div>
-          <NAlert v-if="campaignErrors[campaign.id.toString()]" type="error" :bordered="false" class="agent-update-campaign__error" closable @close="delete campaignErrors[campaign.id.toString()]">{{ campaignErrors[campaign.id.toString()] }}</NAlert>
-          <p v-if="updateRecoveryMessage(campaign)" class="agent-update-campaign__recovery" role="status">{{ updateRecoveryMessage(campaign) }}</p>
-          <details class="agent-update-campaign__details">
-            <summary>Inspect {{ campaign.assignments.length }} agent assignment{{ campaign.assignments.length === 1 ? "" : "s" }}</summary>
-            <div class="agent-update-assignment-list">
-              <div v-for="assignment in campaign.assignments" :key="assignment.id.toString()" class="agent-update-assignment">
-                <div class="agent-update-assignment__identity">
-                  <span class="agent-update-fleet__state" :class="{ 'agent-update-fleet__state--online': assignment.state === AgentUpdateAssignmentState.SUCCEEDED }" aria-hidden="true" />
-                  <div>
-                    <strong>{{ assignment.agentName || assignment.agentPublicId }}</strong>
-                    <small class="mono-text">{{ assignment.agentPublicId }}</small>
-                  </div>
-                </div>
-                <div class="agent-update-assignment__state">
-                  <span>State</span>
-                  <NTag size="small" :bordered="false" :type="assignment.desiredAction === AgentUpdateDesiredAction.ROLLBACK ? 'warning' : assignmentTag(assignment.state)">{{ assignmentStateLabel(assignment) }}</NTag>
-                </div>
-                <div class="agent-update-assignment__action"><span>Desired action</span><strong>{{ assignmentActionLabel(assignment.desiredAction) }}</strong></div>
-                <div class="agent-update-assignment__evidence"><span>Evidence</span><strong>{{ assignmentEvidence(assignment) }}</strong></div>
-                <div class="agent-update-assignment__updated"><span>Updated</span><strong>{{ formatTimestamp(assignment.updatedAtUnixMillis) }}</strong></div>
+      <SectionCard title="Update campaigns" description="Execution history · refreshes every 5 seconds." flush class="agent-update-campaigns">
+        <template v-if="campaigns.length" #badge><NTag size="small" :bordered="false">{{ campaigns.length }}</NTag></template>
+        <div v-if="campaigns.length" class="agent-update-campaigns__rows">
+          <article v-for="campaign in campaigns" :key="campaign.id.toString()" class="agent-update-campaign">
+            <div class="agent-update-campaign__summary">
+              <div class="agent-update-campaign__identity">
+                <NTag size="small" :bordered="false" :type="campaignTag(campaign.state)">{{ sentenceCase(campaignLabel(campaign.state)) }}</NTag>
+                <bdi dir="ltr" class="agent-update-campaign__name" :title="diagnosticInspectionText(campaign.name)">{{ diagnosticExcerpt(campaign.name, 96).text }}</bdi>
+                <small><bdi dir="ltr">{{ diagnosticExcerpt(campaign.target?.version ?? "", 48).text }}</bdi> · generation {{ campaign.generation }}</small>
+              </div>
+              <div class="agent-update-campaign__metric agent-update-campaign__healthy"><span>Proven healthy</span><strong>{{ assignmentProgress(campaign) }}</strong></div>
+              <div class="agent-update-campaign__metric agent-update-campaign__wave"><span>Wave / unavailable</span><strong>{{ campaign.policy?.waveSize || 0n }} / {{ campaign.policy?.maxUnavailable || 0n }}</strong></div>
+              <div class="agent-update-campaign__actions">
+                <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING" secondary size="tiny" :disabled="campaignBusy" @click="changeCampaign(campaign, 'pause')"><template #icon><PauseIcon /></template>Pause</NButton>
+                <NButton v-if="campaign.state === AgentUpdateCampaignState.PAUSED" secondary size="tiny" :disabled="campaignBusy || !canResumeUpdateCampaign(campaign)" :title="canResumeUpdateCampaign(campaign) ? undefined : 'Recover reserved hosts or retry failed assignments before resuming.'" @click="changeCampaign(campaign, 'resume')"><template #icon><PlayIcon /></template>Resume</NButton>
+                <NButton v-if="recoverableUpdateAssignments(campaign).length" secondary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, true)"><template #icon><RetryIcon /></template>Recover agents</NButton>
+                <NButton v-if="retryableStageAssignments(campaign).length" secondary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, false)"><template #icon><RetryIcon /></template>Retry failed</NButton>
+                <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED" secondary size="tiny" type="error" :disabled="campaignBusy" @click="changeCampaign(campaign, 'cancel')">Cancel</NButton>
               </div>
             </div>
-          </details>
-        </article>
-      </div>
-      <div v-else class="agent-update-empty">No managed update campaigns yet.</div>
-    </section>
+            <NAlert v-if="campaignErrors[campaign.id.toString()]" type="error" :bordered="false" class="agent-update-campaign__error" closable @close="delete campaignErrors[campaign.id.toString()]">
+              <bdi dir="ltr">{{ diagnosticInspectionText(campaignErrors[campaign.id.toString()]) }}</bdi>
+            </NAlert>
+            <p v-if="updateRecoveryMessage(campaign)" class="agent-update-campaign__recovery" role="status">{{ updateRecoveryMessage(campaign) }}</p>
+            <details class="agent-update-campaign__details">
+              <summary>Inspect {{ campaign.assignments.length }} agent assignment{{ campaign.assignments.length === 1 ? "" : "s" }}</summary>
+              <div class="agent-update-assignment-list">
+                <div v-for="assignment in campaign.assignments" :key="assignment.id.toString()" class="agent-update-assignment">
+                  <div class="agent-update-assignment__identity">
+                    <span class="update-state-dot" :class="{ 'update-state-dot--online': assignment.state === AgentUpdateAssignmentState.SUCCEEDED }" aria-hidden="true" />
+                    <div>
+                      <bdi dir="ltr" class="agent-update-assignment__name" :title="diagnosticInspectionText(assignment.agentName || assignment.agentPublicId)">{{ diagnosticExcerpt(assignment.agentName || assignment.agentPublicId, 64).text }}</bdi>
+                      <small class="mono-text" :title="diagnosticInspectionText(assignment.agentPublicId)"><bdi dir="ltr">{{ diagnosticInspectionText(assignment.agentPublicId) }}</bdi></small>
+                    </div>
+                  </div>
+                  <div class="agent-update-assignment__state">
+                    <span>State</span>
+                    <NTag size="small" :bordered="false" :type="assignment.desiredAction === AgentUpdateDesiredAction.ROLLBACK ? 'warning' : assignmentTag(assignment.state)">{{ sentenceCase(assignmentStateLabel(assignment)) }}</NTag>
+                  </div>
+                  <div class="agent-update-assignment__action"><span>Desired action</span><strong>{{ sentenceCase(assignmentActionLabel(assignment.desiredAction)) }}</strong></div>
+                  <div class="agent-update-assignment__evidence"><span>Evidence</span><strong><bdi dir="ltr" :title="diagnosticInspectionText(assignmentEvidence(assignment))">{{ diagnosticExcerpt(assignmentEvidence(assignment), 160).text }}</bdi></strong></div>
+                  <div class="agent-update-assignment__updated"><span>Updated</span><strong>{{ formatTimestamp(assignment.updatedAtUnixMillis) }}</strong></div>
+                </div>
+              </div>
+            </details>
+          </article>
+        </div>
+        <p v-else class="agent-update-empty">No managed update campaigns yet.</p>
+      </SectionCard>
     </NSpin>
 
     <NModal v-model:show="planOpen" preset="card" title="Plan Agent Rollout" class="agent-update-modal"
-      :style="modalCardStyle('760px')" :content-style="modalScrollableContentStyle()"
+      :style="modalCardStyle('760px')" :content-style="modalScrollableContentStyle()" :bordered="false"
       :closable="!planBusy" :mask-closable="false" :close-on-esc="!planBusy">
-      <div class="stack-lg">
+      <div class="agent-update-modal__body">
         <NAlert type="info" :bordered="false">Preview is authoritative: the server re-evaluates route quorum, connectivity, enrollment, and active assignments before creating the campaign.</NAlert>
         <label class="agent-update-field"><span>Campaign name</span><NInput v-model:value="planName" maxlength="128" :disabled="planBusy" /></label>
         <div class="agent-update-form-grid">
@@ -594,23 +686,29 @@ onUnmounted(() => polling.stop());
           <label class="agent-update-field"><span>Wave size</span><NInputNumber v-model:value="waveSize" :min="1" :max="100" :disabled="planBusy" /></label>
           <label class="agent-update-field"><span>Healthy dwell seconds</span><NInputNumber v-model:value="healthyDwellSeconds" :min="10" :max="86400" :disabled="planBusy" /></label>
         </div>
-        <div class="agent-update-agent-picker">
-          <p class="stat-label">Agents</p>
+        <fieldset class="agent-update-agent-picker">
+          <legend>Agents</legend>
           <label v-for="agent in agents" :key="agent.agentPublicId" :class="{ 'agent-update-agent-picker__blocked': agentUnavailableForPlan(agent) }">
             <NCheckbox
               :checked="selectedAgentIds.includes(agent.agentId.toString())"
               :disabled="planBusy || (!selectedAgentIds.includes(agent.agentId.toString()) && agentUnavailableForPlan(agent))"
               @update:checked="toggleAgent(agent, $event)"
             />
-            <span><strong>{{ agent.name }}</strong><small>{{ agentRolloutStatus(agent, campaigns, trustedTarget) }}</small></span>
+            <span>
+              <bdi dir="ltr" class="agent-update-agent-picker__name" :title="diagnosticInspectionText(agent.name)">{{ diagnosticExcerpt(agent.name, 64).text }}</bdi>
+              <small>{{ agentRolloutStatus(agent, campaigns, trustedTarget) }}</small>
+            </span>
           </label>
-        </div>
-        <div v-if="preview.length" class="agent-update-preview">
-          <div v-for="agent in preview" :key="agent.agentPublicId" :class="{ 'agent-update-preview--blocked': !agent.eligible }">
-            <CheckIcon v-if="agent.eligible" /><WarningIcon v-else />
-            <span><strong>{{ agent.name }}</strong><small>{{ agent.eligible ? "Eligible" : agent.blockers.map(previewBlockerLabel).join("; ") }}</small></span>
-          </div>
-        </div>
+        </fieldset>
+        <ul v-if="preview.length" class="agent-update-preview" aria-label="Safety preview">
+          <li v-for="agent in preview" :key="agent.agentPublicId" :class="{ 'agent-update-preview--blocked': !agent.eligible }">
+            <CheckIcon v-if="agent.eligible" aria-hidden="true" /><WarningIcon v-else aria-hidden="true" />
+            <span>
+              <bdi dir="ltr" class="agent-update-preview__name" :title="diagnosticInspectionText(agent.name)">{{ diagnosticExcerpt(agent.name, 64).text }}</bdi>
+              <small>{{ agent.eligible ? "Eligible" : agent.blockers.map(previewBlockerLabel).join("; ") }}</small>
+            </span>
+          </li>
+        </ul>
         <NAlert v-if="preview.length && !previewIsCurrent" type="warning" :bordered="false">
           Rollout settings changed after the last safety preview. Preview again before starting.
         </NAlert>
@@ -618,10 +716,10 @@ onUnmounted(() => polling.stop());
       <template #footer>
         <div class="agent-update-modal__footer">
           <NAlert v-if="planError" type="error" :title="planErrorTitle" :bordered="false" class="agent-update-modal__error">
-            {{ planError }}
+            <bdi dir="ltr">{{ diagnosticInspectionText(planError) }}</bdi>
           </NAlert>
           <NAlert v-else-if="operationError" type="error" title="Unable to refresh update status" :bordered="false" class="agent-update-modal__error">
-            {{ operationError }}
+            <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
           </NAlert>
           <div class="agent-update-modal__actions">
             <NButton :disabled="planBusy" @click="planOpen = false">Cancel</NButton>
@@ -638,261 +736,493 @@ onUnmounted(() => polling.stop());
 
 <style scoped>
 .agent-updates {
-  --update-cyan: color-mix(in srgb, var(--app-accent) 76%, #22d3ee);
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem;
 }
 
-.agent-updates__header,
-.agent-updates__actions,
-.agent-release-deck__identity,
-.agent-release-deck__integrity,
-.agent-rollout-step,
+.agent-updates__tabs {
+  min-width: 0;
+  margin-top: -0.25rem;
+}
+
+.agent-updates :deep(.agent-updates__content) {
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem;
+}
+
+.agent-updates :deep(.metric-card__detail) {
+  white-space: normal;
+}
+
+/* Release identity */
+.agent-release__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.agent-release__item {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.25rem;
+  padding: 0 1rem;
+  border-left: 1px solid var(--app-border-subtle);
+}
+
+.agent-release__item:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.agent-release__item dt {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+}
+
+.agent-release__item dd {
+  margin: 0;
+}
+
+.agent-release__value {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-release__detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+/* Rollout contract and policy */
+.agent-update-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.agent-rollout-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-rollout-step {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 0.5rem;
+}
+
+.agent-rollout-step__marker {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.agent-rollout-step--ready .agent-rollout-step__marker {
+  color: var(--app-success);
+}
+
+.agent-rollout-step__marker svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.agent-rollout-step strong,
+.agent-rollout-step small {
+  display: block;
+}
+
+.agent-rollout-step strong {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.agent-rollout-step small {
+  margin-top: 0.125rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .agent-update-policy__notice {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  padding: 0.75rem;
 }
 
-.agent-updates__header {
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.agent-updates__header h3 {
-  margin: 0.25rem 0;
-}
-
-.agent-updates__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--app-accent);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.agent-updates__eyebrow svg,
-.agent-release-deck__integrity > svg,
 .agent-update-policy__notice svg {
   width: 1rem;
   height: 1rem;
+  flex: 0 0 auto;
+  margin-top: 0.125rem;
+  color: var(--app-warning);
 }
 
-.agent-updates__actions { gap: 0.65rem; }
-.agent-updates__tabs { margin-top: -0.6rem; }
-
-.agent-release-deck {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(15rem, 0.75fr));
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 34%, var(--app-border));
-  border-radius: 10px;
-  background:
-    linear-gradient(110deg, color-mix(in srgb, var(--app-accent-soft) 54%, var(--app-panel)) 0 58%, var(--app-panel) 58%),
-    var(--app-panel);
-  box-shadow: 0 18px 48px color-mix(in srgb, var(--app-accent) 8%, transparent);
+.agent-update-policy {
+  margin: 0.75rem 0 0;
 }
 
-.agent-release-deck__signal {
-  position: absolute;
-  inset: 0 auto 0 0;
+.agent-update-policy div {
   display: flex;
-  width: 4px;
-  flex-direction: column;
-}
-
-.agent-release-deck__signal span { flex: 1; background: var(--app-accent); }
-.agent-release-deck__signal span:nth-child(2) { background: var(--update-cyan); }
-.agent-release-deck__signal span:nth-child(3) { background: var(--app-warning); }
-.agent-release-deck__signal span:nth-child(4) { background: var(--app-success); }
-
-.agent-release-deck__identity {
+  justify-content: space-between;
   gap: 1rem;
-  min-height: 9.5rem;
-  padding: 1.5rem 1.75rem;
+  padding: 0.5rem 0;
+  font-size: 0.8125rem;
 }
 
-.agent-release-deck__icon {
-  display: grid;
-  width: 3.4rem;
-  height: 3.4rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 34%, transparent);
-  border-radius: 10px;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
+.agent-update-policy div + div {
+  border-top: 1px solid var(--app-border-subtle);
 }
 
-.agent-release-deck__icon svg { width: 1.65rem; height: 1.65rem; }
-.agent-release-deck h4 { margin: 0.2rem 0; font-family: var(--font-mono); font-size: 1.45rem; }
-.agent-release-deck p { margin: 0; color: var(--app-text-muted); font-size: 0.78rem; }
-
-.agent-release-deck__integrity {
-  gap: 0.8rem;
-  border-left: 1px solid var(--app-border-subtle);
-  padding: 1.5rem;
-}
-
-.agent-release-deck__details { min-width: 0; flex: 1; }
-.agent-release-deck__details span,
-.agent-release-deck__details strong { display: block; }
-.agent-release-deck__details span { color: var(--app-text-muted); font-size: 0.68rem; }
-.agent-release-deck__details strong { margin-top: 0.15rem; font-size: 0.82rem; }
-.agent-release-deck__details small { display: block; margin-top: 0.15rem; color: var(--app-text-muted); font-size: 0.62rem; }
-
-.agent-update-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-panel);
-}
-
-.agent-update-metrics article { padding: 1rem 1.15rem; }
-.agent-update-metrics article + article { border-left: 1px solid var(--app-border-subtle); }
-.agent-update-metrics span,
-.agent-update-metrics small { display: block; color: var(--app-text-muted); }
-.agent-update-metrics span { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.055em; }
-.agent-update-metrics strong { display: block; margin: 0.2rem 0; font-family: var(--font-mono); font-size: 1.35rem; }
-.agent-update-metrics small { font-size: 0.67rem; line-height: 1.35; }
-
-.agent-update-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(19rem, 0.75fr); gap: 1.5rem; }
-.agent-rollout-rail h4,
-.agent-update-policy h4 { margin: 0.15rem 0 0; }
-.agent-rollout-rail__steps { display: grid; grid-template-columns: repeat(4, 1fr); padding: 1.25rem; }
-.agent-rollout-step { position: relative; gap: 0.65rem; min-width: 0; padding-right: 1rem; }
-.agent-rollout-step:not(:last-child)::after {
-  position: absolute;
-  top: 1rem;
-  right: 0;
-  width: calc(100% - 3.3rem);
-  height: 1px;
-  background: var(--app-border);
-  content: "";
-  transform: translateX(50%);
-}
-.agent-rollout-step > span {
-  z-index: 1;
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-panel);
+.agent-update-policy dt {
   color: var(--app-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.66rem;
 }
-.agent-rollout-step--ready > span { border-color: color-mix(in srgb, var(--app-success) 40%, var(--app-border)); color: var(--app-success); }
-.agent-rollout-step svg { width: 1rem; height: 1rem; }
-.agent-rollout-step div { min-width: 0; }
-.agent-rollout-step strong,
-.agent-rollout-step small { display: block; }
-.agent-rollout-step strong { font-size: 0.76rem; }
-.agent-rollout-step small { margin-top: 0.15rem; color: var(--app-text-muted); font-size: 0.65rem; line-height: 1.35; }
 
-.agent-update-policy__body { padding: 1rem 1.2rem 1.2rem; }
-.agent-update-policy__notice { align-items: flex-start; gap: 0.65rem; border-left: 2px solid var(--app-warning); background: color-mix(in srgb, var(--app-warning) 7%, transparent); padding: 0.75rem; }
-.agent-update-policy__notice svg { flex: 0 0 auto; color: var(--app-warning); }
-.agent-update-policy__notice p { margin: 0; color: var(--app-text-muted); font-size: 0.72rem; line-height: 1.5; }
-.agent-update-policy dl { margin: 1rem 0 0; }
-.agent-update-policy dl div { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--app-border-subtle); padding: 0.65rem 0; }
-.agent-update-policy dt { color: var(--app-text-muted); font-size: 0.7rem; }
-.agent-update-policy dd { margin: 0; text-align: right; font-size: 0.7rem; font-weight: 600; }
+.agent-update-policy dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--app-text);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
 
-.agent-update-fleet h4,
-.agent-update-campaigns h4 { margin: 0.15rem 0 0; }
-.agent-update-fleet__rows,
-.agent-update-campaigns__rows { display: grid; }
-.agent-update-campaigns { container: update-campaigns / inline-size; }
-.agent-update-campaigns__rows { grid-template-columns: minmax(0, 1fr); }
-.agent-update-fleet__row {
+/* Updater enrollment table (cells are rendered by NDataTable, so styles reach in with :deep) */
+.agent-update-table :deep(.n-data-table-th),
+.agent-update-table :deep(.n-data-table-td) {
+  padding: 0.75rem;
+  vertical-align: top;
+}
+
+.agent-update-table :deep(.n-data-table-th:first-child),
+.agent-update-table :deep(.n-data-table-td:first-child) {
+  padding-left: 1.25rem;
+}
+
+.agent-update-table :deep(.n-data-table-th:last-child),
+.agent-update-table :deep(.n-data-table-td:last-child) {
+  padding-right: 1.25rem;
+}
+
+.agent-update-table :deep(.update-cell) {
   display: grid;
-  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.5fr) minmax(7rem, 0.7fr);
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.agent-update-table :deep(.update-cell--stacked) {
+  gap: 0.5rem;
+}
+
+.agent-update-table :deep(.update-identity) {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.agent-update-table :deep(.update-name) {
+  display: block;
+  overflow: hidden;
+  color: var(--app-text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-update-table :deep(.update-id) {
+  overflow: hidden;
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-update-table :deep(.update-inline) {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  border-top: 1px solid var(--app-border-subtle);
-  padding: 0.8rem 1.2rem;
+  gap: 0.375rem 0.5rem;
+  margin: 0;
 }
-.agent-update-fleet__state { width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--app-text-muted); box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text-muted) 12%, transparent); }
-.agent-update-fleet__state--online { background: var(--app-success); box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-success) 14%, transparent); }
-.agent-update-fleet__identity,
-.agent-update-fleet__row > div,
-.agent-update-campaign__summary > div { min-width: 0; }
-.agent-update-fleet__row strong,
-.agent-update-fleet__row span,
-.agent-update-fleet__row small,
-.agent-update-campaign strong,
-.agent-update-campaign span,
-.agent-update-campaign small { display: block; }
-.agent-update-fleet__row > div > span,
-.agent-update-campaign__metric span { color: var(--app-text-muted); font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.045em; }
-.agent-update-fleet__row strong { overflow: hidden; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
-.agent-update-fleet__controls { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; }
-.agent-update-fleet__controls small { max-width: 11rem; color: var(--app-text-muted); font-size: 0.65rem; overflow-wrap: anywhere; }
-.agent-update-fleet__identity small,
-.agent-update-campaign small { overflow: hidden; margin-top: 0.12rem; color: var(--app-text-muted); font-size: 0.64rem; text-overflow: ellipsis; white-space: nowrap; }
-.agent-update-campaign {
+
+.agent-update-table :deep(.update-value) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-update-table :deep(code.update-value) {
+  font-size: 0.75rem;
+}
+
+.agent-update-table :deep(.update-value.warning-text) {
+  color: var(--app-warning);
+}
+
+.agent-update-table :deep(.update-meta) {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.agent-update-table :deep(.update-actions) {
+  display: grid;
+  justify-items: end;
+  gap: 0.375rem;
+  text-align: right;
+}
+
+.agent-update-table :deep(.update-cell--stacked .update-actions) {
+  justify-items: start;
+  text-align: left;
+}
+
+.agent-updates :deep(.update-state-dot),
+.update-state-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  margin-top: 0.4rem;
+  border-radius: 50%;
+  background: var(--app-text-muted);
+}
+
+.agent-updates :deep(.update-state-dot--online),
+.update-state-dot--online {
+  background: var(--app-success);
+}
+
+.agent-update-empty {
+  margin: 0;
+  padding: 2rem 1.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+/* Campaigns */
+.agent-update-campaigns {
+  container: update-campaigns / inline-size;
+}
+
+.agent-update-campaigns__rows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.agent-update-campaign + .agent-update-campaign {
   border-top: 1px solid var(--app-border-subtle);
 }
+
 .agent-update-campaign__summary {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.5fr) minmax(0, 0.6fr) auto;
   grid-template-areas: "identity healthy wave actions";
   align-items: center;
   gap: 1rem;
-  padding: 0.9rem 1.2rem;
+  padding: 0.875rem 1.25rem;
 }
-.agent-update-campaign__identity { grid-area: identity; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 0.45rem; }
-.agent-update-campaign__identity strong { overflow-wrap: anywhere; }
-.agent-update-campaign__identity small { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
+
+.agent-update-campaign__summary > div {
+  min-width: 0;
+}
+
+.agent-update-campaign__identity {
+  grid-area: identity;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+
+.agent-update-campaign__name {
+  color: var(--app-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  unicode-bidi: isolate;
+}
+
+.agent-update-campaign__identity small {
+  grid-column: 1 / -1;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
 .agent-update-campaign__healthy { grid-area: healthy; }
 .agent-update-campaign__wave { grid-area: wave; }
-.agent-update-campaign__metric strong { margin-top: 0.15rem; font-family: var(--font-mono); font-size: 0.82rem; }
-.agent-update-campaign__actions { grid-area: actions; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.25rem; }
-.agent-update-campaign__actions svg { width: 0.8rem; height: 0.8rem; }
-.agent-update-campaign__recovery { margin: 0; padding: 0 1.2rem 0.9rem; color: var(--app-warning); font-size: 0.72rem; line-height: 1.5; overflow-wrap: anywhere; }
-.agent-update-campaign__error { margin: 0 1.2rem 0.9rem; overflow-wrap: anywhere; }
+
+.agent-update-campaign__metric span,
+.agent-update-assignment > div > span {
+  display: block;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.agent-update-campaign__metric strong {
+  display: block;
+  margin-top: 0.125rem;
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.agent-update-campaign__actions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.agent-update-campaign__actions svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.agent-update-campaign__recovery {
+  margin: 0;
+  padding: 0 1.25rem 0.875rem;
+  color: var(--app-warning);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.agent-update-campaign__error {
+  margin: 0 1.25rem 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .agent-update-campaign__details {
   border-top: 1px solid var(--app-border-subtle);
-  background: color-mix(in srgb, var(--app-panel-muted) 62%, transparent);
 }
+
 .agent-update-campaign__details summary {
   width: fit-content;
-  cursor: pointer;
-  padding: 0.65rem 1.2rem;
+  border-radius: 4px;
   color: var(--app-accent);
-  font-size: 0.66rem;
-  font-weight: 650;
-  list-style-position: inside;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin: 0.25rem 1rem;
+  padding: 0.375rem 0.25rem;
 }
-.agent-update-assignment-list { display: grid; grid-template-columns: minmax(0, 1fr); border-top: 1px solid var(--app-border-subtle); }
+
+.agent-update-campaign__details summary:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
+}
+
+.agent-update-assignment-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--app-panel-muted);
+}
+
 .agent-update-assignment {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.7fr) minmax(0, 0.55fr) minmax(0, 1.5fr) minmax(0, 0.75fr);
   grid-template-areas: "identity state action evidence updated";
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.75rem 1.2rem;
+  align-items: start;
+  gap: 0.875rem;
+  padding: 0.75rem 1.25rem;
 }
-.agent-update-assignment + .agent-update-assignment { border-top: 1px solid var(--app-border-subtle); }
-.agent-update-assignment > div { min-width: 0; }
-.agent-update-assignment > div > span,
-.agent-update-assignment > div > strong { display: block; }
-.agent-update-assignment > div > span { margin-bottom: 0.15rem; color: var(--app-text-muted); font-size: 0.59rem; letter-spacing: 0.045em; text-transform: uppercase; }
-.agent-update-assignment > div > strong { font-size: 0.68rem; overflow-wrap: anywhere; }
-.agent-update-assignment__identity { grid-area: identity; display: flex; align-items: center; gap: 0.65rem; }
-.agent-update-assignment__identity > span { flex-shrink: 0; }
-.agent-update-assignment__identity > div { min-width: 0; }
-.agent-update-assignment__identity strong,
-.agent-update-assignment__identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.agent-update-assignment__identity strong { font-size: 0.7rem; }
-.agent-update-assignment__identity small { margin-top: 0.1rem; font-size: 0.6rem; }
+
+.agent-update-assignment + .agent-update-assignment {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.agent-update-assignment > div {
+  min-width: 0;
+}
+
+.agent-update-assignment > div > span {
+  margin-bottom: 0.125rem;
+}
+
+.agent-update-assignment > div > strong {
+  display: block;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.agent-update-assignment__identity {
+  grid-area: identity;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.agent-update-assignment__identity > div {
+  min-width: 0;
+}
+
+.agent-update-assignment__name,
+.agent-update-assignment__identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-update-assignment__name {
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.agent-update-assignment__identity small {
+  margin-top: 0.125rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
 .agent-update-assignment__state { grid-area: state; }
 .agent-update-assignment__action { grid-area: action; }
 .agent-update-assignment__evidence { grid-area: evidence; }
@@ -903,10 +1233,10 @@ onUnmounted(() => polling.stop());
     grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
     grid-template-areas: "identity identity actions" "healthy wave actions";
   }
+
   .agent-update-assignment {
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1.5fr);
     grid-template-areas: "identity identity updated" "state action evidence";
-    align-items: start;
   }
 }
 
@@ -916,66 +1246,205 @@ onUnmounted(() => polling.stop());
     grid-template-areas: "identity identity" "healthy wave" "actions actions";
     align-items: start;
   }
-  .agent-update-campaign__actions { justify-content: flex-start; }
+
+  .agent-update-campaign__actions {
+    justify-content: flex-start;
+  }
+
   .agent-update-assignment {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas: "identity identity" "state action" "evidence evidence" "updated updated";
   }
-  .agent-update-assignment__identity strong,
-  .agent-update-assignment__identity small { white-space: normal; overflow-wrap: anywhere; }
-}
-.agent-update-empty { border-top: 1px solid var(--app-border-subtle); padding: 1.5rem; color: var(--app-text-muted); font-size: 0.72rem; text-align: center; }
-.agent-update-field { display: grid; gap: 0.35rem; }
-.agent-update-field > span { color: var(--app-text-muted); font-size: 0.68rem; font-weight: 600; }
-.agent-update-form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; }
-.agent-update-field :deep(.n-input-number) { width: 100%; }
-.agent-update-agent-picker { overflow: hidden; border: 1px solid var(--app-border); border-radius: 7px; }
-.agent-update-agent-picker > p { margin: 0; padding: 0.65rem 0.8rem; background: var(--app-panel-muted); }
-.agent-update-agent-picker > label { display: flex; align-items: center; gap: 0.65rem; border-top: 1px solid var(--app-border-subtle); padding: 0.65rem 0.8rem; }
-.agent-update-agent-picker > label > span { min-width: 0; }
-.agent-update-agent-picker strong,
-.agent-update-agent-picker small { display: block; }
-.agent-update-agent-picker strong { font-size: 0.72rem; }
-.agent-update-agent-picker small { color: var(--app-text-muted); font-size: 0.64rem; }
-.agent-update-agent-picker__blocked { opacity: 0.55; }
-.agent-update-preview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-.agent-update-preview > div { display: flex; align-items: flex-start; gap: 0.5rem; border: 1px solid color-mix(in srgb, var(--app-success) 30%, var(--app-border)); border-radius: 6px; padding: 0.6rem; }
-.agent-update-preview > div > svg { width: 0.9rem; flex: 0 0 auto; color: var(--app-success); }
-.agent-update-preview > div > span,
-.agent-update-preview strong,
-.agent-update-preview small { display: block; min-width: 0; }
-.agent-update-preview strong { font-size: 0.7rem; }
-.agent-update-preview small { margin-top: 0.1rem; color: var(--app-text-muted); font-size: 0.62rem; overflow-wrap: anywhere; }
-.agent-update-preview > .agent-update-preview--blocked { border-color: color-mix(in srgb, var(--app-warning) 34%, var(--app-border)); }
-.agent-update-preview > .agent-update-preview--blocked > svg { color: var(--app-warning); }
-.agent-update-modal__actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
-.agent-update-modal__footer { display: grid; gap: 1rem; }
-.agent-update-modal__error { max-height: min(12rem, 25dvh); overflow-y: auto; overflow-wrap: anywhere; }
 
+  .agent-update-assignment__name,
+  .agent-update-assignment__identity small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Plan rollout modal (teleported; classes are applied directly in this template) */
+.agent-update-modal__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.agent-update-field {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.agent-update-field > span {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.agent-update-field :deep(.n-input-number) {
+  width: 100%;
+}
+
+.agent-update-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.agent-update-agent-picker {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.25rem 0.875rem;
+}
+
+.agent-update-agent-picker legend {
+  float: left;
+  width: 100%;
+  padding: 0.5rem 0;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.agent-update-agent-picker > label {
+  display: flex;
+  clear: both;
+  align-items: center;
+  gap: 0.625rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 0.5rem 0;
+}
+
+.agent-update-agent-picker > label > span {
+  min-width: 0;
+}
+
+.agent-update-agent-picker__name,
+.agent-update-agent-picker small,
+.agent-update-preview__name,
+.agent-update-preview small {
+  display: block;
+  min-width: 0;
+}
+
+.agent-update-agent-picker__name,
+.agent-update-preview__name {
+  overflow: hidden;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-update-agent-picker small,
+.agent-update-preview small {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.agent-update-agent-picker__blocked {
+  opacity: 0.55;
+}
+
+.agent-update-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-update-preview > li {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.agent-update-preview > li > span {
+  min-width: 0;
+}
+
+.agent-update-preview > li > svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  color: var(--app-success);
+}
+
+.agent-update-preview > .agent-update-preview--blocked > svg {
+  color: var(--app-warning);
+}
+
+.agent-update-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.agent-update-modal__footer {
+  display: grid;
+  gap: 1rem;
+}
+
+.agent-update-modal__error {
+  max-height: min(12rem, 25dvh);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
 
 @media (max-width: 900px) {
-  .agent-release-deck,
-  .agent-update-grid { grid-template-columns: 1fr; }
-  .agent-release-deck__integrity { border-top: 1px solid var(--app-border-subtle); border-left: 0; }
-  .agent-update-metrics { grid-template-columns: repeat(2, 1fr); }
-  .agent-update-metrics article:nth-child(3) { border-top: 1px solid var(--app-border-subtle); border-left: 0; }
-  .agent-update-metrics article:nth-child(4) { border-top: 1px solid var(--app-border-subtle); }
-  .agent-rollout-rail__steps { grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
-  .agent-rollout-step::after { display: none; }
-  .agent-update-fleet__row { grid-template-columns: auto minmax(0, 1fr) minmax(0, auto); }
-  .agent-update-fleet__row > div:not(.agent-update-fleet__identity):not(.agent-update-fleet__controls) { display: none; }
-  .agent-update-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agent-update-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agent-update-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-@media (max-width: 640px) {
-  .agent-updates__header { align-items: flex-start; flex-direction: column; }
-  .agent-updates__actions { width: 100%; }
-  .agent-updates__actions :deep(.n-button) { flex: 1; }
-  .agent-update-metrics { grid-template-columns: 1fr; }
-  .agent-update-metrics article + article { border-top: 1px solid var(--app-border-subtle); border-left: 0; }
-  .agent-rollout-rail__steps { grid-template-columns: 1fr; }
+@media (max-width: 639px) {
+  .agent-release__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .agent-release__item {
+    padding: 0.75rem 0 0;
+    border-top: 1px solid var(--app-border-subtle);
+    border-left: 0;
+  }
+
+  .agent-release__item:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .agent-rollout-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .agent-update-table :deep(.n-data-table-th:first-child),
+  .agent-update-table :deep(.n-data-table-td:first-child) {
+    padding-left: 1rem;
+  }
+
+  .agent-update-table :deep(.n-data-table-th:last-child),
+  .agent-update-table :deep(.n-data-table-td:last-child) {
+    padding-right: 1rem;
+  }
+
   .agent-update-form-grid,
-  .agent-update-preview { grid-template-columns: 1fr; }
-  .agent-update-modal__actions { flex-wrap: wrap; }
+  .agent-update-preview {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

@@ -184,14 +184,14 @@ defineExpose({ openCreated, openExisting, openRotated });
 
 <template>
   <NModal :show="Boolean(session)" preset="card" :title="titles[mode]" :style="modalCardStyle('48rem')" :content-style="modalScrollableContentStyle()" :bordered="false" :mask-closable="false" :close-on-esc="false" @update:show="(show) => { if (!show) void close(); }">
-    <div v-if="session" class="agent-setup-dialog layout-grid space-lg">
+    <div v-if="session" class="agent-setup-dialog">
       <div class="agent-setup-identity">
         <strong><bdi dir="ltr" :title="diagnosticInspectionText(session.agent.name)">{{ diagnosticExcerpt(session.agent.name, 72).text }}</bdi></strong>
-        <code><bdi dir="ltr">{{ diagnosticInspectionText(session.agent.publicId) }}</bdi></code>
+        <code class="mono-text"><bdi dir="ltr">{{ diagnosticInspectionText(session.agent.publicId) }}</bdi></code>
       </div>
       <p class="copy-sm muted-text">{{ descriptions[mode] }}</p>
       <NSpin v-if="loading" size="small"><span class="copy-sm">Preparing setup for this environment…</span></NSpin>
-      <NAlert v-if="notice" type="info" :bordered="false">{{ notice }}</NAlert>
+      <NAlert v-if="notice" type="info" :bordered="false"><bdi dir="ltr">{{ diagnosticInspectionText(notice) }}</bdi></NAlert>
       <NAlert v-if="copied" type="success" :bordered="false">Command copied. Run it on this agent's host.</NAlert>
       <label v-if="connectionOptionsVisible" class="agent-setup-field">
         <span>Management URL</span>
@@ -231,13 +231,13 @@ defineExpose({ openCreated, openExisting, openRotated });
       </details>
       <details v-if="session.token || managed?.updaterEnrollmentToken" class="agent-setup-credentials">
         <summary>Credentials included in the command</summary>
-        <div v-if="session.token"><span>Agent token</span><code>{{ session.token }}</code></div>
-        <div v-if="managed?.updaterEnrollmentToken"><span>Updater enrollment token</span><code>{{ managed.updaterEnrollmentToken }}</code><small v-if="managed.updaterEnrollmentExpiresAtUnixMillis">Expires {{ new Date(Number(managed.updaterEnrollmentExpiresAtUnixMillis)).toLocaleString() }}</small></div>
+        <div v-if="session.token"><span>Agent token</span><code class="mono-text">{{ session.token }}</code></div>
+        <div v-if="managed?.updaterEnrollmentToken"><span>Updater enrollment token</span><code class="mono-text">{{ managed.updaterEnrollmentToken }}</code><small v-if="managed.updaterEnrollmentExpiresAtUnixMillis">Expires {{ new Date(Number(managed.updaterEnrollmentExpiresAtUnixMillis)).toLocaleString() }}</small></div>
       </details>
       <p v-if="mode !== 'rotate'" class="copy-xs muted-text">The command downloads the matching release and verifies its SHA-256 checksums before installation. Copy it and run it on the agent host.</p>
-      <NAlert v-if="commandResult.error || copyError" type="error" :bordered="false">{{ commandResult.error || copyError }}</NAlert>
+      <NAlert v-if="commandResult.error || copyError" type="error" :bordered="false"><bdi dir="ltr">{{ diagnosticInspectionText(commandResult.error || copyError) }}</bdi></NAlert>
       <pre v-if="commandResult.command" class="agent-setup-command"><code>{{ commandResult.command }}</code></pre>
-      <div class="layout-row mq-sm-end space-md">
+      <div class="agent-setup-actions">
         <NButton secondary @click="close">Done</NButton>
         <NButton type="primary" :disabled="!commandResult.command || loading" @click="copyCommand">{{ copyLabel }}</NButton>
       </div>
@@ -246,16 +246,22 @@ defineExpose({ openCreated, openExisting, openRotated });
 </template>
 
 <style scoped>
-.agent-setup-identity { display: grid; gap: .25rem; min-width: 0; }
+.agent-setup-dialog { display: grid; gap: 1rem; }
+.agent-setup-identity { display: grid; gap: .125rem; min-width: 0; }
+.agent-setup-identity strong { color: var(--app-text); font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
 .agent-setup-identity code { color: var(--app-text-muted); font-size: .75rem; overflow-wrap: anywhere; }
-.agent-setup-field { display: grid; gap: .4rem; min-width: 0; font-size: .8125rem; font-weight: 500; }
+.agent-setup-field { display: grid; gap: .375rem; min-width: 0; color: var(--app-text-muted); font-size: .8125rem; font-weight: 500; }
 .agent-setup-field small { color: var(--app-text-muted); font-size: .75rem; font-weight: 400; }
-.agent-advanced-options { border: 1px solid var(--app-border); border-radius: 6px; overflow: hidden; }
-.agent-advanced-options summary, .agent-setup-credentials summary { cursor: pointer; padding: .8rem 1rem; font-size: .8125rem; }
-.agent-advanced-options summary small { display: block; margin-top: .2rem; color: var(--app-text-muted); font-size: .75rem; }
-.agent-advanced-options__body { display: grid; gap: 1rem; padding: 1rem; border-top: 1px solid var(--app-border); }
-.agent-setup-credentials { background: var(--app-panel-muted); border-radius: 6px; }
-.agent-setup-credentials div { display: grid; gap: .3rem; padding: .6rem 1rem; font-size: .75rem; }
-.agent-setup-credentials code { overflow-wrap: anywhere; }
-.agent-setup-command { max-height: 14rem; overflow: auto; padding: 1rem; border: 1px solid var(--app-border); border-radius: 6px; background: var(--app-panel-muted); font-size: .75rem; }
+.agent-advanced-options { border-block: 1px solid var(--app-border-subtle); }
+.agent-advanced-options summary, .agent-setup-credentials summary { border-radius: 4px; color: var(--app-text); cursor: pointer; font-size: .8125rem; font-weight: 500; padding: .75rem 0; }
+.agent-setup-credentials summary { padding-inline: 1rem; }
+.agent-advanced-options summary:focus-visible, .agent-setup-credentials summary:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 1px; }
+.agent-advanced-options summary small { display: block; margin-top: .125rem; color: var(--app-text-muted); font-size: .75rem; font-weight: 400; }
+.agent-advanced-options__body { display: grid; gap: 1rem; padding: .25rem 0 1rem; }
+.agent-setup-credentials { border-radius: 8px; background: var(--app-panel-muted); }
+.agent-setup-credentials div { display: grid; gap: .25rem; border-top: 1px solid var(--app-border-subtle); padding: .625rem 1rem; font-size: .75rem; }
+.agent-setup-credentials span, .agent-setup-credentials small { color: var(--app-text-muted); }
+.agent-setup-credentials code { color: var(--app-text); overflow-wrap: anywhere; }
+.agent-setup-command { max-height: 14rem; overflow: auto; margin: 0; border-radius: 8px; background: var(--app-panel-muted); color: var(--app-text); font-family: var(--font-mono); font-size: .75rem; line-height: 1.6; padding: .875rem 1rem; }
+.agent-setup-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
 </style>

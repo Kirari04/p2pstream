@@ -343,7 +343,7 @@ async function createAgentSetupScreenshot(page: Page) {
   await expect(page.getByRole("heading", { name: "Add Agent", exact: true })).toBeVisible({ timeout: 10_000 });
   await page.getByLabel("Name").fill("Docs Install Agent");
   await page.getByRole("button", { name: "Create Agent" }).click();
-  await expect(page.getByRole("heading", { name: "Agent Setup", exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible({ timeout: 10_000 });
   await capture(page, "new_agent_modal_setup.png");
   await page.getByRole("button", { name: "Done", exact: true }).click();
   await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
