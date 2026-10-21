@@ -80,7 +80,10 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
 
 ## Patterns
 
-- **Tables:** `NDataTable size="small"` inside a flush `SectionCard`. Set
+- **Tables:** `NDataTable size="small"` inside a flush `SectionCard`
+  (row hairlines only; don't set `single-line=false`). Responsive `role="table"`
+  grids that stack into labelled cells on phones, as used by the Traffic
+  Policy rule lists, are an accepted alternative. Set
   `scroll-x` to the real column sum, keep it within the card at 1280px, pin
   the actions column with `fixed: "right"`, and shorten long IDs with
   `clip-text` plus a `title` attribute.
