@@ -133,6 +133,15 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: server-updater-rehearsal
-          path: tmp/server-updater-tests/
+          # Guest state contains disposable credentials and full data snapshots.
+          # Publish only the fixed-schema status/version/hash receipts.
+          path: |
+            tmp/server-updater-tests/run.*/review/installation-evidence.json
+            tmp/server-updater-tests/run.*/review/compose-versions.json
+            tmp/server-updater-tests/run.*/review/installation-compose-compatibility.json
+            tmp/server-updater-tests/run.*/review/success/native-runtime-receipt.json
+            tmp/server-updater-tests/run.*/review/rollback/native-runtime-receipt.json
+            tmp/server-updater-tests/run.*/review/retry-recovery/native-runtime-receipt.json
+            tmp/server-updater-tests/run.*/review/kill-validating/native-runtime-receipt.json
           if-no-files-found: ignore
           retention-days: 7

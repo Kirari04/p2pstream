@@ -13,21 +13,31 @@ import { createRoutedManagementClient } from '/src/api/managementClient.ts';
 import ServerUpdates from '/src/views/ServerUpdates.vue';
 import '/src/styles.css';
 
-document.documentElement.classList.add('dark');
 const query = new URLSearchParams(location.search);
+if (!query.has('light')) document.documentElement.classList.add('dark');
 const scope = ref('1');
 const name = computed(() => scope.value === '1' ? 'fireani.me' : 'Local');
 const ids = {1:'11111111-1111-4111-8111-111111111111',2:'22222222-2222-4222-8222-222222222222'};
 const target = {version:'v0.1.53-staging.91',commit:'b'.repeat(40),channel:'staging',image:'ghcr.io/kirari04/p2pstream@sha256:'+'c'.repeat(64),manifestSha256:'d'.repeat(64)};
 const requests = [];
+const reportedAt = Date.now() - 35000;
+const operations = query.has('phase') ? {'1': create(schemas.ServerUpdateOperationSchema, {
+ id:'33333333-3333-4333-8333-333333333333', phase:query.get('phase'), detail:query.get('detail') || '',
+ previousVersion:'v0.1.53-staging.90',targetVersion:target.version,
+ startedAtUnixMillis:query.has('legacy-time') ? 0n : BigInt(reportedAt - 90000),
+ updatedAtUnixMillis:query.has('legacy-time') ? 0n : BigInt(reportedAt)
+})} : {};
 let reads = 0;
 const clients = Object.fromEntries(['1','2'].map((id) => [id, {
  getServerUpdateOverview: async () => {
   reads += 1;
+  if (query.has('disconnect') && reads > 1) throw new Error('management connection interrupted');
   const setup = query.has('setup') || query.has('legacy') || (query.has('enroll') && reads < 2);
-  return create(schemas.GetServerUpdateOverviewResponseSchema, {instanceId:setup ? '' : ids[id],version:'v0.1.53-staging.90',commit:'a'.repeat(40),channel:'staging',executorConfigured:!setup,executorAvailable:!setup,target:setup ? undefined : target,
+  const migration = query.has('migration') && (!query.has('migration-first-only') || id === '1');
+  return create(schemas.GetServerUpdateOverviewResponseSchema, {instanceId:setup ? '' : ids[id],version:'v0.1.53-staging.90',commit:'a'.repeat(40),channel:'staging',executorConfigured:!setup,executorAvailable:!setup,target:setup ? undefined : target,operation:operations[id],
     installationId:query.has('legacy') ? '' : ids[id], architecture:'arm64', repository:'server/repository',
-    setupCommand:setup && !query.has('legacy') ? "(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py --expect-installation '"+ids[id]+"' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' --COMPOSE_OPTIONS--\n)" : ''});
+    setupCommand:(setup && !query.has('legacy') || migration && !query.has('migration-unavailable')) ? "(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py install "+(migration ? "--migrate-deployment " : "")+"--bundle /tmp/verified-release --expect-installation '"+ids[id]+"' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' --COMPOSE_OPTIONS--\n)" : '',
+    setupUnavailable:migration && query.has('migration-unavailable') ? query.get('unavailable-detail') || 'The installed release metadata has expired. Manually deploy a compatible published release, then refresh.' : ''});
  },
  previewServerUpdate: async () => {
   await new Promise(resolve => setTimeout(resolve, query.has('slow') ? 700 : 30));
@@ -36,10 +46,11 @@ const clients = Object.fromEntries(['1','2'].map((id) => [id, {
  startServerUpdate: async (request) => {
   requests.push({environment:id,...request}); document.querySelector('#requests').textContent=JSON.stringify(requests);
   if (query.has('lost') && requests.length === 1) throw new Error('connection interrupted');
-  return {operation:create(schemas.ServerUpdateOperationSchema,{id:request.operationId,phase:'accepted',previousVersion:'v0.1.53-staging.90',targetVersion:target.version})};
+  operations[id] = create(schemas.ServerUpdateOperationSchema,{id:request.operationId,phase:'accepted',previousVersion:'v0.1.53-staging.90',targetVersion:target.version,startedAtUnixMillis:BigInt(Date.now()),updatedAtUnixMillis:BigInt(Date.now())});
+  return {operation:operations[id]};
  }
 }]));
-const app=createApp({render:()=>h(NConfigProvider,{theme:darkTheme},{default:()=>h(ServerUpdates)})});
+const app=createApp({render:()=>h(NConfigProvider,{theme:query.has('light') ? null : darkTheme},{default:()=>h(ServerUpdates)})});
 app.provide(keys.managementClientKey,createRoutedManagementClient(()=>clients[scope.value],()=>''));
 app.provide(keys.selectedEnvironmentIdKey,computed(()=>scope.value));
 app.provide(keys.selectedEnvironmentLabelKey,name);

@@ -17,6 +17,22 @@ import (
 	"p2pstream/internal/serverupdate"
 )
 
+func TestDeploymentMigrationRecipeKeepsVerifiedInstallationBinding(t *testing.T) {
+	t.Setenv("DATABASE_URL", "")
+	app := &App{Config: &config.Config{ConfigDir: "/data"}, InstallationID: "11111111-1111-4111-8111-111111111111"}
+	app.installationChecked = time.Now()
+	app.installationExpires = time.Now().Add(time.Hour)
+	app.installationCommand = "verified-download-and-checksum\nsudo python3 -I installer.py install --bundle protected --expect-installation '11111111-1111-4111-8111-111111111111' --COMPOSE_OPTIONS--"
+	got, unavailable := app.serverDeploymentMigrationCommand(context.Background())
+	if unavailable != "" || !strings.Contains(got, "install --migrate-deployment --bundle protected") || strings.Replace(got, " --migrate-deployment", "", 1) != app.installationCommand {
+		t.Fatalf("migration changed verified recipe: %q %q", got, unavailable)
+	}
+	app.installationCommand = "unexpected-recipe"
+	if got, unavailable := app.serverDeploymentMigrationCommand(context.Background()); got != "" || unavailable == "" {
+		t.Fatal("unrecognized recipe was made executable")
+	}
+}
+
 func TestServerUpdateMethodsRequireAdminAndExactInstance(t *testing.T) {
 	app := NewApp(&config.Config{ServerUpdateInstanceID: "11111111-1111-4111-8111-111111111111"}, newServerTestDB(t))
 	admin := createTestAdminSession(t, app)

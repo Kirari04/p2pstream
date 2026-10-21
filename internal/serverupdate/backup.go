@@ -20,38 +20,122 @@ import (
 	"syscall"
 )
 
-func backupData(ctx context.Context, source, destination string) (string, error) {
-	var size uint64
-	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
+// preflightLiveBackup is advisory: a live cache may remove a child between the
+// directory walk and stat. Only that disappearance is inconclusive; backupData
+// still performs the strict check after writers have stopped.
+func preflightLiveBackup(ctx context.Context, source, destinationDir string) error {
+	if err := checkBackupDirectories(ctx, source, destinationDir); err != nil {
+		return err
+	}
+	return scanBackupPreflight(ctx, source, destinationDir, true, backupPreflightIO{filepath.WalkDir, syscall.Statfs})
+}
+
+func checkBackupDirectories(ctx context.Context, paths ...string) error {
+	for _, path := range paths {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		info, err := entry.Info()
+		info, err := os.Lstat(path)
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && !info.Mode().IsRegular() {
-			return errors.New("data contains a link or special file; manual backup required")
+		if !info.IsDir() {
+			return fmt.Errorf("backup path is not a directory: %s", path)
+		}
+	}
+	return nil
+}
+
+func liveBackupPreflightResult(ctx context.Context, source, destinationDir string, err error) error {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return ctxErr
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	// Verify the fixed roots again before treating a vanished child as benign.
+	if rootErr := checkBackupDirectories(ctx, source, destinationDir); rootErr != nil {
+		return rootErr
+	}
+	var pathErr *fs.PathError
+	if errors.As(err, &pathErr) {
+		relative, relErr := filepath.Rel(source, pathErr.Path)
+		if relErr == nil && relative != "." && fs.ValidPath(filepath.ToSlash(relative)) {
+			return nil
+		}
+	}
+	return err
+}
+
+// preflightBackup strictly checks supported data and sufficient backup space.
+func preflightBackup(ctx context.Context, source, destinationDir string) error {
+	return scanBackupPreflight(ctx, source, destinationDir, false, backupPreflightIO{filepath.WalkDir, syscall.Statfs})
+}
+
+// Keep filesystem operations local to a scan so tests can deterministically
+// reproduce a disappearing child without racing a mutating directory or using
+// global hooks.
+type backupPreflightIO struct {
+	walkDir func(string, fs.WalkDirFunc) error
+	statfs  func(string, *syscall.Statfs_t) error
+}
+
+func scanBackupPreflight(ctx context.Context, source, destinationDir string, live bool, filesystem backupPreflightIO) error {
+	walkError := func(err error) error {
+		if live {
+			return liveBackupPreflightResult(ctx, source, destinationDir, err)
+		}
+		return err
+	}
+	var size uint64
+	err := filesystem.walkDir(source, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return walkError(err)
+		}
+		if err := ctx.Err(); err != nil {
+			return err
 		}
 		name, err := filepath.Rel(source, path)
 		if err != nil || !validBackupName(name) {
 			return errors.New("data contains an unsupported filename; manual backup required")
 		}
+		if IsRuntimeReservedName(name) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return walkError(err)
+		}
+		if !info.IsDir() && !info.Mode().IsRegular() {
+			return errors.New("data contains a link or special file; manual backup required")
+		}
 		size += uint64(info.Size()) + 1024
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return err
+	}
+	if live {
+		if err := checkBackupDirectories(ctx, source, destinationDir); err != nil {
+			return err
+		}
 	}
 	var space syscall.Statfs_t
-	if err := syscall.Statfs(filepath.Dir(destination), &space); err != nil {
-		return "", err
+	if err := filesystem.statfs(destinationDir, &space); err != nil {
+		return err
 	}
 	if space.Bavail*uint64(space.Bsize) < size+size/10+(64<<20) {
-		return "", errors.New("insufficient disk space for a verified backup")
+		return errors.New("insufficient disk space for a verified backup")
+	}
+	return ctx.Err()
+}
+
+func backupData(ctx context.Context, source, destination string) (string, error) {
+	if err := preflightBackup(ctx, source, filepath.Dir(destination)); err != nil {
+		return "", err
 	}
 	f, err := os.CreateTemp(filepath.Dir(destination), ".backup-*")
 	if err != nil {
@@ -68,6 +152,16 @@ func backupData(ctx context.Context, source, destination string) (string, error)
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+		name, err := filepath.Rel(source, path)
+		if err != nil || !validBackupName(name) {
+			return errors.New("data changed to an unsupported filename during backup")
+		}
+		if IsRuntimeReservedName(name) {
+			if entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		info, err := entry.Info()
 		if err != nil {
 			return err
@@ -79,10 +173,7 @@ func backupData(ctx context.Context, source, destination string) (string, error)
 		if err != nil {
 			return err
 		}
-		header.Name, err = filepath.Rel(source, path)
-		if err != nil || !validBackupName(header.Name) {
-			return errors.New("data changed to an unsupported filename during backup")
-		}
+		header.Name = name
 		if err := writer.WriteHeader(header); err != nil {
 			return err
 		}
@@ -116,16 +207,16 @@ func backupData(ctx context.Context, source, destination string) (string, error)
 		return "", err
 	}
 	digest := hex.EncodeToString(hash.Sum(nil))
-	if err := verifyBackup(destination, digest); err != nil {
-		return "", err
-	}
-	if err := validateBackup(ctx, destination); err != nil {
+	if err := verifyBackup(ctx, destination, digest); err != nil {
 		return "", err
 	}
 	return digest, nil
 }
 
-func verifyBackup(path, digest string) error {
+// verifyBackup checks restorability and the persisted checksum in one pass.
+// Tar readers stop at the archive terminator, so drain the underlying reader
+// afterward to include padding and any trailing bytes in the checksum as well.
+func verifyBackup(ctx context.Context, path, digest string) error {
 	if !digestPattern.MatchString(digest) {
 		return errors.New("invalid backup digest")
 	}
@@ -135,13 +226,32 @@ func verifyBackup(path, digest string) error {
 	}
 	defer f.Close()
 	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
+	reader := io.TeeReader(backupContextReader{ctx: ctx, reader: f}, h)
+	if err := validateBackup(ctx, reader); err != nil {
+		return err
+	}
+	if _, err := io.Copy(io.Discard, reader); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if hex.EncodeToString(h.Sum(nil)) != digest {
 		return errors.New("backup checksum mismatch")
 	}
 	return nil
+}
+
+type backupContextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r backupContextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.reader.Read(p)
 }
 
 func validBackupName(name string) bool {
@@ -152,13 +262,8 @@ func validBackupName(name string) bool {
 // before its children, exactly once. Enforce that format before extraction so
 // unsupported names, entry types, duplicates, and truncated data cannot turn
 // an accepted backup into a destructive partial restoration.
-func validateBackup(ctx context.Context, path string) error {
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	reader := tar.NewReader(f)
+func validateBackup(ctx context.Context, source io.Reader) error {
+	reader := tar.NewReader(source)
 	entries := make(map[string]bool) // true for a directory
 	for {
 		if err := ctx.Err(); err != nil {
@@ -203,12 +308,9 @@ func validateBackup(ctx context.Context, path string) error {
 }
 
 func restoreData(ctx context.Context, destination, backup, digest string) error {
-	if err := verifyBackup(backup, digest); err != nil {
-		return err
-	}
 	// A checksum proves identity, not restorability. Validate the complete tar
 	// structure before removing even one candidate file.
-	if err := validateBackup(ctx, backup); err != nil {
+	if err := verifyBackup(ctx, backup, digest); err != nil {
 		return err
 	}
 	// os.Root keeps every removal and extraction inside the fixed data volume,
@@ -223,6 +325,9 @@ func restoreData(ctx context.Context, destination, backup, digest string) error 
 		return err
 	}
 	for _, entry := range entries {
+		if IsRuntimeReservedName(entry.Name()) {
+			continue
+		}
 		if err := root.RemoveAll(entry.Name()); err != nil {
 			return err
 		}
@@ -248,6 +353,11 @@ func restoreData(ctx context.Context, destination, backup, digest string) error 
 		name := header.Name
 		if !validBackupName(name) {
 			return errors.New("invalid backup entry")
+		}
+		// Historical archives may contain these names. Consume their bodies but
+		// never restore a stale owner or replace the inode held by a live lease.
+		if IsRuntimeReservedName(name) {
+			continue
 		}
 		switch header.Typeflag {
 		case tar.TypeDir:

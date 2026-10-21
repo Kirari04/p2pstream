@@ -7,11 +7,13 @@ steps are rejected by the independently shipped Go layout validator.
 import argparse
 import contextlib
 import fcntl
+import grp
 import hashlib
 import http.client
 import json
 import os
 from pathlib import Path
+import pwd
 import re
 import shutil
 import socket
@@ -60,12 +62,14 @@ def read_json(path):
     require(stat.S_ISREG(info.st_mode) and info.st_size <= 2 * 1024 * 1024, 'Unsafe or oversized state file: ' + str(path))
     return decode(path.read_bytes())
 
-def atomic(path, data):
+def atomic(path, data, mode=0o600, uid=None, gid=None):
     if not isinstance(data, bytes):
         data = json.dumps(data, separators=(',', ':'), sort_keys=True).encode()
     fd, name = tempfile.mkstemp(prefix='.host-', dir=path.parent)
     try:
-        os.fchmod(fd, 0o600)
+        if uid is not None or gid is not None:
+            os.fchown(fd, -1 if uid is None else uid, -1 if gid is None else gid)
+        os.fchmod(fd, mode)
         with os.fdopen(fd, 'wb') as stream:
             stream.write(data)
             stream.flush()
@@ -182,12 +186,299 @@ def compose_options(options):
         out += [key, value]
     return out
 
+def operator_gid():
+    uid = os.environ.get('SUDO_UID')
+    if uid is None:
+        return 0
+    gid = os.environ.get('SUDO_GID', '')
+    require(uid.isdecimal() and gid.isdecimal(), 'Invalid sudo operator identity')
+    account = pwd.getpwuid(int(uid))
+    require(account.pw_gid == int(gid), 'Sudo operator group differs from the account primary group')
+    try:
+        engine = Path('/var/run/docker.sock').lstat()
+        members = grp.getgrgid(engine.st_gid).gr_mem
+        if stat.S_ISSOCK(engine.st_mode) and engine.st_uid == 0 and engine.st_mode & 0o060 == 0o060 and (account.pw_gid == engine.st_gid or account.pw_name in members):
+            return engine.st_gid  # This group already has rootful Docker authority.
+    except (FileNotFoundError, KeyError):
+        pass
+    try:
+        members = set(grp.getgrgid(account.pw_gid).gr_mem)
+        members.update(entry.pw_name for entry in pwd.getpwall() if entry.pw_gid == account.pw_gid)
+    except KeyError:
+        return 0
+    return account.pw_gid if members <= {account.pw_name, 'root'} else 0
+
+def compose_sources(options, container):
+    paths = [value for key, value in zip(options[::2], options[1::2]) if key in {'-f', '--file'}]
+    if not paths:
+        paths = container['Config']['Labels'].get('com.docker.compose.project.config_files', '').split(',')
+    require(paths and all(paths) and len(paths) == len(set(paths)), 'Cannot identify unique local Compose files; use explicit ordered -f options')
+    result = []
+    for name in paths:
+        path = Path(name)
+        require(path.is_absolute(), 'Compose source paths must resolve to absolute files')
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode), 'Compose source bridges require regular files without symlinks')
+        result.append(str(path))
+    return result
+
+def source_layout(source_dir, files, project, owned_aliases=None):
+    directory = Path(source_dir)
+    defaults = [directory / name for name in ('compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml') if os.path.lexists(directory / name)]
+    require(len(defaults) <= 1, 'Multiple default Compose files exist; resolve the default command context before enrollment')
+    owned_aliases = owned_aliases or {}
+    for path in defaults:
+        require(stat.S_ISREG(path.lstat().st_mode), 'Default Compose files must be regular files without symlinks')
+        require(str(path) in files or owned_aliases.get(str(path)) == digest(path.read_bytes()), 'An unrelated default Compose file exists; resolve the default command context before enrollment')
+    for name in ('compose.override.yaml', 'compose.override.yml', 'docker-compose.override.yaml', 'docker-compose.override.yml'):
+        path = directory / name
+        require(not os.path.lexists(path) or str(path) in files, 'An unrelated automatic Compose override exists; include or resolve it before enrollment')
+    # Compose exposes its effective project name here even when it was only
+    # derived from the directory. A final name-only override anchors that default
+    # to the selected project without using -p, which would hide an explicit
+    # conflicting COMPOSE_PROJECT_NAME from the source .env.
+    with tempfile.TemporaryDirectory(prefix='p2pstream-compose-project-') as tmp:
+        selected = Path(tmp) / 'selected-project.json'
+        atomic(selected, {'name': project})
+        environment = docker('compose', *[part for path in files for part in ('-f', path)], '-f', str(selected), 'config', '--environment', cwd=source_dir)
+    values = {}
+    if environment.returncode == 0:
+        for line in environment.stdout.decode().splitlines():
+            key, separator, value = line.partition('=')
+            if separator and key in {'COMPOSE_FILE', 'COMPOSE_PATH_SEPARATOR', 'COMPOSE_PROJECT_NAME'}:
+                values[key] = value
+    require(not values.get('COMPOSE_PROJECT_NAME') or values['COMPOSE_PROJECT_NAME'] == project, 'Default COMPOSE_PROJECT_NAME selects another project; resolve it before enrollment')
+    if values.get('COMPOSE_FILE'):
+        paths = [str((directory / part).resolve()) for part in values['COMPOSE_FILE'].split(values.get('COMPOSE_PATH_SEPARATOR') or ':')]
+        require(set(paths) == set(files), 'Default COMPOSE_FILE selects different inputs; resolve it before enrollment')
+        primary = paths[0]
+    else:
+        primary = str(defaults[0]) if defaults and str(defaults[0]) in files else files[0]
+    alias = str(defaults[0]) if defaults and str(defaults[0]) not in files else str(directory / 'compose.yaml') if not defaults and not values.get('COMPOSE_FILE') else None
+    return {'primary': primary, 'default_alias': alias, 'existing_alias_sha256': owned_aliases.get(alias) if alias and os.path.lexists(alias) else None}
+
 class Host:
     def __init__(self, directory=STATE):
         self.directory = directory
         self.journal = {}
         self.config = None
         self.updater = None
+
+    def current_model_path(self):
+        return Path(self.config.get('deployment_file', self.directory / 'compose.json')) if self.config else self.directory / 'compose.json'
+
+    def model_path(self, model='compose.json'):
+        return self.current_model_path() if model == 'compose.json' else self.directory / model
+
+    def write_model(self, data):
+        path = self.current_model_path()
+        atomic(path, data, mode=0o640 if self.config and self.config.get('deployment_protocol') == 2 else 0o600)
+
+    def input_options(self):
+        return self.journal.get('editable_compose_options', self.journal['compose_options'])
+
+    def prepare_deployment_directory(self):
+        path = self.directory.with_name('p2pstream-server-deployment')
+        path.mkdir(mode=0o750, exist_ok=True)
+        info = path.lstat()
+        require(stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and not info.st_mode & 0o022, 'Unsafe canonical deployment directory')
+        os.chown(path, 0, operator_gid())
+        path.chmod(0o2750)
+        if path.stat().st_gid == 0:
+            print('Canonical deployment is root-readable; use sudo docker compose for the original and default Compose commands.')
+        self.phase(self.journal['phase'], deployment_directory=str(path))
+        return path
+
+    def capability(self, image, container=None):
+        if container:
+            raw = docker('exec', container, '/app/p2pstream', 'server-deployment-capabilities').stdout
+        else:
+            immutable = decode(docker('image', 'inspect', image).stdout)[0]['Id']
+            raw = docker('run', '--rm', '--cap-drop', 'ALL', '--cap-add', 'NET_BIND_SERVICE', '--security-opt', 'no-new-privileges', '--entrypoint', '/app/p2pstream', immutable, 'server-deployment-capabilities').stdout
+        value = decode(raw)
+        require(value.get('runtime_guard') == 2, 'This server/executor lacks managed Compose startup protection; manually deploy a compatible published server before enabling or migrating deployment ownership')
+        labels = decode(docker('image', 'inspect', image).stdout)[0]['Config']['Labels']
+        require((value.get('version'), value.get('commit')) == (labels.get('org.opencontainers.image.version'), labels.get('org.opencontainers.image.revision')), 'Deployment capabilities differ from immutable image identity')
+
+    def runtime(self, action):
+        if self.config.get('deployment_protocol') == 2:
+            return self.command('runtime-' + action, '--config', str(self.directory / 'config.json'))
+
+    def record_runtime(self):
+        if self.config.get('deployment_protocol') == 2:
+            self.command('record-runtime', '--config', str(self.directory / 'config.json'))
+
+    def handoff_recovery_controller(self, bundle):
+        # The outer release bootstrap verifies the complete bundle hash. Before
+        # replacing recovery code, also bind this copy to the verified module
+        # currently executing and reject special files or partial bundles.
+        bundle = Path(bundle)
+        for name in BUNDLE_FILES:
+            info = (bundle / name).lstat()
+            require(stat.S_ISREG(info.st_mode) and info.st_size <= 262144, 'Unsafe or incomplete verified recovery bundle')
+        controller = (bundle / 'server-updater-host.py').read_bytes()
+        require(controller == Path(__file__).read_bytes(), 'Recovery controller differs from the executing verified installation helper')
+        target = self.directory / 'server-updater-host.py'
+        require(not os.path.lexists(target) or stat.S_ISREG(target.lstat().st_mode), 'Installed recovery controller must be a regular file')
+        # Existing manage launchers invoke this stable path. Publish and fsync
+        # compatible recovery code before writing any journal phase it owns.
+        atomic(target, controller)
+
+    def source_bridges(self):
+        plan = self.journal.get('source_bridge')
+        if not plan:
+            files = []
+            for index, name in enumerate(self.journal['source_files']):
+                path = Path(name)
+                info = path.lstat()
+                require(stat.S_ISREG(info.st_mode), 'Compose source changed type before migration')
+                editable = path.with_name(path.name + '.p2pstream-input-' + uuid.uuid4().hex[:8])
+                require(not os.path.lexists(editable), 'Editable Compose input already exists')
+                data = {'name': self.config['project'], 'include': [{'path': str(self.current_model_path()), 'project_directory': str(self.current_model_path().parent)}]} if name == self.journal['source_layout']['primary'] else {}
+                files.append({'path': name, 'editable': str(editable), 'original_sha256': digest(path.read_bytes()), 'bridge': data,
+                              'mode': stat.S_IMODE(info.st_mode), 'uid': info.st_uid, 'gid': info.st_gid})
+            mapping = {item['path']: item['editable'] for item in files}
+            options = self.journal['compose_options'][:]
+            explicit = False
+            for index in range(0, len(options), 2):
+                if options[index] in {'-f', '--file'}:
+                    options[index + 1] = mapping[options[index + 1]]
+                    explicit = True
+            if not explicit:
+                options += [part for item in files for part in ('-f', item['editable'])]
+            alias = self.journal['source_layout'].get('default_alias')
+            if alias:
+                previous = self.journal['source_layout'].get('existing_alias_sha256')
+                require(not os.path.lexists(alias) or previous and digest(Path(alias).read_bytes()) == previous, 'A default Compose file appeared before migration; inspect it before repair')
+                backup = self.directory / 'default-compose-before.json'
+                if previous:
+                    atomic(backup, Path(alias).read_bytes())
+                files.append({'path': alias, 'editable': None, 'original_sha256': previous, 'original_backup': str(backup) if previous else None, 'bridge': {'name': self.config['project'], 'include': [{'path': str(self.current_model_path()), 'project_directory': str(self.current_model_path().parent)}]}, 'mode': 0o644, 'uid': 0, 'gid': operator_gid()})
+            plan = {'files': files}
+            self.phase(self.journal['phase'], source_bridge=plan, editable_compose_options=options)
+        # Validate the complete transaction before replacing any entry point.
+        # A later unknown file must not cause a partially migrated source set.
+        for item in plan['files']:
+            source = Path(item['path'])
+            bridge = json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode()
+            accepted = {item['original_sha256'], digest(bridge)}
+            if (item['path'] == self.journal['source_layout']['primary'] or item['editable'] is None) and plan.get('export_sha256'):
+                accepted.add(plan['export_sha256'])
+            require(not os.path.lexists(source) and item['original_sha256'] is None or stat.S_ISREG(source.lstat().st_mode) and digest(source.read_bytes()) in accepted, 'Compose source changed during bridge migration; inspect saved inputs before repair')
+        for item in plan['files']:
+            source = Path(item['path'])
+            editable = Path(item['editable']) if item['editable'] else None
+            bridge = json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode()
+            accepted = {item['original_sha256'], digest(bridge)}
+            if (item['path'] == self.journal['source_layout']['primary'] or item['editable'] is None) and plan.get('export_sha256'):
+                accepted.add(plan['export_sha256'])
+            require(not source.exists() and item['original_sha256'] is None or source.exists() and digest(source.read_bytes()) in accepted, 'Compose source changed during bridge migration; inspect saved inputs before repair')
+            if editable and not editable.exists():
+                require(digest(source.read_bytes()) == item['original_sha256'], 'Missing editable source copy during interrupted migration')
+                atomic(editable, source.read_bytes(), mode=item['mode'], uid=item['uid'], gid=item['gid'])
+        for item in plan['files']:
+            source = Path(item['path'])
+            bridge = json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode()
+            atomic(source, bridge, mode=item['mode'], uid=item['uid'], gid=item['gid'])
+        # Validate the actual original entry points before allowing startup.
+        raw = docker('compose', *self.journal['compose_options'], 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
+        model = decode(raw)
+        require(model.get('name') == self.config['project'] and 'p2pstream-server-updater' in model.get('services', {}), 'Original Compose entry points did not resolve the managed deployment')
+        default = decode(docker('compose', 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)
+        canonical = decode(docker('compose', '--project-name', self.config['project'], '--project-directory', str(self.current_model_path().parent), '-f', str(self.current_model_path()), 'config', '--format', 'json').stdout)
+        require(default == model == canonical, 'Default or original Compose command differs from the canonical managed deployment; restore the recorded entry points before repair')
+
+    def export_sources(self, model):
+        plan = self.journal.get('source_bridge')
+        if not plan:
+            return
+        plan['export_sha256'] = digest(model)
+        self.phase(self.journal['phase'], source_bridge=plan)
+        primary = self.journal['source_layout']['primary']
+        for index, item in enumerate(plan['files']):
+            path = Path(item['path'])
+            bridge = json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode()
+            content = model if item['path'] == primary or item['editable'] is None else b'{}'
+            require(path.read_bytes() in {bridge, content}, 'Compose bridge changed; inspect it before completing removal')
+            owner = next(value for value in plan['files'] if value['path'] == primary) if item['editable'] is None else item
+            atomic(path, content, mode=0o600 if content == model else item['mode'], uid=owner['uid'], gid=owner['gid'])
+
+    def restore_sources(self):
+        for item in self.journal.get('source_bridge', {}).get('files', []):
+            path = Path(item['path'])
+            bridge = json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode()
+            if item['editable'] is None:
+                require(not path.exists() or path.read_bytes() == bridge or digest(path.read_bytes()) == item['original_sha256'], 'Default Compose bridge changed; inspect before rollback')
+                if item.get('original_backup'):
+                    original = Path(item['original_backup']).read_bytes()
+                    require(digest(original) == item['original_sha256'], 'Default Compose recovery snapshot changed')
+                    atomic(path, original, mode=0o600, uid=item['uid'], gid=item['gid'])
+                else:
+                    path.unlink(missing_ok=True)
+                continue
+            editable = Path(item['editable'])
+            require(path.read_bytes() == bridge or digest(path.read_bytes()) == item['original_sha256'], 'Compose bridge changed; inspect before restoring original inputs')
+            require(digest(editable.read_bytes()) == item['original_sha256'], 'Editable inputs changed during setup; preserve them and inspect before rollback')
+            atomic(path, editable.read_bytes(), mode=item['mode'], uid=item['uid'], gid=item['gid'])
+
+    def deploy_server(self, force=False, detached=False):
+        args = ('--force-recreate',) if force else ()
+        if self.config.get('deployment_protocol') == 2:
+            self.compose('stop', 'p2pstream')
+            self.compose('up', '--no-start', '--no-deps', '--no-build', '--pull', 'never', *args, 'p2pstream')
+            self.runtime('detach' if detached else 'allow')
+            self.compose('start', 'p2pstream')
+        else:
+            self.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', *args, 'p2pstream')
+
+    def migrate_deployment(self):
+        migration = self.journal.get('deployment_migration')
+        require(migration and self.journal['phase'] == 'migrating_deployment', 'No approved deployment migration exists')
+        self.idle()
+        old_config = read_json(self.directory / 'migration-config.json')
+        old_model = (self.directory / 'migration-compose.json').read_bytes()
+        require(digest(old_model) == migration['model_sha256'] and digest((self.directory / 'migration-config.json').read_bytes()) == migration['config_sha256'], 'Migration recovery snapshots changed')
+        executor_lock = self.stop_executor()
+        try:
+            if self.config.get('deployment_protocol') != 2:
+                require(self.config == old_config and self.current_model_path().read_bytes() == old_model, 'Legacy deployment changed after migration was approved')
+                model = decode(old_model)
+                cfg = dict(old_config, deployment_protocol=2, deployment_file=str(Path(self.journal['deployment_directory']) / 'compose.json'))
+                server = model['services']['p2pstream']
+                env = server['environment']
+                require(env.get('SERVER_UPDATE_TOKEN') == cfg['token'], 'Legacy deployment credential differs from saved configuration')
+                del env['SERVER_UPDATE_TOKEN']
+                env.update(SERVER_UPDATE_TOKEN_FILE='/run/p2pstream-server-update/token', SERVER_UPDATE_RUNTIME_PROTOCOL='2', SERVER_UPDATE_GENERATION=migration['generation'])
+                updater = model['services']['p2pstream-server-updater']
+                updater['image'] = migration['updater_image']
+                updater['volumes'].append({'type': 'bind', 'source': self.journal['deployment_directory'], 'target': self.journal['deployment_directory']})
+                model_raw = json.dumps(model, separators=(',', ':'), sort_keys=True).encode()
+                config_raw = json.dumps(cfg, separators=(',', ':'), sort_keys=True).encode()
+                migration = dict(migration, converted_model_sha256=digest(model_raw), converted_config_sha256=digest(config_raw))
+                self.phase('migrating_deployment', deployment_migration=migration)
+                atomic(Path(cfg['control_dir']) / 'token', cfg['token'].encode(), mode=0o444)
+                atomic(Path(cfg['deployment_file']), model_raw, mode=0o640)
+                atomic(self.directory / 'config.json', config_raw)
+                self.config = cfg
+            require(digest(self.current_model_path().read_bytes()) == migration['converted_model_sha256'] and digest((self.directory / 'config.json').read_bytes()) == migration['converted_config_sha256'], 'Converted deployment changed during migration')
+            if self.journal.get('source_bridge'):
+                self.runtime('block')
+                self.source_bridges()
+            raw = docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
+            atomic(self.directory / 'migration-input.json', raw)
+            self.command('configure', '--compose', str(self.directory / 'migration-input.json'), '--output', str(self.directory / 'migration-validated.json'))
+            require(decode(self.compose('config', '--format', 'json', model='migration-validated.json').stdout) == decode(self.compose('config', '--format', 'json').stdout), 'Editable settings differ from the current managed deployment; restore the last applied inputs before migration')
+            self.runtime('block')
+            self.source_bridges()
+            self.deploy_server()
+        finally:
+            os.close(executor_lock)
+        self.start_executor()
+        status = self.wait_healthy()
+        self.record_runtime()
+        atomic(self.directory / 'enrolled-compose.json', self.current_model_path().read_bytes())
+        self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
+        print('Compose deployment migrated; original Compose commands now use the current managed image and settings.')
 
     @contextlib.contextmanager
     def lock(self, allow_archive=False):
@@ -212,7 +503,7 @@ class Host:
                 self.journal = read_json(self.directory / 'host.json')
             if (self.directory / 'config.json').exists():
                 self.config = read_json(self.directory / 'config.json')
-                model = read_json(self.directory / 'compose.json')
+                model = read_json(self.current_model_path())
                 self.updater = self.journal.get('updater_image') or model.get('services', {}).get('p2pstream-server-updater', {}).get('image', '')
                 require(re.fullmatch(re.escape('ghcr.io/' + self.config['repository'].lower() + '-updater@sha256:') + '[0-9a-f]{64}', self.updater), 'Host operations require the enrolled published updater image')
             yield
@@ -225,6 +516,7 @@ class Host:
         if phase == 'healthy':
             self.journal.pop('recovery_phase', None)
             self.journal.pop('recovery_operation', None)
+            self.journal.pop('recreation', None)
         self.journal['updated_at'] = int(time.time())
         atomic(self.directory / 'host.json', self.journal)
 
@@ -266,6 +558,10 @@ class Host:
         name = self.helper_name()
         atomic(self.directory / 'helper.json', {'name': name, 'entrypoint': entrypoint, 'phase': self.journal['phase'], 'readonly': readonly})
         mount = 'type=bind,src=' + str(self.directory) + ',dst=' + str(self.directory) + (',readonly' if readonly else '')
+        deployment = self.config.get('deployment_file') if self.config else None
+        deployment_directory = str(Path(deployment).parent) if deployment else self.journal.get('deployment_directory')
+        if deployment_directory and Path(deployment_directory) != self.directory:
+            mounts = (*mounts, '--mount', 'type=bind,src=' + deployment_directory + ',dst=' + deployment_directory + (',readonly' if readonly else ''))
         try:
             result = docker('run', '--rm', '--name', name, '--label', 'p2pstream.server-update.host-helper=' + self.journal['installation'],
                             '--user', '0:0', '--env', 'COMPOSE_DISABLE_ENV_FILE=1', '--entrypoint', entrypoint,
@@ -289,14 +585,15 @@ class Host:
         return self.run_helper('/usr/local/bin/docker', args, image=image, readonly=readonly)
 
     def compose(self, *args, model='compose.json'):
-        return self.tools('compose', '--project-name', self.config['project'], '--project-directory', str(self.directory), '-f', str(self.directory / model), *args, readonly=bool(args and args[0] in {'ps', 'logs', 'config'}))
+        path = self.model_path(model)
+        return self.tools('compose', '--project-name', self.config['project'], '--project-directory', str(path.parent), '-f', str(path), *args, readonly=bool(args and args[0] in {'ps', 'logs', 'config'}))
 
     def command(self, *args):
         mounts = []
-        if args and args[0] == 'recover':
+        if args and args[0] in {'recover', 'runtime-block', 'runtime-allow', 'runtime-detach'}:
             mounts = ['--label', 'p2pstream.server-update.executor=' + self.config['instance_id'],
                       '--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data']
-        return self.run_helper('/app/p2pstream', ('server-updater', *args), mounts=mounts, readonly=bool(args and args[0] == 'check'), timeout=900 if mounts else 180)
+        return self.run_helper('/app/p2pstream', ('server-updater', *args), mounts=mounts, readonly=bool(args and args[0] == 'check'), timeout=900 if args and args[0] == 'recover' else 180)
 
     def idle(self):
         if (self.directory / 'state.json').exists():
@@ -353,10 +650,44 @@ class Host:
         require(self.journal.get('phase') == 'removed', 'Only a completed removal can be reenrolled')
         self.settle_helper()
         self.wait_original()
+        self.save_reenrollment_context()
         self.archive_state()
         self.journal = {}
         self.config = None
         self.updater = None
+
+    def save_reenrollment_context(self):
+        require(self.journal.get('phase') == 'removed', 'Reenrollment ownership requires a completed removal')
+        plan = self.journal.get('source_bridge')
+        if not plan:
+            return
+        exported = plan.get('export_sha256', '')
+        require(HEX.fullmatch(exported), 'Completed removal lacks an exported deployment digest')
+        primary = self.journal['source_layout']['primary']
+        aliases = {item['path']: exported for item in plan['files'] if item['editable'] is None}
+        context = {'installation': self.journal['installation'], 'source_directory': self.journal['source_directory'],
+                   'compose_options': self.journal['compose_options'], 'source_files': self.journal['source_files'],
+                   'primary': primary, 'export_sha256': exported, 'aliases': aliases}
+        self.validate_reenrollment_context(context)
+        atomic(self.directory / 'reenrollment.json', context)
+
+    def validate_reenrollment_context(self, context):
+        require(context['primary'] in context['source_files'] and HEX.fullmatch(context['export_sha256']), 'Unsafe reenrollment ownership receipt')
+        for name in context['source_files']:
+            path = Path(name)
+            require(path.is_absolute() and stat.S_ISREG(path.lstat().st_mode), 'Recorded Compose sources must remain regular files without symlinks')
+        # Selected source files remain operator-editable after removal. Their
+        # current resolved settings must pass normal running-model preflight;
+        # historical content ownership is needed only for the extra alias.
+        existing_aliases = {}
+        for name, expected in context['aliases'].items():
+            path = Path(name)
+            require(path.is_absolute() and expected == context['export_sha256'], 'Exported default Compose alias changed; inspect it before reenrollment')
+            if not os.path.lexists(path):
+                continue  # No existing file needs historical ownership proof.
+            require(stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == expected, 'Exported default Compose alias changed; inspect it before reenrollment')
+            existing_aliases[name] = expected
+        return existing_aliases
 
     def discard_preparation(self):
         phase = self.journal.get('recovery_phase') or self.journal['phase']
@@ -375,7 +706,7 @@ class Host:
         if marker.exists():
             transaction = read_json(marker)
         else:
-            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json'}]
+            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json'}]
             transaction = {'id': str(uuid.uuid4()), 'stage': 'copying', 'names': names}
             atomic(marker, transaction)
         archive = self.archive_directory(transaction)
@@ -408,7 +739,7 @@ class Host:
 
     def archive_directory(self, transaction):
         require(str(uuid.UUID(transaction['id'])) == transaction['id'], 'Invalid archive identity')
-        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json'} for n in transaction['names']), 'Unsafe archive inventory')
+        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json'} for n in transaction['names']), 'Unsafe archive inventory')
         return self.directory / 'history' / transaction['id']
 
     def sync_directory(self):
@@ -450,20 +781,145 @@ class Host:
         self.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'p2pstream-server-updater')
         self.wait_socket()
 
+    def server_container(self, allow_missing=False):
+        ids = self.compose('ps', '--all', '--quiet', 'p2pstream').stdout.decode().split()
+        if not ids and allow_missing:
+            return None  # A successful daemon inventory, never a failed inspect.
+        require(len(ids) == 1, 'Expected exactly one existing server; inspect the deployment before recreation')
+        info = decode(docker('inspect', ids[0]).stdout)
+        require(len(info) == 1 and info[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
+        return info[0]
+
+    def canonical_hash(self):
+        fields = self.compose('config', '--hash', 'p2pstream').stdout.decode().split()
+        require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot identify the saved server configuration')
+        return fields[1]
+
+    def data_identity(self):
+        return self.run_helper('/app/p2pstream', ('server-installation-identity',), readonly=True, image=read_json(self.current_model_path())['services']['p2pstream']['image'], mounts=(
+            '--env', 'CONFIG_DIR=/server-data', '--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data,readonly')).stdout.decode().strip()
+
+    def validate_recreation_server(self, info, image_id, hashes, *, stopped=False):
+        labels = info['Config']['Labels']
+        require(labels.get('com.docker.compose.project') == self.config['project'] and labels.get('com.docker.compose.service') == 'p2pstream', 'Server belongs to another Compose deployment')
+        require(info['Image'] == image_id, 'Running image changed; configuration-only recreation cannot change or downgrade software')
+        require(labels.get('com.docker.compose.config-hash') in hashes, 'Running settings differ from the accepted deployment; restore the recorded Compose inputs before repair')
+        mounts = [v for v in info['Mounts'] if v['Destination'] == '/data']
+        require(len(mounts) == 1 and mounts[0].get('Name') == self.config['data_volume'] and mounts[0]['RW'], 'Server data volume changed; refusing recreation')
+        require(not any(v['Destination'].startswith('/data/') for v in info['Mounts']), 'Nested server data mounts cannot be recreated safely')
+        require_data_writers(self.config['data_volume'], info['Id'], self.config['instance_id'])
+        if info['State']['Running']:
+            identity = docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip()
+            require(docker('exec', info['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Server health failed; diagnose the server before configuration-only recreation')
+        else:
+            require(stopped, 'Server is not running; no recreation identity has been recorded')
+            # A stopped replacement cannot answer exec. Read only the identity
+            # from the exact volume proven before this transaction; do not open
+            # the database or infer identity from a Docker label.
+            identity = self.data_identity()
+        require(identity == self.journal['installation'] == self.config['instance_id'], 'Installation identity changed; refusing recreation')
+
+    def prepare_recreation(self, detached=False, before_persist=None):
+        current = self.current_model_path().read_bytes()
+        model = decode(current)
+        image_id = decode(docker('image', 'inspect', model['services']['p2pstream']['image']).stdout)[0]['Id']
+        canonical = self.canonical_hash()
+        accepted = canonical
+        info = self.server_container()
+        if not detached:
+            # The driver may have authenticated a different native Compose
+            # version through its trusted runtime receipt. Bind that verified
+            # live hash to the same immutable container before persisting it.
+            self.healthy()
+            verified = self.server_container()
+            require(verified['Id'] == info['Id'] and verified['Image'] == info['Image'] and verified['Config']['Labels'].get('com.docker.compose.config-hash') == info['Config']['Labels'].get('com.docker.compose.config-hash'), 'Deployment changed during recreation verification; retry after it settles')
+            accepted = info['Config']['Labels'].get('com.docker.compose.config-hash')
+            require(isinstance(accepted, str) and HEX.fullmatch(accepted), 'Verified native Compose configuration hash is invalid')
+        if detached:
+            raw = docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
+            atomic(self.directory / 'repair-input.json', raw)
+            self.command('configure', '--compose', str(self.directory / 'repair-input.json'), '--output', str(self.directory / 'repair-compose.json'))
+            candidate = decode(self.compose('config', '--format', 'json', model='repair-compose.json').stdout)
+            saved = decode(self.compose('config', '--format', 'json').stdout)
+            require(candidate == saved, 'Edited Compose settings differ from the last managed configuration. Restore the last applied inputs, run repair, then edit and run manage apply.')
+            # Match the native Compose version which performed the ordinary
+            # recreation. Its hash need not equal the executor's pinned version.
+            fields = docker('compose', '--project-directory', self.journal['source_directory'], '-f', str(self.directory / 'repair-input.json'), 'config', '--hash', 'p2pstream').stdout.decode().split()
+            require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot identify the original Compose deployment')
+            accepted = fields[1]
+        self.validate_recreation_server(info, image_id, {accepted})
+        receipt = {'model_sha256': digest(current), 'config_sha256': digest((self.directory / 'config.json').read_bytes()),
+                   'image_id': image_id, 'container_id': info['Id'], 'accepted_hash': accepted, 'canonical_hash': canonical,
+                   'installation': self.config['instance_id'], 'data_volume': self.config['data_volume'], 'detached': detached}
+        if before_persist:
+            before_persist()
+        self.phase('recreating', recreation=receipt, error='')
+
+    def recreate_server(self):
+        receipt = self.journal.get('recreation')
+        require(receipt and receipt['model_sha256'] == digest(self.current_model_path().read_bytes()) and receipt['config_sha256'] == digest((self.directory / 'config.json').read_bytes()), 'Saved recreation model or credentials changed; inspect the private recovery journal')
+        require(receipt['installation'] == self.config['instance_id'] == self.journal['installation'] and receipt['data_volume'] == self.config['data_volume'], 'Saved recreation identity changed')
+        model = read_json(self.current_model_path())
+        require(decode(docker('image', 'inspect', model['services']['p2pstream']['image']).stdout)[0]['Id'] == receipt['image_id'], 'Saved recreation image changed')
+        require(self.canonical_hash() == receipt['canonical_hash'], 'Saved recreation configuration changed')
+        def inspected():
+            info = self.server_container(allow_missing=True)
+            if info is None:
+                # Compose may have removed the old container before the helper
+                # was interrupted. Only this durable transaction may recover
+                # absence, after independently proving the original data ID.
+                require_data_writers(self.config['data_volume'], '', self.config['instance_id'])
+                require(self.data_identity() == receipt['installation'], 'Installation identity changed; refusing recreation')
+                return None
+            original = info['Id'] == receipt['container_id']
+            accepted = {receipt['accepted_hash'], receipt['canonical_hash']} if original else {receipt['canonical_hash']}
+            if not original or info['Config']['Labels'].get('com.docker.compose.config-hash') == receipt['canonical_hash']:
+                require(info['Config']['Labels'].get('p2pstream.server-update.instance') == self.config['instance_id'], 'Replacement is outside the saved enrolled deployment')
+            self.validate_recreation_server(info, receipt['image_id'], accepted, stopped=True)
+            return info
+        inspected()  # Refuse drift before stopping even the idle executor.
+        executor_lock = self.stop_executor()
+        try:
+            info = inspected()
+            # An interrupted up can have completed replacement. The exact
+            # canonical replacement is resumed without a second recreation.
+            self.runtime('block')
+            self.deploy_server(force=info is not None and info['Id'] == receipt['container_id'])
+        finally:
+            os.close(executor_lock)
+        self.start_executor()
+        status = self.wait_healthy()
+        self.record_runtime()
+        self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
+        print('Last managed server configuration restored; current image, data and credentials preserved.')
+
     def activate(self):
         self.idle()
-        raw = docker('compose', *self.journal['compose_options'], 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
+        if self.config.get('deployment_protocol') == 2 and self.journal.get('source_bridge'):
+            self.runtime('block')
+            self.source_bridges()
+        raw = docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
         require(raw == (self.directory / 'input.json').read_bytes(), 'Compose inputs changed after setup was staged; restore the recorded inputs before repair')
         expected = decode(docker('image', 'inspect', self.journal['server_image']).stdout)[0]['Id']
         ids = self.compose('ps', '--all', '--quiet', 'p2pstream').stdout.decode().split()
-        require(len(ids) == 1, 'Server disappeared after setup was staged; inspect the host before repair')
-        actual = decode(docker('inspect', ids[0]).stdout)[0]
-        require(actual['Image'] == expected, 'Running image changed after setup was staged; refusing a configuration-only replacement')
-        require_data_writers(self.config['data_volume'], ids[0], self.config['instance_id'])
+        require(len(ids) == 1 or not ids and self.journal['phase'] == 'activating' and self.config.get('deployment_protocol') == 2, 'Server disappeared after setup was staged; inspect the host before repair')
+        if ids:
+            actual = decode(docker('inspect', ids[0]).stdout)[0]
+            require(actual['Image'] == expected, 'Running image changed after setup was staged; refusing a configuration-only replacement')
+        else:
+            require(self.data_identity() == self.journal['installation'], 'Installation identity changed during activation')
+        require_data_writers(self.config['data_volume'], ids[0] if ids else '', self.config['instance_id'])
         self.phase('activating')
-        self.start_executor()
-        self.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'p2pstream')
+        self.runtime('block')
+        if self.config.get('deployment_protocol') == 2:
+            self.source_bridges()
+            self.deploy_server()
+            self.start_executor()
+        else:
+            self.start_executor()
+            self.deploy_server()
         status = self.wait_healthy()
+        self.record_runtime()
         self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
         print('Server updates enabled: server health and private updater verified. Later updates require an operator action.')
 
@@ -485,14 +941,26 @@ class Host:
         helper_model = 'before-compose.json' if 'p2pstream-server-updater' in before['services'] else 'enrolled-compose.json'
         if (self.directory / helper_model).exists():
             self.compose('stop', 'p2pstream-server-updater', model=helper_model)
+        current_env = read_json(self.current_model_path())['services']['p2pstream'].get('environment', {})
+        if self.config.get('deployment_protocol') != 2 or current_env.get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2':
+            self.runtime('block')
         self.compose('stop', 'p2pstream', model='before-compose.json')
-        atomic(self.directory / 'compose.json', previous.read_bytes())
         model = read_json(previous)
         enrolled = 'p2pstream-server-updater' in model['services']
-        self.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'p2pstream')
+        if enrolled and self.config.get('deployment_protocol') == 2:
+            model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(uuid.uuid4())
+        self.write_model(json.dumps(model, separators=(',', ':')).encode())
+        if self.config.get('deployment_protocol') == 2:
+            if enrolled:
+                self.runtime('block')
+                self.source_bridges()
+            else:
+                self.restore_sources()
+        self.deploy_server(detached=not enrolled)
         if enrolled:
             self.start_executor()
             self.wait_healthy()
+            self.record_runtime()
             self.phase('healthy', error='Previous deployment configuration restored; data was not rolled back')
         else:
             self.wait_original()
@@ -573,19 +1041,64 @@ def install(args, options):
     model_raw = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
     model = decode(model_raw)
     data_volume = validate_running(container, model, image, arch, args)
-    if (STATE / 'host.json').exists():
+    migration_requested = False
+    owned_aliases = {}
+    removed_source_files = None
+    if any((STATE / name).exists() for name in ('host.json', 'archive.json', 'reenrollment.json')):
         host = Host()
         with host.lock(allow_archive=True):
-            require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
-            if host.journal['phase'] != 'removed':
+            if host.journal:
+                require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
+            elif (STATE / 'reenrollment.json').exists():
+                context = read_json(STATE / 'reenrollment.json')
+                require(context['installation'] == identity, 'Reenrollment ownership belongs to another installation')
+                if context['source_directory'] == source_dir and context['compose_options'] == options:
+                    owned_aliases = host.validate_reenrollment_context(context)
+                    removed_source_files = context['source_files']
+            if host.journal.get('phase') == 'removed':
+                plan = host.journal.get('source_bridge', {})
+                owned_aliases = {item['path']: plan.get('export_sha256') for item in plan.get('files', []) if item['editable'] is None and os.path.lexists(item['path'])}
+                if host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options:
+                    removed_source_files = host.journal.get('source_files')
+            if host.journal and host.journal['phase'] != 'removed':
                 require(host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options, 'Use the recorded Compose context for this enrollment')
-            if host.journal['phase'] == 'healthy':
-                host.healthy()
-                print('Enrollment already healthy; no restart and credentials unchanged.')
-                return
+            if host.journal.get('phase') == 'healthy':
+                try:
+                    host.healthy()
+                except (Failure, OSError, ValueError) as error:
+                    # The verified installation bundle may be newer than the
+                    # installed host controller. Recover only an exact legacy
+                    # source recreation using its saved executor and credentials
+                    # before attempting protocol migration. Hand off compatible
+                    # recovery code before its first durable phase; retain the
+                    # saved executor, credentials and update floors.
+                    if isinstance(error, UnsettledHelper) or host.config.get('deployment_protocol', 0) != 0 or host.journal['phase'] != 'healthy':
+                        raise
+                    host.idle()
+                    existing = host.server_container()
+                    if existing['Config']['Labels'].get('com.docker.compose.config-hash') == host.canonical_hash():
+                        raise  # A socket/server failure is not a detached binding.
+                    host.prepare_recreation(detached=True, before_persist=lambda: host.handoff_recovery_controller(args.bundle))
+                    host.recreate_server()
+                    # Repair deliberately replaced the selected container. Bind
+                    # subsequent installation/migration checks to its identity,
+                    # rather than treating the expected replacement as drift.
+                    ids = docker('compose', *options, 'ps', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split()
+                    require(len(ids) == 1, 'Expected one repaired server before deployment migration')
+                    container = decode(docker('inspect', ids[0]).stdout)[0]
+                    identity = docker('exec', ids[0], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip()
+                    require(identity == args.expect_installation, 'Installation changed after legacy binding repair')
+                    image = decode(docker('image', 'inspect', container['Image']).stdout)[0]
+                    model_raw = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
+                    model = decode(model_raw)
+                    data_volume = validate_running(container, model, image, arch, args)
+                migration_requested = bool(getattr(args, 'migrate_deployment', False) and host.config.get('deployment_protocol') != 2)
+                if not migration_requested:
+                    print('Enrollment healthy; current image and credentials preserved.')
+                    return
         # Reuse the saved tools, pins and credentials, never the downloaded
         # helper, to resume an interrupted enrollment.
-        if host.journal['phase'] != 'removed':
+        if host.journal and host.journal['phase'] != 'removed' and not migration_requested:
             manage(argparse.Namespace(action='repair'))
             return
     # Roundtrip the escaped snapshot with precisely the host Compose version.
@@ -594,7 +1107,7 @@ def install(args, options):
         path.write_bytes(model_raw)
         path.chmod(0o600)
         fields = docker('compose', '--project-directory', source_dir, '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
-        require(len(fields) == 2 and fields[1] == container['Config']['Labels'].get('com.docker.compose.config-hash'), 'Compose inputs differ from the running server; apply or revert pending changes before enrollment')
+        require(migration_requested or len(fields) == 2 and fields[1] == container['Config']['Labels'].get('com.docker.compose.config-hash'), 'Compose inputs differ from the running server; apply or revert pending changes before enrollment')
     manifest, desc, server_image, manifest_hash = release_metadata(args.repository, args.expect_version, args.expect_commit, args.expect_channel, args.manifest_sha256)
     platform = [p for p in manifest['oci_images'][0]['platforms'] if p['os'] == 'linux' and p['arch'] == arch]
     require(len(platform) == 1, 'Release lacks the selected server platform')
@@ -610,6 +1123,10 @@ def install(args, options):
     bundle = Path(args.bundle).resolve()
     require(all((bundle / name).is_file() and not (bundle / name).is_symlink() for name in BUNDLE_FILES), 'Incomplete verified installation bundle')
     host = Host()
+    host.capability(container['Image'], ids[0])
+    host.capability(updater_image)
+    source_files = removed_source_files or compose_sources(options, container)
+    layout = source_layout(source_dir, source_files, model['name'], owned_aliases)
     with host.lock(allow_archive=True):
         if host.journal.get('phase') == 'removed':
             host.archive_removed()
@@ -617,6 +1134,23 @@ def install(args, options):
             require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
             if host.journal.get('phase') == 'healthy':
                 host.healthy()
+                if migration_requested:
+                    host.idle()
+                    actual = host.server_container()
+                    require(actual['Id'] == ids[0] and actual['Image'] == container['Image'] and actual['Config']['Labels'].get('com.docker.compose.config-hash') == container['Config']['Labels'].get('com.docker.compose.config-hash'), 'Deployment changed while migration tools were downloaded; refresh the selected server setup block')
+                    current_inputs = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
+                    require(current_inputs == model_raw, 'Compose inputs changed while migration tools were downloaded; restore or refresh before migration')
+                    original = host.current_model_path().read_bytes()
+                    atomic(STATE / 'migration-compose.json', original)
+                    atomic(STATE / 'migration-config.json', (STATE / 'config.json').read_bytes())
+                    host.prepare_deployment_directory()
+                    for name in ('server-updater-host.py', 'server-updater-compose.sh'):
+                        atomic(STATE / name, (bundle / name).read_bytes())
+                    host.phase('migrating_deployment', source_files=source_files, source_layout=layout, updater_image=updater_image,
+                               deployment_migration={'model_sha256': digest(original), 'config_sha256': digest((STATE / 'config.json').read_bytes()), 'updater_image': updater_image, 'generation': str(uuid.uuid4())})
+                    host.updater = updater_image
+                    host.migrate_deployment()
+                    return
                 print('Enrollment already healthy; no restart and credentials unchanged.')
                 return
             raise Failure('Existing setup requires the saved controller, preserving its credentials: sudo ' + str(STATE / 'manage') + ' repair (or rollback).')
@@ -643,11 +1177,14 @@ def install(args, options):
         host.phase('preparing', installation=identity, source_directory=source_dir, compose_options=options,
                    version=args.expect_version, commit=args.expect_commit, channel=args.expect_channel,
                    architecture=arch, repository=args.repository, manifest_sha256=manifest_hash,
-                   updater_image=updater_image, server_image=server_image)
+                   updater_image=updater_image, server_image=server_image, source_files=source_files, source_layout=layout)
+        (STATE / 'reenrollment.json').unlink(missing_ok=True)
+        host.sync_directory()
+        deployment_directory = host.prepare_deployment_directory()
         host.command('enroll', '--directory', str(STATE), '--compose', str(STATE / 'input.json'), '--image', server_image,
-                     '--updater-image', updater_image, '--installation', identity, '--release-directory', str(STATE / 'release'))
+                     '--updater-image', updater_image, '--installation', identity, '--release-directory', str(STATE / 'release'), '--deployment-directory', str(deployment_directory))
         host.config = read_json(STATE / 'config.json')
-        atomic(STATE / 'enrolled-compose.json', (STATE / 'compose.json').read_bytes())
+        atomic(STATE / 'enrolled-compose.json', host.current_model_path().read_bytes())
         before = decode(model_raw)
         before['services']['p2pstream']['image'] = server_image
         before_raw = json.dumps(before, separators=(',', ':')).encode()
@@ -657,7 +1194,7 @@ def install(args, options):
             host.activate()
         except Exception as error:
             host.recover_failure(error)
-        print('Host settings: edit the original Compose inputs, then sudo ' + str(STATE / 'manage') + ' apply')
+        print('Host settings: edit ' + ' '.join(item['editable'] for item in host.journal.get('source_bridge', {}).get('files', []) if item['editable']) + ', then sudo ' + str(STATE / 'manage') + ' apply')
 
 def manage(args):
     local_engine()
@@ -674,9 +1211,11 @@ def manage(args):
         if args.action == 'status':
             print('Host setup: ' + host.journal['phase'])
             print('Compose inputs: ' + host.journal['source_directory'] + ' ' + ' '.join(host.journal['compose_options']))
+            if host.journal.get('source_bridge') and host.journal['phase'] != 'removed':
+                print('Editable settings: ' + ' '.join(item['editable'] for item in host.journal['source_bridge']['files'] if item['editable']))
             if host.journal['phase'] == 'removed':
                 host.wait_original()
-                print('Updater removed. Editable current deployment: ' + str(STATE / 'detached-compose.json'))
+                print('Updater removed. Editable current deployment: ' + (host.journal['source_layout']['primary'] if host.config.get('deployment_protocol') == 2 else str(STATE / 'detached-compose.json')))
                 return
             require(host.journal['phase'] == 'healthy', 'Setup is not enabled. Recovery: sudo ' + str(STATE / 'manage') + ' repair or rollback')
             host.healthy()
@@ -706,13 +1245,20 @@ def manage(args):
             return
         if args.action == 'rollback':
             require(host.journal['phase'] in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished host transaction exists; rollback cannot downgrade a healthy updated deployment')
-            require(host.journal.get('recovery_phase') not in {'healthy', 'repairing', 'recovering_update'}, 'Use repair or recover-update for the recorded helper; no unfinished configuration transaction exists')
+            require(host.journal.get('recovery_phase') not in {'healthy', 'repairing', 'recreating', 'migrating_deployment', 'recovering_update'}, 'Use repair or recover-update for the recorded helper; no unfinished configuration transaction exists')
             host.settle_helper()
             try:
                 host.rollback()
             except Exception as error:
                 host.phase('recovery_required', error=str(error))
                 raise
+            return
+        if args.action == 'recreate':
+            require(host.config and host.journal['phase'] == 'healthy', 'Resolve interrupted host work with manage repair before recreation')
+            host.idle()
+            host.healthy()
+            host.prepare_recreation()
+            host.recreate_server()
             return
         if args.action == 'repair':
             host.settle_helper()
@@ -721,6 +1267,14 @@ def manage(args):
             if host.journal['phase'] == 'recovery_required' and host.journal.get('recovery_phase') in {'healthy', 'repairing'}:
                 host.phase(host.journal['recovery_phase'])
             host.idle()
+            if host.journal['phase'] == 'migrating_deployment' or host.journal.get('recovery_phase') == 'migrating_deployment':
+                host.phase('migrating_deployment')
+                host.migrate_deployment()
+                return
+            if host.journal['phase'] == 'recreating' or host.journal.get('recovery_phase') == 'recreating':
+                host.phase('recreating')
+                host.recreate_server()
+                return
             if host.journal['phase'] in {'healthy', 'repairing'}:
                 if host.journal['phase'] == 'healthy':
                     try:
@@ -733,6 +1287,15 @@ def manage(args):
                 executor_lock = host.stop_executor()
                 os.close(executor_lock)
                 host.start_executor()
+                try:
+                    host.healthy()
+                except (Failure, OSError, ValueError):
+                    # An ordinary source Compose recreation can strip only the
+                    # private binding. Prove an exact same-image/settings match
+                    # before replacing the server; never adopt edited settings.
+                    host.prepare_recreation(detached=True)
+                    host.recreate_server()
+                    return
                 status = host.wait_healthy()
                 host.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
                 print('Updater repaired; credentials preserved.')
@@ -740,10 +1303,12 @@ def manage(args):
             if not host.config:
                 # Resume preparation after interrupted download/write/enroll.
                 host.updater = host.journal['updater_image']
-                host.command('enroll', '--directory', str(STATE), '--compose', str(STATE / 'input.json'), '--image', host.journal['server_image'], '--updater-image', host.updater, '--installation', host.journal['installation'], '--release-directory', str(STATE / 'release'))
+                deployment = host.journal.get('deployment_directory')
+                extra = ('--deployment-directory', deployment) if deployment else ()
+                host.command('enroll', '--directory', str(STATE), '--compose', str(STATE / 'input.json'), '--image', host.journal['server_image'], '--updater-image', host.updater, '--installation', host.journal['installation'], '--release-directory', str(STATE / 'release'), *extra)
                 host.config = read_json(STATE / 'config.json')
             if not (STATE / 'enrolled-compose.json').exists():
-                atomic(STATE / 'enrolled-compose.json', (STATE / 'compose.json').read_bytes())
+                atomic(STATE / 'enrolled-compose.json', host.current_model_path().read_bytes())
             if not (STATE / 'before-compose.json').exists():
                 before = read_json(STATE / 'input.json')
                 before['services']['p2pstream']['image'] = host.journal['server_image']
@@ -760,7 +1325,7 @@ def manage(args):
             if host.journal['phase'] in {'applying', 'removing', 'rolling_back', 'recovery_required'}:
                 host.rollback()
                 return
-            atomic(STATE / 'compose.json', (STATE / 'enrolled-compose.json').read_bytes())
+            host.write_model((STATE / 'enrolled-compose.json').read_bytes())
             try:
                 host.activate()
             except Exception as error:
@@ -769,15 +1334,21 @@ def manage(args):
         require(host.config and host.journal['phase'] == 'healthy', 'Resolve the interrupted setup before apply/remove')
         host.idle()
         host.healthy()  # Configuration hash and immutable runtime identity.
-        current = (STATE / 'compose.json').read_bytes()
+        current = host.current_model_path().read_bytes()
         model = decode(current)
         if args.action == 'apply':
-            raw = docker('compose', *host.journal['compose_options'], 'config', '--format', 'json', cwd=host.journal['source_directory']).stdout
+            raw = docker('compose', *host.input_options(), 'config', '--format', 'json', cwd=host.journal['source_directory']).stdout
             atomic(STATE / 'candidate-input.json', raw)
             host.command('configure', '--compose', str(STATE / 'candidate-input.json'), '--output', str(STATE / 'candidate-compose.json'))
             # Validate with pinned Compose before stopping either service.
             host.compose('config', '--format', 'json', model='candidate-compose.json')
             candidate = (STATE / 'candidate-compose.json').read_bytes()
+            if host.config.get('deployment_protocol') == 2:
+                candidate_model = decode(candidate)
+                candidate_model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(uuid.uuid4())
+                candidate = json.dumps(candidate_model, separators=(',', ':')).encode()
+                atomic(STATE / 'candidate-compose.json', candidate)
+                host.compose('config', '--format', 'json', model='candidate-compose.json')
         elif args.action == 'remove':
             candidate = remove_model(model)
             atomic(STATE / 'candidate-compose.json', candidate)
@@ -790,13 +1361,15 @@ def manage(args):
         executor_lock = None
         try:
             executor_lock = host.stop_executor()
-            atomic(STATE / 'compose.json', candidate)
-            host.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'p2pstream')
+            host.runtime('block')
+            host.write_model(candidate)
+            host.deploy_server(detached=args.action == 'remove')
             os.close(executor_lock)
             executor_lock = None
             if args.action == 'apply':
                 host.start_executor()
                 status = host.wait_healthy()
+                host.record_runtime()
                 atomic(STATE / 'enrolled-compose.json', candidate)
                 host.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
                 print('Configuration applied; current pinned image and private updater connection preserved.')
@@ -805,9 +1378,16 @@ def manage(args):
                 # Remove the stopped executor using the saved pre-removal model.
                 host.compose('rm', '--force', 'p2pstream-server-updater', model='before-compose.json')
                 atomic(STATE / 'detached-compose.json', candidate)
-                host.phase('removed', error='', source_directory=str(STATE), compose_options=['-p', host.config['project'], '-f', str(STATE / 'detached-compose.json')])
+                if host.config.get('deployment_protocol') == 2:
+                    host.export_sources(candidate)
+                    host.phase('removed', error='', editable_compose_options=host.journal['compose_options'])
+                else:
+                    host.phase('removed', error='', source_directory=str(STATE), compose_options=['-p', host.config['project'], '-f', str(STATE / 'detached-compose.json')])
                 print('Updater removed. Current pinned image, settings, ports and data retained.')
-                print('Editable deployment: ' + str(STATE / 'detached-compose.json') + '; apply with sudo docker compose -p ' + host.config['project'] + ' -f ' + str(STATE / 'detached-compose.json') + ' up -d --no-deps --no-build p2pstream')
+                if host.config.get('deployment_protocol') == 2:
+                    print('Editable current deployment: ' + host.journal['source_layout']['primary'] + '; the original and default Compose commands retain the current image and settings.')
+                else:
+                    print('Editable deployment: ' + str(STATE / 'detached-compose.json') + '; apply with sudo docker compose -p ' + host.config['project'] + ' -f ' + str(STATE / 'detached-compose.json') + ' up -d --no-deps --no-build p2pstream')
         except Exception as error:
             if executor_lock is not None:
                 os.close(executor_lock)
@@ -854,7 +1434,8 @@ def main():
         setup.add_argument('--expect-' + key, required=True)
     setup.add_argument('--manifest-sha256', required=True)
     setup.add_argument('--repository', required=True)
-    for action in ['status', 'logs', 'apply', 'repair', 'rollback', 'remove', 'recover-update', 'discard-preparation']:
+    setup.add_argument('--migrate-deployment', action='store_true', help='Explicitly migrate compatible legacy enrollment to managed Compose ownership')
+    for action in ['status', 'logs', 'apply', 'recreate', 'repair', 'rollback', 'remove', 'recover-update', 'discard-preparation']:
         commands.add_parser(action)
     inspect = commands.add_parser('inspect')
     inspect.add_argument('compose_args', nargs=argparse.REMAINDER)

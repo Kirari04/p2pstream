@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"crypto/x509"
 	"os"
 	"path/filepath"
@@ -9,6 +10,41 @@ import (
 
 	"p2pstream/internal/config"
 )
+
+func TestReadManagementTLSConfigNeverInitializesOrRenewsFiles(t *testing.T) {
+	cfg := managementTLSTestConfig(t)
+	if _, _, err := ReadManagementTLSConfig(cfg); err == nil {
+		t.Fatal("missing certificate accepted")
+	}
+	managementDir := filepath.Join(cfg.CertsDir, managementCertDirName)
+	if _, err := os.Stat(managementDir); !os.IsNotExist(err) {
+		t.Fatalf("read-only probe initialized certificate storage: %v", err)
+	}
+	if _, _, err := NewManagementTLSConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	certificate := filepath.Join(managementDir, managementCertFileName)
+	before, err := os.ReadFile(certificate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A changed advertised host would cause startup's writer to renew the leaf.
+	cfg.ManagementTLSExtraHosts = "changed.example.test"
+	if err := os.Chmod(managementDir, 0750); err != nil {
+		t.Fatal(err)
+	}
+	if _, enabled, err := ReadManagementTLSConfig(cfg); err != nil || !enabled {
+		t.Fatalf("read existing certificate: %v", err)
+	}
+	after, err := os.ReadFile(certificate)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("health probe renewed the certificate")
+	}
+	info, err := os.Stat(managementDir)
+	if err != nil || info.Mode().Perm() != 0750 {
+		t.Fatal("health probe changed directory permissions")
+	}
+}
 
 func TestNewManagementTLSConfigAutoGeneratesVerifiableCertificate(t *testing.T) {
 	cfg := managementTLSTestConfig(t)
