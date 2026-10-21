@@ -1881,6 +1881,16 @@ samp {
   gap: 0.75rem;
 }
 
+@container (max-width: 80rem) {
+  .app-release-channel code {
+    display: none;
+  }
+}
+
+.app-breadcrumbs li:last-child {
+  flex-shrink: 0;
+}
+
 @container (min-width: 40rem) {
   .app-header__bar {
     flex-wrap: nowrap;
@@ -1960,7 +1970,7 @@ samp {
 }
 
 .app-env-select {
-  width: min(12rem, 26vw);
+  width: min(11rem, 26vw);
 }
 
 .app-source-link {
