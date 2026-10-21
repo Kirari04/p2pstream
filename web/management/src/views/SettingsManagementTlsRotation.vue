@@ -85,7 +85,7 @@ async function submitCustom() {
 
     <ManagementTlsAlerts :rotation="rotation" :remote-selected="remoteSelected" :operation-error="operationError" :poll-error="pollError" :last-updated-at="lastUpdatedAt" />
 
-    <section class="round-lg framed frame-standard panel-bg pad-xl stack-lg">
+    <section class="section-surface stack-lg">
       <NSteps v-if="stepperCurrent" :current="stepperCurrent" :vertical="verticalSteps" size="small" aria-label="Rotation progress">
         <NStep v-for="step in managementTlsRotationSteps" :key="step" :title="step" />
       </NSteps>
@@ -187,11 +187,12 @@ async function submitCustom() {
 
 <style scoped>
 .management-tls-rotation { gap: 1.25rem; }
+.section-surface { padding: 1.25rem; border: 1px solid var(--app-border-subtle); border-radius: 10px; background: var(--app-panel); }
 .back-link { display: inline-flex; width: fit-content; align-items: center; gap: 0.375rem; }
 .back-link:hover,
 .back-link:focus-visible { color: var(--app-text); }
 .start-grid { display: grid; gap: 0.875rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.start-option { display: grid; align-content: start; justify-items: start; gap: 0.75rem; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.75rem; background: var(--app-panel-muted); min-width: 0; }
+.start-option { display: grid; align-content: start; justify-items: start; gap: 0.75rem; padding: 1rem; border-radius: 8px; background: var(--app-panel-muted); min-width: 0; }
 .start-option__icon { display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border-radius: 0.625rem; color: var(--app-accent); background: var(--app-accent-soft); }
 .cert-grid { display: grid; gap: 0.875rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .rollout-progress { height: 0.42rem; overflow: hidden; border-radius: 999px; background: var(--app-border); }

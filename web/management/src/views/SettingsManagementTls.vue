@@ -68,7 +68,7 @@ async function copyRepairCommand() {
 
     <ManagementTlsAlerts :rotation="rotation" :remote-selected="remoteSelected" :operation-error="operationError" :poll-error="pollError" :last-updated-at="lastUpdatedAt" />
 
-    <section class="round-lg framed frame-standard panel-bg pad-xl stack-lg">
+    <section class="section-surface stack-lg">
       <div class="layout-row layout-column space-md mq-md-row mq-md-spread mq-md-align-center">
         <div class="layout-row align-center space-md">
           <span class="tls-mark"><ShieldIcon class="icon-md" /></span>
@@ -104,7 +104,7 @@ async function copyRepairCommand() {
       </div>
     </section>
 
-    <section v-if="showFleet" class="round-lg framed frame-standard panel-bg pad-xl stack-lg">
+    <section v-if="showFleet" class="section-surface stack-lg">
       <div class="layout-row layout-column space-md mq-md-row mq-md-spread mq-md-align-end">
         <div class="layout-grid space-2xs">
           <p class="copy-xs label-case letter-wide muted-text">Durable fleet trust · generation {{ rotation?.desiredTrustGeneration ?? 0n }}</p>
@@ -116,7 +116,7 @@ async function copyRepairCommand() {
       <ManagementTlsAgentTable :agents="rotation?.agents ?? []" :phase="phase" />
     </section>
 
-    <section v-if="repairCommand" class="round-lg framed frame-standard muted-bg pad-xl stack-md">
+    <section v-if="repairCommand" class="section-surface stack-md">
       <div class="layout-grid space-2xs">
         <p class="copy-xs label-case letter-wide muted-text">Recovery</p>
         <h3 class="copy-md weight-semibold">Repair an agent that cannot reconnect</h3>
@@ -143,6 +143,7 @@ async function copyRepairCommand() {
 
 <style scoped>
 .management-tls-page { gap: 1.25rem; }
+.section-surface { padding: 1.25rem; border: 1px solid var(--app-border-subtle); border-radius: 10px; background: var(--app-panel); }
 .tls-mark { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; color: var(--app-accent); background: var(--app-accent-soft); }
 .rotation-callout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; padding: 0.875rem 1rem; border: 1px solid var(--app-accent); border-radius: 0.75rem; background: var(--app-accent-soft); }
 .repair-bar { display: flex; align-items: center; gap: 0.75rem; min-width: 0; padding: 0.375rem 0.375rem 0.375rem 0.875rem; border: 1px solid var(--app-border); border-radius: 0.625rem; background: var(--app-panel); }

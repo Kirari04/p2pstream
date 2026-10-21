@@ -1975,7 +1975,7 @@ samp {
 
 .app-main {
   width: 100%;
-  max-width: 100rem;
+  max-width: 88rem;
   margin-inline: auto;
   padding: 1.5rem max(1rem, env(safe-area-inset-right)) max(3rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 }
@@ -2282,7 +2282,12 @@ body:has(.app-sidebar--mobile-open) {
 
 .surface-shadow {
   border: 1px solid var(--app-border-subtle);
-  box-shadow: 0 4px 8px rgba(20, 32, 51, 0.06);
+  box-shadow: none;
+}
+
+.surface-shadow .n-card__content,
+.surface-shadow > .n-card-content {
+  padding: 1.75rem;
 }
 
 .editor-drawer .n-drawer-content-wrapper {

@@ -56,6 +56,9 @@ export const lightThemeOverrides: GlobalThemeOverrides = {
   Modal: {
     borderRadius: "12px",
   },
+  Tag: {
+    borderRadius: "6px",
+  },
 };
 
 export const darkThemeOverrides: GlobalThemeOverrides = {
@@ -104,5 +107,8 @@ export const darkThemeOverrides: GlobalThemeOverrides = {
   },
   Modal: {
     borderRadius: "12px",
+  },
+  Tag: {
+    borderRadius: "6px",
   },
 };

@@ -71,8 +71,8 @@ async function copyDigest() {
 </template>
 
 <style scoped>
-.cert-card { padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.75rem; background: var(--app-panel-muted); display: grid; align-content: start; gap: 0.75rem; min-width: 0; }
-.cert-card--staged { border-style: dashed; }
+.cert-card { padding: 1rem; border-radius: 8px; background: var(--app-panel-muted); display: grid; align-content: start; gap: 0.75rem; min-width: 0; }
+.cert-card--staged { box-shadow: inset 0 0 0 1px var(--app-border); background: transparent; }
 .cert-facts { display: grid; gap: 0.45rem; }
 .cert-facts > div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.75rem; font-size: 0.75rem; }
 .cert-facts dt { color: var(--app-text-muted); }
