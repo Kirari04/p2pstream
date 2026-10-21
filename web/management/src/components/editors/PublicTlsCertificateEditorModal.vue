@@ -2,7 +2,6 @@
 import { computed, inject, nextTick, reactive, ref } from "vue";
 import {
   NButton,
-  NButtonGroup,
   NCheckbox,
   NDrawer,
   NDrawerContent,
@@ -13,6 +12,7 @@ import {
 import type { UploadFileInfo } from "naive-ui";
 import DisabledHint from "@/components/DisabledHint.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import {
   isBusyKey,
   runManagementActionKey,
@@ -20,6 +20,7 @@ import {
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { diagnosticInspectionText } from "@/lib/diagnosticText";
 import {
   asciiHostnamePattern,
   displayHostnamePattern,
@@ -303,12 +304,10 @@ defineExpose({ openFor, close });
       closable
     >
       <form
-        class="editor-drawer-form layout-grid space-lg"
+        class="editor-drawer-form layout-grid space-xl"
         @submit.prevent="submit"
       >
-        <p
-          class="round-md framed frame-standard muted-bg pad-md copy-xs line-normal muted-text"
-        >
+        <p class="copy-sm muted-text">
           {{
             form.id
               ? "Repair this certificate mapping without leaving the Site workspace."
@@ -316,156 +315,127 @@ defineExpose({ openFor, close });
           }}
           Readiness refreshes after it is saved.
         </p>
-        <div
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-        >
-          Method<NButtonGroup
-            class="layout-grid cols-two space-sm mq-sm-cols-four"
-            size="small"
-            role="group"
-            aria-label="Certificate method"
-            ><NButton
-              v-for="method in methods"
-              :key="method.value"
-              attr-type="button"
-              :type="form.method === method.value ? 'primary' : 'default'"
-              :aria-pressed="form.method === method.value"
-              @click="form.method = method.value"
-              >{{ method.label }}</NButton
-            ></NButtonGroup
-          >
-        </div>
-        <label
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-          >HTTPS listener<AccessibleSelect
-            v-model:value="form.listenerId"
-            accessible-label="HTTPS listener"
-            size="small"
-            :options="listenerOptions"
-            required
-        /></label>
-        <label
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-          >Hostname pattern<NInput
-            v-model:value="form.hostnamePattern"
-            size="small"
-            placeholder="app.example.com"
-            required
-          /><span class="normal-text letter-normal"
-            >Exact hostname or one-label wildcard.</span
-          ></label
-        >
-        <template v-if="form.method === 'manual'">
-          <div
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-          >
-            Certificate material<NButtonGroup
-              class="layout-grid cols-two space-sm"
+
+        <section class="site-tls-group" aria-labelledby="site-tls-mapping-heading">
+          <h3 id="site-tls-mapping-heading" class="site-tls-group__title">Mapping</h3>
+          <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Method
+            <SegmentedControl class="site-tls-segmented" v-model="form.method" :options="methods" label="Certificate method" />
+          </div>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            HTTPS listener
+            <AccessibleSelect
+              v-model:value="form.listenerId"
+              accessible-label="HTTPS listener"
               size="small"
-              role="group"
-              aria-label="Certificate material source"
-              ><NButton
-                v-for="option in manualModes"
-                :key="option.value"
-                attr-type="button"
-                :type="form.manualMode === option.value ? 'primary' : 'default'"
-                :aria-pressed="form.manualMode === option.value"
-                @click="form.manualMode = option.value"
-                >{{ option.label }}</NButton
-              ></NButtonGroup
-            >
+              :options="listenerOptions"
+              required
+            />
+          </label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Hostname pattern
+            <NInput
+              v-model:value="form.hostnamePattern"
+              size="small"
+              placeholder="app.example.com"
+              required
+            />
+            <span class="site-tls-help">Exact hostname or one-label wildcard.</span>
+          </label>
+        </section>
+
+        <section v-if="form.method === 'manual'" class="site-tls-group" aria-labelledby="site-tls-material-heading">
+          <h3 id="site-tls-material-heading" class="site-tls-group__title">Certificate material</h3>
+          <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Source
+            <SegmentedControl class="site-tls-segmented" v-model="form.manualMode" :options="manualModes" label="Certificate material source" />
           </div>
           <label
             v-if="form.manualMode === 'generate'"
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-            >Self-signed validity days<NInputNumber
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
+          >
+            Self-signed validity days
+            <NInputNumber
               v-model:value="form.selfSignedValidityDays"
               :show-button="false"
               size="small"
               :min="1"
               :max="3650"
               required
-            /><span class="normal-text letter-normal"
-              >Useful for internal and test environments. Use ACME for public
-              production traffic.</span
-            ></label
-          >
-          <div v-else class="layout-grid space-lg mq-sm-cols-two">
-            <div
-              class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-            >
-              Certificate file<NUpload
-                :default-upload="false"
-                :max="1"
-                accept=".pem,.crt,.cer"
-                @change="handleUpload('cert', $event)"
-                ><NButton secondary size="small" attr-type="button"
-                  >Choose certificate</NButton
-                ></NUpload
-              ><span
-                v-if="form.certFileName"
-                class="clip-text normal-text letter-normal"
-                >{{ form.certFileName }}</span
-              >
+            />
+            <span class="site-tls-help">Useful for internal and test environments. Use ACME for public production traffic.</span>
+          </label>
+          <template v-else>
+            <div class="layout-grid space-lg mq-sm-cols-two">
+              <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+                Certificate file
+                <NUpload
+                  :default-upload="false"
+                  :max="1"
+                  accept=".pem,.crt,.cer"
+                  @change="handleUpload('cert', $event)"
+                >
+                  <NButton secondary size="small" attr-type="button">Choose certificate</NButton>
+                </NUpload>
+                <bdi v-if="form.certFileName" dir="ltr" class="clip-text copy-xs weight-normal base-text">{{ diagnosticInspectionText(form.certFileName) }}</bdi>
+              </div>
+              <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+                Private key file
+                <NUpload
+                  :default-upload="false"
+                  :max="1"
+                  accept=".pem,.key"
+                  @change="handleUpload('key', $event)"
+                >
+                  <NButton secondary size="small" attr-type="button">Choose private key</NButton>
+                </NUpload>
+                <bdi v-if="form.keyFileName" dir="ltr" class="clip-text copy-xs weight-normal base-text">{{ diagnosticInspectionText(form.keyFileName) }}</bdi>
+              </div>
             </div>
-            <div
-              class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-            >
-              Private key file<NUpload
-                :default-upload="false"
-                :max="1"
-                accept=".pem,.key"
-                @change="handleUpload('key', $event)"
-                ><NButton secondary size="small" attr-type="button"
-                  >Choose private key</NButton
-                ></NUpload
-              ><span
-                v-if="form.keyFileName"
-                class="clip-text normal-text letter-normal"
-                >{{ form.keyFileName }}</span
-              >
-            </div>
-          </div>
-          <p
-            v-if="form.id && form.manualMode === 'upload'"
-            class="round-md framed frame-standard muted-bg pad-md copy-xs muted-text"
-          >
-            Leave both files empty to keep the currently stored certificate
-            material.
-          </p>
-        </template>
-        <template v-else
-          ><div class="layout-grid space-lg mq-sm-cols-two">
-            <label
-              class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-              >ACME email<NInput
+            <p v-if="form.id" class="site-tls-help">
+              Leave both files empty to keep the currently stored certificate material.
+            </p>
+          </template>
+        </section>
+
+        <section v-else class="site-tls-group" aria-labelledby="site-tls-acme-heading">
+          <h3 id="site-tls-acme-heading" class="site-tls-group__title">ACME issuance</h3>
+          <div class="layout-grid space-lg mq-sm-cols-two">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+              ACME email
+              <NInput
                 v-model:value="form.acmeEmail"
                 size="small"
                 placeholder="admin@example.com"
-                required /></label
-            ><label
-              class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-              >CA environment<AccessibleSelect
+                required
+              />
+            </label>
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+              CA environment
+              <AccessibleSelect
                 v-model:value="form.acmeCa"
                 accessible-label="CA environment"
                 size="small"
                 :options="caOptions"
-            /></label>
+              />
+            </label>
           </div>
           <label
             v-if="form.method === 'dns_01'"
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
-            >Cloudflare credential<AccessibleSelect
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
+          >
+            Cloudflare credential
+            <AccessibleSelect
               v-model:value="form.dnsCredentialId"
               accessible-label="Cloudflare credential"
               size="small"
               :options="credentialOptions"
               required
-            /><span class="normal-text letter-normal"
-              >DNS credentials are managed on the TLS page.</span
-            ></label
-          ></template
-        >
+            />
+            <span class="site-tls-help">DNS credentials are managed on the TLS page.</span>
+          </label>
+        </section>
+
         <NCheckbox v-model:checked="form.enabled">Enabled</NCheckbox>
         <p
           v-if="submitDisabledReason && !isBusy"
@@ -474,24 +444,52 @@ defineExpose({ openFor, close });
         >
           {{ submitDisabledReason }}
         </p>
-        <div
-          class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md"
-        >
-          <NButton secondary attr-type="button" @click="close">Cancel</NButton
-          ><DisabledHint
+        <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
+          <NButton secondary attr-type="button" @click="close">Cancel</NButton>
+          <DisabledHint
             :disabled="Boolean(submitDisabledReason)"
             :reason="submitDisabledReason"
-            ><NButton
+          >
+            <NButton
               type="primary"
               attr-type="submit"
               :disabled="Boolean(submitDisabledReason)"
-              >{{
-                form.id ? "Save TLS Mapping" : "Create TLS Mapping"
-              }}</NButton
-            ></DisabledHint
-          >
+            >
+              {{ form.id ? "Save TLS Mapping" : "Create TLS Mapping" }}
+            </NButton>
+          </DisabledHint>
         </div>
       </form>
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style scoped>
+.site-tls-segmented {
+  justify-self: start;
+}
+
+.site-tls-group {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.site-tls-group + .site-tls-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+.site-tls-group__title {
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.site-tls-help {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+</style>

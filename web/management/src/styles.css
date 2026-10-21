@@ -1441,10 +1441,6 @@ samp {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.response-template-form-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 @media (min-width: 640px) {
   .app-brand__divider,
   .app-user {
@@ -1576,10 +1572,6 @@ samp {
 
   .mq-md-cols-three {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .response-template-form-grid {
-    grid-template-columns: minmax(0, 1fr) 14rem;
   }
 
   .row-on-md,
