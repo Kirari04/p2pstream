@@ -403,7 +403,7 @@ const sessionColumns = computed<DataTableColumns<AgentConnectionSession>>(() => 
     ]),
   },
   { title: "Started", key: "started", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, formatDate(session.connectedAtUnixMillis)) },
-  { title: "Ended", key: "ended", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, session.active ? "-" : formatDate(session.disconnectedAtUnixMillis)) },
+  { title: "Ended", key: "ended", width: 190, render: (session) => h("span", { class: "mono-text copy-xs" }, session.active ? "—" : formatDate(session.disconnectedAtUnixMillis)) },
   { title: "Duration", key: "duration", width: 150, render: (session) => h("span", { class: "mono-text copy-xs" }, formatLongDuration(session.durationMillis)) },
   {
     title: "State",
@@ -438,7 +438,7 @@ function bigIntLabel(value: bigint | undefined): string {
 }
 
 function formatDate(value: bigint | undefined): string {
-  if (value === undefined || value === 0n) return "-";
+  if (value === undefined || value === 0n) return "—";
   return new Date(Number(value)).toLocaleString();
 }
 
@@ -469,13 +469,13 @@ function agentOperationalStateLabel(agent: Agent): string {
 function currentAgentStateSummary(agent: Agent): string {
   if (!agent.enabled) return "Not accepting traffic";
   const duration = currentAgentDuration(agent);
-  if (duration === "-") return agentConnected(agent) ? "Connected" : "Offline duration unavailable";
+  if (duration === "—") return agentConnected(agent) ? "Connected" : "Offline duration unavailable";
   return agentConnected(agent) ? `${duration} current uptime` : `${duration} offline`;
 }
 
 function currentAgentDuration(agent: Agent): string {
   const uptime = uptimeForAgent(agent);
-  if (!uptime) return "-";
+  if (!uptime) return "—";
   return uptime.connected
     ? formatLongDuration(uptime.currentUptimeMillis)
     : formatLongDuration(uptime.currentDowntimeMillis);
@@ -487,7 +487,7 @@ function agentUptimePercentLabel(agent: Agent): string {
 
 function agentConnectionCounts(agent: Agent): string {
   const uptime = uptimeForAgent(agent);
-  if (!uptime) return "-";
+  if (!uptime) return "—";
   return `${uptime.connectionCount.toString()} / ${uptime.disconnectCount.toString()}`;
 }
 

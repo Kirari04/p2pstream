@@ -129,12 +129,12 @@ const rateLabel = computed(() => {
 });
 
 const remainingLabel = computed(() => {
-  if (!props.enabled) return "-";
+  if (!props.enabled) return "—";
   return snapshot.value.remaining.toString();
 });
 
-const allowedLabel = computed(() => props.enabled ? snapshot.value.allowed.toString() : "-");
-const rejectedLabel = computed(() => props.enabled ? snapshot.value.rejected.toString() : "-");
+const allowedLabel = computed(() => props.enabled ? snapshot.value.allowed.toString() : "—");
+const rejectedLabel = computed(() => props.enabled ? snapshot.value.rejected.toString() : "—");
 
 onMounted(() => {
   loopStartedAt = performance.now();

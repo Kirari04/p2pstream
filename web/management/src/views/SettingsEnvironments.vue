@@ -596,14 +596,14 @@ function certificateSanNames(cert: EnvironmentCertificate | undefined): string[]
 
 function formatFingerprint(value: string): string {
   const normalized = value.replaceAll(":", "").trim().toUpperCase();
-  if (!normalized) return "-";
+  if (!normalized) return "—";
   if (normalized.length <= 28) return normalized;
   return `${normalized.slice(0, 12)}...${normalized.slice(-12)}`;
 }
 
 function formatFullFingerprint(value: string): string {
   const normalized = value.replaceAll(":", "").trim().toUpperCase();
-  if (!normalized) return "-";
+  if (!normalized) return "—";
   return normalized.match(/.{1,2}/g)?.join(":") ?? normalized;
 }
 

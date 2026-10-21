@@ -89,7 +89,7 @@ const policyDecisions = computed(() => {
         ? request.wafAutomaticActive ? "automatic condition active" : "automatic condition inactive"
         : "",
       request.wafChallengeKind,
-    ].filter((value) => value && value !== "-");
+    ].filter((value) => value && value !== "—");
     decisions.push({
       label: "WAF",
       name: request.wafRuleName || idValue(request.wafRuleId),
@@ -193,14 +193,14 @@ function wafActionLabel(action: PublicWafRuleAction): string {
     case PublicWafRuleAction.CAPTCHA: return "Captcha";
     case PublicWafRuleAction.WAITING_ROOM: return "Waiting room";
     case PublicWafRuleAction.BLOCK: return "Block";
-    default: return "-";
+    default: return "—";
   }
 }
 
 function wafActivationLabel(mode: PublicWafActivationMode): string {
   if (mode === PublicWafActivationMode.AUTOMATIC) return "Automatic";
   if (mode === PublicWafActivationMode.ALWAYS) return "Always";
-  return "-";
+  return "—";
 }
 
 function routeTargetTypeLabel(type: PublicRouteTargetType): string {

@@ -7,14 +7,14 @@ import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticTex
 
 const props = defineProps<NodeProps<TrafficNodeData>>();
 
-const labelText = computed(() => diagnosticExcerpt(props.data.label || "-", 34).text);
-const labelExact = computed(() => diagnosticInspectionText(props.data.label || "-"));
-const subLabelText = computed(() => diagnosticExcerpt(props.data.subLabel || "-", 38).text);
-const subLabelExact = computed(() => diagnosticInspectionText(props.data.subLabel || "-"));
-const cacheStatusText = computed(() => diagnosticExcerpt(props.data.cacheStatus?.label || "-", 14).text);
-const agentStatusText = computed(() => diagnosticExcerpt(props.data.agentStatus?.label || "-", 18).text);
-const cacheStatusExact = computed(() => diagnosticInspectionText(props.data.cacheStatus?.label || "-"));
-const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agentStatus?.label || "-"));
+const labelText = computed(() => diagnosticExcerpt(props.data.label || "—", 34).text);
+const labelExact = computed(() => diagnosticInspectionText(props.data.label || "—"));
+const subLabelText = computed(() => diagnosticExcerpt(props.data.subLabel || "—", 38).text);
+const subLabelExact = computed(() => diagnosticInspectionText(props.data.subLabel || "—"));
+const cacheStatusText = computed(() => diagnosticExcerpt(props.data.cacheStatus?.label || "—", 14).text);
+const agentStatusText = computed(() => diagnosticExcerpt(props.data.agentStatus?.label || "—", 18).text);
+const cacheStatusExact = computed(() => diagnosticInspectionText(props.data.cacheStatus?.label || "—"));
+const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agentStatus?.label || "—"));
 </script>
 
 <template>

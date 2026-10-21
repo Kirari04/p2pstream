@@ -99,7 +99,7 @@ function trendBucketLabel(bucket: RetryTrendBucketLike): string {
 
 function formatBucketTime(value: bigint): string {
   const millis = toNumber(value);
-  if (millis <= 0) return "-";
+  if (millis <= 0) return "—";
   const date = new Date(millis);
   if (Number.isNaN(date.getTime())) return "Invalid time";
   if (props.windowLabel === "30d") {

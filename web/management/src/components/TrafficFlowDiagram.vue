@@ -195,8 +195,8 @@ const flowEdges = computed<Edge[]>(() =>
 const accessibleFlowNodes = computed(() => layout.value.nodes.map((node) => ({
   key: node.key,
   kind: node.kind.replaceAll("-", " "),
-  label: diagnosticInspectionText(node.label || "-"),
-  subLabel: diagnosticInspectionText(node.subLabel || "-"),
+  label: diagnosticInspectionText(node.label || "—"),
+  subLabel: diagnosticInspectionText(node.subLabel || "—"),
   status: diagnosticInspectionText(node.cacheStatus?.label || node.agentStatus?.label || ""),
   editTargets: node.editTargets,
 })));

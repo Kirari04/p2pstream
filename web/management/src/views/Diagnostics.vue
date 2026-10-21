@@ -283,7 +283,7 @@ function rankDimensionRows(rows: DashboardProxyDimensionSummary[] | undefined): 
 }
 
 function sampleStatusLabel(sample: DashboardDiagnosticsSample): string {
-  return sample.statusCode > 0n ? sample.statusCode.toString() : "-";
+  return sample.statusCode > 0n ? sample.statusCode.toString() : "—";
 }
 
 function retrySampleLabel(sample: DashboardDiagnosticsSample): string {
@@ -339,7 +339,7 @@ function inspectionValue(value: string): string {
 
 function formatSampleTime(value: bigint): string {
   const millis = toNumber(value);
-  if (millis <= 0) return "-";
+  if (millis <= 0) return "—";
   const date = new Date(millis);
   if (Number.isNaN(date.getTime())) return "Invalid timestamp";
   return new Intl.DateTimeFormat(undefined, {

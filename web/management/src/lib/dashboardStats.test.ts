@@ -64,8 +64,8 @@ describe("dashboardStats", () => {
     expect(statusTone(502n)).toBe("server-error");
     expect(statusTone(102n)).toBe("neutral");
     expect(formatPathPrefix("/api/users/...")).toBe("/api/users/...");
-    expect(formatPathPrefix("")).toBe("-");
-    expect(formatPathPrefix(undefined)).toBe("-");
+    expect(formatPathPrefix("")).toBe("—");
+    expect(formatPathPrefix(undefined)).toBe("—");
   });
 
   test("computes cache hit rate from lookups and excludes bypasses", () => {
@@ -86,13 +86,13 @@ describe("dashboardStats", () => {
     expect(formatBytes(1536n)).toBe("1.5 KiB");
     expect(formatBytes(10n * 1024n * 1024n)).toBe("10 MiB");
     expect(formatByteRate(2048)).toBe("2.0 KiB/s");
-    expect(formatByteRate(null)).toBe("-");
+    expect(formatByteRate(null)).toBe("—");
   });
 
   test("formats durations, percentages, and large numbers", () => {
     expect(formatDuration(250n)).toBe("250 ms");
     expect(formatDuration(1500n)).toBe("1.5 s");
-    expect(formatDuration(0n)).toBe("-");
+    expect(formatDuration(0n)).toBe("—");
     expect(formatPercent(0.034)).toBe("3.4%");
     expect(formatPercent(0.91)).toBe("91%");
     expect(formatNumber(12345678901234567890n)).toBe("12,345,678,901,234,567,890");
@@ -103,7 +103,7 @@ describe("dashboardStats", () => {
     expect(formatLongDuration(5n * 60n * 1000n)).toBe("5m");
     expect(formatLongDuration(3n * 60n * 60n * 1000n + 5n * 60n * 1000n)).toBe("3h 5m");
     expect(formatLongDuration(2n * 24n * 60n * 60n * 1000n + 3n * 60n * 60n * 1000n)).toBe("2d 3h");
-    expect(formatLongDuration(0n)).toBe("-");
+    expect(formatLongDuration(0n)).toBe("—");
   });
 
   test("indexes agent uptime summaries by id and computes fleet uptime", () => {
