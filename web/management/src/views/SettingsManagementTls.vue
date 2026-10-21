@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import ManagementTlsAgentTable from "@/components/management-tls/ManagementTlsAgentTable.vue";
 import ManagementTlsAlerts from "@/components/management-tls/ManagementTlsAlerts.vue";
 import ManagementTlsCertificateCard from "@/components/management-tls/ManagementTlsCertificateCard.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
 import { useManagementTlsRotation } from "@/composables/useManagementTlsRotation";
 import { ManagementTlsRotationPhase } from "@/gen/proto/p2pstream/v1/management_pb";
 import { DEFAULT_LOCAL_INSTALLER_PATH } from "@/lib/agentSetupSnippets";
@@ -56,16 +57,14 @@ async function copyRepairCommand() {
 
 <template>
   <div class="stack-xl management-tls-page">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Management TLS</h4>
-        <p class="copy-sm muted-text">Certificate serving this management UI and the CA bundle agents use to trust it.</p>
-      </div>
-      <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh certificate status" @click="refresh()">
-        <template #icon><RefreshIcon class="icon-sm" /></template>
-        Refresh
-      </NButton>
-    </div>
+    <PageHeader title="Management TLS" :level="2" hide-title description="Certificate serving this management UI and the CA bundle agents use to trust it.">
+      <template #actions>
+        <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh certificate status" @click="refresh()">
+          <template #icon><RefreshIcon class="icon-sm" /></template>
+          Refresh
+        </NButton>
+      </template>
+    </PageHeader>
 
     <ManagementTlsAlerts :rotation="rotation" :remote-selected="remoteSelected" :operation-error="operationError" :poll-error="pollError" :last-updated-at="lastUpdatedAt" />
 

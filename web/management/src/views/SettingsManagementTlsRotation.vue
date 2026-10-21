@@ -6,6 +6,7 @@ import { RouterLink } from "vue-router";
 import ManagementTlsAgentTable from "@/components/management-tls/ManagementTlsAgentTable.vue";
 import ManagementTlsAlerts from "@/components/management-tls/ManagementTlsAlerts.vue";
 import ManagementTlsCertificateCard from "@/components/management-tls/ManagementTlsCertificateCard.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
 import { useManagementTlsRotation } from "@/composables/useManagementTlsRotation";
 import { ManagementTlsRotationPhase } from "@/gen/proto/p2pstream/v1/management_pb";
 import { editorDrawerWidth } from "@/lib/naiveUi";
@@ -72,16 +73,14 @@ async function submitCustom() {
         <ArrowLeftIcon class="icon-sm" />
         Management TLS
       </RouterLink>
-      <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-        <div>
-          <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Certificate rotation</h4>
-          <p class="copy-sm muted-text">Stage a new certificate, distribute trust to agents, then activate it and retire the old CA.</p>
-        </div>
-        <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh rotation status" @click="refresh()">
-          <template #icon><RefreshIcon class="icon-sm" /></template>
-          Refresh
-        </NButton>
-      </div>
+      <PageHeader title="Certificate rotation" :level="2" description="Stage a new certificate, distribute trust to agents, then activate it and retire the old CA.">
+        <template #actions>
+          <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh rotation status" @click="refresh()">
+            <template #icon><RefreshIcon class="icon-sm" /></template>
+            Refresh
+          </NButton>
+        </template>
+      </PageHeader>
     </div>
 
     <ManagementTlsAlerts :rotation="rotation" :remote-selected="remoteSelected" :operation-error="operationError" :poll-error="pollError" :last-updated-at="lastUpdatedAt" />

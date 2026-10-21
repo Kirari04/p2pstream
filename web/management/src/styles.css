@@ -2,29 +2,29 @@
   color-scheme: light;
   --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --app-bg: #f5f7fb;
-  --app-shell: #ffffff;
+  --app-bg: #fafafb;
+  --app-shell: #fafafb;
   --app-panel: #ffffff;
-  --app-panel-muted: #f8fafc;
-  --app-border: #d8e0ea;
-  --app-border-subtle: #e4eaf2;
-  --app-text: #142033;
-  --app-text-muted: #667085;
+  --app-panel-muted: #f4f5f7;
+  --app-border: #e2e5e9;
+  --app-border-subtle: #eceef1;
+  --app-text: #111827;
+  --app-text-muted: #6b7280;
   --app-accent: #2563eb;
-  --app-accent-soft: rgba(37, 99, 235, 0.11);
+  --app-accent-soft: rgba(37, 99, 235, 0.08);
   --app-success: #047857;
   --app-warning: #9a5800;
   --app-error: #dc2626;
   --app-info: #2563eb;
-  --app-shadow: 0 16px 45px rgba(20, 32, 51, 0.08);
-  --app-sidebar: #f8fafc;
-  --app-topbar: #ffffff;
-  --app-hover: #eef2f7;
+  --app-shadow: 0 12px 32px rgba(17, 24, 39, 0.08);
+  --app-sidebar: #fafafb;
+  --app-topbar: rgba(250, 250, 251, 0.92);
+  --app-hover: #f0f1f4;
   --app-focus: #1d4ed8;
-  --app-overlay: rgba(15, 23, 42, 0.48);
+  --app-overlay: rgba(15, 23, 42, 0.42);
   --sidebar-width: 15.5rem;
   --sidebar-width-collapsed: 4.5rem;
-  --topbar-height: 3.75rem;
+  --topbar-height: 3.25rem;
   --z-sidebar: 60;
   --z-sticky: 40;
   --z-overlay: 55;
@@ -39,26 +39,26 @@
 :root:has(.n-config-provider.n-config-provider--dark),
 .dark {
   color-scheme: dark;
-  --app-bg: #111315;
-  --app-shell: #181b1f;
-  --app-panel: #181b1f;
-  --app-panel-muted: #20242a;
-  --app-border: #343a42;
-  --app-border-subtle: #2b3037;
-  --app-text: #f4f6f8;
-  --app-text-muted: #98a2b3;
-  --app-accent: #3b82f6;
-  --app-accent-soft: rgba(59, 130, 246, 0.16);
-  --app-success: #10b981;
-  --app-warning: #f59e0b;
+  --app-bg: #0d0f12;
+  --app-shell: #0d0f12;
+  --app-panel: #121519;
+  --app-panel-muted: #171a1f;
+  --app-border: #252a31;
+  --app-border-subtle: #1c2026;
+  --app-text: #e8eaed;
+  --app-text-muted: #8b939e;
+  --app-accent: #4f8ef7;
+  --app-accent-soft: rgba(79, 142, 247, 0.12);
+  --app-success: #34d399;
+  --app-warning: #f0b44c;
   --app-error: #f87171;
-  --app-info: #3b82f6;
-  --app-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-  --app-sidebar: #14171b;
-  --app-topbar: #181b1f;
-  --app-hover: #252a31;
+  --app-info: #4f8ef7;
+  --app-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+  --app-sidebar: #0d0f12;
+  --app-topbar: rgba(13, 15, 18, 0.9);
+  --app-hover: #181c21;
   --app-focus: #bfdbfe;
-  --app-overlay: rgba(0, 0, 0, 0.66);
+  --app-overlay: rgba(0, 0, 0, 0.62);
   --code-keyword: #c4b5fd;
   --code-name: #7dd3fc;
   --code-string: #86efac;
@@ -1734,7 +1734,7 @@ samp {
   min-height: var(--topbar-height);
   border-bottom: 1px solid var(--app-border-subtle);
   background: var(--app-topbar);
-  backdrop-filter: none;
+  backdrop-filter: saturate(140%) blur(10px);
 }
 
 .app-header__bar {
@@ -1744,7 +1744,7 @@ samp {
   align-items: center;
   justify-content: space-between;
   gap: 0.625rem 1.5rem;
-  padding-block: 0.75rem;
+  padding-block: 0.5rem;
   padding-inline: 1rem;
 }
 
@@ -1878,47 +1878,42 @@ samp {
   margin-left: auto;
 }
 
-@container (min-width: 38rem) and (max-width: 64rem) {
-  .app-header__bar {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 
-  .app-header__context,
-  .app-header__tools {
-    grid-row: 1;
-  }
+.app-header__scope {
+  flex-wrap: nowrap;
+  gap: 0.75rem;
+}
 
-  .app-header__tools {
-    grid-column: 2;
-  }
-
+@container (max-width: 40rem) {
   .app-header__actions {
-    display: contents;
+    flex-wrap: wrap;
   }
 
   .app-header__scope {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    flex-wrap: wrap;
   }
 }
 
 .app-release-channel {
   display: inline-flex;
-  min-height: 2rem;
+  min-height: 1.625rem;
   flex: 0 0 auto;
   align-items: center;
   gap: 0.4rem;
-  border: 1px solid color-mix(in srgb, var(--app-warning) 45%, var(--app-border));
+  border: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--app-warning) 10%, var(--app-panel));
+  background: color-mix(in srgb, var(--app-warning) 13%, transparent);
   padding: 0.25rem 0.6rem;
   color: var(--app-warning);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
   line-height: 1;
-  text-transform: uppercase;
 }
 
 .app-release-channel code {
@@ -1938,7 +1933,6 @@ samp {
   height: 0.45rem;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-warning) 16%, transparent);
 }
 
 .app-env-label {
@@ -1948,6 +1942,15 @@ samp {
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.app-env-label > span:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .app-env-select {
@@ -2143,9 +2146,13 @@ body:has(.app-sidebar--mobile-open) {
 }
 
 .app-sidebar__link--active {
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
+  background: var(--app-hover);
+  color: var(--app-text);
   font-weight: 600;
+}
+
+.app-sidebar__link--active .app-sidebar__icon {
+  color: var(--app-accent);
 }
 
 .app-sidebar__icon {

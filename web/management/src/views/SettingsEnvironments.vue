@@ -3,13 +3,15 @@ import { Check as CheckIcon } from "@lucide/vue";
 import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NDataTable, NDrawer, NDrawerContent, NDropdown, NInput, NInputNumber, NModal, NTag, useNotification } from "naive-ui";
+import { NAlert, NButton, NButtonGroup, NCheckbox, NDataTable, NDrawer, NDrawerContent, NDropdown, NInput, NInputNumber, NModal, NTag, useNotification } from "naive-ui";
 import type { DataTableColumns, DropdownOption } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref } from "vue";
 import { localManagementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { environmentsKey, isBusyKey, reloadEnvironmentsKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -622,31 +624,23 @@ function handleTrustModalUpdate(show: boolean) {
 
 <template>
   <div class="stack-xl">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Environments</h4>
-        <p class="copy-sm muted-text">Remote management endpoints, routing, and certificate trust.</p>
-      </div>
-      <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
-          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
-          Add Environment
-        </NButton>
-      </DisabledHint>
-    </div>
+    <PageHeader title="Environments" :level="2" hide-title description="Remote management endpoints, routing, and certificate trust.">
+      <template #actions>
+        <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+          <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
+            <template #icon><PlusIcon class="icon-sm" /></template>
+            Add Environment
+          </NButton>
+        </DisabledHint>
+      </template>
+    </PageHeader>
 
-    <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
+    <NAlert v-if="operationError" type="error" :bordered="false">
       <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
-    </div>
+    </NAlert>
 
-    <section class="surface-card hide-overflow">
-      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-md">
-        <div>
-          <h5 class="copy-sm weight-semibold base-text">Registered environments</h5>
-          <p class="margin-top-xs copy-xs muted-text">Trust and reachability are checked independently for every endpoint.</p>
-        </div>
-        <NTag size="small" :bordered="false">{{ environments.length }} total</NTag>
-      </div>
+    <SectionCard title="Registered environments" description="Trust and reachability are checked independently for every endpoint." flush>
+      <template #badge><NTag size="small" :bordered="false">{{ environments.length }}</NTag></template>
       <NDataTable
         v-if="environments.length || isLoading"
         :columns="environmentColumns"
@@ -666,7 +660,7 @@ function handleTrustModalUpdate(show: boolean) {
         action-label="Add Environment"
         @action="openCreateEnvironment"
       />
-    </section>
+    </SectionCard>
 
     <NDrawer
       v-model:show="isEnvironmentModalOpen"

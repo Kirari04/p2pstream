@@ -10,6 +10,7 @@ import { messageFromError } from "@/lib/errors";
 import { parsePendingServerUpdate, serverUpdateDuration, serverUpdateTerminal, type PendingServerUpdate } from "@/lib/serverUpdates";
 import ServerUpdateProgress from "@/components/updates/ServerUpdateProgress.vue";
 import type { GetServerUpdateOverviewResponse, PreviewServerUpdateResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import PageHeader from "@/components/ui/PageHeader.vue";
 
 const client = useManagementClient();
 const environmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
@@ -157,13 +158,12 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
 <template>
   <div class="server-updates">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Server Updates</h4>
-        <p class="copy-sm muted-text">Verified releases for <bdi dir="ltr">{{ environmentLabel }}</bdi>, with a data backup and recovery to the previous version.</p>
-      </div>
-      <NButton secondary size="small" :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="14" /></template>Refresh status</NButton>
-    </div>
+    <PageHeader title="Server Updates" :level="2" hide-title>
+      <template #description>Verified releases for <bdi dir="ltr">{{ environmentLabel }}</bdi>, with a data backup and recovery to the previous version.</template>
+      <template #actions>
+        <NButton secondary size="small" :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="14" /></template>Refresh status</NButton>
+      </template>
+    </PageHeader>
 
     <NAlert v-if="blocked" type="warning">{{ blocked }}</NAlert>
     <NAlert v-if="error" :type="running || pending ? 'info' : 'error'" :title="pending ? 'Update request needs confirmation' : 'Request could not complete'">{{ error }}</NAlert>

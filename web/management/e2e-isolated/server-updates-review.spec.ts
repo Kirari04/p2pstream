@@ -165,7 +165,7 @@ test('unmounted Start completion cannot rewrite the saved request of a replaceme
   await expect.poll(() => page.evaluate(() => (window as any).__updateReview.startReplies.length)).toBe(1);
   const record = await page.evaluate(() => sessionStorage.getItem('p2pstream:server-update:1'));
   await page.evaluate(() => (window as any).__updateReview.mount(false));
-  await expect(page.getByRole('heading', {name:'Server Updates', exact:true})).toBeHidden();
+  await expect(page.getByText(/^Verified releases for /)).toBeHidden();
   await page.evaluate(() => (window as any).__updateReview.mount(true));
   await expect(page.getByRole('button', {name:'Retry same request'})).toBeVisible();
   await page.evaluate(() => (window as any).__updateReview.startReplies[0].resolve());

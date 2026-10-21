@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { NTab, NTabs } from "naive-ui";
 import { RouterView, useRoute, useRouter } from "vue-router";
+import PageHeader from "@/components/ui/PageHeader.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -30,12 +31,7 @@ async function selectSection(value: string | number) {
 
 <template>
   <div class="stack-xl settings-page">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h1 class="margin-bottom-sm copy-xl weight-bold">Settings</h1>
-        <p class="copy-sm muted-text">Instance configuration, environment registry, and API access.</p>
-      </div>
-    </div>
+    <PageHeader title="Settings" description="Instance configuration, environment registry, and API access." />
 
     <NTabs
       class="settings-tabs"
@@ -57,12 +53,12 @@ async function selectSection(value: string | number) {
 </template>
 
 <style scoped>
-.settings-page {
-  gap: 1.25rem;
-}
-
 .settings-page > * + * {
   margin-top: 1.25rem;
+}
+
+.settings-page > .settings-tabs {
+  margin-top: 1rem;
 }
 
 .settings-tabs {

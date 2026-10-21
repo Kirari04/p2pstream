@@ -4,7 +4,7 @@ import { EyeOff as EyeSlashIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NDataTable, NDatePicker, NDrawer, NDrawerContent, NInput, NModal, NTag } from "naive-ui";
+import { NAlert, NButton, NCheckbox, NDataTable, NDatePicker, NDrawer, NDrawerContent, NInput, NModal, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import type { InputInst } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref, watch } from "vue";
@@ -17,6 +17,8 @@ import {
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
@@ -321,12 +323,9 @@ function handleIssuedTokenModalUpdate(show: boolean) {
 
 <template>
   <div class="stack-xl">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">API Tokens</h4>
-        <p class="copy-sm muted-text">Admin API credentials for <bdi dir="ltr">{{ diagnosticInspectionText(selectedEnvironmentLabel) }}</bdi>.</p>
-      </div>
-      <div class="layout-row wrap-items space-sm">
+    <PageHeader title="API Tokens" :level="2" hide-title>
+      <template #description>Admin API credentials for <bdi dir="ltr">{{ diagnosticInspectionText(selectedEnvironmentLabel) }}</bdi>.</template>
+      <template #actions>
         <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
           <NButton
             secondary
@@ -346,24 +345,18 @@ function handleIssuedTokenModalUpdate(show: boolean) {
             Create Token
           </NButton>
         </DisabledHint>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
-    <div v-if="selectedEnvironmentBlocked" class="round-md framed warning-border panel-bg pad-lg copy-sm warning-text">
+    <NAlert v-if="selectedEnvironmentBlocked" type="warning" :bordered="false">
       <bdi dir="ltr">{{ diagnosticInspectionText(selectedEnvironmentBlocked) }}</bdi>
-    </div>
-    <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
+    </NAlert>
+    <NAlert v-if="operationError" type="error" :bordered="false">
       <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
-    </div>
+    </NAlert>
 
-    <section class="surface-card hide-overflow">
-      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-md">
-        <div>
-          <h5 class="copy-sm weight-semibold base-text">Issued tokens</h5>
-          <p class="margin-top-xs copy-xs muted-text">Review usage and revoke credentials that are no longer needed.</p>
-        </div>
-        <NTag size="small" :bordered="false">{{ tokens.length }} total</NTag>
-      </div>
+    <SectionCard title="Issued tokens" description="Review usage and revoke credentials that are no longer needed." flush>
+      <template #badge><NTag size="small" :bordered="false">{{ tokens.length }}</NTag></template>
       <template v-if="tokens.length || isLoading">
         <NDataTable
           :columns="tokenColumns"
@@ -384,7 +377,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
         action-label="Create Token"
         @action="openCreateTokenDrawer"
       />
-    </section>
+    </SectionCard>
 
     <NDrawer
       v-model:show="isCreateTokenDrawerOpen"
