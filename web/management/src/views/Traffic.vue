@@ -3,6 +3,10 @@ import { computed, h, inject, onBeforeUnmount, onMounted, ref, shallowRef, watch
 import { NAlert, NButton, NCheckbox, NDataTable, NEmpty, NInput, NRadioButton, NRadioGroup, NSkeleton, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { dashboardKey, publicProxyConfigKey, selectedEnvironmentBlockedKey, selectedEnvironmentIdKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -80,9 +84,9 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
     render: (request) => h("div", [
       h("div", { class: "layout-row align-center space-sm" }, [
         h("bdi", { class: "round-sm framed frame-standard pad-x-xs pad-y-2xs mono-text copy-2xs base-text trace-hostile-value", dir: "ltr" }, diagnosticExcerpt(request.methodLabel, 18).text),
-        h("bdi", { class: "max-token-width clip-text mono-text copy-xs base-text trace-hostile-value", dir: "ltr" }, diagnosticExcerpt(request.pathLabel).text),
+        h("bdi", { class: "max-token-width clip-text mono-text copy-xs base-text trace-hostile-value", dir: "ltr", title: diagnosticInspectionText(request.pathLabel) }, diagnosticExcerpt(request.pathLabel).text),
       ]),
-      h("bdi", { class: "margin-top-xs max-trace-width clip-text mono-text copy-2xs muted-text trace-hostile-value", dir: "ltr" }, diagnosticExcerpt(request.requestIdLabel).text),
+      h("bdi", { class: "margin-top-xs max-trace-width clip-text mono-text copy-2xs muted-text trace-hostile-value", dir: "ltr", title: diagnosticInspectionText(request.requestIdLabel) }, diagnosticExcerpt(request.requestIdLabel).text),
     ]),
   },
   {
@@ -97,14 +101,14 @@ const traceColumns = computed<DataTableColumns<TraceRequestView>>(() => [
   {
     title: "Status",
     key: "status",
-    width: 110,
+    width: 100,
     align: "right",
     render: (request) => h("span", { class: ["mono-text copy-xs", request.statusClass] }, request.statusLabel),
   },
   {
     title: "Duration",
     key: "duration",
-    width: 120,
+    width: 110,
     align: "right",
     render: (request) => h("span", { class: "mono-text copy-xs muted-text" }, request.durationLabel),
   },
@@ -151,6 +155,11 @@ const streamStateTagType = computed(() => {
   if (streamState.value === "error") return "error";
   if (streamState.value === "connecting" || streamState.value === "retrying") return "warning";
   return "info";
+});
+
+const traceStateTone = computed<"success" | "warning" | "error" | "info" | "muted">(() => {
+  const type = streamStateTagType.value;
+  return type === "default" ? "muted" : type;
 });
 
 async function loadTraceSettings(loadVersion: number) {
@@ -426,180 +435,159 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="dashboard" class="stack-xl traffic-page">
-    <section class="stack-md">
-      <div class="surface-card traffic-console" :aria-busy="traceSettingsState === 'loading'">
-        <div class="traffic-console__header">
-          <div class="traffic-console__intro">
-            <div class="traffic-title-row">
-              <h3 class="copy-xl weight-bold">Traffic Flow</h3>
-              <NTag size="small" :bordered="false" :type="streamStateTagType">{{ streamStateLabel() }}</NTag>
-            </div>
-            <p class="muted-text copy-sm">Live request routing across listeners, routes, targets, agents, and upstreams.</p>
-          </div>
+  <div v-if="dashboard" class="traffic-page" :aria-busy="traceSettingsState === 'loading'">
+    <PageHeader title="Traffic Flow" description="Live request routing across listeners, routes, targets, agents, and upstreams.">
+      <template #badge>
+        <NTag size="small" :bordered="false" :type="streamStateTagType">{{ streamStateLabel() }}</NTag>
+      </template>
+      <template #actions>
+        <div class="traffic-controls">
+          <DisabledHint :disabled="Boolean(traceControlsDisabledReason)" :reason="traceControlsDisabledReason">
+            <NCheckbox
+              class="traffic-tracing-toggle"
+              :checked="tracingEnabled"
+              :indeterminate="traceSettingsState === 'loading'"
+              :disabled="Boolean(traceControlsDisabledReason)"
+              @update:checked="setTracingEnabled"
+            >
+              Tracing
+            </NCheckbox>
+          </DisabledHint>
 
-          <div class="traffic-console__controls">
-            <DisabledHint :disabled="Boolean(traceControlsDisabledReason)" :reason="traceControlsDisabledReason">
-              <NCheckbox
-                class="traffic-tracing-toggle"
-                :checked="tracingEnabled"
-                :indeterminate="traceSettingsState === 'loading'"
-                :disabled="Boolean(traceControlsDisabledReason)"
-                @update:checked="setTracingEnabled"
-              >
-                Tracing
-              </NCheckbox>
-            </DisabledHint>
+          <DisabledHint :disabled="Boolean(traceControlsDisabledReason)" :reason="traceControlsDisabledReason">
+            <NRadioGroup
+              class="traffic-level-group"
+              :value="selectedTraceLevel"
+              :disabled="Boolean(traceControlsDisabledReason)"
+              size="small"
+              @update:value="(value) => setTraceLevel(value as TrafficTraceLevel)"
+            >
+              <NRadioButton v-for="option in traceLevelOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </NRadioButton>
+            </NRadioGroup>
+          </DisabledHint>
 
-            <DisabledHint full-width :disabled="Boolean(traceControlsDisabledReason)" :reason="traceControlsDisabledReason">
-              <NRadioGroup
-                class="traffic-level-group"
-                :value="selectedTraceLevel"
-                :disabled="Boolean(traceControlsDisabledReason)"
-                button-style="solid"
-                size="small"
-                @update:value="(value) => setTraceLevel(value as TrafficTraceLevel)"
-              >
-                <NRadioButton v-for="option in traceLevelOptions" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </NRadioButton>
-              </NRadioGroup>
-            </DisabledHint>
-
-            <DisabledHint :disabled="Boolean(pauseDisabledReason)" :reason="pauseDisabledReason">
-              <NButton
-                secondary
-                size="small"
-                attr-type="button"
-                :disabled="Boolean(pauseDisabledReason)"
-                :aria-pressed="isPaused"
-                @click="togglePause"
-              >
-                {{ isPaused ? "Resume live updates" : "Pause live updates" }}
-              </NButton>
-            </DisabledHint>
-          </div>
-        </div>
-
-        <div class="traffic-status-grid">
-          <div class="traffic-status-item">
-            <p class="stat-label">Trace State</p>
-            <span class="copy-lg weight-semibold" :class="tracingEnabled ? 'success-text' : 'muted-text'">{{ streamStateLabel() }}</span>
-          </div>
-          <div class="traffic-status-item">
-            <p class="stat-label">Events</p>
-            <NSkeleton v-if="traceSettingsState === 'loading'" text width="4.5rem" />
-            <span v-else class="copy-lg weight-semibold">{{ traceSettings ? bigIntLabel(traceSettings.emittedEvents) : "—" }}</span>
-          </div>
-          <div class="traffic-status-item">
-            <p class="stat-label">Dropped</p>
-            <NSkeleton v-if="traceSettingsState === 'loading'" text width="4.5rem" />
-            <span v-else class="copy-lg weight-semibold" :class="traceSettings?.droppedEvents ? 'warning-text' : 'base-text'">
-              {{ traceSettings ? bigIntLabel(traceSettings.droppedEvents) : "—" }}
-            </span>
-          </div>
-          <div class="traffic-status-item">
-            <p class="stat-label">Rendered</p>
-            <span class="copy-lg weight-semibold">{{ numberLabel(renderStats.renderedTableRows) }}/{{ numberLabel(renderStats.retainedRequests) }}</span>
-          </div>
-        </div>
-
-        <div class="traffic-debug-panel">
-          <NButton quaternary size="small" attr-type="button" class="traffic-debug-toggle" @click="showDebugStats = !showDebugStats">
-            {{ showDebugStats ? 'Hide' : 'Show' }} debug stats
-          </NButton>
-          <div v-if="showDebugStats" class="traffic-debug-grid">
-            <div class="traffic-debug-item">
-              <p class="stat-label">Subscribers</p>
-              <span class="copy-lg weight-semibold">{{ traceSettings?.subscriberCount?.toString() ?? "0" }}</span>
-            </div>
-            <div class="traffic-debug-item">
-              <p class="stat-label">Sampled</p>
-              <span class="copy-lg weight-semibold" :class="renderStats.sampledEvents || renderStats.sampledRequests ? 'warning-text' : 'base-text'">
-                {{ numberLabel(renderStats.sampledEvents) }}/{{ numberLabel(renderStats.sampledRequests) }}
-              </span>
-            </div>
-            <div class="traffic-debug-item">
-              <p class="stat-label">Live Tokens</p>
-              <span class="copy-lg weight-semibold">{{ renderedTokenCount }}</span>
-            </div>
-          </div>
-        </div>
-
-        <NAlert v-if="streamError" :type="traceSettingsState === 'error' ? 'error' : 'warning'" :show-icon="false">
-          <div class="traffic-alert-content">
-            <bdi class="traffic-alert-message" dir="ltr">{{ diagnosticInspectionText(streamError) }}</bdi>
-            <NButton v-if="traceSettingsState === 'error'" secondary size="small" attr-type="button" @click="retryTraceSettings">
-              Retry settings
+          <DisabledHint :disabled="Boolean(pauseDisabledReason)" :reason="pauseDisabledReason">
+            <NButton
+              secondary
+              size="small"
+              attr-type="button"
+              :disabled="Boolean(pauseDisabledReason)"
+              :aria-pressed="isPaused"
+              @click="togglePause"
+            >
+              {{ isPaused ? "Resume live updates" : "Pause live updates" }}
             </NButton>
-          </div>
-        </NAlert>
-      </div>
-
-      <TrafficFlowDiagram
-        :config="config"
-        :requests="diagramRequests"
-        :tracing-enabled="tracingEnabled && !isPaused"
-        @select="openTraceDetails"
-        @active-change="renderedTokenCount = $event"
-        @edit-node="handleFlowEditRequest"
-      />
-
-      <div class="surface-card hide-overflow">
-        <div class="traffic-table-heading divider-bottom frame-standard pad-x-xl pad-y-lg">
-          <div class="layout-grid space-2xs">
-            <h4 class="weight-semibold">Recent traces</h4>
-            <p class="copy-xs muted-text">{{ traceTableSummary }}</p>
-          </div>
-          <div class="traffic-table-tools">
-            <NInput
-              v-model:value="traceSearch"
-              clearable
-              size="small"
-              :input-props="{ 'aria-label': 'Search recent traces' }"
-              placeholder="Search request, flow, or status"
-            />
-            <AccessibleSelect
-              v-model:value="traceFilter"
-              accessible-label="Filter recent traces"
-              class="traffic-filter-select"
-              size="small"
-              :options="traceFilterOptions"
-            />
-            <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
-              <NButton
-                secondary
-                size="small"
-                class="important-muted-frame important-transparent-bg important-muted-text important-muted-button"
-                :disabled="Boolean(clearTracesDisabledReason)"
-                @click="clearTraceRequests"
-              >
-                Clear
-              </NButton>
-            </DisabledHint>
-          </div>
+          </DisabledHint>
         </div>
+      </template>
+    </PageHeader>
 
-        <NDataTable
-          v-if="filteredTableRequests.length"
-          :columns="traceColumns"
-          :data="filteredTableRequests"
-          :row-key="traceRowKey"
-          :row-props="traceRowProps"
-          :pagination="false"
-          :bordered="false"
-          :single-line="false"
-          :scroll-x="760"
-          size="small"
+    <div class="traffic-stats">
+      <MetricStrip variant="tiles" label="Trace status">
+        <MetricCard label="Trace state" :value="streamStateLabel()" :tone="traceStateTone" dot text-value />
+        <MetricCard label="Events" :value="traceSettings ? bigIntLabel(traceSettings.emittedEvents) : '—'">
+          <template v-if="traceSettingsState === 'loading'" #value>
+            <NSkeleton text width="4.5rem" />
+          </template>
+        </MetricCard>
+        <MetricCard
+          label="Dropped"
+          :value="traceSettings ? bigIntLabel(traceSettings.droppedEvents) : '—'"
+          :tone="traceSettings?.droppedEvents ? 'warning' : 'default'"
+        >
+          <template v-if="traceSettingsState === 'loading'" #value>
+            <NSkeleton text width="4.5rem" />
+          </template>
+        </MetricCard>
+        <MetricCard label="Rendered" :value="`${numberLabel(renderStats.renderedTableRows)}/${numberLabel(renderStats.retainedRequests)}`" detail="table rows / retained" />
+      </MetricStrip>
+
+      <MetricStrip v-if="showDebugStats" variant="tiles" label="Debug stats">
+        <MetricCard label="Subscribers" :value="traceSettings?.subscriberCount?.toString() ?? '0'" />
+        <MetricCard
+          label="Sampled"
+          :value="`${numberLabel(renderStats.sampledEvents)}/${numberLabel(renderStats.sampledRequests)}`"
+          :tone="renderStats.sampledEvents || renderStats.sampledRequests ? 'warning' : 'default'"
+          detail="events / requests"
         />
-        <div v-else class="traffic-empty-state">
-          <NEmpty
-            size="small"
-            :description="tableRequests.length ? 'No retained traces match this search and filter.' : tracingEnabled ? (isPaused ? 'Live updates are paused. Resume to receive new traces.' : 'Waiting for the next traced request.') : traceSettingsState === 'ready' ? 'Tracing is disabled. Enable it to inspect live requests.' : 'Trace data will appear after server settings load.'"
-          />
-        </div>
+        <MetricCard label="Live tokens" :value="String(renderedTokenCount)" />
+      </MetricStrip>
+
+      <NButton quaternary size="small" attr-type="button" class="traffic-debug-toggle" @click="showDebugStats = !showDebugStats">
+        {{ showDebugStats ? 'Hide' : 'Show' }} debug stats
+      </NButton>
+    </div>
+
+    <NAlert v-if="streamError" :type="traceSettingsState === 'error' ? 'error' : 'warning'" :show-icon="false" :bordered="false">
+      <div class="traffic-alert-content">
+        <bdi class="traffic-alert-message" dir="ltr">{{ diagnosticInspectionText(streamError) }}</bdi>
+        <NButton v-if="traceSettingsState === 'error'" secondary size="small" attr-type="button" @click="retryTraceSettings">
+          Retry settings
+        </NButton>
       </div>
-    </section>
+    </NAlert>
+
+    <TrafficFlowDiagram
+      :config="config"
+      :requests="diagramRequests"
+      :tracing-enabled="tracingEnabled && !isPaused"
+      @select="openTraceDetails"
+      @active-change="renderedTokenCount = $event"
+      @edit-node="handleFlowEditRequest"
+    />
+
+    <SectionCard class="traffic-traces" title="Recent traces" :description="traceTableSummary" flush>
+      <template #actions>
+        <div class="traffic-table-tools">
+          <NInput
+            v-model:value="traceSearch"
+            clearable
+            size="small"
+            :input-props="{ 'aria-label': 'Search recent traces' }"
+            placeholder="Search request, flow, or status"
+          />
+          <AccessibleSelect
+            v-model:value="traceFilter"
+            accessible-label="Filter recent traces"
+            class="traffic-filter-select"
+            size="small"
+            :options="traceFilterOptions"
+          />
+          <DisabledHint :disabled="Boolean(clearTracesDisabledReason)" :reason="clearTracesDisabledReason">
+            <NButton
+              secondary
+              size="small"
+              attr-type="button"
+              :disabled="Boolean(clearTracesDisabledReason)"
+              @click="clearTraceRequests"
+            >
+              Clear
+            </NButton>
+          </DisabledHint>
+        </div>
+      </template>
+
+      <NDataTable
+        v-if="filteredTableRequests.length"
+        :columns="traceColumns"
+        :data="filteredTableRequests"
+        :row-key="traceRowKey"
+        :row-props="traceRowProps"
+        :pagination="false"
+        :bordered="false"
+        :single-line="false"
+        :scroll-x="730"
+        size="small"
+      />
+      <div v-else class="traffic-empty-state">
+        <NEmpty
+          size="small"
+          :description="tableRequests.length ? 'No retained traces match this search and filter.' : tracingEnabled ? (isPaused ? 'Live updates are paused. Resume to receive new traces.' : 'Waiting for the next traced request.') : traceSettingsState === 'ready' ? 'Tracing is disabled. Enable it to inspect live requests.' : 'Trace data will appear after server settings load.'"
+        />
+      </div>
+    </SectionCard>
 
     <TrafficTraceDetailsModal
       v-model="isDetailsOpen"
@@ -616,33 +604,85 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.traffic-console {
+.traffic-page {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.traffic-console__header {
-  display: grid;
-  gap: 1rem;
-}
-
-.traffic-console__intro {
   min-width: 0;
+  gap: 1.25rem;
 }
 
-.traffic-title-row {
+.traffic-controls {
   display: flex;
+  min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
 }
 
-.traffic-console__controls {
+.traffic-tracing-toggle {
+  display: inline-flex;
+  min-height: 2.125rem;
+  align-items: center;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0 0.75rem;
+}
+
+/* Radio semantics stay (specs use role=radio); the look matches SegmentedControl. */
+.traffic-level-group {
+  display: inline-flex;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 0.125rem;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.1875rem;
+}
+
+.traffic-level-group :deep(.n-radio-group__splitor) {
+  display: none;
+}
+
+.traffic-level-group :deep(.n-radio-button) {
+  height: 1.75rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.75rem;
+  padding: 0 0.625rem;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.traffic-level-group :deep(.n-radio-button .n-radio-button__state-border) {
+  display: none;
+}
+
+.traffic-level-group :deep(.n-radio-button:hover:not(.n-radio-button--disabled)) {
+  color: var(--app-text);
+}
+
+.traffic-level-group :deep(.n-radio-button.n-radio-button--checked) {
+  background: var(--app-panel);
+  box-shadow: 0 0 0 1px var(--app-border-subtle), 0 1px 2px rgba(0, 0, 0, 0.12);
+  color: var(--app-text);
+}
+
+.traffic-level-group :deep(.n-radio-button--disabled) {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.traffic-stats {
   display: grid;
-  gap: 0.75rem;
   min-width: 0;
+  gap: 0.5rem;
+}
+
+.traffic-debug-toggle {
+  justify-self: start;
 }
 
 .traffic-alert-content {
@@ -660,86 +700,11 @@ onBeforeUnmount(() => {
   unicode-bidi: isolate;
 }
 
-.traffic-tracing-toggle {
-  display: inline-flex;
-  min-height: 2.25rem;
-  align-items: center;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel);
-  padding: 0 0.8rem;
-}
-
-.traffic-level-group {
-  min-width: 0;
-  width: 100%;
-}
-
-.traffic-level-group :deep(.n-radio-button) {
-  flex: 1 1 0;
-  min-width: 0;
-  text-align: center;
-}
-
-.traffic-level-group :deep(.n-radio-button__label) {
-  width: 100%;
-  text-align: center;
-}
-
-.traffic-status-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-}
-
-.traffic-status-item {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 0;
-  background: var(--app-panel-muted);
-  padding: 0.85rem;
-}
-
-.traffic-status-item:nth-child(even) {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.traffic-status-item:nth-child(n + 3) {
-  border-top: 1px solid var(--app-border-subtle);
-}
-
-.traffic-debug-panel {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.traffic-debug-toggle {
-  justify-self: start;
-}
-
-.traffic-debug-grid {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.traffic-debug-item {
-  min-width: 0;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.85rem;
-}
-
-.traffic-table-heading {
-  display: grid;
-  gap: 0.75rem;
-}
-
 .traffic-table-tools {
   display: grid;
   min-width: 0;
+  grid-template-columns: minmax(12rem, 18rem) 9.5rem auto;
+  align-items: center;
   gap: 0.5rem;
 }
 
@@ -751,71 +716,49 @@ onBeforeUnmount(() => {
   padding: 2rem 1rem;
 }
 
-.trace-hostile-value {
+/* Cells rendered by NDataTable via h() do not carry this component's scope id; reach them with :deep(). */
+.traffic-traces :deep(.trace-hostile-value) {
   direction: ltr;
   unicode-bidi: isolate;
 }
 
-.trace-flow-label {
+.traffic-traces :deep(.trace-flow-label) {
   display: block;
   overflow-wrap: anywhere;
 }
 
-@media (min-width: 760px) {
-  .traffic-console {
-    padding: 1.25rem;
+@media (max-width: 1023px) {
+  .traffic-controls {
+    justify-content: flex-start;
   }
+}
 
-  .traffic-console__header {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-  }
-
-  .traffic-console__controls {
-    width: min(100%, 44rem);
-    grid-template-columns: auto minmax(22rem, 1fr) auto;
-    align-items: center;
-    justify-content: end;
-  }
-
-  .traffic-status-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .traffic-status-item {
-    border-left: 1px solid var(--app-border-subtle);
-    border-top: 0;
-  }
-
-  .traffic-status-item:first-child {
-    border-left: 0;
-  }
-
-  .traffic-debug-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .traffic-table-heading {
-    grid-template-columns: minmax(13rem, 1fr) minmax(25rem, auto);
-    align-items: end;
+@media (max-width: 639px) {
+  .traffic-traces :deep(.section-card__actions) {
+    align-self: stretch;
   }
 
   .traffic-table-tools {
-    grid-template-columns: minmax(14rem, 20rem) 10rem auto;
-    align-items: center;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .traffic-filter-select {
-    width: 10rem;
+  .traffic-table-tools > :first-child {
+    grid-column: 1 / -1;
   }
 }
 
 @media (pointer: coarse) {
-  .traffic-console__controls :deep(.n-button),
+  .traffic-controls :deep(.n-button),
   .traffic-table-tools :deep(.n-button),
   .traffic-table-tools :deep(.n-input),
   .traffic-table-tools :deep(.n-base-selection) {
     min-height: 44px;
+  }
+
+  .traffic-level-group :deep(.n-radio-button) {
+    height: 2.5rem;
+    line-height: 2.5rem;
   }
 }
 </style>

@@ -72,7 +72,7 @@ test("routes monitor traffic and diagnostics subpages", async ({ page }, testInf
   await expect(page).toHaveURL(/#\/monitor\/diagnostics\/overview$/);
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
   await expect(page.getByRole("heading", { name: "Diagnostics", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Status Codes", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Status codes", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Choose an investigation lane", exact: true })).toBeVisible();
 });
 

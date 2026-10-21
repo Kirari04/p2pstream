@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { NCollapse, NCollapseItem, NDrawer, NDrawerContent, NEmpty, NTag } from "naive-ui";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 import { diagnosticInspectionText } from "@/lib/diagnosticText";
 import type { TraceRequest } from "@/types/trafficTrace";
@@ -137,12 +139,12 @@ const captureNotes = computed(() => {
   return notes;
 });
 
-function statusClass(status: bigint, stage: TrafficTraceStage): string {
-  if (stage === TrafficTraceStage.FAILED || stage === TrafficTraceStage.WAF_BLOCKED || status >= 500n) return "trace-status--error";
-  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM || stage === TrafficTraceStage.RATE_LIMITED || stage === TrafficTraceStage.ACCESS_DENIED) return "trace-status--warning";
-  if (status >= 400n) return "trace-status--warning";
-  if (status >= 200n) return "trace-status--success";
-  return "trace-status--muted";
+function statusTone(status: bigint, stage: TrafficTraceStage): "error" | "warning" | "success" | "muted" {
+  if (stage === TrafficTraceStage.FAILED || stage === TrafficTraceStage.WAF_BLOCKED || status >= 500n) return "error";
+  if (stage === TrafficTraceStage.WAF_CAPTCHA_CHALLENGED || stage === TrafficTraceStage.WAF_WAITING_ROOM || stage === TrafficTraceStage.RATE_LIMITED || stage === TrafficTraceStage.ACCESS_DENIED) return "warning";
+  if (status >= 400n) return "warning";
+  if (status >= 200n) return "success";
+  return "muted";
 }
 
 function stageLabel(stage: TrafficTraceStage): string {
@@ -296,20 +298,11 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
             <h3 id="trace-outcome-heading"><bdi dir="ltr">{{ outcomeTitle }}</bdi></h3>
             <p>{{ outcomeSummary }}</p>
           </div>
-          <dl class="trace-outcome__facts">
-            <div>
-              <dt>Status</dt>
-              <dd :class="statusClass(request.statusCode, request.stage)">{{ request.statusCode > 0n ? request.statusCode.toString() : "—" }}</dd>
-            </div>
-            <div>
-              <dt>Duration</dt>
-              <dd>{{ formatDuration(request.durationMs) }}</dd>
-            </div>
-            <div>
-              <dt>Events retained</dt>
-              <dd>{{ numberLabel(lifecycleEvents.length) }}</dd>
-            </div>
-          </dl>
+          <MetricStrip variant="tiles" label="Trace outcome" class="trace-outcome__facts">
+            <MetricCard label="Status" :value="request.statusCode > 0n ? request.statusCode.toString() : '—'" :tone="statusTone(request.statusCode, request.stage)" />
+            <MetricCard label="Duration" :value="formatDuration(request.durationMs)" />
+            <MetricCard label="Events retained" :value="numberLabel(lifecycleEvents.length)" />
+          </MetricStrip>
         </section>
 
         <p v-if="request.sampledEventCount > 0" class="trace-callout trace-callout--warning">
@@ -478,16 +471,16 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   gap: 1.25rem;
 }
 
+/* The drawer is the only framed surface; inner groups use muted fills, never borders. */
 .trace-security-note,
 .trace-callout,
 .trace-capture-notes {
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--app-panel-muted);
   color: var(--app-text-muted);
   font-size: 0.8125rem;
   line-height: 1.55;
-  padding: 0.75rem;
+  padding: 0.75rem 0.875rem;
 }
 
 .trace-security-note {
@@ -495,16 +488,13 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 }
 
 .trace-callout--warning {
-  border-color: color-mix(in srgb, var(--app-warning) 45%, var(--app-border));
+  background: color-mix(in srgb, var(--app-warning) 10%, var(--app-panel-muted));
   color: var(--app-warning);
 }
 
 .trace-outcome {
   display: grid;
-  gap: 1rem;
-  border-left: 3px solid var(--app-accent);
-  background: var(--app-panel-muted);
-  padding: 1rem;
+  gap: 0.875rem;
 }
 
 .trace-outcome__heading-row {
@@ -525,9 +515,13 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 .trace-outcome h3 {
   margin: 0.25rem 0;
   color: var(--app-text);
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.125rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.trace-outcome .trace-outcome__facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .trace-outcome bdi,
@@ -539,46 +533,38 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   unicode-bidi: isolate;
 }
 
-.trace-outcome__facts,
 .trace-flow-facts,
 .trace-debug-facts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 0.75rem;
+  gap: 0.5rem;
 }
 
-.trace-outcome__facts > div,
+.trace-flow-facts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.trace-debug-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .trace-flow-facts > div,
 .trace-debug-facts > div {
   min-width: 0;
-  padding-inline: 0.75rem;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.625rem 0.75rem;
 }
 
-.trace-outcome__facts > div:first-child,
-.trace-flow-facts > div:first-child,
-.trace-debug-facts > div:first-child {
-  padding-left: 0;
-}
-
-.trace-outcome__facts > div + div,
-.trace-flow-facts > div + div,
-.trace-debug-facts > div + div {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.trace-outcome__facts dt,
 .trace-flow-facts dt,
 .trace-debug-facts dt,
 .trace-field dt,
 .trace-policy-list dt {
   color: var(--app-text-muted);
-  font-size: 0.7rem;
-  font-weight: 650;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-.trace-outcome__facts dd,
 .trace-flow-facts dd,
 .trace-debug-facts dd,
 .trace-field dd {
@@ -586,14 +572,20 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   margin: 0.25rem 0 0;
   overflow-wrap: anywhere;
   color: var(--app-text);
-  font-size: 0.875rem;
-  font-weight: 650;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.trace-flow-facts dd,
+.trace-debug-facts dd {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .trace-section {
   display: grid;
   gap: 0.75rem;
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid var(--app-border-subtle);
   padding-top: 1rem;
 }
 
@@ -601,15 +593,11 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 .trace-capture-notes h4 {
   color: var(--app-text);
   font-size: 0.9375rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
-.trace-flow-facts {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.75rem;
+.trace-capture-notes h4 {
+  font-size: 0.8125rem;
 }
 
 .trace-lifecycle ol {
@@ -625,7 +613,7 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   min-width: 0;
   grid-template-columns: 1rem minmax(0, 1fr) auto;
   gap: 0.75rem;
-  padding: 0.625rem 0;
+  padding: 0.5rem 0;
 }
 
 .trace-lifecycle li + li {
@@ -633,12 +621,11 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 }
 
 .trace-lifecycle__marker {
-  width: 0.625rem;
-  height: 0.625rem;
-  margin-top: 0.2rem;
-  border: 2px solid var(--app-accent);
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.3rem;
   border-radius: 50%;
-  background: var(--app-panel);
+  background: var(--app-accent);
 }
 
 .trace-lifecycle li > div {
@@ -651,6 +638,7 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 .trace-lifecycle strong {
   color: var(--app-text);
   font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .trace-lifecycle li span,
@@ -658,6 +646,7 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .trace-policy-list {
@@ -671,7 +660,12 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   grid-template-columns: 7rem minmax(0, 1fr);
   gap: 0.75rem;
   border-top: 1px solid var(--app-border-subtle);
-  padding: 0.75rem 0;
+  padding: 0.625rem 0;
+}
+
+.trace-policy-list > div:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .trace-policy-list dd {
@@ -685,6 +679,7 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 .trace-policy-list strong {
   color: var(--app-text);
   font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .trace-policy-list dd > span {
@@ -700,23 +695,21 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 }
 
 .trace-disclosure {
-  border-top: 1px solid var(--app-border);
+  border-top: 1px solid var(--app-border-subtle);
   padding-top: 0.25rem;
 }
 
 .trace-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  column-gap: 1.25rem;
   margin: 0;
 }
 
 .trace-field {
   min-width: 0;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.75rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 0.625rem 0;
 }
 
 .trace-field--wide {
@@ -737,10 +730,9 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 
 .trace-raw-panel {
   min-width: 0;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--app-panel-muted);
-  padding: 0.75rem;
+  padding: 0.75rem 0.875rem;
 }
 
 .trace-raw-panel--debug {
@@ -748,15 +740,15 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
 }
 
 .trace-raw-panel h5 {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.625rem;
   color: var(--app-text);
   font-size: 0.8125rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .trace-raw-panel dl {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.625rem;
   margin: 0;
 }
 
@@ -787,31 +779,12 @@ function collectedEntries(field: "requestHeaders" | "responseHeaders" | "debugAt
   font-size: 0.8125rem;
 }
 
-.trace-debug-facts {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.75rem;
-}
-
 @media (max-width: 640px) {
-  .trace-outcome__facts,
+  .trace-outcome .trace-outcome__facts,
   .trace-flow-facts,
   .trace-field-grid,
   .trace-header-grid {
     grid-template-columns: 1fr;
-  }
-
-  .trace-outcome__facts > div,
-  .trace-flow-facts > div {
-    padding: 0.5rem 0;
-  }
-
-  .trace-outcome__facts > div + div,
-  .trace-flow-facts > div + div {
-    border-top: 1px solid var(--app-border-subtle);
-    border-left: 0;
   }
 
   .trace-policy-list > div {
