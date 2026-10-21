@@ -6,8 +6,10 @@ import {
   ManagementTlsRotationPhase,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
+  managementCertificateExpiryStatus,
   managementCertificateExpiryWarning,
   managementTlsAgentDetail,
+  managementTlsRotationStep,
   summarizeManagementTlsFleet,
 } from "./managementTlsPresentation";
 
@@ -40,5 +42,22 @@ describe("management TLS presentation", () => {
     expect(managementCertificateExpiryWarning(BigInt(now + 31 * 86_400_000), now)).toBe("");
     expect(managementCertificateExpiryWarning(BigInt(now + 86_400_000), now)).toContain("1 day");
     expect(managementCertificateExpiryWarning(BigInt(now - 1), now)).toContain("expired");
+  });
+
+  test("labels certificate expiry with the renewal-window severity", () => {
+    const now = Date.UTC(2026, 7, 20);
+    expect(managementCertificateExpiryStatus(0n, now)).toEqual({ label: "Expiry unknown", type: "default" });
+    expect(managementCertificateExpiryStatus(BigInt(now - 1), now)).toEqual({ label: "Expired", type: "error" });
+    expect(managementCertificateExpiryStatus(BigInt(now + 86_400_000), now)).toEqual({ label: "1 day left", type: "warning" });
+    expect(managementCertificateExpiryStatus(BigInt(now + 30 * 86_400_000), now).type).toBe("warning");
+    expect(managementCertificateExpiryStatus(BigInt(now + 3650 * 86_400_000), now)).toEqual({ label: "3,650 days left", type: "success" });
+  });
+
+  test("maps only forward rotation phases onto the stepper", () => {
+    expect(managementTlsRotationStep(ManagementTlsRotationPhase.IDLE)).toBe(0);
+    expect(managementTlsRotationStep(ManagementTlsRotationPhase.DISTRIBUTING)).toBe(2);
+    expect(managementTlsRotationStep(ManagementTlsRotationPhase.ACTIVE)).toBe(3);
+    expect(managementTlsRotationStep(ManagementTlsRotationPhase.RETIRING)).toBe(4);
+    expect(managementTlsRotationStep(ManagementTlsRotationPhase.CLEANING_UP)).toBe(0);
   });
 });

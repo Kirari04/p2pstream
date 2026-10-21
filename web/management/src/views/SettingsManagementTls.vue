@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Copy as CopyIcon, RefreshCw as RefreshIcon, ShieldCheck as ShieldIcon, Upload as UploadIcon } from "@lucide/vue";
-import { NAlert, NButton, NDataTable, NInput, NTag } from "naive-ui";
+import { Copy as CopyIcon, KeyRound as KeyIcon, RefreshCw as RefreshIcon, ShieldCheck as ShieldIcon, Upload as UploadIcon } from "@lucide/vue";
+import { NAlert, NButton, NDataTable, NDrawer, NDrawerContent, NInput, NStep, NSteps, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import { computed, h, inject, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { localManagementClient } from "@/api/managementClient";
@@ -17,7 +17,15 @@ import {
 import { messageFromError } from "@/lib/errors";
 import { DEFAULT_LOCAL_INSTALLER_PATH } from "@/lib/agentSetupSnippets";
 import { diagnosticExcerpt } from "@/lib/diagnosticText";
-import { managementCertificateExpiryWarning, managementTlsAgentDetail, summarizeManagementTlsFleet } from "@/lib/managementTlsPresentation";
+import { editorDrawerWidth } from "@/lib/naiveUi";
+import {
+  managementCertificateExpiryStatus,
+  managementCertificateExpiryWarning,
+  managementTlsAgentDetail,
+  managementTlsRotationStep,
+  managementTlsRotationSteps,
+  summarizeManagementTlsFleet,
+} from "@/lib/managementTlsPresentation";
 
 const selectedEnvironmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
 const confirmDialog = useConfirmDialog();
@@ -44,6 +52,10 @@ const readyAgentCount = computed(() => fleetSummary.value.readyParticipants);
 const rolloutPercent = computed(() => fleetSummary.value.rolloutPercent);
 const showFleet = computed(() => phase.value !== ManagementTlsRotationPhase.IDLE || Boolean(rotation.value?.trustManagementActive));
 const cleanupTitle = computed(() => rotation.value?.cleanupReason === ManagementTlsCleanupReason.ROLLED_BACK_CERTIFICATE ? "Rollback trust cleanup" : "Cancelled rotation cleanup");
+const activeExpiryStatus = computed(() => managementCertificateExpiryStatus(rotation.value?.activeCertificate?.notAfterUnixMillis ?? 0n));
+const rotationStep = computed(() => managementTlsRotationStep(phase.value));
+const trustAttentionResolved = computed(() => (rotation.value?.trustAttentionAgentCount ?? 0) === 0);
+const copiedDigest = ref("");
 const activeExpiryWarning = computed(() => managementCertificateExpiryWarning(rotation.value?.activeCertificate?.notAfterUnixMillis ?? 0n));
 const repairCommand = computed(() => {
   const pem = rotation.value?.repairCaBundlePem ?? "";
@@ -248,9 +260,20 @@ function shortDigest(value: string): string {
   return value ? `${value.slice(0, 12)}…${value.slice(-8)}` : "Unavailable";
 }
 
-function certificateNames(cert?: ManagementTlsCertificateSummary): string {
-  if (!cert) return "None";
-  return [...cert.dnsNames, ...cert.ipAddresses].join(", ") || "No SANs";
+function certificateNames(cert?: ManagementTlsCertificateSummary): string[] {
+  if (!cert) return [];
+  return [...cert.dnsNames, ...cert.ipAddresses];
+}
+
+async function copyDigest(value: string) {
+  if (!value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    copiedDigest.value = value;
+    window.setTimeout(() => { if (copiedDigest.value === value) copiedDigest.value = ""; }, 1800);
+  } catch {
+    operationError.value = "Clipboard access failed. Hover the fingerprint to read the full value.";
+  }
 }
 </script>
 
@@ -266,8 +289,8 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
         Refresh
       </NButton>
     </div>
-    <NAlert v-if="remoteSelected" type="warning" :bordered="false">
-      Management TLS changes are intentionally local-only. Select the Local environment to operate on the certificate serving this UI.
+    <NAlert v-if="remoteSelected" type="info" :bordered="false">
+      Showing this server's certificate. Management TLS changes are intentionally local-only, so actions stay disabled until you select the Local environment.
     </NAlert>
     <NAlert v-if="operationError" type="error" :bordered="false">{{ operationError }}</NAlert>
     <NAlert v-if="pollError" type="warning" :bordered="false">Live refresh failed: {{ pollError }}. Showing the last confirmed status from {{ lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString() : 'startup' }}.</NAlert>
@@ -276,13 +299,13 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
     <NAlert v-if="rotation?.secretCleanupPending" type="warning" :bordered="false">
       Retired certificate material could not yet be removed from disk. Cleanup is retried automatically; check server filesystem permissions.
     </NAlert>
-    <NAlert v-if="rotation?.forcedActivation" type="error" :bordered="false">
+    <NAlert v-if="rotation?.forcedActivation" :type="trustAttentionResolved ? 'info' : 'error'" :bordered="false">
       Certificate activation was forced. {{ (rotation?.trustAttentionAgentCount ?? 0) > 0 ? 'Repair every stranded agent before retiring old trust.' : 'Every known agent has reconciled; old-trust retirement may now proceed.' }}
     </NAlert>
-    <NAlert v-if="rotation?.forcedRetirement" type="warning" :bordered="false">
+    <NAlert v-if="rotation?.forcedRetirement" :type="trustAttentionResolved ? 'info' : 'warning'" :bordered="false">
       Old-CA retirement was forced. {{ (rotation?.trustAttentionAgentCount ?? 0) > 0 ? 'Agents marked Attention have not confirmed the active-only trust bundle yet.' : 'Every known agent has since reconciled to the active trust bundle.' }}
     </NAlert>
-    <NAlert v-if="rotation?.forcedCleanup" type="warning" :bordered="false">
+    <NAlert v-if="rotation?.forcedCleanup" :type="trustAttentionResolved ? 'info' : 'warning'" :bordered="false">
       Cleanup was forced. {{ (rotation?.trustAttentionAgentCount ?? 0) > 0 ? 'Agents marked Attention may still trust the abandoned CA; they will be reconciled when they report again.' : 'Every known agent has since confirmed cleanup.' }}
     </NAlert>
 
@@ -301,15 +324,37 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
         </div>
       </div>
 
+      <NSteps v-if="rotationStep" :current="rotationStep" size="small" class="rotation-steps" aria-label="Rotation progress">
+        <NStep v-for="step in managementTlsRotationSteps" :key="step" :title="step" />
+      </NSteps>
+
       <div class="cert-grid">
         <article class="cert-card">
-          <p class="copy-xs label-case letter-wide muted-text">Active · generation {{ rotation?.activeGeneration ?? 0n }}</p>
+          <div class="layout-row align-center spread-items space-sm">
+            <p class="copy-xs label-case letter-wide muted-text">Active · generation {{ rotation?.activeGeneration ?? 0n }}</p>
+            <NTag v-if="rotation?.activeCertificate" size="small" :bordered="false" :type="activeExpiryStatus.type">{{ activeExpiryStatus.label }}</NTag>
+          </div>
           <p class="copy-sm weight-semibold wrap-anywhere">{{ rotation?.activeCertificate?.subject || 'Unavailable' }}</p>
           <dl class="cert-facts">
             <div><dt>Expires</dt><dd>{{ formatCertificateDate(rotation?.activeCertificate?.notAfterUnixMillis ?? 0n) }}</dd></div>
             <div><dt>Issuer</dt><dd>{{ rotation?.activeCertificate?.issuer || 'Unavailable' }}</dd></div>
-            <div><dt>Names</dt><dd>{{ certificateNames(rotation?.activeCertificate) }}</dd></div>
-            <div><dt>SHA-256</dt><dd><code>{{ shortDigest(rotation?.activeCertificate?.sha256 ?? '') }}</code></dd></div>
+            <div>
+              <dt>Names</dt>
+              <dd class="cert-names">
+                <NTag v-for="name in certificateNames(rotation?.activeCertificate)" :key="name" size="small" :bordered="false" class="tag-wrap max-full mono-text">{{ name }}</NTag>
+                <span v-if="!certificateNames(rotation?.activeCertificate).length" class="muted-text">No SANs</span>
+              </dd>
+            </div>
+            <div>
+              <dt>SHA-256</dt>
+              <dd class="cert-digest">
+                <code :title="rotation?.activeCertificate?.sha256">{{ shortDigest(rotation?.activeCertificate?.sha256 ?? '') }}</code>
+                <NButton v-if="rotation?.activeCertificate?.sha256" text size="tiny" :aria-label="copiedDigest === rotation.activeCertificate.sha256 ? 'Fingerprint copied' : 'Copy active certificate fingerprint'" @click="copyDigest(rotation.activeCertificate.sha256)">
+                  <template #icon><CopyIcon class="icon-sm" /></template>
+                </NButton>
+                <span v-if="copiedDigest && copiedDigest === rotation?.activeCertificate?.sha256" class="copy-xs success-text">Copied</span>
+              </dd>
+            </div>
           </dl>
         </article>
         <article class="cert-card cert-card--staged">
@@ -319,27 +364,37 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
             <dl class="cert-facts">
               <div><dt>Expires</dt><dd>{{ formatCertificateDate(rotation.stagedCertificate.notAfterUnixMillis) }}</dd></div>
               <div><dt>Issuer</dt><dd>{{ rotation.stagedCertificate.issuer || 'Unavailable' }}</dd></div>
-              <div><dt>Names</dt><dd>{{ certificateNames(rotation.stagedCertificate) }}</dd></div>
-              <div><dt>SHA-256</dt><dd><code>{{ shortDigest(rotation.stagedCertificate.sha256) }}</code></dd></div>
+              <div>
+                <dt>Names</dt>
+                <dd class="cert-names">
+                  <NTag v-for="name in certificateNames(rotation.stagedCertificate)" :key="name" size="small" :bordered="false" class="tag-wrap max-full mono-text">{{ name }}</NTag>
+                  <span v-if="!certificateNames(rotation.stagedCertificate).length" class="muted-text">No SANs</span>
+                </dd>
+              </div>
+              <div>
+                <dt>SHA-256</dt>
+                <dd class="cert-digest">
+                  <code :title="rotation.stagedCertificate.sha256">{{ shortDigest(rotation.stagedCertificate.sha256) }}</code>
+                  <NButton v-if="rotation.stagedCertificate.sha256" text size="tiny" :aria-label="copiedDigest === rotation.stagedCertificate.sha256 ? 'Fingerprint copied' : 'Copy staged certificate fingerprint'" @click="copyDigest(rotation.stagedCertificate.sha256)">
+                    <template #icon><CopyIcon class="icon-sm" /></template>
+                  </NButton>
+                  <span v-if="copiedDigest && copiedDigest === rotation.stagedCertificate.sha256" class="copy-xs success-text">Copied</span>
+                </dd>
+              </div>
             </dl>
           </template>
           <p v-else class="copy-sm muted-text">No certificate is staged. The active certificate remains untouched until activation.</p>
         </article>
       </div>
 
-      <div v-if="phase === ManagementTlsRotationPhase.IDLE" class="layout-row layout-column space-md mq-sm-row">
-        <NButton type="primary" :disabled="!canOperate" :loading="operation === 'generate'" @click="regenerate"><template #icon><RefreshIcon class="icon-sm" /></template>Generate new certificate</NButton>
-        <NButton secondary :disabled="!canOperate" @click="customMaterialOpen = !customMaterialOpen"><template #icon><UploadIcon class="icon-sm" /></template>Install custom certificate</NButton>
+      <div v-if="phase === ManagementTlsRotationPhase.IDLE" class="layout-grid space-sm">
+        <div class="layout-row layout-column space-md mq-sm-row">
+          <NButton type="primary" :disabled="!canOperate" :loading="operation === 'generate'" @click="regenerate"><template #icon><KeyIcon class="icon-sm" /></template>Generate new certificate</NButton>
+          <NButton secondary :disabled="!canOperate" @click="customMaterialOpen = true"><template #icon><UploadIcon class="icon-sm" /></template>Install custom certificate</NButton>
+        </div>
+        <p class="copy-xs muted-text">Either option starts a staged rotation. Agents receive the new trust first; the active certificate changes only when you activate it.</p>
       </div>
 
-      <form v-if="customMaterialOpen && phase === ManagementTlsRotationPhase.IDLE" class="custom-material stack-md" @submit.prevent="stageCustom">
-        <NAlert type="info" :bordered="false">The private key is validated and stored only on this server. Agents receive the CA bundle and public certificate, never the private key.</NAlert>
-        <label class="layout-grid space-xs copy-xs weight-medium muted-text">Server certificate chain (PEM)<NInput v-model:value="custom.certificatePem" type="textarea" :autosize="{ minRows: 5, maxRows: 12 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="-----BEGIN CERTIFICATE-----" /></label>
-        <label class="layout-grid space-xs copy-xs weight-medium muted-text">Private key (PEM)<NInput v-model:value="custom.privateKeyPem" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="-----BEGIN PRIVATE KEY-----" /></label>
-        <label class="layout-grid space-xs copy-xs weight-medium muted-text">Agent CA bundle (PEM)<NInput v-model:value="custom.caBundlePem" type="textarea" :autosize="{ minRows: 5, maxRows: 12 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="-----BEGIN CERTIFICATE-----" /></label>
-        <label class="layout-grid space-xs copy-xs weight-medium muted-text">Current agent CA bundle (PEM, only if requested)<NInput v-model:value="custom.currentCaBundlePem" type="textarea" :autosize="{ minRows: 3, maxRows: 10 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="Needed only when the current provided certificate did not include its issuer chain" /><span class="copy-xs muted-text">This is verified against the active certificate before it can be added to the dual-trust rollout.</span></label>
-        <div><NButton type="primary" attr-type="submit" :disabled="!canOperate || !custom.certificatePem || !custom.privateKeyPem || !custom.caBundlePem" :loading="operation === 'stage'">Validate and stage</NButton></div>
-      </form>
     </section>
 
     <section v-if="showFleet" class="round-lg framed frame-standard panel-bg pad-xl stack-lg">
@@ -409,6 +464,28 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
       </div>
       <code v-if="showFullRepairCommand" class="repair-command">{{ repairCommand }}</code>
     </section>
+
+    <NDrawer
+      v-model:show="customMaterialOpen"
+      placement="right"
+      :width="editorDrawerWidth('42rem')"
+      aria-label="Install custom certificate"
+      class="editor-drawer"
+    >
+      <NDrawerContent title="Install custom certificate" closable>
+        <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="stageCustom">
+          <NAlert type="info" :bordered="false">The private key is validated and stored only on this server. Agents receive the CA bundle and public certificate, never the private key.</NAlert>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">Server certificate chain (PEM)<NInput v-model:value="custom.certificatePem" type="textarea" :autosize="{ minRows: 5, maxRows: 12 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="-----BEGIN CERTIFICATE-----" /></label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">Private key (PEM)<NInput v-model:value="custom.privateKeyPem" type="textarea" :autosize="{ minRows: 4, maxRows: 10 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="-----BEGIN PRIVATE KEY-----" /></label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">Agent CA bundle (PEM)<NInput v-model:value="custom.caBundlePem" type="textarea" :autosize="{ minRows: 5, maxRows: 12 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="-----BEGIN CERTIFICATE-----" /></label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">Current agent CA bundle (PEM, only if requested)<NInput v-model:value="custom.currentCaBundlePem" type="textarea" :autosize="{ minRows: 3, maxRows: 10 }" :input-props="{ spellcheck: false, autocomplete: 'off' }" placeholder="Needed only when the current provided certificate did not include its issuer chain" /><span class="copy-xs muted-text">This is verified against the active certificate before it can be added to the dual-trust rollout.</span></label>
+          <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
+            <NButton secondary attr-type="button" @click="customMaterialOpen = false">Cancel</NButton>
+            <NButton type="primary" attr-type="submit" :disabled="!canOperate || !custom.certificatePem || !custom.privateKeyPem || !custom.caBundlePem" :loading="operation === 'stage'">Validate and stage</NButton>
+          </div>
+        </form>
+      </NDrawerContent>
+    </NDrawer>
   </div>
 </template>
 
@@ -419,10 +496,12 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
 .cert-card { padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.75rem; background: var(--app-panel-muted); display: grid; align-content: start; gap: 0.75rem; min-width: 0; }
 .cert-card--staged { border-style: dashed; }
 .cert-facts { display: grid; gap: 0.45rem; margin: 0; }
-.cert-facts div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.75rem; font-size: 0.75rem; }
+.cert-facts > div { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.75rem; font-size: 0.75rem; }
 .cert-facts dt { color: var(--app-text-muted); }
 .cert-facts dd { margin: 0; overflow-wrap: anywhere; }
-.custom-material { padding-top: 1rem; border-top: 1px solid var(--app-border); }
+.cert-names { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.cert-digest { display: flex; align-items: center; gap: 0.375rem; min-width: 0; }
+.rotation-steps { padding: 0.25rem 0; }
 .rollout-progress { height: 0.42rem; overflow: hidden; border-radius: 999px; background: var(--app-border); }
 .rollout-progress span { display: block; height: 100%; border-radius: inherit; background: var(--app-accent); transition: width 280ms ease; }
 .repair-bar { display: flex; align-items: center; gap: 0.75rem; min-width: 0; padding: 0.375rem 0.375rem 0.375rem 0.875rem; border: 1px solid var(--app-border); border-radius: 0.625rem; background: var(--app-panel); }
