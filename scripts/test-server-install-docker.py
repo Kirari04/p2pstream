@@ -97,6 +97,20 @@ def rejected(fn, text):
         return
     raise AssertionError('Expected rejection: ' + text)
 
+def managed(action):
+    output = []
+    original_compose = host.Host.compose
+    def observed(controller, *args, **kwargs):
+        result = original_compose(controller, *args, **kwargs)
+        output.append(result.stdout + result.stderr)
+        return result
+    host.Host.compose = observed
+    try:
+        host.manage(argparse.Namespace(action=action))
+    finally:
+        host.Host.compose = original_compose
+    return b'\n'.join(output)
+
 wrong = copy.copy(args)
 wrong.expect_installation = str(uuid.uuid4())
 rejected(lambda: host.install(wrong, options), 'Wrong Docker host')
@@ -131,7 +145,21 @@ wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
 initial_container = info()['Id']
 checks += ['unsupported-layout-no-activation', 'discard-unactivated-preparation-preserves-container-data', 'corrected-sources-allow-fresh-setup']
 
-host.install(args, options)
+# Exercise compatible legacy enrollment before the explicit protocol migration.
+# This is the legacy enrollment API, not a published release replacement.
+original_command = host.Host.command
+def legacy_enrollment(controller, *arguments):
+    if arguments and arguments[0] == 'enroll' and '--deployment-directory' in arguments:
+        values = list(arguments)
+        index = values.index('--deployment-directory')
+        del values[index:index + 2]
+        arguments = tuple(values)
+    return original_command(controller, *arguments)
+host.Host.command = legacy_enrollment
+try:
+    host.install(args, options)
+finally:
+    host.Host.command = original_command
 current_container = info()['Id']
 assert current_container != initial_container
 config = (host.STATE / 'config.json').read_bytes()
@@ -141,6 +169,108 @@ assert compose('ps', '-q', 'observer') == observer
 host.install(args, options)
 assert info()['Id'] == current_container and (host.STATE / 'config.json').read_bytes() == config
 checks += ['fresh-setup', 'custom-project-two-files-env', 'dollar-secrets', 'one-recreation', 'idempotent-no-restart', 'other-service-preserved']
+
+# Managed recreation carries the complete enrolled model and holds the host
+# locks. Ordinary source Compose still models a legacy bypass: it drops the
+# private connection and warns about the same-project orphaned executor.
+managed_output = managed('recreate')
+assert b'orphan' not in managed_output.lower()
+assert info()['Id'] != current_container and (host.STATE / 'config.json').read_bytes() == config
+current_container = info()['Id']
+assert compose('ps', '-q', 'observer') == observer
+controller = host.Host()
+with controller.lock():
+    updater = controller.compose('ps', '-q', 'p2pstream-server-updater').stdout.decode().strip()
+native = subprocess.run(['docker', 'compose', *options, 'up', '-d', '--force-recreate', 'p2pstream'], check=True, capture_output=True, text=True)
+assert 'orphan' in (native.stdout + native.stderr).lower()
+detached_container = info()['Id']
+assert detached_container != current_container
+assert not any(value.startswith('SERVER_UPDATE_') for value in info()['Config']['Env'])
+assert not any(mount['Destination'] == '/run/p2pstream-server-update' for mount in info()['Mounts'])
+assert json.loads(docker('inspect', updater))[0]['State']['Running']
+wait(lambda: docker('exec', detached_container, '/app/p2pstream', 'server-health'))
+rejected(lambda: host.manage(argparse.Namespace(action='status')), 'private diagnostic')
+saved_launcher = (host.STATE / 'manage').read_bytes()
+# Invoke the freshly verified installation helper, not the installed controller
+# whose older repair implementation may lack detached-binding recovery.
+host.install(args, options)
+current_container = info()['Id']
+assert current_container != detached_container and info()['Config']['Image'] == images['baseline']
+assert (host.STATE / 'config.json').read_bytes() == config
+assert (host.STATE / 'server-updater-host.py').read_bytes() == Path('/review/install-bundle/server-updater-host.py').read_bytes()
+assert (host.STATE / 'manage').read_bytes() == saved_launcher
+assert docker('exec', current_container, '/app/p2pstream', 'server-installation-identity') == installation
+assert next(value for value in info()['Config']['Env'] if value.startswith('SECRET=')) == initial_secret
+assert any(mount['Destination'] == '/run/p2pstream-server-update' for mount in info()['Mounts'])
+assert compose('ps', '-q', 'observer') == observer
+host.manage(argparse.Namespace(action='status'))
+checks += ['managed-recreate-no-orphan', 'native-recreate-reproduces-orphan-and-stripped-binding', 'verified-install-hands-off-controller-and-repairs-legacy-binding', 'repair-preserves-executor-data-identity-token-settings']
+
+# Refuse to silently adopt source settings which differ from the last managed
+# deployment, even when the immutable image and installation still match.
+source_before = override.read_bytes()
+extra['services']['p2pstream']['environment']['SECRET'] = 'unmanaged-change'
+override.write_text(json.dumps(extra))
+compose('up', '-d', '--force-recreate', 'p2pstream')
+unmanaged_container = info()['Id']
+wait(lambda: docker('exec', unmanaged_container, '/app/p2pstream', 'server-health'))
+rejected(lambda: host.manage(argparse.Namespace(action='repair')), 'Restore the last applied inputs')
+assert info()['Id'] == unmanaged_container and (host.STATE / 'config.json').read_bytes() == config
+override.write_bytes(source_before)
+extra['services']['p2pstream']['environment']['SECRET'] = 'literal-$$HOME-$${SECRET}-$$$$'
+# Restore the exact source/runtime match before allowing legacy binding repair.
+compose('up', '-d', '--force-recreate', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+host.manage(argparse.Namespace(action='repair'))
+current_container = info()['Id']
+assert next(value for value in info()['Config']['Env'] if value.startswith('SECRET=')) == initial_secret
+checks += ['detached-repair-rejects-changed-settings-without-replacement', 'restored-sources-allow-binding-repair']
+
+# Explicit migration preserves legacy credentials/floors while publishing one
+# canonical model and original/default entry points. Exercise a genuinely
+# different native Compose plugin retained by the surrounding harness.
+old_config = host.read_json(host.STATE / 'config.json')
+compose('up', '-d', '--force-recreate', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+assert not any(value.startswith('SERVER_UPDATE_') for value in info()['Config']['Env'])
+args.migrate_deployment = True
+host.install(args, options)
+args.migrate_deployment = False
+new_config = host.read_json(host.STATE / 'config.json')
+assert new_config['deployment_protocol'] == 2 and new_config['token'] == old_config['token']
+assert new_config['instance_id'] == old_config['instance_id'] and new_config['bootstrap_floor'] == old_config['bootstrap_floor']
+config = (host.STATE / 'config.json').read_bytes()
+assert new_config['token'].encode() not in Path(new_config['deployment_file']).read_bytes()
+assert Path(new_config['deployment_file']).stat().st_mode & 0o777 == 0o640
+compose_versions = {'managed': docker('compose', 'version', '--short'), 'native': docker('--config', '/review/native-docker', 'compose', 'version', '--short')}
+assert compose_versions['managed'].lstrip('v') != compose_versions['native'].lstrip('v'), compose_versions
+native_checks = []
+for native_options in [[], options]:
+    native = subprocess.run(['docker', '--config', '/review/native-docker', 'compose', *native_options, 'up', '-d', '--force-recreate'], cwd=source, check=True, capture_output=True, text=True)
+    assert 'orphan' not in (native.stdout + native.stderr).lower()
+    wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+    host.manage(argparse.Namespace(action='status'))
+    assert info()['Config']['Image'] == images['baseline']
+    assert docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity') == installation
+    assert (host.STATE / 'config.json').read_bytes() == config
+    managed_hash = docker('compose', '-p', project, '-f', new_config['deployment_file'], 'config', '--hash', 'p2pstream').split()[1]
+    native_hash = info()['Config']['Labels']['com.docker.compose.config-hash']
+    native_checks.append({'context': 'original-files' if native_options else 'default', 'managed_hash': managed_hash, 'native_hash': native_hash, 'receipt_fallback_required': native_hash != managed_hash})
+Path('/review/installation-compose-compatibility.json').write_text(json.dumps({'versions': compose_versions, 'recreations': native_checks}))
+observer = compose('ps', '-q', 'observer')
+current_container = info()['Id']
+managed_output = managed('recreate')
+assert b'orphan' not in managed_output.lower()
+assert info()['Id'] != current_container
+assert info()['Config']['Image'] == images['baseline']
+assert (host.STATE / 'config.json').read_bytes() == config
+assert compose('ps', '-q', 'observer') == observer
+current_container = info()['Id']
+plan = host.read_json(host.STATE / 'host.json')['source_bridge']['files']
+override = Path(next(item['editable'] for item in plan if item['path'] == str(override)))
+checks += ['explicit-migration-repairs-legacy-binding-before-transition', 'explicit-legacy-migration-preserves-credentials-floors', 'default-and-original-multifile-native-compose-no-orphan', 'different-compose-version-compatible', 'managed-recreate-after-verified-native-hash', 'canonical-model-private-without-token']
+if any(check['receipt_fallback_required'] for check in native_checks):
+    checks.append('native-compose-hash-mismatch-runtime-receipt')
 
 # A missing socket must never be considered enabled merely because config exists.
 controller = host.Host()
@@ -173,11 +303,20 @@ checks += ['timed-out-helper-confirmed-stopped', 'inspection-preserves-abandoned
 # Model an executor-pinned software change independently of editable sources.
 controller = host.Host()
 with controller.lock():
-    current = host.read_json(host.STATE / 'compose.json')
+    current = host.read_json(controller.current_model_path())
+    controller.runtime('block')
     current['services']['p2pstream']['image'] = images['candidate']
-    host.atomic(host.STATE / 'compose.json', current)
-    controller.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', 'p2pstream')
+    current['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(uuid.uuid4())
+    controller.write_model(current)
+    controller.deploy_server()
     controller.wait_healthy()
+    controller.record_runtime()
+native = subprocess.run(['docker', '--config', '/review/native-docker', 'compose', 'up', '-d', '--force-recreate', 'p2pstream'], cwd=source, check=True, capture_output=True, text=True)
+assert 'orphan' not in (native.stdout + native.stderr).lower()
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+host.manage(argparse.Namespace(action='status'))
+assert info()['Config']['Image'] == images['candidate']
+checks += ['ordinary-compose-after-software-change-retains-current-image']
 extra['services']['p2pstream']['environment']['SECRET'] = 'changed-$$HOME-$${SECRET}-$$$$'
 extra['services']['p2pstream']['ports'][0]['published'] = '18092'
 override.write_text(json.dumps(extra))
@@ -218,8 +357,7 @@ checks += ['successful-removal-keeps-latest-image-settings-data']
 # Re-enroll from the supported exported current model using a newly verified
 # recipe, archiving removal state without moving away the editable input.
 args = fixture('v0.1.53-staging.9001', 'b' * 40, images['candidate'], images['candidate_updater'])
-options = ['-p', project, '-f', str(host.STATE / 'detached-compose.json')]
-os.chdir(host.STATE)
+os.chdir(source)
 real_finish_archive = host.Host.finish_archive
 def interrupt_archive(self):
     raise KeyboardInterrupt()

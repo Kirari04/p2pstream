@@ -26,7 +26,20 @@ func EnrollInstallation(directory string, model []byte, image, updaterImage, ver
 	}
 	return enroll(directory, model, image, updaterImage, version, repository, bootstrap, installationID)
 }
+
+// EnrollManagedInstallation makes one canonical model readable by the Docker
+// operator group. The caller prepares a root-owned setgid deployment directory;
+// the private token and executor state remain outside that directory.
+func EnrollManagedInstallation(directory, deploymentDirectory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID string) error {
+	if _, err := uuid.Parse(installationID); err != nil {
+		return err
+	}
+	return enrollDeployment(directory, deploymentDirectory, model, image, updaterImage, version, repository, bootstrap, installationID)
+}
 func enroll(directory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID string) error {
+	return enrollDeployment(directory, "", model, image, updaterImage, version, repository, bootstrap, installationID)
+}
+func enrollDeployment(directory, deploymentDirectory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID string) error {
 	if !filepath.IsAbs(directory) || filepath.Clean(directory) != directory {
 		return errors.New("enrollment directory must be absolute")
 	}
@@ -143,6 +156,18 @@ func enroll(directory string, model []byte, image, updaterImage, version, reposi
 	if installationID != "" {
 		config.InstanceID = installationID
 	}
+	if deploymentDirectory != "" {
+		if !filepath.IsAbs(deploymentDirectory) || filepath.Clean(deploymentDirectory) != deploymentDirectory ||
+			deploymentDirectory == directory || strings.HasPrefix(deploymentDirectory, directory+"/") {
+			return errors.New("shared deployment directory must be absolute and outside private executor state")
+		}
+		info, err := os.Lstat(deploymentDirectory)
+		if err != nil || !info.IsDir() || info.Mode().Perm()&0027 != 0 {
+			return errors.New("shared deployment directory must exist without group write or public access")
+		}
+		config.DeploymentProtocol = 2
+		config.DeploymentFile = filepath.Join(deploymentDirectory, "compose.json")
+	}
 	if err := config.Validate(); err != nil {
 		return err
 	}
@@ -159,6 +184,15 @@ func enroll(directory string, model []byte, image, updaterImage, version, reposi
 	env["SERVER_UPDATE_TOKEN"] = config.Token
 	env["SERVER_UPDATE_SOCKET"] = "/run/p2pstream-server-update/control.sock"
 	env["SERVER_UPDATE_GATE_FILE"] = "/run/p2pstream-server-update/maintenance"
+	if config.DeploymentProtocol == 2 {
+		delete(env, "SERVER_UPDATE_TOKEN")
+		env["SERVER_UPDATE_TOKEN_FILE"] = RuntimeTokenFile
+		env["SERVER_UPDATE_RUNTIME_PROTOCOL"] = "2"
+		env["SERVER_UPDATE_GENERATION"] = newRuntimeGeneration()
+		if err := AtomicWrite(filepath.Join(config.ControlDir, "token"), []byte(config.Token+"\n"), 0444); err != nil {
+			return err
+		}
+	}
 	service["environment"] = env
 	service["image"] = image
 	labels, _ := service["labels"].(map[string]any)
@@ -181,6 +215,10 @@ func enroll(directory string, model []byte, image, updaterImage, version, reposi
 			map[string]any{"type": "volume", "source": "server-updater-data", "target": "/server-data"},
 		},
 	}
+	if config.DeploymentProtocol == 2 {
+		updater := services["p2pstream-server-updater"].(map[string]any)
+		updater["volumes"] = append(updater["volumes"].([]any), map[string]any{"type": "bind", "source": deploymentDirectory, "target": deploymentDirectory})
+	}
 	// Compose's config output already escapes literal dollar signs. Preserve
 	// those serialized values verbatim so reloading does not change secrets.
 	encoded, err := json.Marshal(doc)
@@ -190,7 +228,7 @@ func enroll(directory string, model []byte, image, updaterImage, version, reposi
 	if err := AtomicWrite(filepath.Join(directory, "original-compose.json"), model, 0600); err != nil {
 		return err
 	}
-	if err := AtomicWrite(config.DeploymentFile, encoded, 0600); err != nil {
+	if err := AtomicWrite(config.DeploymentFile, encoded, (&ComposeDriver{Config: config}).deploymentMode()); err != nil {
 		return err
 	}
 	data, err := json.Marshal(config)

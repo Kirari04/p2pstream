@@ -1,5 +1,26 @@
 # Upgrades
 
+## Coordinated Docker deployment ownership
+
+Existing server-updater enrollments retain their pinned executor and original
+Compose workflow after a server-only upgrade. Update the server to a published
+release supporting coordinated deployment first, then use **System → Server
+Updates → Upgrade deployment integration**. Its verified host command installs
+the matching executor and migrates the original Compose entry points to the
+current canonical deployment. It preserves the current image, installation ID,
+credentials, data and release floors. Fresh enrollment uses this layout directly.
+
+After migration, ordinary `docker compose up -d --force-recreate` keeps the
+updater and current image. Edit the saved `.p2pstream-input-…` files and `.env`,
+then use `manage apply` to activate settings. The new server takes a lifetime
+data-volume lock; the updater also records which deployment generation may
+start. These runtime files survive snapshot restoration. Previous binaries do
+not understand that protection: remove enrollment through `manage remove`
+before any manual change to an incompatible image. Managed rollback continues
+to restore the full application snapshot and matching supported previous image.
+See [server update operations](./server-updates) for migration and interruption
+recovery. The private updater HTTP protocol and database schema are unchanged.
+
 ## Legacy support ends with v0.1.53
 
 **Legacy support ends with v0.1.53-staging.91 and the stable v0.1.53 release.**

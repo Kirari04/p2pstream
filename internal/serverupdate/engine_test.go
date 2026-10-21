@@ -3,7 +3,9 @@ package serverupdate
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -264,6 +266,133 @@ func TestEngineRestoresSnapshotBeforePreviousImage(t *testing.T) {
 	want := []string{"pull", "pull", "gate", "prepare", "stop", "backup", "deploy", "candidate-health", "stop", "restore", "deploy", "previous-health", "commit", "gate"}
 	if !reflect.DeepEqual(want, d.calls) {
 		t.Fatalf("actions = %v", d.calls)
+	}
+}
+
+type retentionDriver struct {
+	*fakeDriver
+	cleanup func(string) error
+}
+
+func (d *retentionDriver) CleanupBackups(_ context.Context, id string) error {
+	if err := d.action("cleanup"); err != nil {
+		return err
+	}
+	return d.cleanup(id)
+}
+
+func TestEngineBackupCleanupAfterAcceptanceIsNonfatal(t *testing.T) {
+	for _, cleanupFails := range []bool{false, true} {
+		t.Run(fmt.Sprint(cleanupFails), func(t *testing.T) {
+			e, d, source, request := fixtureEngine(t)
+			e.driver = &retentionDriver{fakeDriver: d, cleanup: func(id string) error {
+				if id != request.OperationID {
+					t.Fatalf("cleanup protects %q, want %q", id, request.OperationID)
+				}
+				op, err := e.Operation(id)
+				if err != nil || op.Phase != "committing" || !d.gated {
+					t.Fatalf("cleanup before acceptance or after unlocking: %+v, %v", op, err)
+				}
+				other := request
+				other.OperationID = uuid.NewString()
+				if _, err := e.Start(context.Background(), other); err == nil {
+					t.Fatal("accepted another update during cleanup")
+				}
+				if cleanupFails {
+					return errors.New("injected retention failure")
+				}
+				return nil
+			}}
+			if _, err := e.Start(context.Background(), request); err != nil {
+				t.Fatal(err)
+			}
+			if err := e.execute(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			op, _ := e.Operation(request.OperationID)
+			if op.Phase != "succeeded" || d.restored || d.gated || e.state.Floor.Sequence != source.release.Sequence {
+				t.Fatalf("cleanup changed successful activation: %+v, driver %+v", op, d)
+			}
+			if cleanupFails != strings.Contains(op.Detail, "old backup cleanup could not finish") {
+				t.Fatalf("unexpected maintenance warning: %q", op.Detail)
+			}
+			want := []string{"pull", "pull", "gate", "prepare", "stop", "backup", "deploy", "candidate-health", "commit", "cleanup", "gate"}
+			if !reflect.DeepEqual(d.calls, want) {
+				t.Fatalf("actions = %v, want %v", d.calls, want)
+			}
+			fresh, err := NewEngine(filepath.Dir(e.path), request.Plan.InstanceID, "stable", e.driver, source, Floor{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			persisted, _ := fresh.Operation(request.OperationID)
+			if !reflect.DeepEqual(persisted, op) {
+				t.Fatalf("outcome not durable: %+v, want %+v", persisted, op)
+			}
+		})
+	}
+}
+
+func TestEngineFailedCandidateDoesNotPruneBackups(t *testing.T) {
+	e, d, _, request := fixtureEngine(t)
+	d.fail = "candidate-health"
+	e.driver = &retentionDriver{fakeDriver: d, cleanup: func(string) error {
+		t.Fatal("pruned backups after a failed update")
+		return nil
+	}}
+	if _, err := e.Start(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.execute(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	op, _ := e.Operation(request.OperationID)
+	if op.Phase != "rolled_back" || !d.restored {
+		t.Fatalf("expected rollback: %+v", op)
+	}
+}
+
+func TestEngineRecoversInterruptedBackupCleanup(t *testing.T) {
+	e, d, source, request := fixtureEngine(t)
+	cleaner := &retentionDriver{fakeDriver: d, cleanup: func(id string) error {
+		if id != request.OperationID {
+			t.Fatalf("recovery protects wrong snapshot: %s", id)
+		}
+		return nil
+	}}
+	e.driver = cleaner
+	if _, err := e.Start(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	d.crash = "cleanup"
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Error("expected simulated interruption during cleanup")
+			}
+		}()
+		_ = e.execute(context.Background())
+	}()
+	d.crash = ""
+	d.calls = nil
+	source.err = errors.New("catalog unavailable during recovery")
+	fresh, err := NewEngine(filepath.Dir(e.path), request.Plan.InstanceID, "stable", cleaner, source, Floor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	interrupted, _ := fresh.Operation(request.OperationID)
+	if interrupted.Phase != "committing" || interrupted.BackupSHA256 == "" {
+		t.Fatalf("interrupted cleanup lost recovery journal: %+v", interrupted)
+	}
+	if err := fresh.Recover(context.Background(), false); err != nil {
+		t.Fatal(err)
+	}
+	op, _ := fresh.Operation(request.OperationID)
+	if op.Phase != "succeeded" || d.restored || d.gated {
+		t.Fatalf("cleanup interruption did not resume candidate: %+v, driver %+v", op, d)
+	}
+	want := []string{"gate", "deploy", "candidate-health", "commit", "cleanup", "gate"}
+	if !reflect.DeepEqual(d.calls, want) {
+		t.Fatalf("recovery actions = %v, want %v", d.calls, want)
 	}
 }
 

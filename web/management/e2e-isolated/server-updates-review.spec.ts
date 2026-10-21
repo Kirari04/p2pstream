@@ -10,11 +10,23 @@ const url = 'https://updates-review.test/e2e/fixtures/server-updates.html';
 // replace only its fake host methods with manually controlled network replies.
 const reviewHarness = `
 const visible = ref(true);
-const review = window.__updateReview = { previews: [], overviews: [], starts: [], startReplies: [], holdOverview: false, failOverview: false, unavailableExecutor: false, loseStart: false, holdStart: false, mount: (value) => { visible.value = value; } };
+const review = window.__updateReview = { previews: [], overviews: [], overviewTimeouts: [], overviewDelayMillis: query.has('slow-idle-catalog') ? 95000 : 0, starts: [], startReplies: [], holdOverview: false, failOverview: false, unavailableExecutor: false, loseStart: false, holdStart: false, mount: (value) => { visible.value = value; } };
 for (const id of ['1', '2']) {
  const overview = clients[id].getServerUpdateOverview;
- clients[id].getServerUpdateOverview = async () => {
+ clients[id].getServerUpdateOverview = async (_request, options) => {
+  review.overviewTimeouts.push(options.timeoutMs);
   if (review.failOverview) throw new Error('server restarting');
+  if (review.overviewDelayMillis > 0) await new Promise((resolve, reject) => {
+   const finish = (error) => {
+    clearTimeout(completion); clearTimeout(deadline);
+    options.signal?.removeEventListener('abort', abort);
+    error ? reject(error) : resolve();
+   };
+   const completion = setTimeout(() => finish(), review.overviewDelayMillis);
+   const deadline = setTimeout(() => finish(new Error('catalog check timed out')), options.timeoutMs);
+   const abort = () => finish(new DOMException('Aborted', 'AbortError'));
+   options.signal?.addEventListener('abort', abort, { once: true });
+  });
   const value = await overview();
   if (review.unavailableExecutor) { value.executorAvailable = false; value.warning = 'Executor is restarting'; }
   if (!review.holdOverview) return value;
@@ -98,6 +110,7 @@ test('reloading after a lost response retries the exact saved request', async ({
   await expect(page.getByRole('button',{name:'Retry same request'})).toBeVisible();
   const original = await page.evaluate(() => (window as any).__updateReview.starts[0]);
   await page.reload();
+  await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts[0])).toBe(10000);
   await page.getByRole('button',{name:'Retry same request'}).click();
   await expect(page.getByRole('button',{name:'Retry same request'})).toBeHidden();
   expect(await page.evaluate(() => (window as any).__updateReview.starts[0])).toEqual(original);
@@ -158,4 +171,40 @@ test('unmounted Start completion cannot rewrite the saved request of a replaceme
   await page.evaluate(() => (window as any).__updateReview.startReplies[0].resolve());
   expect(await page.evaluate(() => sessionStorage.getItem('p2pstream:server-update:1'))).toBe(record);
   await expect(page.getByRole('button', {name:'Retry same request'})).toBeVisible();
+});
+
+test('active operation status reads use a bounded deadline while initial verification retains its budget', async ({page}) => {
+  await page.goto(url+'?phase=validating');
+  await expect(page.getByRole('status').filter({hasText:'Validating the replacement'})).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__updateReview.overviewTimeouts[0])).toBe(90000);
+  await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+  await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts.at(-1))).toBe(10000);
+});
+
+test('idle retries can finish a slow catalog after an initial timeout and unavailable executor', async ({page}) => {
+ await page.clock.install();
+ await page.goto(url+'?slow-idle-catalog');
+ await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts[0])).toBe(90000);
+ await page.clock.runFor(90001);
+ await expect(page.getByText('Waiting for management',{exact:true})).toBeVisible();
+ await expect(page.getByText('catalog check timed out',{exact:false})).toBeVisible();
+
+ // The next catalog check needs 15 seconds: a stale-state 10-second retry
+ // would cancel it again and leave this idle view permanently disconnected.
+ await page.evaluate(() => { (window as any).__updateReview.overviewDelayMillis = 15000; });
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts.at(-1))).toBe(90000);
+ await page.clock.runFor(15001);
+ await expect(page.getByText('Management responding',{exact:true})).toBeVisible();
+ await expect(page.getByText('Updates enabled · updater verified',{exact:true})).toBeVisible();
+
+ await page.evaluate(() => { (window as any).__updateReview.unavailableExecutor = true; });
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await page.clock.runFor(15001);
+ await expect(page.getByText('Host updater unavailable',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await expect.poll(() => page.evaluate(() => (window as any).__updateReview.overviewTimeouts.at(-1))).toBe(90000);
+ await page.clock.runFor(15001);
+ await expect(page.getByText('Management responding',{exact:true})).toBeVisible();
+ await expect(page.getByText('Host updater unavailable',{exact:true})).toBeVisible();
 });

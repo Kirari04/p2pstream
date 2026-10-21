@@ -101,7 +101,7 @@ Moving `latest` and `staging` tags are convenience aliases; the deployment packa
 
 **System → Server Updates** provides one complete verified setup block for the selected management server's installed release and persistent installation ID. Run it on that environment's local rootful Docker host in its running Compose directory. Choose custom project/files in the card when needed. Enrollment gives a dedicated prebuilt updater host-level Docker authority and restarts the server once; later software updates always require an operator action.
 
-After enrollment, continue editing your original Compose files and `.env`, then apply settings with:
+New enrollment keeps Compose entry points connected to the current managed deployment and saves editable copies beside them. Edit the saved `.p2pstream-input-…` files and `.env`, then apply settings with:
 
 ```bash
 sudo /etc/p2pstream-server-updater/manage apply
@@ -109,7 +109,7 @@ sudo /etc/p2pstream-server-updater/manage status
 sudo /etc/p2pstream-server-updater/manage logs
 ```
 
-The apply command preserves the current pinned software and private updater connection. Use the management UI to change software releases. See [server update operations](docs/operations/server-updates.md) for supported layouts, interrupted setup, configuration rollback and removal. The original `docker compose up` is replaced by this supported apply workflow while enrolled.
+The apply command preserves the current pinned software and private updater connection. Ordinary `docker compose up -d --force-recreate` recreates the already-applied deployment, including the updater. Existing enrollments require the explicit deployment migration first. Use the management UI to change software releases. See [server update operations](docs/operations/server-updates.md) for migration, recovery and removal.
 
 ## Default Deployment Notes
 

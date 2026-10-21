@@ -18,6 +18,7 @@ import (
 // ComposeConfig is installed locally in an executor-owned directory. None of
 // these fields is accepted over the management API.
 type ComposeConfig struct {
+	DeploymentProtocol   int    `json:"deployment_protocol,omitempty"`
 	InstanceID           string `json:"instance_id"`
 	Repository           string `json:"repository"`
 	Channel              string `json:"channel"`
@@ -35,9 +36,17 @@ type ComposeConfig struct {
 	HealthyDwellSeconds  int    `json:"healthy_dwell_seconds"`
 }
 
-type ComposeDriver struct{ Config ComposeConfig }
+type ComposeDriver struct {
+	Config ComposeConfig
+	// Only the serial operation runner mutates this lease. A blocked owner is
+	// durable even if the supervisor exits and the kernel releases the lease.
+	runtimeLease *RuntimeLease
+}
 
 func (c ComposeConfig) Validate() error {
+	if c.DeploymentProtocol != 0 && c.DeploymentProtocol != 2 {
+		return errors.New("unsupported deployment protocol")
+	}
 	if c.BootstrapFloor.Sequence == 0 || c.BootstrapFloor.SecurityEpoch == 0 || !digestPattern.MatchString(c.BootstrapFloor.ManifestSHA256) || !releaseversion.Valid(c.BootstrapFloor.MinimumSafeVersion) {
 		return errors.New("verified installation floor is missing")
 	}
@@ -150,7 +159,12 @@ func (d *ComposeDriver) Inspect(ctx context.Context) (RuntimeStatus, string, str
 	}
 	fields := strings.Fields(string(hashes))
 	if len(fields) != 2 || fields[1] != info.Config.Labels["com.docker.compose.config-hash"] {
-		return RuntimeStatus{}, "", "", errors.New("Compose configuration changed; re-enroll the deployment on the host")
+		if d.Config.DeploymentProtocol != 2 {
+			return RuntimeStatus{}, "", "", errors.New("Compose configuration changed; repair the deployment on the host")
+		}
+		if err := d.VerifyRuntimeReceipt(ctx, data, id); err != nil {
+			return RuntimeStatus{}, "", "", err
+		}
 	}
 	if !strings.HasPrefix(info.Config.Image, "ghcr.io/"+strings.ToLower(d.Config.Repository)+"@sha256:") {
 		return RuntimeStatus{}, "", "", errors.New("installed image must be pinned to the enrolled registry digest")
@@ -216,11 +230,16 @@ func (d *ComposeDriver) Pull(ctx context.Context, image string) error {
 		return errors.New("image outside pinned repository")
 	}
 	// Previously installed images remain usable during registry outages.
-	if _, err := d.command(ctx, "image", "inspect", image); err == nil {
-		return nil
+	if _, err := d.command(ctx, "image", "inspect", image); err != nil {
+		if _, err := d.command(ctx, "pull", "--quiet", image); err != nil {
+			return err
+		}
 	}
-	_, err := d.command(ctx, "pull", "--quiet", image)
-	return err
+	if d.Config.DeploymentProtocol == 2 {
+		_, err := d.guardedImage(ctx, image)
+		return err
+	}
+	return nil
 }
 
 func (d *ComposeDriver) Gate(enabled bool) error {
@@ -235,16 +254,24 @@ func (d *ComposeDriver) Gate(enabled bool) error {
 }
 
 func (d *ComposeDriver) Prepare(ctx context.Context) (RuntimeStatus, error) {
+	if err := preflightLiveBackup(ctx, d.Config.DataDir, d.Config.StateDir); err != nil {
+		return RuntimeStatus{}, err
+	}
 	return d.runtime(ctx, "prepare")
 }
 
 func (d *ComposeDriver) Stop(ctx context.Context) error {
+	if d.Config.DeploymentProtocol == 2 {
+		if err := d.BlockRuntime(ctx); err != nil {
+			return err
+		}
+	}
 	id, err := d.container(ctx)
 	if err != nil {
 		return err
 	}
 	if id == "" {
-		return nil
+		return d.acquireOfflineLease(ctx)
 	}
 	if _, err := d.inspectContainer(ctx, id); err != nil {
 		return err
@@ -262,7 +289,7 @@ func (d *ComposeDriver) Stop(ctx context.Context) error {
 	if info.State.Running {
 		return errors.New("server did not stop")
 	}
-	return nil
+	return d.acquireOfflineLease(ctx)
 }
 
 func (d *ComposeDriver) requireExclusiveData(ctx context.Context) error {
@@ -312,19 +339,28 @@ func (d *ComposeDriver) dataAccessAllowed(info containerInfo, currentID string) 
 }
 
 func (d *ComposeDriver) Backup(ctx context.Context, id string) (string, error) {
+	if err := d.requireOfflineLease(); err != nil {
+		return "", err
+	}
 	if err := d.requireExclusiveData(ctx); err != nil {
 		return "", err
 	}
 	if err := checkDatabase(ctx, filepath.Join(d.Config.DataDir, "p2pstream.db")); err != nil {
 		return "", err
 	}
-	digest, err := backupData(ctx, d.Config.DataDir, filepath.Join(d.Config.StateDir, "backup-"+id+".tar"))
-	if err == nil {
-		err = pruneBackups(d.Config.StateDir, id)
+	return backupData(ctx, d.Config.DataDir, filepath.Join(d.Config.StateDir, "backup-"+id+".tar"))
+}
+
+func (d *ComposeDriver) CleanupBackups(ctx context.Context, id string) error {
+	if err := ctx.Err(); err != nil {
+		return err
 	}
-	return digest, err
+	return pruneBackups(d.Config.StateDir, id)
 }
 func (d *ComposeDriver) Restore(ctx context.Context, id, digest string) error {
+	if err := d.requireOfflineLease(); err != nil {
+		return err
+	}
 	if err := d.requireExclusiveData(ctx); err != nil {
 		return err
 	}
@@ -337,6 +373,12 @@ func (d *ComposeDriver) Restore(ctx context.Context, id, digest string) error {
 func (d *ComposeDriver) Deploy(ctx context.Context, image string) error {
 	if !strings.HasPrefix(image, "ghcr.io/"+strings.ToLower(d.Config.Repository)+"@sha256:") {
 		return errors.New("invalid deployment image")
+	}
+	if d.Config.DeploymentProtocol == 2 && d.runtimeLease == nil {
+		// Committing recovery can enter here without a preceding Stop call.
+		if err := d.Stop(ctx); err != nil {
+			return err
+		}
 	}
 	data, err := readProtected(d.Config.DeploymentFile, 2<<20)
 	if err != nil {
@@ -355,11 +397,18 @@ func (d *ComposeDriver) Deploy(ctx context.Context, image string) error {
 		return errors.New("managed service missing")
 	}
 	service["image"] = image
+	if d.Config.DeploymentProtocol == 2 {
+		env, ok := service["environment"].(map[string]any)
+		if !ok {
+			return errors.New("managed service environment missing")
+		}
+		env["SERVER_UPDATE_GENERATION"] = newRuntimeGeneration()
+	}
 	data, err = json.Marshal(doc)
 	if err != nil {
 		return err
 	}
-	if err := AtomicWrite(d.Config.DeploymentFile, data, 0600); err != nil {
+	if err := AtomicWrite(d.Config.DeploymentFile, data, d.deploymentMode()); err != nil {
 		return err
 	}
 	// Create stopped, then suppress daemon restart before the first start.
@@ -376,6 +425,11 @@ func (d *ComposeDriver) Deploy(ctx context.Context, image string) error {
 	}
 	if _, err := d.command(ctx, "update", "--restart=no", id); err != nil {
 		return err
+	}
+	if d.Config.DeploymentProtocol == 2 {
+		if err := d.AllowRuntime(ctx); err != nil {
+			return err
+		}
 	}
 	_, err = d.command(ctx, "start", id)
 	return err
@@ -420,6 +474,15 @@ func (d *ComposeDriver) Commit(ctx context.Context) error {
 	if _, err := d.inspectContainer(ctx, id); err != nil {
 		return err
 	}
-	_, err = d.command(ctx, "update", "--restart="+d.Config.Restart, id)
-	return err
+	if _, err = d.command(ctx, "update", "--restart="+d.Config.Restart, id); err != nil {
+		return err
+	}
+	if d.Config.DeploymentProtocol == 2 {
+		data, err := readProtected(d.Config.DeploymentFile, 2<<20)
+		if err != nil {
+			return err
+		}
+		return d.RecordRuntimeReceipt(ctx, data, id)
+	}
+	return nil
 }

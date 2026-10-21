@@ -108,6 +108,11 @@ func ConfigureModel(config ComposeConfig, input, current []byte) ([]byte, error)
 	}
 	env := candidate["environment"].(map[string]any)
 	oldEnv := server["environment"].(map[string]any)
+	for key := range env {
+		if strings.HasPrefix(key, "SERVER_UPDATE_") {
+			delete(env, key)
+		}
+	}
 	for key, value := range oldEnv {
 		if strings.HasPrefix(key, "SERVER_UPDATE_") {
 			env[key] = value
