@@ -55,6 +55,10 @@ withDefaults(defineProps<{
   letter-spacing: 0;
 }
 
+.metric-strip--tiles > :deep(.metric-card .metric-card__value--text) {
+  font-family: var(--font-body);
+}
+
 @media (max-width: 639px) {
   .metric-strip--strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));

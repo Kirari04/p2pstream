@@ -65,7 +65,8 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
   content section. Use `flush` for edge-to-edge tables. Use
   `variant="plain"` for a headed group inside another surface.
 - **`MetricStrip`** + **`MetricCard`** (`label`, `value`, `detail`,
-  `tone`, `dot`): key numbers. Use `variant="strip"` on Calm pages and
+  `tone`, `dot`, `textValue`): key numbers. Set `textValue` when the value
+  is a word such as "Running" so tiles keep it in the sans font. Use `variant="strip"` on Calm pages and
   `variant="tiles"` on monitor pages.
 - `EmptyState`, `DisabledHint`, `AccessibleSelect`: unchanged.
 

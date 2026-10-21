@@ -6,16 +6,19 @@ withDefaults(defineProps<{
   tone?: "default" | "success" | "warning" | "error" | "info" | "muted";
   /** Show a leading status dot in the tone color. */
   dot?: boolean;
+  /** The value is a word (e.g. "Running"), not a number; keep it in the sans font inside monitor tiles. */
+  textValue?: boolean;
 }>(), {
   tone: "default",
   dot: false,
+  textValue: false,
 });
 </script>
 
 <template>
   <div class="metric-card">
     <dt class="metric-card__label">{{ label }}</dt>
-    <dd class="metric-card__value" :class="`metric-card__value--${tone}`">
+    <dd class="metric-card__value" :class="[`metric-card__value--${tone}`, { 'metric-card__value--text': textValue }]">
       <span v-if="dot" class="metric-card__dot" aria-hidden="true" />
       <slot name="value">{{ value }}</slot>
     </dd>

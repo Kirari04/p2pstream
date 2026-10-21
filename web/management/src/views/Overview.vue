@@ -272,7 +272,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
     </PageHeader>
 
     <MetricStrip variant="tiles" label="Proxy health" class="overview-health">
-      <MetricCard label="Proxy health" :value="proxyStateLabel(proxyState)" :tone="proxyStateTone(proxyState)" dot :detail="`${runningListeners}/${enabledListeners} listeners running`" />
+      <MetricCard label="Proxy health" :value="proxyStateLabel(proxyState)" :tone="proxyStateTone(proxyState)" dot text-value :detail="`${runningListeners}/${enabledListeners} listeners running`" />
       <MetricCard label="Requests" :value="formatNumber(selectedWindow?.proxyRequests)" :detail="selectedRequestRate()" />
       <MetricCard label="Success" :value="selectedWindow?.proxyRequests ? formatPercent(successRate(selectedWindow)) : '—'" :detail="selectedWindow?.proxyRequests ? `${formatNumber(nonSuccessRequests(selectedWindow))} non-success` : 'Needs traffic'" />
       <MetricCard label="Latency" :value="formatDuration(selectedWindow?.proxyAvgDurationMs)" :detail="`max ${formatDuration(selectedWindow?.proxyMaxDurationMs)}`" />
