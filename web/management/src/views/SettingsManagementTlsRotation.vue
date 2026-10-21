@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useNarrowScreen } from "@/composables/useMediaQuery";
 import { ArrowLeft as ArrowLeftIcon, KeyRound as KeyIcon, RefreshCw as RefreshIcon, Upload as UploadIcon } from "@lucide/vue";
 import { NAlert, NButton, NDrawer, NDrawerContent, NInput, NStep, NSteps, NTag } from "naive-ui";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, ref } from "vue";
 import { RouterLink } from "vue-router";
 import ManagementTlsAgentTable from "@/components/management-tls/ManagementTlsAgentTable.vue";
 import ManagementTlsAlerts from "@/components/management-tls/ManagementTlsAlerts.vue";
@@ -37,22 +38,7 @@ const {
   finalizeCleanup,
 } = useManagementTlsRotation();
 const customMaterialOpen = ref(false);
-const verticalSteps = ref(false);
-let narrowQuery: MediaQueryList | undefined;
-
-function syncStepLayout(query: MediaQueryList | MediaQueryListEvent) {
-  verticalSteps.value = query.matches;
-}
-
-onMounted(() => {
-  narrowQuery = window.matchMedia("(max-width: 640px)");
-  syncStepLayout(narrowQuery);
-  narrowQuery.addEventListener("change", syncStepLayout);
-});
-
-onBeforeUnmount(() => {
-  narrowQuery?.removeEventListener("change", syncStepLayout);
-});
+const verticalSteps = useNarrowScreen();
 
 const isIdle = computed(() => phase.value === ManagementTlsRotationPhase.IDLE);
 const isCleanup = computed(() => phase.value === ManagementTlsRotationPhase.CLEANING_UP);

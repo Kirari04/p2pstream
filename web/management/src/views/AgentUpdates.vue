@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useNarrowScreen } from "@/composables/useMediaQuery";
 import { computed, h, inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { NAlert, NButton, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSpin, NTab, NTabs, NTag } from "naive-ui";
@@ -265,12 +266,7 @@ function toggleAgent(agent: AgentUpdateOverviewAgent, checked: boolean) {
 
 /** Narrow screens stack each enrollment row into one cell instead of scrolling under a pinned column. */
 const ENROLLMENT_COLUMN_WIDTHS = { agent: 200, updater: 230, tunnel: 170, traffic: 96, actions: 196 } as const;
-const compactLayout = ref(false);
-let compactLayoutQuery: MediaQueryList | undefined;
-
-function syncCompactLayout(query: MediaQueryList | MediaQueryListEvent) {
-  compactLayout.value = query.matches;
-}
+const compactLayout = useNarrowScreen();
 
 const enrollmentColumns = computed<DataTableColumns<AgentUpdateOverviewAgent>>(() => compactLayout.value
   ? [
@@ -475,13 +471,9 @@ watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
   void polling.scopeChanged();
 }, { flush: "sync" });
 onMounted(() => {
-  compactLayoutQuery = window.matchMedia("(max-width: 639px)");
-  syncCompactLayout(compactLayoutQuery);
-  compactLayoutQuery.addEventListener("change", syncCompactLayout);
   void polling.start();
 });
 onUnmounted(() => {
-  compactLayoutQuery?.removeEventListener("change", syncCompactLayout);
   polling.stop();
 });
 </script>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, h, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useNarrowScreen } from "@/composables/useMediaQuery";
+import { computed, h, inject, nextTick, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { NAlert, NButton, NDataTable, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns, DropdownDividerOption, DropdownOption } from "naive-ui";
@@ -223,22 +224,7 @@ let uninstallCopyReset: number | undefined;
 /** Sums to the table's scroll width, which must stay inside the card at a 1280px viewport. */
 const AGENT_COLUMN_WIDTHS = { agent: 210, status: 160, capacity: 170, version: 140, actions: 256 } as const;
 /** Narrow screens stack each agent into one cell instead of scrolling a wide table under a pinned column. */
-const compactLayout = ref(false);
-let compactLayoutQuery: MediaQueryList | undefined;
-
-function syncCompactLayout(query: MediaQueryList | MediaQueryListEvent) {
-  compactLayout.value = query.matches;
-}
-
-onMounted(() => {
-  compactLayoutQuery = window.matchMedia("(max-width: 639px)");
-  syncCompactLayout(compactLayoutQuery);
-  compactLayoutQuery.addEventListener("change", syncCompactLayout);
-});
-
-onBeforeUnmount(() => {
-  compactLayoutQuery?.removeEventListener("change", syncCompactLayout);
-});
+const compactLayout = useNarrowScreen();
 
 const sessionPagination = computed(() => ({ page: sessionPage.value, pageSize: 12 }));
 
@@ -1389,7 +1375,7 @@ async function copyUninstallSnippet() {
         </label>
 
         <NAlert v-if="uninstallSnippetError" type="error" :bordered="false">{{ uninstallSnippetError }}</NAlert>
-        <pre v-else class="agent-command-block"><code>{{ uninstallSnippet }}</code></pre>
+        <pre v-else class="command-block"><code>{{ uninstallSnippet }}</code></pre>
 
         <div class="agent-modal__actions">
           <NButton secondary attr-type="button" :disabled="Boolean(uninstallSnippetError)" @click="copyUninstallSnippet">{{ uninstallCopyLabel }}</NButton>
@@ -1844,19 +1830,6 @@ code.agent-modal-value {
   unicode-bidi: isolate;
 }
 
-.agent-command-block {
-  max-height: 16rem;
-  overflow: auto;
-  margin: 0;
-  border-radius: 8px;
-  background: var(--app-panel-muted);
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1.6;
-  padding: 0.875rem 1rem;
-  white-space: pre;
-}
 
 .agent-modal__actions {
   display: flex;

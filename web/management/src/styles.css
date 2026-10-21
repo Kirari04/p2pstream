@@ -2282,6 +2282,31 @@ body:has(.app-sidebar--mobile-open) {
   padding: 1.75rem;
 }
 
+/* Shell commands and one-time snippets: muted, monospace, scrolls instead of growing. */
+.command-block {
+  max-height: 16rem;
+  margin: 0;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  padding: 0.875rem 1rem;
+  white-space: pre-wrap;
+}
+
+.command-block code {
+  font: inherit;
+}
+
+.command-block:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
+}
+
 .editor-drawer .n-drawer-content-wrapper {
   background: var(--app-panel);
 }

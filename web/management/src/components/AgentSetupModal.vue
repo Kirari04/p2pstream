@@ -236,7 +236,7 @@ defineExpose({ openCreated, openExisting, openRotated });
       </details>
       <p v-if="mode !== 'rotate'" class="copy-xs muted-text">The command downloads the matching release and verifies its SHA-256 checksums before installation. Copy it and run it on the agent host.</p>
       <NAlert v-if="commandResult.error || copyError" type="error" :bordered="false"><bdi dir="ltr">{{ diagnosticInspectionText(commandResult.error || copyError) }}</bdi></NAlert>
-      <pre v-if="commandResult.command" class="agent-setup-command"><code>{{ commandResult.command }}</code></pre>
+      <pre v-if="commandResult.command" class="agent-setup-command command-block"><code>{{ commandResult.command }}</code></pre>
       <div class="agent-setup-actions">
         <NButton secondary @click="close">Done</NButton>
         <NButton type="primary" :disabled="!commandResult.command || loading" @click="copyCommand">{{ copyLabel }}</NButton>
@@ -262,6 +262,6 @@ defineExpose({ openCreated, openExisting, openRotated });
 .agent-setup-credentials div { display: grid; gap: .25rem; border-top: 1px solid var(--app-border-subtle); padding: .625rem 1rem; font-size: .75rem; }
 .agent-setup-credentials span, .agent-setup-credentials small { color: var(--app-text-muted); }
 .agent-setup-credentials code { color: var(--app-text); overflow-wrap: anywhere; }
-.agent-setup-command { max-height: 14rem; overflow: auto; margin: 0; border-radius: 8px; background: var(--app-panel-muted); color: var(--app-text); font-family: var(--font-mono); font-size: .75rem; line-height: 1.6; padding: .875rem 1rem; }
+.agent-setup-command { max-height: 14rem; }
 .agent-setup-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
 </style>
