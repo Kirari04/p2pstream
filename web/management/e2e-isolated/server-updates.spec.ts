@@ -5,6 +5,9 @@ import { build } from 'vite';
 
 const output = resolve('tmp/server-updates-fixture');
 const url = 'https://updates.test/e2e/fixtures/server-updates.html';
+function oneLineRecipe(installation: string, migration = false, options = '') {
+ return "(set -o pipefail; curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 120 --max-filesize 65536 'https://github.com/server/repository/releases/download/v0.1.53-staging.90/setup-server-updater.sh' | sudo sh -s -- 'server/repository@v0.1.53-staging.90' '"+installation+"' '"+'d'.repeat(64)+"' 'arm64' "+(migration ? '--migrate-deployment ' : '')+'--'+options+')';
+}
 test.beforeAll(async () => {
   await build({ configFile: resolve('vite.config.ts'), logLevel: 'error', build: { outDir: output, emptyOutDir: true, rollupOptions: { input: resolve('e2e/fixtures/server-updates.html') } } });
 });
@@ -72,10 +75,10 @@ test('setup uses selected server identity and supports custom ordered Compose in
  await page.getByLabel('Compose project name', {exact:true}).fill('production');
  await page.getByLabel('Compose files', {exact:true}).fill('compose.yaml\nproduction with spaces.yaml');
  await page.getByLabel('Compose environment files', {exact:true}).fill('.env.production');
- await page.getByRole('button',{name:'Copy complete setup',exact:true}).click();
+ await page.getByRole('button',{name:'Copy setup command',exact:true}).click();
  const copied = await page.evaluate(()=>navigator.clipboard.readText());
- expect(copied).toContain("--expect-installation '11111111-1111-4111-8111-111111111111'");
- expect(copied).toContain("--expect-version 'v0.1.53-staging.90' --expect-arch 'arm64'");
+ expect(copied).toContain("'server/repository@v0.1.53-staging.90' '11111111-1111-4111-8111-111111111111' '"+'d'.repeat(64)+"' 'arm64'");
+ expect(copied).not.toMatch(/[\r\n]/);
  expect(copied).toContain("-- -p 'production' -f 'compose.yaml' -f 'production with spaces.yaml' --env-file '.env.production'");
  expect(copied).not.toContain('./scripts/');
  await expect(page.getByText('host-level Docker authority', {exact:false})).toBeVisible();
@@ -83,26 +86,26 @@ test('setup uses selected server identity and supports custom ordered Compose in
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.locator('#switch').click();
  await expect(page.getByText('INSTALLED ON Local')).toBeVisible();
- await page.getByRole('button',{name:'Copy complete setup',exact:true}).click();
+ await page.getByRole('button',{name:'Copy setup command',exact:true}).click();
  const switched = await page.evaluate(()=>navigator.clipboard.readText());
- expect(switched).toContain("--expect-installation '22222222-2222-4222-8222-222222222222'");
+ expect(switched).toContain("'22222222-2222-4222-8222-222222222222'");
  expect(switched).not.toContain("-p 'production'");
 });
 
 test('legacy servers show a prerequisite and never a UI-derived command', async ({ page }) => {
  await page.goto(url+'?legacy');
  await expect(page.getByText('Manual release upgrade required', {exact:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Copy complete setup',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toHaveCount(0);
  await expect(page.getByText('Updates enabled · updater verified', {exact:true})).toHaveCount(0);
 });
 
 test('setup page reconnects and shows enabled only after verified updater response', async ({ page }) => {
  await page.goto(url+'?enroll');
- await expect(page.getByRole('button',{name:'Copy complete setup',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toBeVisible();
  await expect(page.getByText('Updates enabled · updater verified', {exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Refresh status',exact:true}).click();
  await expect(page.getByText('Updates enabled · updater verified', {exact:true})).toBeVisible();
- await expect(page.getByRole('button',{name:'Copy complete setup',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toHaveCount(0);
 });
 
 for (const scenario of [
@@ -232,7 +235,8 @@ test('configured legacy deployment offers an exact, environment-bound migration 
  await page.context().grantPermissions(['clipboard-read','clipboard-write']);
  await page.goto(url+'?migration&light');
  const card=page.locator('.update-migration');
- await expect(card.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
+ await expect(card.getByText('Upgrade host updater',{exact:true})).toBeVisible();
+ await expect(card).toContainText('pinned host updater');
  await expect(card).toContainText('Migration restarts the server.');
  await expect(card).toContainText('Restoring a disconnected updater may require an additional restart.');
  await expect(card).not.toContainText('Migration restarts the server once');
@@ -241,7 +245,7 @@ test('configured legacy deployment offers an exact, environment-bound migration 
  await expect(card).toContainText('*.p2pstream-input-*');
  await expect(card).toContainText('paths printed by the installer');
  const enabled=page.locator('.n-alert').filter({hasText:'Updates enabled · updater verified'});
- await expect(enabled).toContainText('Complete the one-time migration above to enable ordinary Compose recreation.');
+ await expect(enabled).toContainText('Complete the one-time host updater migration above to enable ordinary Compose recreation.');
  await expect(enabled).toContainText('Until then, apply settings through your existing host controller.');
  await expect(enabled).not.toContainText('Use the editable input paths recorded by your host controller');
  await card.getByText('Custom Compose project or files',{exact:true}).click();
@@ -251,14 +255,14 @@ test('configured legacy deployment offers an exact, environment-bound migration 
  await page.getByLabel('Compose project directory',{exact:true}).fill('/srv/my deployment');
  await card.getByRole('button',{name:'Copy migration command',exact:true}).click();
  const copied=await page.evaluate(()=>navigator.clipboard.readText());
- const expected="(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py install --migrate-deployment --bundle /tmp/verified-release --expect-installation '11111111-1111-4111-8111-111111111111' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' -- -p 'production' -f 'compose.yaml' -f 'production with spaces.yaml' --env-file '.env.production' --project-directory '/srv/my deployment'\n)";
+ const expected=oneLineRecipe('11111111-1111-4111-8111-111111111111', true, " -p 'production' -f 'compose.yaml' -f 'production with spaces.yaml' --env-file '.env.production' --project-directory '/srv/my deployment'");
  expect(copied).toBe(expected);
  await page.screenshot({path:testInfo.outputPath('deployment-migration-desktop-light.png'),fullPage:true,animations:'disabled'});
  await page.locator('#switch').click();
  await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Copy migration command',exact:true}).click();
  const switched=await page.evaluate(()=>navigator.clipboard.readText());
- expect(switched).toContain("--expect-installation '22222222-2222-4222-8222-222222222222'");
+ expect(switched).toContain("'22222222-2222-4222-8222-222222222222'");
  expect(switched).not.toContain('--project-directory');
  expect(switched).not.toContain("-p 'production'");
 });
@@ -269,7 +273,7 @@ test('migration remains readable on mobile dark and supports copying after clipb
  await page.goto(url+'?migration');
  await page.getByRole('button',{name:'Copy migration command',exact:true}).click();
  await expect(page.getByText('Select and copy the migration command below.',{exact:true})).toBeVisible();
- await expect(page.locator('.update-command pre')).toContainText('install --migrate-deployment --bundle');
+ await expect(page.locator('.update-command pre')).toContainText("'arm64' --migrate-deployment --");
  await page.screenshot({path:testInfo.outputPath('deployment-migration-mobile-dark.png'),fullPage:true,animations:'disabled'});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
@@ -282,16 +286,16 @@ test('migration prerequisites preserve the reported reason without inventing a c
  await expect(card).toContainText(reason);
  await expect(card.locator('img')).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Copy migration command',exact:true})).toHaveCount(0);
- await expect(page.getByRole('button',{name:'Copy complete setup',exact:true})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toHaveCount(0);
  await page.screenshot({path:testInfo.outputPath('deployment-migration-unavailable.png'),fullPage:true,animations:'disabled'});
 });
 
 test('older configured remotes without a migration offer retain their existing controls', async ({page}) => {
  await page.goto(url+'?migration&migration-first-only');
- await expect(page.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
+ await expect(page.getByText('Upgrade host updater',{exact:true})).toBeVisible();
  await page.locator('#switch').click();
  await expect(page.getByText('INSTALLED ON Local',{exact:true})).toBeVisible();
- await expect(page.getByText('Upgrade deployment integration',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Upgrade host updater',{exact:true})).toHaveCount(0);
  await expect(page.getByText('ordinary docker compose',{exact:false})).toHaveCount(0);
  await expect(page.getByText('Updates enabled · updater verified',{exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Preview update',exact:true})).toBeEnabled();
@@ -300,7 +304,7 @@ test('older configured remotes without a migration offer retain their existing c
 test('an active update hides a previous migration offer', async ({page}) => {
  await page.goto(url+'?migration&phase=validating');
  await expect(page.getByRole('status').filter({hasText:'Validating the replacement'})).toBeVisible();
- await expect(page.getByText('Upgrade deployment integration',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Upgrade host updater',{exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Copy migration command',exact:true})).toHaveCount(0);
 });
 
@@ -308,7 +312,62 @@ test('an unconfirmed update request hides migration until its outcome is known',
  await page.addInitScript(() => sessionStorage.setItem('p2pstream:server-update:1',JSON.stringify({instanceId:'11111111-1111-4111-8111-111111111111',operationId:'33333333-3333-4333-8333-333333333333',planToken:'pending-plan'})));
  await page.goto(url+'?migration');
  await expect(page.getByRole('button',{name:'Retry same request',exact:true})).toBeVisible();
- await expect(page.getByText('Upgrade deployment integration',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Upgrade host updater',{exact:true})).toHaveCount(0);
  await page.getByRole('button',{name:'Clear saved request',exact:true}).click();
- await expect(page.getByText('Upgrade deployment integration',{exact:true})).toBeVisible();
+ await expect(page.getByText('Upgrade host updater',{exact:true})).toBeVisible();
 });
+
+test('one-line installer copies the exact server recipe with shell-safe custom context', async ({page}) => {
+ await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+ await page.goto(url+'?setup');
+ await expect(page.getByText('ONE-LINE COMMAND',{exact:true})).toBeVisible();
+ await page.getByText('Custom Compose project or files',{exact:true}).click();
+ await page.getByLabel('Compose project name',{exact:true}).fill("prod 'west'");
+ await page.getByLabel('Compose files',{exact:true}).fill("compose.yaml\nprod 'quoted' $(touch never).yaml");
+ await page.getByLabel('Compose environment files',{exact:true}).fill('.env.production');
+ await page.getByLabel('Compose project directory',{exact:true}).fill('/srv/my deployment');
+ const expected=oneLineRecipe('11111111-1111-4111-8111-111111111111',false," -p 'prod '\\''west'\\''' -f 'compose.yaml' -f 'prod '\\''quoted'\\'' $(touch never).yaml' --env-file '.env.production' --project-directory '/srv/my deployment'");
+ await expect(page.getByLabel('Host updater command',{exact:true})).toHaveText(expected);
+ await page.getByRole('button',{name:'Copy setup command',exact:true}).click();
+ expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(expected);
+ expect(expected).not.toMatch(/[\r\n]/);
+ await expect(page.getByRole('button',{name:'Command copied',exact:true})).toBeVisible();
+});
+
+test('older server multiline recipes remain complete and are never relabeled one-line', async ({page}) => {
+ await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+ await page.goto(url+'?setup&multiline');
+ await expect(page.getByText('COMPLETE SETUP BLOCK',{exact:true})).toBeVisible();
+ await expect(page.getByText('ONE-LINE COMMAND',{exact:true})).toHaveCount(0);
+ await expect(page.getByText('Run the complete setup block',{exact:false})).toBeVisible();
+ const expected="(\n  curl --proto '=https' https://github.com/server/repository/releases/download/v0.1.53-staging.90/p2pstream_v0.1.53-staging.90_docker.tar.gz\n  sudo python3 -I helper.py install --bundle /tmp/verified-release --expect-installation '11111111-1111-4111-8111-111111111111' --expect-version 'v0.1.53-staging.90' --expect-arch 'arm64' --\n)";
+ await page.getByRole('button',{name:'Copy setup command',exact:true}).click();
+ expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe(expected);
+});
+
+test('configured host explains pinned updater upgrades even without a migration offer', async ({page}) => {
+ await page.goto(url);
+ await expect(page.getByText('Upgrade host updater',{exact:true})).toHaveCount(0);
+ const policy=page.locator('.update-host-policy');
+ await expect(policy).toContainText('Server updates leave the pinned host updater unchanged.');
+ await expect(policy).toContainText('It does not self-update.');
+ await expect(policy).toContainText('Rerunning regular setup checks its health without refreshing it.');
+ await expect(policy).toContainText('Future host updater upgrades require a separate host procedure; this page does not provide one.');
+ await expect(page.getByRole('button',{name:'Preview update',exact:true})).toBeEnabled();
+});
+
+for (const theme of ['light','dark']) {
+ for (const width of [390,1280]) {
+  test(`one-line setup fits ${width===390 ? 'mobile' : 'desktop'} ${theme}`,async({page},testInfo)=>{
+   await page.setViewportSize({width,height:width===390 ? 844 : 900});
+   await page.goto(url+'?setup'+(theme==='light' ? '&light' : ''));
+   const command=page.getByLabel('Host updater command',{exact:true});
+   await expect(command).toBeVisible();
+   expect(await command.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+   expect(await command.textContent()).not.toMatch(/[\r\n]/);
+   await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toBeVisible();
+   await page.screenshot({path:testInfo.outputPath('setup-'+width+'-'+theme+'.png'),fullPage:true,animations:'disabled'});
+  });
+ }
+}

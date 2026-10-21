@@ -74,7 +74,7 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Optional server updates
 
-After first login, **System → Server Updates** offers a complete release-based setup block for this server. Installing the dedicated Docker-authorized updater is optional and restarts the server once. The page reconnects and confirms its availability. Setup preserves editable Compose copies beside the original entry points. Edit those saved inputs and `.env`, then run `sudo /etc/p2pstream-server-updater/manage apply`; use the UI for operator-triggered software updates. Ordinary recreation retains the applied deployment after new enrollment or migration. Read [server update operations](../operations/server-updates) before enrollment.
+After first login, **System → Server Updates** offers a release-based setup command for this server. New releases provide a `curl … | sudo sh` one-liner; older releases retain their full setup block. Installing the dedicated Docker-authorized updater is optional and restarts the server once. The page reconnects and confirms its availability. Setup preserves editable Compose copies beside the original entry points. Edit those saved inputs and `.env`, then run `sudo /etc/p2pstream-server-updater/manage apply`; use the UI for operator-triggered software updates. Ordinary recreation retains the applied deployment after new enrollment or migration. Server updates leave the host updater pinned; it does not self-update. Read [server update operations](../operations/server-updates) before enrollment.
 
 ## Verification
 

@@ -64,10 +64,16 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh
+        run: |
+          sh -n scripts/setup-server-updater.sh
+          for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh; do
+            bash -n "$script" || exit 1
+          done
 
       - name: Test release installation and host lifecycle
-        run: python3 -I scripts/test-server-updater-host.py
+        run: |
+          python3 -I scripts/test-server-updater-host.py
+          python3 -I scripts/test-setup-server-updater.py
 
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
@@ -431,6 +437,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p dist/docker-install
+          cp scripts/setup-server-updater.sh dist/assets/setup-server-updater.sh
           cp scripts/download-docker-release.py "dist/assets/p2pstream_${TAG}_docker.py"
           cp scripts/server-updater-host.py scripts/install-server-updater.sh scripts/server-updater-compose.sh .env.example dist/docker-install/
           sed 's|image: ghcr.io/kirari04/p2pstream:latest|image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"|' compose.yaml >dist/docker-install/compose.yaml
@@ -475,7 +482,7 @@ jobs:
           expires_at="$(date -u -d "+${MANIFEST_VALIDITY_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
           go run ./cmd/serverupdate-manifest --version "${TAG}" --commit "${GITHUB_SHA}" --output dist/assets/p2pstream_server_update.json
           manifest=dist/assets/p2pstream_agent_update_manifest.json
-          (cd dist/assets && sha256sum p2pstream_* >checksums.txt)
+          (cd dist/assets && sha256sum p2pstream_* setup-server-updater.sh >checksums.txt)
           go run ./cmd/agentupdate-manifest create \
             --channel "${CHANNEL}" \
             --version "${TAG}" \
@@ -497,6 +504,7 @@ jobs:
             --release-asset dist/assets/checksums.txt \
             --release-asset dist/assets/p2pstream_server_update.json \
             --release-asset dist/assets/p2pstream_install.json \
+            --release-asset dist/assets/setup-server-updater.sh \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.py" \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_updater_linux_amd64.txt" \
@@ -536,6 +544,7 @@ jobs:
             --release-asset dist/assets/checksums.txt \
             --release-asset dist/assets/p2pstream_server_update.json \
             --release-asset dist/assets/p2pstream_install.json \
+            --release-asset dist/assets/setup-server-updater.sh \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.py" \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_updater_linux_amd64.txt" \
