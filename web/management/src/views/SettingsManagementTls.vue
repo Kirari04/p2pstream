@@ -28,6 +28,8 @@ const operationError = ref("");
 const pollError = ref("");
 const lastUpdatedAt = ref(0);
 const copied = ref(false);
+const copyError = ref("");
+const showFullRepairCommand = ref(false);
 const customMaterialOpen = ref(false);
 const custom = reactive({ certificatePem: "", privateKeyPem: "", caBundlePem: "", currentCaBundlePem: "" });
 let pollTimer: number | undefined;
@@ -46,9 +48,17 @@ const activeExpiryWarning = computed(() => managementCertificateExpiryWarning(ro
 const repairCommand = computed(() => {
   const pem = rotation.value?.repairCaBundlePem ?? "";
   if (!pem) return "";
-  const encoded = btoa(pem);
-  return `sudo env P2PSTREAM_REPAIR_TRUST=true MANAGEMENT_CA_PEM_BASE64='${encoded}' bash '${DEFAULT_LOCAL_INSTALLER_PATH}'`;
+  return repairCommandFor(btoa(pem));
 });
+const repairCommandPreview = computed(() => {
+  const pem = rotation.value?.repairCaBundlePem ?? "";
+  if (!pem) return "";
+  return repairCommandFor(`${btoa(pem).slice(0, 16)}…`);
+});
+
+function repairCommandFor(encodedCaBundle: string): string {
+  return `sudo env P2PSTREAM_REPAIR_TRUST=true MANAGEMENT_CA_PEM_BASE64='${encodedCaBundle}' bash '${DEFAULT_LOCAL_INSTALLER_PATH}'`;
+}
 
 const agentColumns: DataTableColumns<ManagementTlsAgentRollout> = [
   {
@@ -191,7 +201,14 @@ async function finalizeCleanup(force: boolean) {
 }
 
 async function copyRepairCommand() {
-  await navigator.clipboard.writeText(repairCommand.value);
+  copyError.value = "";
+  try {
+    await navigator.clipboard.writeText(repairCommand.value);
+  } catch {
+    showFullRepairCommand.value = true;
+    copyError.value = "Clipboard access failed. Select and copy the full command below.";
+    return;
+  }
   copied.value = true;
   window.setTimeout(() => { copied.value = false; }, 1800);
 }
@@ -376,8 +393,21 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
         <h3 class="copy-md weight-semibold">Repair an agent that cannot reconnect</h3>
         <p class="copy-sm muted-text">Run this on a current compatible installation to restore management trust. For an incompatible or damaged agent, rerun its full install command from the Agents page so the identity and token are installed again.</p>
       </div>
-      <code class="repair-command">{{ repairCommand }}</code>
-      <div><NButton secondary @click="copyRepairCommand"><template #icon><CopyIcon class="icon-sm" /></template>{{ copied ? 'Copied' : 'Copy repair command' }}</NButton></div>
+      <div class="repair-bar">
+        <code class="repair-bar__preview" :title="repairCommandPreview">{{ repairCommandPreview }}</code>
+        <NButton type="primary" size="small" @click="copyRepairCommand">
+          <template #icon><CopyIcon class="icon-sm" /></template>
+          {{ copied ? 'Copied' : 'Copy command' }}
+        </NButton>
+      </div>
+      <p v-if="copyError" class="copy-xs warning-text">{{ copyError }}</p>
+      <div class="layout-row align-center spread-items space-md">
+        <p class="copy-xs muted-text">Embeds the current management CA bundle (public certificates only, no private keys).</p>
+        <NButton text size="small" :aria-expanded="showFullRepairCommand" @click="showFullRepairCommand = !showFullRepairCommand">
+          {{ showFullRepairCommand ? 'Hide full command' : 'Show full command' }}
+        </NButton>
+      </div>
+      <code v-if="showFullRepairCommand" class="repair-command">{{ repairCommand }}</code>
     </section>
   </div>
 </template>
@@ -395,6 +425,8 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
 .custom-material { padding-top: 1rem; border-top: 1px solid var(--app-border); }
 .rollout-progress { height: 0.42rem; overflow: hidden; border-radius: 999px; background: var(--app-border); }
 .rollout-progress span { display: block; height: 100%; border-radius: inherit; background: var(--app-accent); transition: width 280ms ease; }
+.repair-bar { display: flex; align-items: center; gap: 0.75rem; min-width: 0; padding: 0.375rem 0.375rem 0.375rem 0.875rem; border: 1px solid var(--app-border); border-radius: 0.625rem; background: var(--app-panel); }
+.repair-bar__preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; }
 .repair-command { display: block; max-height: 9rem; overflow: auto; padding: 0.875rem; border: 1px solid var(--app-border); border-radius: 0.625rem; background: var(--app-panel); font-size: 0.72rem; line-height: 1.55; overflow-wrap: anywhere; user-select: all; }
 @media (max-width: 720px) { .cert-grid { grid-template-columns: 1fr; } }
 </style>
