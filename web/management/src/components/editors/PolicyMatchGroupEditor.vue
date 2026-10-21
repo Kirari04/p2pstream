@@ -119,7 +119,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 </script>
 
 <template>
-  <div class="policy-match-group" :class="{ nested: !root }">
+  <div class="policy-match-group" :class="{ nested: !root, 'nested--alt': !root && depth % 2 === 0 }">
     <div class="builder-toolbar">
       <AccessibleSelect
         v-model:value="group.operator"
@@ -131,16 +131,17 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
       <NCheckbox v-model:checked="group.negated" class="negate-toggle">
         Not
       </NCheckbox>
-      <NButton secondary size="small" @click="addCondition(group)">
-        <PlusIcon class="icon-sm icon-sm" />
-        <span>Condition</span>
+      <span class="builder-toolbar__spacer" aria-hidden="true"></span>
+      <NButton secondary size="small" attr-type="button" @click="addCondition(group)">
+        <template #icon><PlusIcon class="icon-sm" /></template>
+        Condition
       </NButton>
-      <NButton secondary size="small" @click="addGroup(group)">
-        <PlusIcon class="icon-sm icon-sm" />
-        <span>Group</span>
+      <NButton secondary size="small" attr-type="button" @click="addGroup(group)">
+        <template #icon><PlusIcon class="icon-sm" /></template>
+        Group
       </NButton>
-      <NButton v-if="!root" type="error" size="small" aria-label="Remove group" title="Remove group" @click="emit('remove')">
-        <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+      <NButton v-if="!root" type="error" secondary size="small" attr-type="button" aria-label="Remove group" title="Remove group" @click="emit('remove')">
+        <template #icon><TrashIcon class="icon-sm" /></template>
       </NButton>
     </div>
 
@@ -181,8 +182,8 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
         <NCheckbox v-model:checked="condition.negated" class="negate-toggle small condition-negate">
           Not
         </NCheckbox>
-        <NButton type="error" size="small" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
-          <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+        <NButton type="error" secondary size="small" attr-type="button" class="condition-remove" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
+          <template #icon><TrashIcon class="icon-sm" /></template>
         </NButton>
       </div>
     </div>
@@ -207,49 +208,30 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   gap: 0.75rem;
 }
 
+/* Nested groups read as indented blocks: a muted fill, alternating with the panel color at deeper levels. */
 .policy-match-group.nested {
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--app-panel-muted);
-  padding: 0.75rem;
+  padding: 0.75rem 0.875rem;
+}
+
+.policy-match-group.nested--alt {
+  background: var(--app-panel);
 }
 
 .builder-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   flex-wrap: wrap;
+}
+
+.builder-toolbar__spacer {
+  flex: 1 1 auto;
 }
 
 .compact-select {
   width: 7.5rem;
-}
-
-.tool-button,
-.icon-button {
-  border-radius: 5px;
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: 650;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
-}
-
-.tool-button {
-  display: inline-flex;
-  height: 2rem;
-  align-items: center;
-  gap: 0.4rem;
-  border: 1px solid var(--app-border);
-  background: var(--app-panel-muted);
-  padding: 0 0.65rem;
-}
-
-.tool-button:hover,
-.icon-button:hover {
-  border-color: var(--app-border);
-  background: var(--app-panel-muted);
-  color: var(--app-text);
 }
 
 .condition-list {
@@ -277,60 +259,61 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
   min-height: 2.25rem;
   max-height: 6rem;
   resize: vertical;
-  font-size: 0.8rem;
-  letter-spacing: 0;
-  text-transform: none;
+  font-size: 0.8125rem;
 }
 
 .negate-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--app-text);
-  font-size: 0.78rem;
   min-height: 2.25rem;
+  color: var(--app-text);
+  font-size: 0.8125rem;
 }
 
 .negate-toggle.small {
   justify-self: center;
 }
 
-.icon-button {
-  display: inline-grid;
+.condition-remove {
   width: 2.25rem;
-  height: 2.25rem;
-  place-items: center;
-  border: 1px solid var(--app-border);
-  background: var(--app-panel-muted);
 }
 
 .empty-match {
   display: grid;
-  min-height: 4.5rem;
+  min-height: 4rem;
   place-items: center;
-  border: 1px dashed var(--app-border);
-  border-radius: 6px;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
   color: var(--app-text-muted);
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
 }
 
 @media (max-width: 860px) {
   .condition-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-bottom: 0.75rem;
   }
 
-  .condition-row:not(.needs-name) .operator-select,
-  .condition-row:not(.uses-values) .condition-negate {
-    grid-column: auto;
+  .condition-row + .condition-row {
+    border-top: 1px solid var(--app-border-subtle);
+    padding-top: 0.75rem;
   }
 
-  .negate-toggle.small,
-  .icon-button {
-    justify-self: stretch;
+  .condition-row > *,
+  .condition-row:not(.needs-name) > .operator-select,
+  .condition-row:not(.uses-values) > .condition-negate {
+    grid-column: 1 / -1;
   }
 
-  .icon-button {
-    width: 100%;
+  .condition-row > .condition-negate,
+  .condition-row:not(.uses-values) > .condition-negate {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  .condition-row > .condition-remove {
+    grid-column: 2;
   }
 }
 </style>

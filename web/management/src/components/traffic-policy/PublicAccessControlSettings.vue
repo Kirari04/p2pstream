@@ -7,16 +7,19 @@ import {
   Plus as PlusIcon,
   Route as RouteIcon,
   ShieldCheck as ShieldIcon,
-  Trash2 as TrashIcon,
   Users as UsersIcon,
 } from "@lucide/vue";
 import { NAlert, NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber, NSelect, NTag } from "naive-ui";
 import DisabledHint from "@/components/DisabledHint.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   PublicAccessCookieSameSite,
   PublicAccessGroupMatch,
@@ -58,6 +61,7 @@ const defaultLocalAccessLoginTemplateId = computed(() => (
 )?.id.toString() ?? "");
 const protectedRoutes = computed(() => (props.config?.routes ?? []).filter((route) => route.accessPolicyId > 0n));
 const enabledPolicies = computed(() => policies.value.filter((policy) => policy.enabled).length);
+const enabledProviders = computed(() => providers.value.filter((provider) => provider.enabled).length);
 const providerOptions = computed(() => providers.value.map((provider) => ({
   label: `${provider.name}${provider.enabled ? "" : " · disabled"}`,
   value: provider.id.toString(),
@@ -599,63 +603,54 @@ function groupSummary(policy: PublicAccessPolicy): string {
 </script>
 
 <template>
-  <section class="access-control surface-card" aria-labelledby="access-control-heading">
-    <div class="access-control__header surface-card__header">
-      <div class="layout-grid space-xs min-width-zero">
-        <div class="layout-row align-center space-sm">
-          <ShieldIcon class="icon-sm accent-text" aria-hidden="true" />
-          <h2 id="access-control-heading" class="copy-base weight-semibold">Identity-aware access</h2>
-        </div>
-        <p class="copy-sm line-normal muted-text">
-          Protect routes with built-in local users or an external identity service, then enforce optional group membership before routing.
-        </p>
-      </div>
-      <NTag size="small" :bordered="false" :type="protectedRoutes.length ? 'success' : 'default'">
-        {{ protectedRoutes.length.toString() }} protected {{ protectedRoutes.length === 1 ? 'route' : 'routes' }}
-      </NTag>
-    </div>
+  <div class="access-control stack-lg">
+    <MetricStrip variant="strip" label="Access control summary">
+      <MetricCard
+        label="Identity providers"
+        :value="providers.length.toString()"
+        :detail="providers.length ? `${enabledProviders.toString()} enabled` : 'None configured'"
+      />
+      <MetricCard
+        label="Access policies"
+        :value="`${enabledPolicies.toString()}/${policies.length.toString()}`"
+        :detail="policies.length ? 'Active of configured' : 'None configured'"
+      />
+      <MetricCard
+        label="Protected routes"
+        :value="protectedRoutes.length.toString()"
+        :detail="protectedRoutes.length ? 'Identity required' : 'No routes protected yet'"
+      />
+    </MetricStrip>
 
-    <div class="access-control__flow pad-x-xl pad-y-lg divider-bottom" aria-label="Access-control request flow">
-      <div class="access-control__flow-node">
-        <KeyIcon class="icon-sm" aria-hidden="true" />
-        <span><strong>Provider</strong><small>verifies the visitor</small></span>
-      </div>
-      <ArrowIcon class="icon-sm muted-text" aria-hidden="true" />
-      <div class="access-control__flow-node">
-        <ShieldIcon class="icon-sm" aria-hidden="true" />
-        <span><strong>Policy</strong><small>checks required groups</small></span>
-      </div>
-      <ArrowIcon class="icon-sm muted-text" aria-hidden="true" />
-      <div class="access-control__flow-node">
-        <RouteIcon class="icon-sm" aria-hidden="true" />
-        <span><strong>Route</strong><small>receives trusted identity headers</small></span>
-      </div>
-    </div>
-
-    <div class="access-control__notice pad-x-xl pad-y-lg divider-bottom">
-      <NAlert type="info" :show-icon="false">
+    <section class="access-control__intro" aria-labelledby="access-control-heading">
+      <h2 id="access-control-heading" class="visually-hidden">Identity-aware access</h2>
+      <ol class="access-control__flow" aria-label="Access-control request flow">
+        <li><KeyIcon class="icon-sm" aria-hidden="true" /><span><strong>Provider</strong> verifies the visitor</span></li>
+        <li><ArrowIcon class="icon-sm access-control__flow-arrow" aria-hidden="true" /><ShieldIcon class="icon-sm" aria-hidden="true" /><span><strong>Policy</strong> checks required groups</span></li>
+        <li><ArrowIcon class="icon-sm access-control__flow-arrow" aria-hidden="true" /><RouteIcon class="icon-sm" aria-hidden="true" /><span><strong>Route</strong> receives trusted identity headers</span></li>
+      </ol>
+      <p class="copy-xs line-normal muted-text">
         Access checks fail closed. Client-supplied identity headers are removed, local and external identities are injected only after successful authentication, and protected responses bypass shared cache storage.
-      </NAlert>
-    </div>
+      </p>
+    </section>
 
-    <div class="access-control__section layout-grid space-lg pad-x-xl pad-y-xl divider-bottom">
-      <div class="layout-row wrap-items align-start spread-items space-lg">
-        <div class="layout-grid space-xs">
-          <h3 class="copy-sm weight-semibold">Identity providers</h3>
-          <p class="copy-xs line-normal muted-text">Use local accounts for a self-contained setup, or connect oauth2-proxy, Authelia, Authentik, or your own forward-auth service.</p>
-        </div>
+    <SectionCard
+      title="Identity providers"
+      description="Use local accounts for a self-contained setup, or connect oauth2-proxy, Authelia, Authentik, or your own forward-auth service."
+      flush
+    >
+      <template #actions>
         <NButton secondary size="small" :disabled="isBusy" @click="openCreateProvider">
           <template #icon><PlusIcon class="icon-sm" /></template>
           Add provider
         </NButton>
-      </div>
-
-      <div v-if="providers.length" class="access-control__list divided-list">
+      </template>
+      <div v-if="providers.length" class="divided-list">
         <article v-for="provider in providers" :key="provider.id.toString()" class="access-control__row">
-          <div class="layout-grid space-xs min-width-zero">
+          <div class="layout-grid space-2xs min-width-zero">
             <div class="layout-row wrap-items align-center space-sm">
-              <h4 class="copy-sm weight-semibold wrap-anywhere">{{ provider.name }}</h4>
-              <NTag size="small" :bordered="false" type="info">{{ isLocalProvider(provider) ? 'Local users' : 'Forward auth' }}</NTag>
+              <h3 class="copy-sm weight-semibold wrap-anywhere">{{ provider.name }}</h3>
+              <NTag size="small" :bordered="false">{{ isLocalProvider(provider) ? 'Local users' : 'Forward auth' }}</NTag>
               <NTag size="small" :bordered="false" :type="provider.enabled ? 'success' : 'warning'">
                 {{ provider.enabled ? 'Enabled' : 'Disabled' }}
               </NTag>
@@ -665,7 +660,7 @@ function groupSummary(policy: PublicAccessPolicy): string {
               <p class="copy-xs muted-text">{{ localAuthModeLabel(provider.localAuthMode) }} · {{ localUserCount(provider.id).toString() }} {{ localUserCount(provider.id) === 1 ? 'user' : 'users' }} · {{ Math.round(Number(provider.localAuthSessionDurationMillis) / 3_600_000).toString() }} hour sessions</p>
               <p class="copy-xs muted-text">Sign-in page · {{ localAccessLoginTemplateName(provider.localAuthLoginTemplateId) }}</p>
               <p class="copy-xs muted-text">Login protection · {{ (provider.localAuthLoginUsernameMaxFailures || 5n).toString() }}/account · {{ (provider.localAuthLoginClientMaxFailures || 25n).toString() }}/client · {{ Math.round(Number(provider.localAuthLoginBlockMillis || 300000n) / 60_000).toString() }} min block</p>
-              <p class="copy-xs muted-text">{{ provider.localAuthAllowedHosts.length ? provider.localAuthAllowedHosts.join(' · ') : 'Any routed host' }} · SameSite {{ cookieSameSiteLabel(provider.localAuthCookieSameSite) }}{{ provider.localAuthCookieDomain ? ` · Domain ${provider.localAuthCookieDomain}` : '' }} · {{ provider.localAuthCookieName }}</p>
+              <p class="copy-xs muted-text wrap-anywhere">{{ provider.localAuthAllowedHosts.length ? provider.localAuthAllowedHosts.join(' · ') : 'Any routed host' }} · SameSite {{ cookieSameSiteLabel(provider.localAuthCookieSameSite) }}{{ provider.localAuthCookieDomain ? ` · Domain ${provider.localAuthCookieDomain}` : '' }} · {{ provider.localAuthCookieName }}</p>
             </template>
             <template v-else>
               <p class="copy-xs mono-text wrap-anywhere muted-text">{{ provider.forwardAuthUrl }}</p>
@@ -679,70 +674,71 @@ function groupSummary(policy: PublicAccessPolicy): string {
             </NButton>
             <NButton secondary size="small" :disabled="isBusy" :aria-label="`Edit identity provider ${provider.name}`" @click="openEditProvider(provider)">
               <template #icon><PencilIcon class="icon-sm" /></template>
+              Edit
             </NButton>
             <DisabledHint :disabled="Boolean(providerDeleteDisabledReason(provider))" :reason="providerDeleteDisabledReason(provider)">
-              <NButton type="error" size="small" :disabled="Boolean(providerDeleteDisabledReason(provider))" :aria-label="`Delete identity provider ${provider.name}`" @click="deleteProvider(provider)">
-                <template #icon><TrashIcon class="icon-sm" /></template>
+              <NButton type="error" secondary size="small" :disabled="Boolean(providerDeleteDisabledReason(provider))" :aria-label="`Delete identity provider ${provider.name}`" @click="deleteProvider(provider)">
+                Delete
               </NButton>
             </DisabledHint>
           </div>
         </article>
       </div>
-      <p v-else class="access-control__empty copy-xs line-normal muted-text">
+      <p v-else class="access-control__empty">
         No identity provider configured. Add local users or a forward-auth endpoint before creating an access policy.
       </p>
-    </div>
+    </SectionCard>
 
-    <div class="access-control__section layout-grid space-lg pad-x-xl pad-y-xl">
-      <div class="layout-row wrap-items align-start spread-items space-lg">
-        <div class="layout-grid space-xs">
-          <div class="layout-row align-center space-sm">
-            <h3 class="copy-sm weight-semibold">Access policies</h3>
-            <NTag size="small" :bordered="false">{{ enabledPolicies.toString() }}/{{ policies.length.toString() }} active</NTag>
-          </div>
-          <p class="copy-xs line-normal muted-text">Policies are reusable. Assign one from a route editor to protect that route.</p>
-        </div>
+    <SectionCard
+      title="Access policies"
+      description="Policies are reusable. Assign one from a route editor to protect that route."
+      flush
+    >
+      <template #badge>
+        <NTag size="small" :bordered="false">{{ enabledPolicies.toString() }}/{{ policies.length.toString() }} active</NTag>
+      </template>
+      <template #actions>
         <DisabledHint :disabled="!providers.length || isBusy" :reason="!providers.length ? 'Create an identity provider first.' : BUSY_REASON">
           <NButton type="primary" size="small" :disabled="!providers.length || isBusy" @click="openCreatePolicy">
             <template #icon><PlusIcon class="icon-sm" /></template>
             Add policy
           </NButton>
         </DisabledHint>
-      </div>
-
-      <div v-if="policies.length" class="access-control__list divided-list">
+      </template>
+      <div v-if="policies.length" class="divided-list">
         <article v-for="policy in policies" :key="policy.id.toString()" class="access-control__row">
-          <div class="layout-grid space-xs min-width-zero">
+          <div class="layout-grid space-2xs min-width-zero">
             <div class="layout-row wrap-items align-center space-sm">
-              <h4 class="copy-sm weight-semibold wrap-anywhere">{{ policy.name }}</h4>
+              <h3 class="copy-sm weight-semibold wrap-anywhere">{{ policy.name }}</h3>
               <NTag size="small" :bordered="false" :type="policy.enabled ? 'success' : 'warning'">
                 {{ policy.enabled ? 'Enabled' : 'Disabled' }}
               </NTag>
-              <NTag size="small" :bordered="false" type="info">
+              <NTag size="small" :bordered="false">
                 {{ routeCountForPolicy(policy.id).toString() }} {{ routeCountForPolicy(policy.id) === 1 ? 'route' : 'routes' }}
               </NTag>
             </div>
-            <p class="copy-xs muted-text">{{ providerName(policy.providerId) }} · {{ groupSummary(policy) }}</p>
+            <p class="copy-xs muted-text wrap-anywhere">{{ providerName(policy.providerId) }} · {{ groupSummary(policy) }}</p>
           </div>
           <div class="access-control__actions">
             <NButton secondary size="small" :disabled="isBusy" :aria-label="`Edit access policy ${policy.name}`" @click="openEditPolicy(policy)">
               <template #icon><PencilIcon class="icon-sm" /></template>
+              Edit
             </NButton>
             <DisabledHint :disabled="Boolean(policyDeleteDisabledReason(policy))" :reason="policyDeleteDisabledReason(policy)">
-              <NButton type="error" size="small" :disabled="Boolean(policyDeleteDisabledReason(policy))" :aria-label="`Delete access policy ${policy.name}`" @click="deletePolicy(policy)">
-                <template #icon><TrashIcon class="icon-sm" /></template>
+              <NButton type="error" secondary size="small" :disabled="Boolean(policyDeleteDisabledReason(policy))" :aria-label="`Delete access policy ${policy.name}`" @click="deletePolicy(policy)">
+                Delete
               </NButton>
             </DisabledHint>
           </div>
         </article>
       </div>
-      <p v-else class="access-control__empty copy-xs line-normal muted-text">
+      <p v-else class="access-control__empty">
         No access policies yet. A policy can require authentication only, any listed group, or every listed group.
       </p>
-    </div>
-  </section>
+    </SectionCard>
+  </div>
 
-  <NDrawer v-model:show="providerEditorOpen" placement="right" width="min(100vw, 46rem)" class="editor-drawer" :aria-label="providerForm.id ? 'Edit Identity Provider' : 'Add Identity Provider'">
+  <NDrawer v-model:show="providerEditorOpen" placement="right" :width="editorDrawerWidth('46rem')" class="editor-drawer" :aria-label="providerForm.id ? 'Edit Identity Provider' : 'Add Identity Provider'">
     <NDrawerContent :title="providerForm.id ? 'Edit Identity Provider' : 'Add Identity Provider'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="saveProvider">
         <NAlert v-if="providerForm.providerType === PublicAccessProviderType.FORWARD_AUTH" type="info" :show-icon="false">
@@ -752,19 +748,19 @@ function groupSummary(policy: PublicAccessPolicy): string {
           Local users are stored here with bcrypt-hashed passwords. Form login creates revocable, HTTP-only sessions; HTTP Basic uses the same accounts for clients that need it.
         </NAlert>
 
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Name
           <NInput v-model:value="providerForm.name" size="small" :maxlength="64" placeholder="company-sso" />
         </label>
 
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Provider type
           <NSelect v-model:value="providerForm.providerType" size="small" :options="providerTypeOptions" :disabled="Boolean(providerForm.id)" />
-          <span class="normal-text letter-normal weight-normal line-normal muted-text">Provider type cannot be changed after creation; create a new provider to migrate authentication methods.</span>
+          <span class="weight-normal line-normal muted-text">Provider type cannot be changed after creation; create a new provider to migrate authentication methods.</span>
         </label>
 
         <template v-if="providerForm.providerType === PublicAccessProviderType.FORWARD_AUTH">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Forward-auth URL
           <NInput v-model:value="providerForm.forwardAuthUrl" size="small" class="mono-text" placeholder="https://auth.example.com/oauth2/auth" />
         </label>
@@ -774,7 +770,7 @@ function groupSummary(policy: PublicAccessPolicy): string {
         </NAlert>
 
         <div class="layout-grid space-lg mq-sm-cols-two">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Timeout (ms)
             <NInputNumber v-model:value="providerForm.timeoutMillis" :show-button="false" size="small" :min="100" :max="30000" />
           </label>
@@ -783,48 +779,48 @@ function groupSummary(policy: PublicAccessPolicy): string {
           </div>
         </div>
 
-        <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+        <section class="editor-group layout-grid space-lg">
           <div>
             <h3 class="copy-sm weight-semibold">Identity response headers</h3>
             <p class="margin-top-xs copy-xs line-normal muted-text">Header names read from a successful auth response. Groups are comma-separated.</p>
           </div>
           <div class="layout-grid space-lg mq-sm-cols-two">
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Subject
               <NInput v-model:value="providerForm.subjectHeader" size="small" class="mono-text" />
             </label>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Username
               <NInput v-model:value="providerForm.userHeader" size="small" class="mono-text" />
             </label>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Email
               <NInput v-model:value="providerForm.emailHeader" size="small" class="mono-text" />
             </label>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Groups
               <NInput v-model:value="providerForm.groupsHeader" size="small" class="mono-text" />
             </label>
           </div>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Headers forwarded to the protected upstream
             <NInput v-model:value="providerForm.forwardedHeadersText" type="textarea" class="mono-text" :autosize="{ minRows: 4, maxRows: 12 }" />
-            <span class="normal-text letter-normal weight-normal line-normal muted-text">One header per line. Client values are removed before these trusted auth-response values are injected.</span>
+            <span class="weight-normal line-normal muted-text">One header per line. Client values are removed before these trusted auth-response values are injected.</span>
           </label>
         </section>
         </template>
 
         <template v-else>
-          <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+          <section class="editor-group layout-grid space-lg">
             <div>
               <h3 class="copy-sm weight-semibold">Login experience</h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">The sign-in form is the easiest browser experience. Enable Basic as well only when API clients need it.</p>
             </div>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Login mode
               <NSelect v-model:value="providerForm.localAuthMode" size="small" :options="localAuthModeOptions" />
             </label>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Sign-in page
               <AccessibleSelect
                 :value="providerForm.localAuthLoginTemplateId"
@@ -835,46 +831,46 @@ function groupSummary(policy: PublicAccessPolicy): string {
                 :disabled="!localAccessLoginTemplateOptions.length"
                 @update:value="providerForm.localAuthLoginTemplateId = String($event ?? '')"
               />
-              <span class="normal-text letter-normal weight-normal line-normal muted-text">
+              <span class="weight-normal line-normal muted-text">
                 Customize sign-in and authentication-error pages under <RouterLink to="/templates">Templates</RouterLink>.
               </span>
             </label>
             <div class="layout-grid space-lg mq-sm-cols-two">
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 Session lifetime (hours)
                 <NInputNumber v-model:value="providerForm.localAuthSessionHours" :show-button="false" size="small" :min="1" :max="720" />
               </label>
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 HTTP Basic realm
                 <NInput v-model:value="providerForm.localAuthRealm" size="small" :maxlength="128" placeholder="Restricted" />
               </label>
             </div>
           </section>
-          <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+          <section class="editor-group layout-grid space-lg">
             <div>
               <h3 class="copy-sm weight-semibold">Login protection</h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">Bound password guessing by account and client address. These limits always apply to both the sign-in form and HTTP Basic.</p>
             </div>
             <div class="layout-grid space-lg mq-sm-cols-two">
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 Failures per account
                 <NInputNumber v-model:value="providerForm.localAuthLoginUsernameMaxFailures" :show-button="false" size="small" :min="1" :max="100" />
-                <span class="normal-text letter-normal weight-normal line-normal muted-text">Per username and client address.</span>
+                <span class="weight-normal line-normal muted-text">Per username and client address.</span>
               </label>
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 Failures per client
                 <NInputNumber v-model:value="providerForm.localAuthLoginClientMaxFailures" :show-button="false" size="small" :min="providerForm.localAuthLoginUsernameMaxFailures" :max="1000" />
-                <span class="normal-text letter-normal weight-normal line-normal muted-text">Across every username attempted by one client.</span>
+                <span class="weight-normal line-normal muted-text">Across every username attempted by one client.</span>
               </label>
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 Failure window (minutes)
                 <NInputNumber v-model:value="providerForm.localAuthLoginWindowMinutes" :show-button="false" size="small" :min="1" :max="1440" />
-                <span class="normal-text letter-normal weight-normal line-normal muted-text">The failure count resets after this window ends.</span>
+                <span class="weight-normal line-normal muted-text">The failure count resets after this window ends.</span>
               </label>
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 Block duration (minutes)
                 <NInputNumber v-model:value="providerForm.localAuthLoginBlockMinutes" :show-button="false" size="small" :min="1" :max="10080" />
-                <span class="normal-text letter-normal weight-normal line-normal muted-text">Returned through Retry-After when the limit is reached.</span>
+                <span class="weight-normal line-normal muted-text">Returned through Retry-After when the limit is reached.</span>
               </label>
             </div>
             <div class="layout-row wrap-items space-sm" aria-label="Fixed login protections">
@@ -883,12 +879,12 @@ function groupSummary(policy: PublicAccessPolicy): string {
               <NTag size="small" :bordered="false" type="success">Cannot be disabled</NTag>
             </div>
           </section>
-          <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+          <section class="editor-group layout-grid space-lg">
             <div>
               <h3 class="copy-sm weight-semibold">Browser boundary</h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">Limit where this provider can authenticate and control how its short-lived CSRF and session cookies travel.</p>
             </div>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Allowed hosts
               <AccessibleSelect
                 v-model:value="providerForm.localAuthAllowedHosts"
@@ -902,22 +898,22 @@ function groupSummary(policy: PublicAccessPolicy): string {
                 size="small"
                 placeholder="Search or add hosts"
               />
-              <span class="normal-text letter-normal weight-normal line-normal muted-text">Exact hosts and leading wildcards are supported, for example <span class="mono-text">localhost</span> or <span class="mono-text">*.example.com</span>. Empty allows every host already matched by an assigned route.</span>
+              <span class="weight-normal line-normal muted-text">Exact hosts and leading wildcards are supported, for example <span class="mono-text">localhost</span> or <span class="mono-text">*.example.com</span>. Empty allows every host already matched by an assigned route.</span>
             </label>
             <div class="layout-grid space-lg mq-sm-cols-two">
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 SameSite policy
                 <NSelect v-model:value="providerForm.localAuthCookieSameSite" size="small" :options="localAuthCookieSameSiteOptions" />
               </label>
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
                 Cookie domain
                 <NInput v-model:value="providerForm.localAuthCookieDomain" size="small" class="mono-text" placeholder="Host-only (recommended)" />
               </label>
             </div>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Cookie name prefix
               <NInput v-model:value="providerForm.localAuthCookieName" size="small" class="mono-text" :maxlength="64" placeholder="p2pstream_local_auth" />
-              <span class="normal-text letter-normal weight-normal line-normal muted-text">Rotate this value to recover from stale or conflicting browser cookies. Provider and CSRF suffixes are added automatically.</span>
+              <span class="weight-normal line-normal muted-text">Rotate this value to recover from stale or conflicting browser cookies. Provider and CSRF suffixes are added automatically.</span>
             </label>
             <NCheckbox v-model:checked="providerForm.localAuthCookieSecure" :disabled="providerForm.localAuthCookieSameSite === PublicAccessCookieSameSite.NONE">
               Always mark cookies Secure
@@ -955,7 +951,7 @@ function groupSummary(policy: PublicAccessPolicy): string {
     </NDrawerContent>
   </NDrawer>
 
-  <NDrawer v-model:show="usersDrawerOpen" placement="right" width="min(100vw, 46rem)" class="editor-drawer" :aria-label="managedProvider ? `Local users for ${managedProvider.name}` : 'Local users'">
+  <NDrawer v-model:show="usersDrawerOpen" placement="right" :width="editorDrawerWidth('46rem')" class="editor-drawer" :aria-label="managedProvider ? `Local users for ${managedProvider.name}` : 'Local users'">
     <NDrawerContent :title="managedProvider ? `${managedProvider.name} · Local users` : 'Local users'" closable>
       <div class="editor-drawer-form layout-grid space-xl">
         <NAlert type="info" :show-icon="false">
@@ -984,32 +980,33 @@ function groupSummary(policy: PublicAccessPolicy): string {
             <div class="access-control__actions">
               <NButton secondary size="small" :disabled="isBusy" :aria-label="`Edit local user ${user.username}`" @click="openEditUser(user)">
                 <template #icon><PencilIcon class="icon-sm" /></template>
+                Edit
               </NButton>
-              <NButton type="error" size="small" :disabled="isBusy" :aria-label="`Delete local user ${user.username}`" @click="deleteUser(user)">
-                <template #icon><TrashIcon class="icon-sm" /></template>
+              <NButton type="error" secondary size="small" :disabled="isBusy" :aria-label="`Delete local user ${user.username}`" @click="deleteUser(user)">
+                Delete
               </NButton>
             </div>
           </article>
         </div>
-        <p v-else class="access-control__empty copy-xs line-normal muted-text">No local users yet. Protected routes fail closed until at least one enabled account exists.</p>
+        <p v-else class="access-control__empty access-control__empty--inset">No local users yet. Protected routes fail closed until at least one enabled account exists.</p>
       </div>
     </NDrawerContent>
   </NDrawer>
 
-  <NDrawer v-model:show="userEditorOpen" placement="right" width="min(100vw, 38rem)" class="editor-drawer" :aria-label="userForm.id ? 'Edit Local User' : 'Add Local User'">
+  <NDrawer v-model:show="userEditorOpen" placement="right" :width="editorDrawerWidth('38rem')" class="editor-drawer" :aria-label="userForm.id ? 'Edit Local User' : 'Add Local User'">
     <NDrawerContent :title="userForm.id ? 'Edit Local User' : 'Add Local User'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="saveUser">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Username
           <NInput v-model:value="userForm.username" size="small" :maxlength="64" autocomplete="off" placeholder="alice" />
-          <span class="normal-text letter-normal weight-normal line-normal muted-text">Lowercase letters, numbers, underscores, and hyphens.</span>
+          <span class="weight-normal line-normal muted-text">Lowercase letters, numbers, underscores, and hyphens.</span>
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           {{ userForm.passwordSet ? 'New password' : 'Password' }}
           <NInput v-model:value="userForm.password" type="password" size="small" :maxlength="72" autocomplete="new-password" :placeholder="userForm.passwordSet ? 'Leave blank to keep the current password' : 'At least 12 characters'" />
-          <span class="normal-text letter-normal weight-normal line-normal muted-text">{{ userForm.passwordSet ? 'Setting a new password revokes all existing sessions.' : 'Use 12–72 bytes.' }}</span>
+          <span class="weight-normal line-normal muted-text">{{ userForm.passwordSet ? 'Setting a new password revokes all existing sessions.' : 'Use 12–72 bytes.' }}</span>
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Groups
           <AccessibleSelect
             v-model:value="userForm.groups"
@@ -1023,7 +1020,7 @@ function groupSummary(policy: PublicAccessPolicy): string {
             size="small"
             placeholder="Search or add groups"
           />
-          <span class="normal-text letter-normal weight-normal line-normal muted-text">{{ userGroupHint }} Policies match these values exactly and case-sensitively.</span>
+          <span class="weight-normal line-normal muted-text">{{ userGroupHint }} Policies match these values exactly and case-sensitively.</span>
         </label>
         <NCheckbox v-model:checked="userForm.enabled">Enable user</NCheckbox>
         <p v-if="userSaveDisabledReason" class="copy-xs line-normal muted-text" role="status">User cannot be saved: {{ userSaveDisabledReason }}</p>
@@ -1037,18 +1034,18 @@ function groupSummary(policy: PublicAccessPolicy): string {
     </NDrawerContent>
   </NDrawer>
 
-  <NDrawer v-model:show="policyEditorOpen" placement="right" width="min(100vw, 40rem)" class="editor-drawer" :aria-label="policyForm.id ? 'Edit Access Policy' : 'Add Access Policy'">
+  <NDrawer v-model:show="policyEditorOpen" placement="right" :width="editorDrawerWidth('40rem')" class="editor-drawer" :aria-label="policyForm.id ? 'Edit Access Policy' : 'Add Access Policy'">
     <NDrawerContent :title="policyForm.id ? 'Edit Access Policy' : 'Add Access Policy'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="savePolicy">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Name
           <NInput v-model:value="policyForm.name" size="small" :maxlength="64" placeholder="staff-only" />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Identity provider
           <NSelect v-model:value="policyForm.providerId" size="small" :options="providerOptions" :input-props="{ 'aria-label': 'Access policy identity provider' }" />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Required groups
           <AccessibleSelect
             v-model:value="policyForm.requiredGroups"
@@ -1062,9 +1059,9 @@ function groupSummary(policy: PublicAccessPolicy): string {
             size="small"
             placeholder="Search or add groups"
           />
-          <span class="normal-text letter-normal weight-normal line-normal muted-text">{{ policyGroupHint }}</span>
+          <span class="weight-normal line-normal muted-text">{{ policyGroupHint }}</span>
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Group requirement
           <NSelect v-model:value="policyForm.groupMatch" size="small" :options="groupMatchOptions" :disabled="!policyForm.requiredGroups.length" :input-props="{ 'aria-label': 'Access policy group requirement' }" />
         </label>
@@ -1089,48 +1086,43 @@ function groupSummary(policy: PublicAccessPolicy): string {
 </template>
 
 <style scoped>
-.access-control__header {
-  align-items: center;
+.access-control__intro {
+  display: grid;
+  gap: 0.5rem;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  background: var(--app-panel-muted);
 }
 
 .access-control__flow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  background: var(--app-panel-muted);
-}
-
-.access-control__flow-node {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  min-width: 0;
-  padding: 0.7rem 0.9rem;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-panel);
-}
-
-.access-control__flow-node span {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.access-control__flow-node small {
+  gap: 0.375rem 0.75rem;
+  margin: 0;
+  padding: 0;
   color: var(--app-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.8125rem;
+  list-style: none;
 }
 
-.access-control__notice {
-  background: var(--app-panel);
+.access-control__flow li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.access-control__flow strong {
+  color: var(--app-text);
+  font-weight: 600;
+}
+
+.access-control__flow-arrow {
+  opacity: 0.6;
 }
 
 .access-control__list {
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 8px;
-  background: var(--app-panel);
+  border-block: 1px solid var(--app-border-subtle);
 }
 
 .access-control__row {
@@ -1138,7 +1130,11 @@ function groupSummary(policy: PublicAccessPolicy): string {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem;
+  padding: 0.875rem 1.25rem;
+}
+
+.access-control__list > .access-control__row {
+  padding-inline: 0;
 }
 
 .access-control__actions {
@@ -1150,27 +1146,48 @@ function groupSummary(policy: PublicAccessPolicy): string {
 }
 
 .access-control__empty {
-  padding: 1rem;
-  border: 1px dashed var(--app-border);
+  margin: 0;
+  padding: 1.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.access-control__empty--inset {
   border-radius: 8px;
+  padding: 1rem;
   background: var(--app-panel-muted);
 }
 
+.editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
 @media (max-width: 47.99rem) {
-  .access-control__header,
   .access-control__row {
     align-items: flex-start;
     flex-direction: column;
   }
 
+  .access-control__actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 639px) {
+  .access-control__intro,
+  .access-control__row {
+    padding-inline: 1rem;
+  }
+
   .access-control__flow {
-    align-items: stretch;
+    align-items: flex-start;
     flex-direction: column;
   }
 
-  .access-control__flow > svg {
-    align-self: center;
-    transform: rotate(90deg);
+  .access-control__flow-arrow {
+    display: none;
   }
 }
 </style>

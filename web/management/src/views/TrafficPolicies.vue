@@ -17,6 +17,8 @@ import PublicAccessControlSettings from "@/components/traffic-policy/PublicAcces
 import PublicVisitorIdentitySettings from "@/components/traffic-policy/PublicVisitorIdentitySettings.vue";
 import CacheStorageUsage from "@/components/traffic-policy/CacheStorageUsage.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -331,7 +333,7 @@ function resetTrafficPolicyPreview() {
 }
 
 function countTags(count: number) {
-  return count ? [{ label: count.toString(), tone: "info" as const }] : [];
+  return count ? [{ label: count.toString(), tone: "neutral" as const }] : [];
 }
 
 function countLabel(count: number, singular: string, plural = `${singular}s`): string {
@@ -745,18 +747,17 @@ async function deleteTrafficShaperRule(id: bigint) {
 
 <template>
   <div v-if="dashboard" class="stack-lg">
-    <div class="page-toolbar policy-toolbar">
-      <div class="page-toolbar__body">
-        <h1 class="margin-bottom-sm copy-2xl weight-bold">Traffic Policy</h1>
-        <p id="traffic-policy-page-description" class="copy-sm muted-text">{{ activePolicyMeta.description }}</p>
-      </div>
-      <div class="page-toolbar__actions">
+    <PageHeader title="Traffic Policy">
+      <template #description>
+        <span id="traffic-policy-page-description">{{ activePolicyMeta.description }}</span>
+      </template>
+      <template #actions>
         <NButton secondary size="small" @click="isPreviewOpen = true">
           <template #icon><SearchIcon class="icon-sm" /></template>
           Request Tester
         </NButton>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <details class="policy-execution-disclosure">
       <summary>
@@ -788,135 +789,130 @@ async function deleteTrafficShaperRule(id: bigint) {
         :tab="`Rate Limits · ${enabledRateLimitRules}/${rateLimitRules.length}`"
         :tab-props="policyTabProps('rate-limits', `Rate Limits, ${enabledCountLabel(enabledRateLimitRules, rateLimitRules.length)}`)"
       >
-    <section class="surface-card hide-overflow">
-      <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
-        <div>
-          <h2 class="copy-base weight-semibold">Rate Limits</h2>
-          <p class="margin-top-xs copy-sm muted-text">Throttle traffic based on request rate per client or route.</p>
-        </div>
-        <NButton type="primary" size="small" @click="openAddRateLimitRuleModal">
-          <template #icon><PlusIcon class="icon-sm" /></template>
-          Add Rate-Limit Rule
-        </NButton>
-      </div>
-      <div class="policy-local-filter" aria-label="Filter rate-limit rules">
-        <NInput
-          v-model:value="policyFilters['rate-limits'].text"
-          size="small"
-          clearable
-          placeholder="Filter rate-limit rules"
-          :input-props="{ 'aria-label': 'Filter rate-limit rules by name, match, key, priority, or warning' }"
-        >
-          <template #prefix><SearchIcon class="icon-sm" /></template>
-        </NInput>
-        <AccessibleSelect
-          v-model:value="policyFilters['rate-limits'].status"
-          accessible-label="Filter rate-limit rules by state"
-          size="small"
-          :options="policyFilterStatusOptions"
-        />
-        <NButton
-          v-if="isPolicyFilterActive('rate-limits')"
-          quaternary
-          size="small"
-          @click="clearPolicyFilter('rate-limits')"
-        >
-          <template #icon><XIcon class="icon-sm" /></template>
-          Clear filters
-        </NButton>
-        <p class="policy-filter-result" aria-live="polite">
-          {{ policyFilterResultLabel('rate-limits', filteredRateLimitRules.length, rateLimitRules.length) }}
-        </p>
-      </div>
-      <div v-if="filteredRateLimitRules.length" class="policy-data-table" role="table" aria-label="Rate-limit rules">
-        <div role="rowgroup">
-          <div class="policy-data-header policy-rule-grid" role="row">
-            <span class="policy-grid-identity" role="columnheader">Rule</span>
-            <span class="policy-grid-match" role="columnheader">Match &amp; key</span>
-            <span class="policy-grid-action" role="columnheader">Budget &amp; algorithm</span>
-            <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
-            <span class="policy-grid-actions" role="columnheader">Actions</span>
+        <SectionCard flush>
+          <div class="policy-list-toolbar">
+            <div class="policy-local-filter" aria-label="Filter rate-limit rules">
+              <NInput
+                v-model:value="policyFilters['rate-limits'].text"
+                size="small"
+                clearable
+                placeholder="Filter rate-limit rules"
+                :input-props="{ 'aria-label': 'Filter rate-limit rules by name, match, key, priority, or warning' }"
+              >
+                <template #prefix><SearchIcon class="icon-sm" /></template>
+              </NInput>
+              <AccessibleSelect
+                v-model:value="policyFilters['rate-limits'].status"
+                accessible-label="Filter rate-limit rules by state"
+                size="small"
+                :options="policyFilterStatusOptions"
+              />
+              <NButton
+                v-if="isPolicyFilterActive('rate-limits')"
+                quaternary
+                size="small"
+                @click="clearPolicyFilter('rate-limits')"
+              >
+                <template #icon><XIcon class="icon-sm" /></template>
+                Clear filters
+              </NButton>
+              <p class="policy-filter-result" aria-live="polite">
+                {{ policyFilterResultLabel('rate-limits', filteredRateLimitRules.length, rateLimitRules.length) }}
+              </p>
+            </div>
+            <NButton type="primary" size="small" @click="openAddRateLimitRuleModal">
+              <template #icon><PlusIcon class="icon-sm" /></template>
+              Add Rate-Limit Rule
+            </NButton>
           </div>
-        </div>
-        <div class="policy-data-rows" role="rowgroup">
-          <div
-            v-for="rule in filteredRateLimitRules"
-            :key="rule.id.toString()"
-            class="policy-data-row policy-rule-grid"
-            role="row"
-          >
-            <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-              <span class="policy-data-label">Rule</span>
-              <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-              <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-              <details class="policy-exact-disclosure">
-                <summary>Exact values</summary>
-                <dl>
-                  <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                  <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                  <div><dt>Key</dt><dd dir="auto">{{ rateLimitKeySummary(rule) }}</dd></div>
-                  <div><dt>Budget</dt><dd dir="auto">{{ rateLimitRuleSummary(rule) }}</dd></div>
-                </dl>
-              </details>
-            </div>
-            <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
-              <span class="policy-data-label">Match &amp; key</span>
-              <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-              <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
-            </div>
-            <div class="policy-data-cell policy-grid-action" data-label="Budget & algorithm" role="cell">
-              <span class="policy-data-label">Budget &amp; algorithm</span>
-              <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
-              <p class="policy-data-secondary mono-text" :title="rateLimitRuleSummary(rule)">{{ rateLimitRuleSummary(rule) }}</p>
-              <p class="policy-data-secondary">Response {{ rule.responseStatusCode.toString() }}</p>
-            </div>
-            <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-              <span class="policy-data-label">Order &amp; state</span>
-              <div class="policy-data-tags">
-                <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
-                <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                  {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                </NTag>
-              </div>
-              <div v-if="visiblePolicyWarningsForRule('rate-limit', rule.id).length" class="policy-data-tags">
-                <NTag
-                  v-for="warning in visiblePolicyWarningsForRule('rate-limit', rule.id)"
-                  :key="warning.code"
-                  size="small"
-                  :bordered="false"
-                  :type="naiveTagType(warningSeverity(warning))"
-                >
-                  {{ warningLabel(warning) }}
-                </NTag>
+          <div v-if="filteredRateLimitRules.length" class="policy-data-table" role="table" aria-label="Rate-limit rules">
+            <div role="rowgroup">
+              <div class="policy-data-header policy-rule-grid" role="row">
+                <span class="policy-grid-identity" role="columnheader">Rule</span>
+                <span class="policy-grid-match" role="columnheader">Match &amp; key</span>
+                <span class="policy-grid-action" role="columnheader">Budget &amp; algorithm</span>
+                <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
+                <span class="policy-grid-actions" role="columnheader"><span class="visually-hidden">Actions</span></span>
               </div>
             </div>
-            <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-              <span class="policy-data-label">Actions</span>
-              <NButton secondary size="small" aria-label="Edit rate-limit rule" title="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
-                <template #icon><PencilIcon class="icon-sm" /></template>
-              </NButton>
-              <NButton type="error" size="small" aria-label="Delete rate-limit rule" title="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
-                <template #icon><TrashIcon class="icon-sm" /></template>
-              </NButton>
+            <div class="policy-data-rows" role="rowgroup">
+              <div
+                v-for="rule in filteredRateLimitRules"
+                :key="rule.id.toString()"
+                class="policy-data-row policy-rule-grid"
+                role="row"
+              >
+                <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                  <span class="policy-data-label">Rule</span>
+                  <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                  <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                  <details class="policy-exact-disclosure">
+                    <summary>Exact values</summary>
+                    <dl>
+                      <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
+                      <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
+                      <div><dt>Key</dt><dd dir="auto">{{ rateLimitKeySummary(rule) }}</dd></div>
+                      <div><dt>Budget</dt><dd dir="auto">{{ rateLimitRuleSummary(rule) }}</dd></div>
+                    </dl>
+                  </details>
+                </div>
+                <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
+                  <span class="policy-data-label">Match &amp; key</span>
+                  <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                  <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
+                </div>
+                <div class="policy-data-cell policy-grid-action" data-label="Budget & algorithm" role="cell">
+                  <span class="policy-data-label">Budget &amp; algorithm</span>
+                  <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
+                  <p class="policy-data-secondary mono-text" :title="rateLimitRuleSummary(rule)">{{ rateLimitRuleSummary(rule) }}</p>
+                  <p class="policy-data-secondary">Response {{ rule.responseStatusCode.toString() }}</p>
+                </div>
+                <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                  <span class="policy-data-label">Order &amp; state</span>
+                  <div class="policy-data-tags">
+                    <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                    <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                      {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                    </NTag>
+                  </div>
+                  <div v-if="visiblePolicyWarningsForRule('rate-limit', rule.id).length" class="policy-data-tags">
+                    <NTag
+                      v-for="warning in visiblePolicyWarningsForRule('rate-limit', rule.id)"
+                      :key="warning.code"
+                      size="small"
+                      :bordered="false"
+                      :type="naiveTagType(warningSeverity(warning))"
+                    >
+                      {{ warningLabel(warning) }}
+                    </NTag>
+                  </div>
+                </div>
+                <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                  <span class="visually-hidden">Actions</span>
+                  <NButton secondary size="small" aria-label="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
+                    <template #icon><PencilIcon class="icon-sm" /></template>
+                    Edit
+                  </NButton>
+                  <NButton type="error" secondary size="small" aria-label="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
+                    Delete
+                  </NButton>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="divided-list">
-        <EmptyState
-          v-if="rateLimitRules.length && !filteredRateLimitRules.length && isPolicyFilterActive('rate-limits')"
-          title="No matching rate-limit rules"
-          description="Clear or adjust the filters to show more rules."
-        />
-        <EmptyState
-          v-if="!rateLimitRules.length"
-          title="No rate-limit rules configured"
-          description="Rate limits protect your route targets from excessive traffic by throttling requests per client or route."
-          action-label="Add Rate-Limit Rule"
-          @action="openAddRateLimitRuleModal"
-        />
-      </div>
-    </section>
+          <EmptyState
+            v-if="rateLimitRules.length && !filteredRateLimitRules.length && isPolicyFilterActive('rate-limits')"
+            title="No matching rate-limit rules"
+            description="Clear or adjust the filters to show more rules."
+          />
+          <EmptyState
+            v-if="!rateLimitRules.length"
+            title="No rate-limit rules configured"
+            description="Rate limits protect your route targets from excessive traffic by throttling requests per client or route."
+            action-label="Add Rate-Limit Rule"
+            @action="openAddRateLimitRuleModal"
+          />
+        </SectionCard>
       </NTabPane>
 
       <NTabPane
@@ -927,212 +923,202 @@ async function deleteTrafficShaperRule(id: bigint) {
         :tab="`WAF · ${enabledWafRules}/${wafRules.length}`"
         :tab-props="policyTabProps('waf', `WAF, ${enabledCountLabel(enabledWafRules, wafRules.length)}`)"
       >
-    <div class="stack-lg">
-    <section class="surface-card hide-overflow">
-      <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
-        <div>
-          <h2 class="copy-base weight-semibold">WAF</h2>
-          <p class="margin-top-xs copy-sm muted-text">Block, challenge, or queue matching application traffic before it reaches routes.</p>
-        </div>
-        <div class="workbench-section-actions layout-row wrap-items space-sm">
-          <NButton secondary size="small" @click="openAddWafCaptchaProviderModal">
-            <template #icon><PlusIcon class="icon-sm" /></template>
-            Add Captcha Provider
-          </NButton>
-          <NButton type="primary" size="small" @click="openAddWafRuleModal">
-            <template #icon><PlusIcon class="icon-sm" /></template>
-            Add WAF Rule
-          </NButton>
-        </div>
-      </div>
-      <div class="policy-local-filter" aria-label="Filter WAF rules">
-        <NInput
-          v-model:value="policyFilters.waf.text"
-          size="small"
-          clearable
-          placeholder="Filter WAF rules"
-          :input-props="{ 'aria-label': 'Filter WAF rules by name, match, key, priority, action, or warning' }"
-        >
-          <template #prefix><SearchIcon class="icon-sm" /></template>
-        </NInput>
-        <AccessibleSelect
-          v-model:value="policyFilters.waf.status"
-          accessible-label="Filter WAF rules by state"
-          size="small"
-          :options="policyFilterStatusOptions"
-        />
-        <NButton v-if="isPolicyFilterActive('waf')" quaternary size="small" @click="clearPolicyFilter('waf')">
-          <template #icon><XIcon class="icon-sm" /></template>
-          Clear filters
-        </NButton>
-        <p class="policy-filter-result" aria-live="polite">
-          {{ policyFilterResultLabel('waf', filteredWafRules.length, wafRules.length) }}
-        </p>
-      </div>
-      <div class="divided-list">
-        <div v-if="wafRules.length" class="policy-list-heading">
-          <div>
-            <h3>WAF rules</h3>
-            <p>Evaluated in priority order before rate limits and routing.</p>
-          </div>
-          <span>{{ countLabel(wafRules.length, "rule") }}</span>
-        </div>
-        <div v-if="filteredWafRules.length" class="policy-data-table" role="table" aria-label="WAF rules">
-          <div role="rowgroup">
-            <div class="policy-data-header policy-rule-grid" role="row">
-              <span class="policy-grid-identity" role="columnheader">Rule</span>
-              <span class="policy-grid-match" role="columnheader">Match</span>
-              <span class="policy-grid-action" role="columnheader">Action</span>
-              <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
-              <span class="policy-grid-actions" role="columnheader">Actions</span>
+        <div class="stack-lg">
+          <SectionCard flush>
+            <div class="policy-list-toolbar">
+              <div class="policy-local-filter" aria-label="Filter WAF rules">
+                <NInput
+                  v-model:value="policyFilters.waf.text"
+                  size="small"
+                  clearable
+                  placeholder="Filter WAF rules"
+                  :input-props="{ 'aria-label': 'Filter WAF rules by name, match, key, priority, action, or warning' }"
+                >
+                  <template #prefix><SearchIcon class="icon-sm" /></template>
+                </NInput>
+                <AccessibleSelect
+                  v-model:value="policyFilters.waf.status"
+                  accessible-label="Filter WAF rules by state"
+                  size="small"
+                  :options="policyFilterStatusOptions"
+                />
+                <NButton v-if="isPolicyFilterActive('waf')" quaternary size="small" @click="clearPolicyFilter('waf')">
+                  <template #icon><XIcon class="icon-sm" /></template>
+                  Clear filters
+                </NButton>
+                <p class="policy-filter-result" aria-live="polite">
+                  {{ policyFilterResultLabel('waf', filteredWafRules.length, wafRules.length) }}
+                </p>
+              </div>
+              <NButton type="primary" size="small" @click="openAddWafRuleModal">
+                <template #icon><PlusIcon class="icon-sm" /></template>
+                Add WAF Rule
+              </NButton>
             </div>
-          </div>
-          <div class="policy-data-rows" role="rowgroup">
-            <div
-              v-for="rule in filteredWafRules"
-              :key="`rule-${rule.id.toString()}`"
-              class="policy-data-row policy-rule-grid"
-              role="row"
-            >
-              <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-                <span class="policy-data-label">Rule</span>
-                <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-                <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-                <details class="policy-exact-disclosure">
-                  <summary>Exact values</summary>
-                  <dl>
-                    <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                    <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                    <div><dt>Key</dt><dd dir="auto">{{ rateLimitKeySummary(rule) }}</dd></div>
-                    <div><dt>Action</dt><dd dir="auto">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</dd></div>
-                  </dl>
-                </details>
-              </div>
-              <div class="policy-data-cell policy-grid-match" data-label="Match" role="cell">
-                <span class="policy-data-label">Match</span>
-                <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-                <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
-              </div>
-              <div class="policy-data-cell policy-grid-action" data-label="Action" role="cell">
-                <span class="policy-data-label">Action</span>
-                <div class="policy-data-tags">
-                  <NTag size="small" :bordered="false" type="info">{{ wafActionLabel(rule.action) }}</NTag>
-                  <NTag size="small" :bordered="false">{{ wafActivationLabel(rule.activationMode) }}</NTag>
-                </div>
-                <p class="policy-data-secondary mono-text" dir="auto" :title="wafRuleSummary(rule, wafCaptchaProviders)">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</p>
-              </div>
-              <div class="policy-data-cell policy-grid-state" data-label="Order &amp; state" role="cell">
-                <span class="policy-data-label">Order &amp; state</span>
-                <div class="policy-data-tags">
-                  <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
-                  <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                    {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                  </NTag>
-                </div>
-                <div v-if="visiblePolicyWarningsForRule('waf', rule.id).length" class="policy-data-tags">
-                  <NTag
-                    v-for="warning in visiblePolicyWarningsForRule('waf', rule.id)"
-                    :key="warning.code"
-                    size="small"
-                    :bordered="false"
-                    :type="naiveTagType(warningSeverity(warning))"
-                  >
-                    {{ warningLabel(warning) }}
-                  </NTag>
+            <div v-if="filteredWafRules.length" class="policy-data-table" role="table" aria-label="WAF rules">
+              <div role="rowgroup">
+                <div class="policy-data-header policy-rule-grid" role="row">
+                  <span class="policy-grid-identity" role="columnheader">Rule</span>
+                  <span class="policy-grid-match" role="columnheader">Match</span>
+                  <span class="policy-grid-action" role="columnheader">Action</span>
+                  <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
+                  <span class="policy-grid-actions" role="columnheader"><span class="visually-hidden">Actions</span></span>
                 </div>
               </div>
-              <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                <span class="policy-data-label">Actions</span>
-                <NButton secondary size="small" aria-label="Edit WAF rule" title="Edit WAF rule" @click="editWafRule(rule.id)">
-                  <template #icon><PencilIcon class="icon-sm" /></template>
-                </NButton>
-                <NButton type="error" size="small" aria-label="Delete WAF rule" title="Delete WAF rule" @click="deleteWafRule(rule.id)">
-                  <template #icon><TrashIcon class="icon-sm" /></template>
-                </NButton>
+              <div class="policy-data-rows" role="rowgroup">
+                <div
+                  v-for="rule in filteredWafRules"
+                  :key="`rule-${rule.id.toString()}`"
+                  class="policy-data-row policy-rule-grid"
+                  role="row"
+                >
+                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                    <span class="policy-data-label">Rule</span>
+                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                    <details class="policy-exact-disclosure">
+                      <summary>Exact values</summary>
+                      <dl>
+                        <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
+                        <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
+                        <div><dt>Key</dt><dd dir="auto">{{ rateLimitKeySummary(rule) }}</dd></div>
+                        <div><dt>Action</dt><dd dir="auto">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</dd></div>
+                      </dl>
+                    </details>
+                  </div>
+                  <div class="policy-data-cell policy-grid-match" data-label="Match" role="cell">
+                    <span class="policy-data-label">Match</span>
+                    <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-action" data-label="Action" role="cell">
+                    <span class="policy-data-label">Action</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false" type="info">{{ wafActionLabel(rule.action) }}</NTag>
+                      <NTag size="small" :bordered="false">{{ wafActivationLabel(rule.activationMode) }}</NTag>
+                    </div>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="wafRuleSummary(rule, wafCaptchaProviders)">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-state" data-label="Order &amp; state" role="cell">
+                    <span class="policy-data-label">Order &amp; state</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                      </NTag>
+                    </div>
+                    <div v-if="visiblePolicyWarningsForRule('waf', rule.id).length" class="policy-data-tags">
+                      <NTag
+                        v-for="warning in visiblePolicyWarningsForRule('waf', rule.id)"
+                        :key="warning.code"
+                        size="small"
+                        :bordered="false"
+                        :type="naiveTagType(warningSeverity(warning))"
+                      >
+                        {{ warningLabel(warning) }}
+                      </NTag>
+                    </div>
+                  </div>
+                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                    <span class="visually-hidden">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit WAF rule" @click="editWafRule(rule.id)">
+                      <template #icon><PencilIcon class="icon-sm" /></template>
+                      Edit
+                    </NButton>
+                    <NButton type="error" secondary size="small" aria-label="Delete WAF rule" @click="deleteWafRule(rule.id)">
+                      Delete
+                    </NButton>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-        <div v-if="wafCaptchaProviders.length" class="policy-list-heading policy-list-heading--secondary">
-          <div>
-            <h3>Captcha providers</h3>
-            <p>Credentials used by WAF challenge rules.</p>
-          </div>
-          <span>{{ countLabel(wafCaptchaProviders.length, "provider") }}</span>
-        </div>
-        <div v-if="wafCaptchaProviders.length" class="policy-data-table" role="table" aria-label="Captcha providers">
-          <div role="rowgroup">
-            <div class="policy-data-header policy-provider-grid" role="row">
-              <span class="policy-grid-identity" role="columnheader">Provider</span>
-              <span class="policy-grid-type" role="columnheader">Type</span>
-              <span class="policy-grid-secret" role="columnheader">Credential</span>
-              <span class="policy-grid-state" role="columnheader">State</span>
-              <span class="policy-grid-actions" role="columnheader">Actions</span>
+            <EmptyState
+              v-if="wafRules.length && !filteredWafRules.length && isPolicyFilterActive('waf')"
+              title="No matching WAF rules"
+              description="Clear or adjust the filters to show more rules."
+            />
+            <EmptyState
+              v-if="!wafRules.length"
+              title="No WAF rules configured"
+              description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and targets."
+              action-label="Add WAF Rule"
+              @action="openAddWafRuleModal"
+            />
+          </SectionCard>
+
+          <SectionCard title="Captcha providers" description="Credentials used by WAF challenge rules." flush>
+            <template #badge>
+              <NTag size="small" :bordered="false">{{ wafCaptchaProviders.length.toString() }}</NTag>
+            </template>
+            <template #actions>
+              <NButton secondary size="small" @click="openAddWafCaptchaProviderModal">
+                <template #icon><PlusIcon class="icon-sm" /></template>
+                Add Captcha Provider
+              </NButton>
+            </template>
+            <div v-if="wafCaptchaProviders.length" class="policy-data-table" role="table" aria-label="Captcha providers">
+              <div role="rowgroup">
+                <div class="policy-data-header policy-provider-grid" role="row">
+                  <span class="policy-grid-identity" role="columnheader">Provider</span>
+                  <span class="policy-grid-type" role="columnheader">Type</span>
+                  <span class="policy-grid-secret" role="columnheader">Credential</span>
+                  <span class="policy-grid-state" role="columnheader">State</span>
+                  <span class="policy-grid-actions" role="columnheader"><span class="visually-hidden">Actions</span></span>
+                </div>
+              </div>
+              <div class="policy-data-rows" role="rowgroup">
+                <div
+                  v-for="provider in wafCaptchaProviders"
+                  :key="`provider-${provider.id.toString()}`"
+                  class="policy-data-row policy-provider-grid"
+                  role="row"
+                >
+                  <div class="policy-data-cell policy-grid-identity" data-label="Provider" role="cell">
+                    <span class="policy-data-label">Provider</span>
+                    <p class="policy-data-primary" dir="auto" :title="provider.name">{{ provider.name }}</p>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="provider.siteKey">{{ provider.siteKey }}</p>
+                    <details class="policy-exact-disclosure">
+                      <summary>Exact values</summary>
+                      <dl>
+                        <div><dt>Name</dt><dd dir="auto">{{ provider.name }}</dd></div>
+                        <div><dt>Site key</dt><dd dir="auto">{{ provider.siteKey }}</dd></div>
+                      </dl>
+                    </details>
+                  </div>
+                  <div class="policy-data-cell policy-grid-type" data-label="Type" role="cell">
+                    <span class="policy-data-label">Type</span>
+                    <NTag size="small" :bordered="false">{{ wafProviderLabel(provider.providerType) }}</NTag>
+                  </div>
+                  <div class="policy-data-cell policy-grid-secret" data-label="Credential" role="cell">
+                    <span class="policy-data-label">Credential</span>
+                    <NTag size="small" :bordered="false" :type="naiveTagType(provider.secretKeySet ? 'success' : 'danger')">
+                      {{ provider.secretKeySet ? 'Secret saved' : 'Secret missing' }}
+                    </NTag>
+                  </div>
+                  <div class="policy-data-cell policy-grid-state" data-label="State" role="cell">
+                    <span class="policy-data-label">State</span>
+                    <NTag size="small" :bordered="false" :type="naiveTagType(provider.enabled ? 'success' : 'warning')">
+                      {{ provider.enabled ? 'Enabled' : 'Disabled' }}
+                    </NTag>
+                  </div>
+                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                    <span class="visually-hidden">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
+                      <template #icon><PencilIcon class="icon-sm" /></template>
+                      Edit
+                    </NButton>
+                    <NButton type="error" secondary size="small" aria-label="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
+                      Delete
+                    </NButton>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="policy-data-rows" role="rowgroup">
-            <div
-              v-for="provider in wafCaptchaProviders"
-              :key="`provider-${provider.id.toString()}`"
-              class="policy-data-row policy-provider-grid"
-              role="row"
-            >
-              <div class="policy-data-cell policy-grid-identity" data-label="Provider" role="cell">
-                <span class="policy-data-label">Provider</span>
-                <p class="policy-data-primary" dir="auto" :title="provider.name">{{ provider.name }}</p>
-                <p class="policy-data-secondary mono-text" dir="auto" :title="provider.siteKey">{{ provider.siteKey }}</p>
-                <details class="policy-exact-disclosure">
-                  <summary>Exact values</summary>
-                  <dl>
-                    <div><dt>Name</dt><dd dir="auto">{{ provider.name }}</dd></div>
-                    <div><dt>Site key</dt><dd dir="auto">{{ provider.siteKey }}</dd></div>
-                  </dl>
-                </details>
-              </div>
-              <div class="policy-data-cell policy-grid-type" data-label="Type" role="cell">
-                <span class="policy-data-label">Type</span>
-                <NTag size="small" :bordered="false" type="info">{{ wafProviderLabel(provider.providerType) }}</NTag>
-              </div>
-              <div class="policy-data-cell policy-grid-secret" data-label="Credential" role="cell">
-                <span class="policy-data-label">Credential</span>
-                <NTag size="small" :bordered="false" :type="naiveTagType(provider.secretKeySet ? 'success' : 'danger')">
-                  {{ provider.secretKeySet ? 'Secret saved' : 'Secret missing' }}
-                </NTag>
-              </div>
-              <div class="policy-data-cell policy-grid-state" data-label="State" role="cell">
-                <span class="policy-data-label">State</span>
-                <NTag size="small" :bordered="false" :type="naiveTagType(provider.enabled ? 'success' : 'warning')">
-                  {{ provider.enabled ? 'Enabled' : 'Disabled' }}
-                </NTag>
-              </div>
-              <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                <span class="policy-data-label">Actions</span>
-                <NButton secondary size="small" aria-label="Edit captcha provider" title="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
-                  <template #icon><PencilIcon class="icon-sm" /></template>
-                </NButton>
-                <NButton type="error" size="small" aria-label="Delete captcha provider" title="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
-                  <template #icon><TrashIcon class="icon-sm" /></template>
-                </NButton>
-              </div>
-            </div>
-          </div>
+            <p v-else class="policy-quiet-empty">No captcha providers yet. Add one before creating a captcha rule.</p>
+          </SectionCard>
+
+          <PublicVisitorIdentitySettings :config="config" />
         </div>
-        <EmptyState
-          v-if="wafRules.length && !filteredWafRules.length && isPolicyFilterActive('waf')"
-          title="No matching WAF rules"
-          description="Clear or adjust the filters to show more rules."
-        />
-        <EmptyState
-          v-if="!wafRules.length"
-          title="No WAF rules configured"
-          description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and targets."
-          action-label="Add WAF Rule"
-          @action="openAddWafRuleModal"
-        />
-      </div>
-    </section>
-    <PublicVisitorIdentitySettings :config="config" />
-    </div>
       </NTabPane>
 
       <NTabPane
@@ -1143,9 +1129,7 @@ async function deleteTrafficShaperRule(id: bigint) {
         :tab="`Access · ${enabledAccessPolicies}/${accessPolicies.length}`"
         :tab-props="policyTabProps('access', `Access, ${enabledCountLabel(enabledAccessPolicies, accessPolicies.length)}`)"
       >
-        <div class="stack-lg">
-          <PublicAccessControlSettings :config="config" />
-        </div>
+        <PublicAccessControlSettings :config="config" />
       </NTabPane>
 
       <NTabPane
@@ -1156,256 +1140,245 @@ async function deleteTrafficShaperRule(id: bigint) {
         :tab="`Cache · ${enabledCacheRules}/${cacheRules.length}`"
         :tab-props="policyTabProps('cache', `Cache, ${enabledCountLabel(enabledCacheRules, cacheRules.length)}`)"
       >
-    <div class="stack-lg">
-    <section class="surface-card hide-overflow">
-      <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
-        <div>
-          <h2 class="copy-base weight-semibold">Cache rules</h2>
-          <p class="margin-top-xs copy-sm muted-text">Choose which eligible public responses are stored and how their cache keys behave.</p>
-        </div>
-        <NButton type="primary" size="small" @click="openAddCacheRuleModal">
-          <template #icon><PlusIcon class="icon-sm" /></template>
-          Add Cache Rule
-        </NButton>
-      </div>
-      <div class="policy-local-filter" aria-label="Filter cache rules">
-        <NInput
-          v-model:value="policyFilters.cache.text"
-          size="small"
-          clearable
-          placeholder="Filter cache rules"
-          :input-props="{ 'aria-label': 'Filter cache rules by name, match, query key, priority, or warning' }"
-        >
-          <template #prefix><SearchIcon class="icon-sm" /></template>
-        </NInput>
-        <AccessibleSelect
-          v-model:value="policyFilters.cache.status"
-          accessible-label="Filter cache rules by state"
-          size="small"
-          :options="policyFilterStatusOptions"
-        />
-        <NButton v-if="isPolicyFilterActive('cache')" quaternary size="small" @click="clearPolicyFilter('cache')">
-          <template #icon><XIcon class="icon-sm" /></template>
-          Clear filters
-        </NButton>
-        <p class="policy-filter-result" aria-live="polite">
-          {{ policyFilterResultLabel('cache', filteredCacheRules.length, cacheRules.length) }}
-        </p>
-      </div>
-      <div v-if="filteredCacheRules.length" class="policy-data-table" role="table" aria-label="Cache rules">
-        <div role="rowgroup">
-          <div class="policy-data-header policy-rule-grid" role="row">
-            <span class="policy-grid-identity" role="columnheader">Rule</span>
-            <span class="policy-grid-match" role="columnheader">Match &amp; key</span>
-            <span class="policy-grid-action" role="columnheader">TTL &amp; storage</span>
-            <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
-            <span class="policy-grid-actions" role="columnheader">Actions</span>
-          </div>
-        </div>
-        <div class="policy-data-rows" role="rowgroup">
-          <div
-            v-for="rule in filteredCacheRules"
-            :key="rule.id.toString()"
-            class="policy-data-row policy-rule-grid"
-            role="row"
-          >
-            <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-              <span class="policy-data-label">Rule</span>
-              <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-              <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-              <details class="policy-exact-disclosure">
-                <summary>Exact values</summary>
-                <dl>
-                  <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                  <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                  <div><dt>Key</dt><dd dir="auto">{{ cacheQueryModeLabel(rule.queryMode) }}</dd></div>
-                  <div><dt>TTL &amp; storage</dt><dd dir="auto">{{ cacheRuleSummary(rule) }}</dd></div>
-                </dl>
-              </details>
-            </div>
-            <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
-              <span class="policy-data-label">Match &amp; key</span>
-              <p class="policy-data-value" dir="auto" :title="cacheRuleMatchSummary(rule)">{{ cacheRuleMatchSummary(rule) }}</p>
-              <p class="policy-data-secondary mono-text" dir="auto" :title="cacheQueryModeLabel(rule.queryMode)">{{ cacheQueryModeLabel(rule.queryMode) }}</p>
-            </div>
-            <div class="policy-data-cell policy-grid-action" data-label="TTL & storage" role="cell">
-              <span class="policy-data-label">TTL &amp; storage</span>
-              <div class="policy-data-tags">
-                <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
-                <NTag size="small" :bordered="false">{{ cacheScopeLabel(rule.scope) }}</NTag>
-              </div>
-              <p class="policy-data-secondary mono-text" dir="auto" :title="cacheRuleSummary(rule)">{{ cacheRuleSummary(rule) }}</p>
-            </div>
-            <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-              <span class="policy-data-label">Order &amp; state</span>
-              <div class="policy-data-tags">
-                <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
-                <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                  {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                </NTag>
-              </div>
-              <div v-if="visiblePolicyWarningsForRule('cache', rule.id).length" class="policy-data-tags">
-                <NTag
-                  v-for="warning in visiblePolicyWarningsForRule('cache', rule.id)"
-                  :key="warning.code"
+        <div class="stack-lg">
+          <SectionCard flush>
+            <div class="policy-list-toolbar">
+              <div class="policy-local-filter" aria-label="Filter cache rules">
+                <NInput
+                  v-model:value="policyFilters.cache.text"
                   size="small"
-                  :bordered="false"
-                  :type="naiveTagType(warningSeverity(warning))"
+                  clearable
+                  placeholder="Filter cache rules"
+                  :input-props="{ 'aria-label': 'Filter cache rules by name, match, query key, priority, or warning' }"
                 >
-                  {{ warningLabel(warning) }}
-                </NTag>
+                  <template #prefix><SearchIcon class="icon-sm" /></template>
+                </NInput>
+                <AccessibleSelect
+                  v-model:value="policyFilters.cache.status"
+                  accessible-label="Filter cache rules by state"
+                  size="small"
+                  :options="policyFilterStatusOptions"
+                />
+                <NButton v-if="isPolicyFilterActive('cache')" quaternary size="small" @click="clearPolicyFilter('cache')">
+                  <template #icon><XIcon class="icon-sm" /></template>
+                  Clear filters
+                </NButton>
+                <p class="policy-filter-result" aria-live="polite">
+                  {{ policyFilterResultLabel('cache', filteredCacheRules.length, cacheRules.length) }}
+                </p>
+              </div>
+              <NButton type="primary" size="small" @click="openAddCacheRuleModal">
+                <template #icon><PlusIcon class="icon-sm" /></template>
+                Add Cache Rule
+              </NButton>
+            </div>
+            <div v-if="filteredCacheRules.length" class="policy-data-table" role="table" aria-label="Cache rules">
+              <div role="rowgroup">
+                <div class="policy-data-header policy-rule-grid" role="row">
+                  <span class="policy-grid-identity" role="columnheader">Rule</span>
+                  <span class="policy-grid-match" role="columnheader">Match &amp; key</span>
+                  <span class="policy-grid-action" role="columnheader">TTL &amp; storage</span>
+                  <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
+                  <span class="policy-grid-actions" role="columnheader"><span class="visually-hidden">Actions</span></span>
+                </div>
+              </div>
+              <div class="policy-data-rows" role="rowgroup">
+                <div
+                  v-for="rule in filteredCacheRules"
+                  :key="rule.id.toString()"
+                  class="policy-data-row policy-rule-grid"
+                  role="row"
+                >
+                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                    <span class="policy-data-label">Rule</span>
+                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                    <details class="policy-exact-disclosure">
+                      <summary>Exact values</summary>
+                      <dl>
+                        <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
+                        <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
+                        <div><dt>Key</dt><dd dir="auto">{{ cacheQueryModeLabel(rule.queryMode) }}</dd></div>
+                        <div><dt>TTL &amp; storage</dt><dd dir="auto">{{ cacheRuleSummary(rule) }}</dd></div>
+                      </dl>
+                    </details>
+                  </div>
+                  <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
+                    <span class="policy-data-label">Match &amp; key</span>
+                    <p class="policy-data-value" dir="auto" :title="cacheRuleMatchSummary(rule)">{{ cacheRuleMatchSummary(rule) }}</p>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="cacheQueryModeLabel(rule.queryMode)">{{ cacheQueryModeLabel(rule.queryMode) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-action" data-label="TTL & storage" role="cell">
+                    <span class="policy-data-label">TTL &amp; storage</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
+                      <NTag size="small" :bordered="false">{{ cacheScopeLabel(rule.scope) }}</NTag>
+                    </div>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="cacheRuleSummary(rule)">{{ cacheRuleSummary(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                    <span class="policy-data-label">Order &amp; state</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                      </NTag>
+                    </div>
+                    <div v-if="visiblePolicyWarningsForRule('cache', rule.id).length" class="policy-data-tags">
+                      <NTag
+                        v-for="warning in visiblePolicyWarningsForRule('cache', rule.id)"
+                        :key="warning.code"
+                        size="small"
+                        :bordered="false"
+                        :type="naiveTagType(warningSeverity(warning))"
+                      >
+                        {{ warningLabel(warning) }}
+                      </NTag>
+                    </div>
+                  </div>
+                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                    <span class="visually-hidden">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit cache rule" @click="editCacheRule(rule.id)">
+                      <template #icon><PencilIcon class="icon-sm" /></template>
+                      Edit
+                    </NButton>
+                    <NButton type="error" secondary size="small" aria-label="Delete cache rule" @click="deleteCacheRule(rule.id)">
+                      Delete
+                    </NButton>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-              <span class="policy-data-label">Actions</span>
-              <NButton secondary size="small" aria-label="Edit cache rule" title="Edit cache rule" @click="editCacheRule(rule.id)">
-                <template #icon><PencilIcon class="icon-sm" /></template>
-              </NButton>
-              <NButton type="error" size="small" aria-label="Delete cache rule" title="Delete cache rule" @click="deleteCacheRule(rule.id)">
-                <template #icon><TrashIcon class="icon-sm" /></template>
-              </NButton>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="divided-list">
-        <EmptyState
-          v-if="cacheRules.length && !filteredCacheRules.length && isPolicyFilterActive('cache')"
-          title="No matching cache rules"
-          description="Clear or adjust the filters to show more rules."
-        />
-        <EmptyState
-          v-if="!cacheRules.length"
-          title="No cache rules configured"
-          description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Authorization and Cookie requests always bypass shared cache."
-          action-label="Add Cache Rule"
-          @action="openAddCacheRuleModal"
-        />
-      </div>
-    </section>
-    <section class="surface-card" aria-labelledby="cache-storage-heading">
-      <div class="surface-card__header policy-cache-header">
-        <div>
-          <div class="layout-row wrap-items align-center space-sm">
-            <h2 id="cache-storage-heading" class="copy-base weight-semibold">Cache storage &amp; operations</h2>
-            <NTag v-if="cacheSettingsDirty" size="small" :bordered="false" type="warning">Unsaved changes</NTag>
-            <NTag v-else size="small" :bordered="false" :type="cacheSettingsForm.enabled ? 'success' : 'default'">
-              {{ cacheSettingsForm.enabled ? 'Storage enabled' : 'Storage disabled' }}
-            </NTag>
-          </div>
-          <p class="margin-top-xs copy-sm muted-text">Set shared storage budgets independently from the rules that decide cache eligibility.</p>
-        </div>
-      </div>
-      <form class="policy-cache-settings" @submit.prevent="saveCacheSettings">
-        <div class="policy-cache-settings__enable">
-          <div>
-            <h3 class="copy-sm weight-semibold">Storage limits</h3>
-            <p class="margin-top-xs copy-xs muted-text">Bodies use the public cache directory; metadata stays in SQLite.</p>
-          </div>
-          <NCheckbox v-model:checked="cacheSettingsForm.enabled">Cache storage enabled</NCheckbox>
-        </div>
-        <CacheStorageUsage :settings="cacheSettings" :stats="config?.cacheStorageStats" />
-        <div class="policy-cache-fields">
-          <label class="policy-cache-field">
-            <span>Disk MiB</span>
-            <NInputNumber
-              v-model:value="cacheSettingsForm.maxDiskMiB"
-              :show-button="false"
-              size="small"
-              :min="1"
-              :step="1"
-              :precision="0"
-              :status="cacheSettingsErrors.maxDiskMiB ? 'error' : undefined"
+            <EmptyState
+              v-if="cacheRules.length && !filteredCacheRules.length && isPolicyFilterActive('cache')"
+              title="No matching cache rules"
+              description="Clear or adjust the filters to show more rules."
             />
-            <small v-if="cacheSettingsErrors.maxDiskMiB" role="alert">{{ cacheSettingsErrors.maxDiskMiB }}</small>
-          </label>
-          <label class="policy-cache-field">
-            <span>Memory MiB</span>
-            <NInputNumber
-              v-model:value="cacheSettingsForm.maxMemoryMiB"
-              :show-button="false"
-              size="small"
-              :min="1"
-              :step="1"
-              :precision="0"
-              :status="cacheSettingsErrors.maxMemoryMiB ? 'error' : undefined"
+            <EmptyState
+              v-if="!cacheRules.length"
+              title="No cache rules configured"
+              description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Authorization and Cookie requests always bypass shared cache."
+              action-label="Add Cache Rule"
+              @action="openAddCacheRuleModal"
             />
-            <small v-if="cacheSettingsErrors.maxMemoryMiB" role="alert">{{ cacheSettingsErrors.maxMemoryMiB }}</small>
-          </label>
-          <label class="policy-cache-field">
-            <span>Hot object KiB</span>
-            <NInputNumber
-              v-model:value="cacheSettingsForm.hotObjectKiB"
-              :show-button="false"
-              size="small"
-              :min="1"
-              :step="1"
-              :precision="0"
-              :status="cacheSettingsErrors.hotObjectKiB ? 'error' : undefined"
-            />
-            <small v-if="cacheSettingsErrors.hotObjectKiB" role="alert">{{ cacheSettingsErrors.hotObjectKiB }}</small>
-          </label>
-          <label class="policy-cache-field">
-            <span>Max entries</span>
-            <NInputNumber
-              v-model:value="cacheSettingsForm.maxEntries"
-              :show-button="false"
-              size="small"
-              :min="1"
-              :max="10000000"
-              :step="1"
-              :precision="0"
-              :status="cacheSettingsErrors.maxEntries ? 'error' : undefined"
-            />
-            <small v-if="cacheSettingsErrors.maxEntries" role="alert">{{ cacheSettingsErrors.maxEntries }}</small>
-          </label>
-          <label class="policy-cache-field">
-            <span>Cleanup seconds</span>
-            <NInputNumber
-              v-model:value="cacheSettingsForm.cleanupIntervalSeconds"
-              :show-button="false"
-              size="small"
-              :min="1"
-              :max="3600"
-              :step="1"
-              :precision="0"
-              :status="cacheSettingsErrors.cleanupIntervalSeconds ? 'error' : undefined"
-            />
-            <small v-if="cacheSettingsErrors.cleanupIntervalSeconds" role="alert">{{ cacheSettingsErrors.cleanupIntervalSeconds }}</small>
-          </label>
+          </SectionCard>
+
+          <SectionCard
+            title="Cache storage"
+            description="Shared storage budgets, set independently from the rules that decide cache eligibility. Bodies use the public cache directory; metadata stays in SQLite."
+          >
+            <template #badge>
+              <NTag v-if="cacheSettingsDirty" size="small" :bordered="false" type="warning">Unsaved changes</NTag>
+              <NTag v-else size="small" :bordered="false" :type="cacheSettingsForm.enabled ? 'success' : 'default'">
+                {{ cacheSettingsForm.enabled ? 'Storage enabled' : 'Storage disabled' }}
+              </NTag>
+            </template>
+            <form class="policy-cache-settings" @submit.prevent="saveCacheSettings">
+              <CacheStorageUsage :settings="cacheSettings" :stats="config?.cacheStorageStats" />
+              <NCheckbox v-model:checked="cacheSettingsForm.enabled">Cache storage enabled</NCheckbox>
+              <div class="policy-cache-fields">
+                <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+                  Disk MiB
+                  <NInputNumber
+                    v-model:value="cacheSettingsForm.maxDiskMiB"
+                    :show-button="false"
+                    size="small"
+                    :min="1"
+                    :step="1"
+                    :precision="0"
+                    :status="cacheSettingsErrors.maxDiskMiB ? 'error' : undefined"
+                  />
+                  <small v-if="cacheSettingsErrors.maxDiskMiB" class="policy-field-error" role="alert">{{ cacheSettingsErrors.maxDiskMiB }}</small>
+                </label>
+                <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+                  Memory MiB
+                  <NInputNumber
+                    v-model:value="cacheSettingsForm.maxMemoryMiB"
+                    :show-button="false"
+                    size="small"
+                    :min="1"
+                    :step="1"
+                    :precision="0"
+                    :status="cacheSettingsErrors.maxMemoryMiB ? 'error' : undefined"
+                  />
+                  <small v-if="cacheSettingsErrors.maxMemoryMiB" class="policy-field-error" role="alert">{{ cacheSettingsErrors.maxMemoryMiB }}</small>
+                </label>
+                <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+                  Hot object KiB
+                  <NInputNumber
+                    v-model:value="cacheSettingsForm.hotObjectKiB"
+                    :show-button="false"
+                    size="small"
+                    :min="1"
+                    :step="1"
+                    :precision="0"
+                    :status="cacheSettingsErrors.hotObjectKiB ? 'error' : undefined"
+                  />
+                  <small v-if="cacheSettingsErrors.hotObjectKiB" class="policy-field-error" role="alert">{{ cacheSettingsErrors.hotObjectKiB }}</small>
+                </label>
+                <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+                  Max entries
+                  <NInputNumber
+                    v-model:value="cacheSettingsForm.maxEntries"
+                    :show-button="false"
+                    size="small"
+                    :min="1"
+                    :max="10000000"
+                    :step="1"
+                    :precision="0"
+                    :status="cacheSettingsErrors.maxEntries ? 'error' : undefined"
+                  />
+                  <small v-if="cacheSettingsErrors.maxEntries" class="policy-field-error" role="alert">{{ cacheSettingsErrors.maxEntries }}</small>
+                </label>
+                <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+                  Cleanup seconds
+                  <NInputNumber
+                    v-model:value="cacheSettingsForm.cleanupIntervalSeconds"
+                    :show-button="false"
+                    size="small"
+                    :min="1"
+                    :max="3600"
+                    :step="1"
+                    :precision="0"
+                    :status="cacheSettingsErrors.cleanupIntervalSeconds ? 'error' : undefined"
+                  />
+                  <small v-if="cacheSettingsErrors.cleanupIntervalSeconds" class="policy-field-error" role="alert">{{ cacheSettingsErrors.cleanupIntervalSeconds }}</small>
+                </label>
+              </div>
+              <div class="policy-inline-row">
+                <p class="copy-xs muted-text" role="status">
+                  {{ cacheSettingsDirty ? 'Automatic refresh is paused for this draft until you save or discard it.' : 'Settings match the latest server response.' }}
+                </p>
+                <div class="layout-row wrap-items space-sm">
+                  <NButton v-if="cacheSettingsDirty" secondary size="small" attr-type="button" :disabled="isBusy" @click="resetCacheSettings">
+                    Discard changes
+                  </NButton>
+                  <NButton
+                    type="primary"
+                    size="small"
+                    attr-type="submit"
+                    :disabled="Boolean(cacheSettingsSaveDisabledReason)"
+                    :title="cacheSettingsSaveDisabledReason"
+                  >
+                    Save cache settings
+                  </NButton>
+                </div>
+              </div>
+            </form>
+            <template #footer>
+              <div class="policy-inline-row">
+                <div class="layout-grid space-2xs">
+                  <h3 class="copy-sm weight-semibold base-text">Purge cached objects</h3>
+                  <p class="copy-xs muted-text">Delete every cached public-proxy object. Eligible requests will miss until their responses are stored again.</p>
+                </div>
+                <NButton type="error" secondary size="small" :disabled="isBusy" @click="purgeAllCache">
+                  <template #icon><TrashIcon class="icon-sm" /></template>
+                  Purge all cached objects
+                </NButton>
+              </div>
+            </template>
+          </SectionCard>
         </div>
-        <div class="policy-cache-settings__footer">
-          <p class="copy-xs muted-text" role="status">
-            {{ cacheSettingsDirty ? 'Automatic refresh is paused for this draft until you save or discard it.' : 'Settings match the latest server response.' }}
-          </p>
-          <div class="layout-row wrap-items space-sm">
-            <NButton v-if="cacheSettingsDirty" secondary size="small" attr-type="button" :disabled="isBusy" @click="resetCacheSettings">
-              Discard changes
-            </NButton>
-            <NButton
-              type="primary"
-              size="small"
-              attr-type="submit"
-              :disabled="Boolean(cacheSettingsSaveDisabledReason)"
-              :title="cacheSettingsSaveDisabledReason"
-            >
-              Save cache settings
-            </NButton>
-          </div>
-        </div>
-      </form>
-      <div class="policy-cache-danger">
-        <div>
-          <h3>Purge cached objects</h3>
-          <p>Delete every cached public-proxy object. Eligible requests will miss until their responses are stored again.</p>
-        </div>
-        <NButton type="error" size="small" :disabled="isBusy" @click="purgeAllCache">
-          <template #icon><TrashIcon class="icon-sm" /></template>
-          Purge all cached objects
-        </NButton>
-      </div>
-    </section>
-    </div>
       </NTabPane>
 
       <NTabPane
@@ -1418,54 +1391,49 @@ async function deleteTrafficShaperRule(id: bigint) {
       >
         <div class="stack-lg">
           <section class="retry-principles" aria-labelledby="retry-principles-title">
-            <div class="retry-principles__marker" aria-hidden="true">R</div>
-            <div>
-              <h2 id="retry-principles-title">One client request, bounded upstream attempts</h2>
-              <p>
+            <div class="layout-grid space-2xs min-width-zero">
+              <h2 id="retry-principles-title" class="copy-sm weight-semibold base-text">One client request, bounded upstream attempts</h2>
+              <p class="copy-xs line-normal muted-text">
                 Retries use a different eligible agent chosen by the target's load balancer. They stay inside the selected target and can recover transport failures, selected HTTP error statuses, and protected mid-response failures before any response reaches the client.
               </p>
             </div>
             <div class="retry-principles__facts" aria-label="Retry invariants">
-              <span>Different agent</span>
-              <span>Same target</span>
-              <span>1–3 retries</span>
+              <NTag size="small" :bordered="false">Different agent</NTag>
+              <NTag size="small" :bordered="false">Same target</NTag>
+              <NTag size="small" :bordered="false">1–3 retries</NTag>
             </div>
           </section>
 
-          <section class="surface-card hide-overflow">
-            <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
-              <div>
-                <h2 class="copy-base weight-semibold">Request retry rules</h2>
-                <p class="margin-top-xs copy-sm muted-text">Recover from agent tunnel, VPN, and selected upstream response failures without changing route semantics.</p>
+          <SectionCard flush>
+            <div class="policy-list-toolbar">
+              <div class="policy-local-filter" aria-label="Filter request retry rules">
+                <NInput
+                  v-model:value="policyFilters.retries.text"
+                  size="small"
+                  clearable
+                  placeholder="Filter retry rules"
+                  :input-props="{ 'aria-label': 'Filter retry rules by name, methods, match, scope, or failure mode' }"
+                >
+                  <template #prefix><SearchIcon class="icon-sm" /></template>
+                </NInput>
+                <AccessibleSelect
+                  v-model:value="policyFilters.retries.status"
+                  accessible-label="Filter retry rules by state"
+                  size="small"
+                  :options="policyFilterStatusOptions"
+                />
+                <NButton v-if="isPolicyFilterActive('retries')" quaternary size="small" @click="clearPolicyFilter('retries')">
+                  <template #icon><XIcon class="icon-sm" /></template>
+                  Clear filters
+                </NButton>
+                <p class="policy-filter-result" aria-live="polite">
+                  {{ policyFilterResultLabel('retries', filteredRetryRules.length, retryRules.length) }}
+                </p>
               </div>
               <NButton type="primary" size="small" @click="openAddRetryRuleModal">
                 <template #icon><PlusIcon class="icon-sm" /></template>
                 Add Retry Rule
               </NButton>
-            </div>
-            <div class="policy-local-filter" aria-label="Filter request retry rules">
-              <NInput
-                v-model:value="policyFilters.retries.text"
-                size="small"
-                clearable
-                placeholder="Filter retry rules"
-                :input-props="{ 'aria-label': 'Filter retry rules by name, methods, match, scope, or failure mode' }"
-              >
-                <template #prefix><SearchIcon class="icon-sm" /></template>
-              </NInput>
-              <AccessibleSelect
-                v-model:value="policyFilters.retries.status"
-                accessible-label="Filter retry rules by state"
-                size="small"
-                :options="policyFilterStatusOptions"
-              />
-              <NButton v-if="isPolicyFilterActive('retries')" quaternary size="small" @click="clearPolicyFilter('retries')">
-                <template #icon><XIcon class="icon-sm" /></template>
-                Clear filters
-              </NButton>
-              <p class="policy-filter-result" aria-live="polite">
-                {{ policyFilterResultLabel('retries', filteredRetryRules.length, retryRules.length) }}
-              </p>
             </div>
 
             <div v-if="filteredRetryRules.length" class="policy-data-table" role="table" aria-label="Request retry rules">
@@ -1475,7 +1443,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                   <span class="policy-grid-match" role="columnheader">Match &amp; scope</span>
                   <span class="policy-grid-action" role="columnheader">Attempt policy</span>
                   <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
-                  <span class="policy-grid-actions" role="columnheader">Actions</span>
+                  <span class="policy-grid-actions" role="columnheader"><span class="visually-hidden">Actions</span></span>
                 </div>
               </div>
               <div class="policy-data-rows" role="rowgroup">
@@ -1522,7 +1490,7 @@ async function deleteTrafficShaperRule(id: bigint) {
                   <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
                     <span class="policy-data-label">Order &amp; state</span>
                     <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
+                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
                       <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
                         {{ rule.enabled ? 'Enabled' : 'Disabled' }}
                       </NTag>
@@ -1540,32 +1508,31 @@ async function deleteTrafficShaperRule(id: bigint) {
                     </div>
                   </div>
                   <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                    <span class="policy-data-label">Actions</span>
-                    <NButton secondary size="small" aria-label="Edit retry rule" title="Edit retry rule" @click="editRetryRule(rule.id)">
+                    <span class="visually-hidden">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit retry rule" @click="editRetryRule(rule.id)">
                       <template #icon><PencilIcon class="icon-sm" /></template>
+                      Edit
                     </NButton>
-                    <NButton type="error" size="small" aria-label="Delete retry rule" title="Delete retry rule" @click="deleteRetryRule(rule.id)">
-                      <template #icon><TrashIcon class="icon-sm" /></template>
+                    <NButton type="error" secondary size="small" aria-label="Delete retry rule" @click="deleteRetryRule(rule.id)">
+                      Delete
                     </NButton>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="divided-list">
-              <EmptyState
-                v-if="retryRules.length && !filteredRetryRules.length && isPolicyFilterActive('retries')"
-                title="No matching retry rules"
-                description="Clear or adjust the filters to show more rules."
-              />
-              <EmptyState
-                v-if="!retryRules.length"
-                title="No request retries configured"
-                description="Add an opt-in rule to retry selected requests through a different agent when an agent tunnel or VPN connection fails. GET and HEAD with one connection-only retry is the safest starting point."
-                action-label="Add Retry Rule"
-                @action="openAddRetryRuleModal"
-              />
-            </div>
-          </section>
+            <EmptyState
+              v-if="retryRules.length && !filteredRetryRules.length && isPolicyFilterActive('retries')"
+              title="No matching retry rules"
+              description="Clear or adjust the filters to show more rules."
+            />
+            <EmptyState
+              v-if="!retryRules.length"
+              title="No request retries configured"
+              description="Add an opt-in rule to retry selected requests through a different agent when an agent tunnel or VPN connection fails. GET and HEAD with one connection-only retry is the safest starting point."
+              action-label="Add Retry Rule"
+              @action="openAddRetryRuleModal"
+            />
+          </SectionCard>
         </div>
       </NTabPane>
 
@@ -1577,139 +1544,134 @@ async function deleteTrafficShaperRule(id: bigint) {
         :tab="`Traffic Shaper · ${enabledTrafficShapers}/${trafficShaperRules.length}`"
         :tab-props="policyTabProps('traffic-shaper', `Traffic Shaper, ${enabledCountLabel(enabledTrafficShapers, trafficShaperRules.length)}`)"
       >
-    <section class="surface-card hide-overflow">
-      <div class="workbench-section-header divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-lg">
-        <div>
-          <h2 class="copy-base weight-semibold">Traffic Shaper</h2>
-          <p class="margin-top-xs copy-sm muted-text">Limit bandwidth consumption per request or client.</p>
-        </div>
-        <NButton type="primary" size="small" @click="openAddTrafficShaperRuleModal">
-          <template #icon><PlusIcon class="icon-sm" /></template>
-          Add Traffic Shaper
-        </NButton>
-      </div>
-      <div class="policy-local-filter" aria-label="Filter traffic-shaper rules">
-        <NInput
-          v-model:value="policyFilters['traffic-shaper'].text"
-          size="small"
-          clearable
-          placeholder="Filter traffic-shaper rules"
-          :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, protocol scope, or warning' }"
-        >
-          <template #prefix><SearchIcon class="icon-sm" /></template>
-        </NInput>
-        <AccessibleSelect
-          v-model:value="policyFilters['traffic-shaper'].status"
-          accessible-label="Filter traffic-shaper rules by state"
-          size="small"
-          :options="policyFilterStatusOptions"
-        />
-        <NButton
-          v-if="isPolicyFilterActive('traffic-shaper')"
-          quaternary
-          size="small"
-          @click="clearPolicyFilter('traffic-shaper')"
-        >
-          <template #icon><XIcon class="icon-sm" /></template>
-          Clear filters
-        </NButton>
-        <p class="policy-filter-result" aria-live="polite">
-          {{ policyFilterResultLabel('traffic-shaper', filteredTrafficShaperRules.length, trafficShaperRules.length) }}
-        </p>
-      </div>
-      <div v-if="filteredTrafficShaperRules.length" class="policy-data-table" role="table" aria-label="Traffic-shaper rules">
-        <div role="rowgroup">
-          <div class="policy-data-header policy-rule-grid" role="row">
-            <span class="policy-grid-identity" role="columnheader">Rule</span>
-            <span class="policy-grid-match" role="columnheader">Match &amp; key</span>
-            <span class="policy-grid-action" role="columnheader">Budget &amp; scope</span>
-            <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
-            <span class="policy-grid-actions" role="columnheader">Actions</span>
-          </div>
-        </div>
-        <div class="policy-data-rows" role="rowgroup">
-          <div
-            v-for="rule in filteredTrafficShaperRules"
-            :key="rule.id.toString()"
-            class="policy-data-row policy-rule-grid"
-            role="row"
-          >
-            <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-              <span class="policy-data-label">Rule</span>
-              <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-              <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-              <details class="policy-exact-disclosure">
-                <summary>Exact values</summary>
-                <dl>
-                  <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                  <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                  <div><dt>Key</dt><dd dir="auto">{{ trafficShaperKeySummary(rule) }}</dd></div>
-                  <div><dt>Applies to</dt><dd dir="auto">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</dd></div>
-                  <div><dt>Budget</dt><dd dir="auto">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</dd></div>
-                </dl>
-              </details>
-            </div>
-            <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
-              <span class="policy-data-label">Match &amp; key</span>
-              <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-              <p class="policy-data-secondary mono-text" dir="auto" :title="trafficShaperKeySummary(rule)">Key {{ trafficShaperKeySummary(rule) }}</p>
-            </div>
-            <div class="policy-data-cell policy-grid-action" data-label="Budget & scope" role="cell">
-              <span class="policy-data-label">Budget &amp; scope</span>
-              <div class="policy-data-tags">
-                <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
-                <NTag size="small" :bordered="false">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</NTag>
-              </div>
-              <p class="policy-data-secondary mono-text" :title="trafficShaperRuleSummary(rule)">{{ trafficShaperRuleSummary(rule) }}</p>
-              <p class="policy-data-secondary" :title="trafficShaperBudgetSummary(rule)">{{ trafficShaperBudgetSummary(rule) }}</p>
-            </div>
-            <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-              <span class="policy-data-label">Order &amp; state</span>
-              <div class="policy-data-tags">
-                <NTag size="small" :bordered="false" type="info">P{{ rule.priority.toString() }}</NTag>
-                <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                  {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                </NTag>
-              </div>
-              <div v-if="visiblePolicyWarningsForRule('traffic-shaper', rule.id).length" class="policy-data-tags">
-                <NTag
-                  v-for="warning in visiblePolicyWarningsForRule('traffic-shaper', rule.id)"
-                  :key="warning.code"
-                  size="small"
-                  :bordered="false"
-                  :type="naiveTagType(warningSeverity(warning))"
-                >
-                  {{ warningLabel(warning) }}
-                </NTag>
-              </div>
-            </div>
-            <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-              <span class="policy-data-label">Actions</span>
-              <NButton secondary size="small" aria-label="Edit traffic-shaper rule" title="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
-                <template #icon><PencilIcon class="icon-sm" /></template>
+        <SectionCard flush>
+          <div class="policy-list-toolbar">
+            <div class="policy-local-filter" aria-label="Filter traffic-shaper rules">
+              <NInput
+                v-model:value="policyFilters['traffic-shaper'].text"
+                size="small"
+                clearable
+                placeholder="Filter traffic-shaper rules"
+                :input-props="{ 'aria-label': 'Filter traffic-shaper rules by name, match, key, priority, budget, protocol scope, or warning' }"
+              >
+                <template #prefix><SearchIcon class="icon-sm" /></template>
+              </NInput>
+              <AccessibleSelect
+                v-model:value="policyFilters['traffic-shaper'].status"
+                accessible-label="Filter traffic-shaper rules by state"
+                size="small"
+                :options="policyFilterStatusOptions"
+              />
+              <NButton
+                v-if="isPolicyFilterActive('traffic-shaper')"
+                quaternary
+                size="small"
+                @click="clearPolicyFilter('traffic-shaper')"
+              >
+                <template #icon><XIcon class="icon-sm" /></template>
+                Clear filters
               </NButton>
-              <NButton type="error" size="small" aria-label="Delete traffic-shaper rule" title="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
-                <template #icon><TrashIcon class="icon-sm" /></template>
-              </NButton>
+              <p class="policy-filter-result" aria-live="polite">
+                {{ policyFilterResultLabel('traffic-shaper', filteredTrafficShaperRules.length, trafficShaperRules.length) }}
+              </p>
+            </div>
+            <NButton type="primary" size="small" @click="openAddTrafficShaperRuleModal">
+              <template #icon><PlusIcon class="icon-sm" /></template>
+              Add Traffic Shaper
+            </NButton>
+          </div>
+          <div v-if="filteredTrafficShaperRules.length" class="policy-data-table" role="table" aria-label="Traffic-shaper rules">
+            <div role="rowgroup">
+              <div class="policy-data-header policy-rule-grid" role="row">
+                <span class="policy-grid-identity" role="columnheader">Rule</span>
+                <span class="policy-grid-match" role="columnheader">Match &amp; key</span>
+                <span class="policy-grid-action" role="columnheader">Budget &amp; scope</span>
+                <span class="policy-grid-state" role="columnheader">Order &amp; state</span>
+                <span class="policy-grid-actions" role="columnheader"><span class="visually-hidden">Actions</span></span>
+              </div>
+            </div>
+            <div class="policy-data-rows" role="rowgroup">
+              <div
+                v-for="rule in filteredTrafficShaperRules"
+                :key="rule.id.toString()"
+                class="policy-data-row policy-rule-grid"
+                role="row"
+              >
+                <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                  <span class="policy-data-label">Rule</span>
+                  <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                  <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                  <details class="policy-exact-disclosure">
+                    <summary>Exact values</summary>
+                    <dl>
+                      <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
+                      <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
+                      <div><dt>Key</dt><dd dir="auto">{{ trafficShaperKeySummary(rule) }}</dd></div>
+                      <div><dt>Applies to</dt><dd dir="auto">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</dd></div>
+                      <div><dt>Budget</dt><dd dir="auto">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</dd></div>
+                    </dl>
+                  </details>
+                </div>
+                <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
+                  <span class="policy-data-label">Match &amp; key</span>
+                  <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                  <p class="policy-data-secondary mono-text" dir="auto" :title="trafficShaperKeySummary(rule)">Key {{ trafficShaperKeySummary(rule) }}</p>
+                </div>
+                <div class="policy-data-cell policy-grid-action" data-label="Budget & scope" role="cell">
+                  <span class="policy-data-label">Budget &amp; scope</span>
+                  <div class="policy-data-tags">
+                    <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+                    <NTag size="small" :bordered="false">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</NTag>
+                  </div>
+                  <p class="policy-data-secondary mono-text" :title="trafficShaperRuleSummary(rule)">{{ trafficShaperRuleSummary(rule) }}</p>
+                  <p class="policy-data-secondary" :title="trafficShaperBudgetSummary(rule)">{{ trafficShaperBudgetSummary(rule) }}</p>
+                </div>
+                <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                  <span class="policy-data-label">Order &amp; state</span>
+                  <div class="policy-data-tags">
+                    <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                    <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                      {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                    </NTag>
+                  </div>
+                  <div v-if="visiblePolicyWarningsForRule('traffic-shaper', rule.id).length" class="policy-data-tags">
+                    <NTag
+                      v-for="warning in visiblePolicyWarningsForRule('traffic-shaper', rule.id)"
+                      :key="warning.code"
+                      size="small"
+                      :bordered="false"
+                      :type="naiveTagType(warningSeverity(warning))"
+                    >
+                      {{ warningLabel(warning) }}
+                    </NTag>
+                  </div>
+                </div>
+                <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                  <span class="visually-hidden">Actions</span>
+                  <NButton secondary size="small" aria-label="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
+                    <template #icon><PencilIcon class="icon-sm" /></template>
+                    Edit
+                  </NButton>
+                  <NButton type="error" secondary size="small" aria-label="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
+                    Delete
+                  </NButton>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="divided-list">
-        <EmptyState
-          v-if="trafficShaperRules.length && !filteredTrafficShaperRules.length && isPolicyFilterActive('traffic-shaper')"
-          title="No matching traffic-shaper rules"
-          description="Clear or adjust the filters to show more rules."
-        />
-        <EmptyState
-          v-if="!trafficShaperRules.length"
-          title="No traffic-shaper rules configured"
-          description="Traffic shapers limit bandwidth consumption per request or client to prevent saturation."
-          action-label="Add Traffic Shaper"
-          @action="openAddTrafficShaperRuleModal"
-        />
-      </div>
-    </section>
+          <EmptyState
+            v-if="trafficShaperRules.length && !filteredTrafficShaperRules.length && isPolicyFilterActive('traffic-shaper')"
+            title="No matching traffic-shaper rules"
+            description="Clear or adjust the filters to show more rules."
+          />
+          <EmptyState
+            v-if="!trafficShaperRules.length"
+            title="No traffic-shaper rules configured"
+            description="Traffic shapers limit bandwidth consumption per request or client to prevent saturation."
+            action-label="Add Traffic Shaper"
+            @action="openAddTrafficShaperRuleModal"
+          />
+        </SectionCard>
       </NTabPane>
     </NTabs>
 
@@ -1738,6 +1700,7 @@ async function deleteTrafficShaperRule(id: bigint) {
 </template>
 
 <style scoped>
+/* Execution order: a quiet disclosure between hairlines. */
 .policy-execution-disclosure {
   min-width: 0;
   border-block: 1px solid var(--app-border-subtle);
@@ -1748,7 +1711,7 @@ async function deleteTrafficShaperRule(id: bigint) {
   min-height: 2.75rem;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.25rem;
+  padding: 0.5rem 0;
   color: var(--app-text);
   cursor: pointer;
   list-style: none;
@@ -1770,6 +1733,11 @@ async function deleteTrafficShaperRule(id: bigint) {
   content: "−";
 }
 
+.policy-execution-disclosure > summary:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
+}
+
 .policy-execution-disclosure__label {
   flex: none;
   font-size: 0.8125rem;
@@ -1784,30 +1752,26 @@ async function deleteTrafficShaperRule(id: bigint) {
   white-space: nowrap;
 }
 
-.policy-execution-disclosure :deep(.tp-order-strip) {
-  border: 0;
-  border-top: 1px solid var(--app-border-subtle);
-  border-radius: 0;
-}
-
 .policy-tabs {
   min-width: 0;
 }
 
 .policy-tabs :deep(.n-tabs-nav) {
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
 }
 
-.policy-tabs :deep(.n-tab-pane) {
-  padding-top: 0.25rem;
+/* List toolbar: filters on the left, the tab's primary action on the right. */
+.policy-list-toolbar {
+  display: grid;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.75rem 1.25rem;
 }
 
 .policy-local-filter {
   display: grid;
+  min-width: 0;
   gap: 0.625rem;
-  border-bottom: 1px solid var(--app-border-subtle);
-  padding: 0.75rem 1rem;
-  background: color-mix(in srgb, var(--app-panel-muted) 55%, var(--app-panel));
 }
 
 .policy-filter-result {
@@ -1815,44 +1779,20 @@ async function deleteTrafficShaperRule(id: bigint) {
   margin: 0;
   color: var(--app-text-muted);
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   line-height: 1.4;
   white-space: nowrap;
 }
 
-.policy-list-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1.25rem;
-  background: var(--app-panel-muted);
-}
-
-.policy-list-heading h3,
-.policy-list-heading p {
+.policy-quiet-empty {
   margin: 0;
-}
-
-.policy-list-heading h3 {
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.policy-list-heading p,
-.policy-list-heading > span {
+  padding: 1.25rem;
   color: var(--app-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.45;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
-.policy-list-heading > span {
-  flex: none;
-}
-
-.policy-list-heading--secondary {
-  border-top: 1px solid var(--app-border-subtle);
-}
-
+/* Rule tables: role="table" grids that stack into labelled cells on narrow containers. */
 .policy-data-table {
   min-width: 0;
   container-type: inline-size;
@@ -1871,7 +1811,7 @@ async function deleteTrafficShaperRule(id: bigint) {
   min-width: 0;
   align-items: start;
   gap: 0.75rem 1rem;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
 }
 
 .policy-data-row + .policy-data-row {
@@ -1893,33 +1833,13 @@ async function deleteTrafficShaperRule(id: bigint) {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.policy-grid-identity {
-  grid-area: identity;
-}
-
-.policy-grid-type {
-  grid-area: type;
-}
-
-.policy-grid-secret {
-  grid-area: secret;
-}
-
-.policy-grid-match {
-  grid-area: match;
-}
-
-.policy-grid-action {
-  grid-area: action;
-}
-
-.policy-grid-state {
-  grid-area: state;
-}
-
-.policy-grid-actions {
-  grid-area: actions;
-}
+.policy-grid-identity { grid-area: identity; }
+.policy-grid-type { grid-area: type; }
+.policy-grid-secret { grid-area: secret; }
+.policy-grid-match { grid-area: match; }
+.policy-grid-action { grid-area: action; }
+.policy-grid-state { grid-area: state; }
+.policy-grid-actions { grid-area: actions; }
 
 .policy-data-cell {
   display: grid;
@@ -1932,7 +1852,6 @@ async function deleteTrafficShaperRule(id: bigint) {
 .policy-data-label {
   color: var(--app-text-muted);
   font-size: 0.75rem;
-  font-weight: 600;
   line-height: 1.35;
 }
 
@@ -1970,6 +1889,7 @@ async function deleteTrafficShaperRule(id: bigint) {
   overflow: hidden;
   color: var(--app-text-muted);
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1981,17 +1901,13 @@ async function deleteTrafficShaperRule(id: bigint) {
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .policy-data-actions {
   justify-content: flex-end;
   justify-self: end;
-}
-
-.policy-data-actions .policy-data-label {
-  flex-basis: 100%;
-  text-align: right;
+  gap: 0.5rem;
 }
 
 .policy-data-cell > :deep(.n-tag) {
@@ -2002,24 +1918,27 @@ async function deleteTrafficShaperRule(id: bigint) {
   max-width: 100%;
   margin-top: 0.125rem;
   color: var(--app-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .policy-exact-disclosure > summary {
   width: max-content;
   max-width: 100%;
   cursor: pointer;
-  font-weight: 600;
   line-height: 1.4;
+}
+
+.policy-exact-disclosure > summary:hover {
+  color: var(--app-text);
 }
 
 .policy-exact-disclosure dl {
   display: grid;
-  gap: 0.375rem;
+  gap: 0.5rem;
   width: min(30rem, 100%);
   margin: 0.5rem 0 0;
-  padding: 0.5rem;
-  border: 1px solid var(--app-border-subtle);
+  border-radius: 8px;
+  padding: 0.625rem 0.75rem;
   background: var(--app-panel-muted);
 }
 
@@ -2027,10 +1946,6 @@ async function deleteTrafficShaperRule(id: bigint) {
   display: grid;
   gap: 0.125rem;
   min-width: 0;
-}
-
-.policy-exact-disclosure dt {
-  font-weight: 600;
 }
 
 .policy-exact-disclosure dd {
@@ -2047,141 +1962,62 @@ async function deleteTrafficShaperRule(id: bigint) {
   word-break: break-word;
 }
 
-.policy-cache-header {
-  align-items: flex-start;
-}
-
+/* Cache storage form. */
 .policy-cache-settings {
   display: grid;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
+  gap: 1.25rem;
 }
 
-.policy-cache-settings__enable,
-.policy-cache-settings__footer,
-.policy-cache-danger {
+.policy-cache-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 1rem;
+}
+
+.policy-field-error {
+  color: var(--app-error);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.policy-inline-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.policy-cache-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.75rem;
-}
-
-.policy-cache-field {
-  display: grid;
-  align-content: start;
-  gap: 0.375rem;
-  min-width: 0;
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.policy-cache-field small {
-  color: var(--app-error);
-  font-size: 0.7rem;
-  font-weight: 400;
-  line-height: 1.35;
-}
-
-.policy-cache-settings__footer {
-  padding-top: 0.875rem;
+.policy-cache-settings > .policy-inline-row {
   border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1rem;
 }
 
-.policy-cache-settings__footer > p {
+.policy-inline-row > p {
   max-width: 64ch;
   margin: 0;
 }
 
-.policy-cache-danger {
-  border-top: 1px solid color-mix(in srgb, var(--app-error) 28%, var(--app-border-subtle));
-  padding: 1rem 1.25rem;
-  background: color-mix(in srgb, var(--app-error) 5%, var(--app-panel));
-}
-
-.policy-cache-danger h3,
-.policy-cache-danger p {
-  margin: 0;
-}
-
+/* Retries: a quiet explainer above the rule list. */
 .retry-principles {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  border-radius: 10px;
   padding: 1rem 1.25rem;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 30%, var(--app-border-subtle));
-  border-left: 3px solid var(--app-accent);
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--app-accent) 5%, var(--app-panel));
-}
-
-.retry-principles__marker {
-  display: grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 45%, transparent);
-  border-radius: 50%;
-  color: var(--app-accent);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 800;
-}
-
-.retry-principles h2,
-.retry-principles p {
-  margin: 0;
-}
-
-.retry-principles h2 {
-  font-size: 0.875rem;
-  font-weight: 650;
+  background: var(--app-panel-muted);
 }
 
 .retry-principles p {
   max-width: 76ch;
-  margin-top: 0.25rem;
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.5;
 }
 
 .retry-principles__facts {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.4rem;
-}
-
-.retry-principles__facts span {
-  padding: 0.25rem 0.45rem;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 999px;
-  background: var(--app-panel-muted);
-  color: var(--app-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-}
-
-.policy-cache-danger h3 {
-  color: var(--app-text);
-  font-size: 0.875rem;
-  font-weight: 600;
-}
-
-.policy-cache-danger p {
-  max-width: 70ch;
-  margin-top: 0.25rem;
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.45;
+  gap: 0.375rem;
 }
 
 @container (min-width: 48rem) {
@@ -2190,18 +2026,17 @@ async function deleteTrafficShaperRule(id: bigint) {
     align-items: center;
     gap: 0.75rem;
     border-bottom: 1px solid var(--app-border-subtle);
-    padding: 0.5rem 1rem;
-    background: color-mix(in srgb, var(--app-panel-muted) 62%, var(--app-panel));
+    padding: 0.5rem 1.25rem;
     color: var(--app-text-muted);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 500;
     line-height: 1.35;
   }
 
   .policy-data-row {
     align-items: center;
     gap: 0.75rem;
-    padding: 0.625rem 1rem;
+    padding: 0.75rem 1.25rem;
   }
 
   .policy-provider-grid {
@@ -2211,7 +2046,7 @@ async function deleteTrafficShaperRule(id: bigint) {
       minmax(7rem, 0.55fr)
       minmax(8rem, 0.7fr)
       minmax(7rem, 0.55fr)
-      4.5rem;
+      9.5rem;
   }
 
   .policy-rule-grid {
@@ -2221,7 +2056,7 @@ async function deleteTrafficShaperRule(id: bigint) {
       minmax(10rem, 1.25fr)
       minmax(10rem, 1.05fr)
       minmax(7.5rem, 0.75fr)
-      4.5rem;
+      9.5rem;
   }
 
   .policy-data-label {
@@ -2235,54 +2070,20 @@ async function deleteTrafficShaperRule(id: bigint) {
 
 @media (pointer: coarse) {
   .policy-data-actions :deep(.n-button) {
-    min-width: 2.75rem;
     min-height: 2.75rem;
   }
 }
 
-@media (max-width: 760px) {
-  .retry-principles {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .retry-principles__facts {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-}
-
-.workbench-section-header {
-  flex-direction: column;
-  align-items: stretch;
-}
-
-.workbench-section-header > :deep(.n-button),
-.workbench-section-actions {
-  width: 100%;
-}
-
-.workbench-section-actions > :deep(.n-button) {
-  flex: 1 1 auto;
-}
-
 @media (min-width: 640px) {
+  .policy-list-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
   .policy-local-filter {
-    grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 11rem) auto auto;
+    grid-template-columns: minmax(12rem, 22rem) minmax(9rem, 11rem) auto auto;
     align-items: center;
-  }
-
-  .workbench-section-header {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .workbench-section-header > :deep(.n-button),
-  .workbench-section-actions {
-    width: auto;
-  }
-
-  .workbench-section-actions > :deep(.n-button) {
-    flex: none;
+    justify-content: start;
   }
 }
 
@@ -2291,20 +2092,31 @@ async function deleteTrafficShaperRule(id: bigint) {
     display: none;
   }
 
-  .policy-cache-settings__enable,
-  .policy-cache-settings__footer,
-  .policy-cache-danger {
+  .policy-list-toolbar {
+    padding-inline: 1rem;
+  }
+
+  .policy-list-toolbar > :deep(.n-button) {
+    width: 100%;
+  }
+
+  .policy-inline-row,
+  .retry-principles {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .policy-cache-settings__footer > div,
-  .policy-cache-danger > :deep(.n-button) {
+  .policy-inline-row > div,
+  .policy-inline-row > :deep(.n-button) {
     width: 100%;
   }
 
-  .policy-cache-settings__footer :deep(.n-button) {
+  .policy-inline-row :deep(.n-button) {
     flex: 1 1 auto;
+  }
+
+  .retry-principles {
+    padding: 1rem;
   }
 }
 </style>

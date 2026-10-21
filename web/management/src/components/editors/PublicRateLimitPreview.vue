@@ -458,20 +458,20 @@ function clamp(value: number, min: number, max: number): number {
         <p class="rate-preview-title">{{ algorithmLabel }}</p>
         <p class="rate-preview-subtitle">{{ meterLabel }} / {{ rateLabel }}</p>
       </div>
-      <div class="rate-preview-stats">
+      <dl class="rate-preview-stats">
         <div>
-          <span>Allowed</span>
-          <strong class="success-text">{{ allowedLabel }}</strong>
+          <dt>Allowed</dt>
+          <dd>{{ allowedLabel }}</dd>
         </div>
         <div>
-          <span>Rejected</span>
-          <strong class="error-text">{{ rejectedLabel }}</strong>
+          <dt>Rejected</dt>
+          <dd :class="{ 'error-text': enabled && snapshot.rejected > 0 }">{{ rejectedLabel }}</dd>
         </div>
         <div>
-          <span>Remaining</span>
-          <strong class="base-text">{{ remainingLabel }}</strong>
+          <dt>Remaining</dt>
+          <dd>{{ remainingLabel }}</dd>
         </div>
-      </div>
+      </dl>
     </div>
 
     <svg
@@ -546,7 +546,7 @@ function clamp(value: number, min: number, max: number): number {
         :class="request.allowed ? 'preview-request-allowed' : 'preview-request-rejected'"
         :cx="request.x"
         :cy="request.y"
-        r="5"
+        r="4"
         :opacity="request.opacity"
       />
     </svg>
@@ -556,13 +556,9 @@ function clamp(value: number, min: number, max: number): number {
 <style scoped>
 .rate-preview {
   display: grid;
-  gap: 0.85rem;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 1rem;
-  transition: opacity 160ms ease, border-color 160ms ease;
+  gap: 0.75rem;
+  min-width: 0;
+  transition: opacity 160ms ease;
 }
 
 .rate-preview-disabled {
@@ -571,22 +567,22 @@ function clamp(value: number, min: number, max: number): number {
 
 .rate-preview-header {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.75rem;
 }
 
 .rate-preview-title {
   color: var(--app-text);
-  font-size: 0.92rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .rate-preview-subtitle {
-  margin-top: 0.18rem;
+  margin-top: 0.125rem;
   overflow: hidden;
   color: var(--app-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -594,39 +590,37 @@ function clamp(value: number, min: number, max: number): number {
 .rate-preview-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 1rem;
+  margin: 0;
 }
 
 .rate-preview-stats div {
   min-width: 0;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.55rem 0.65rem;
 }
 
-.rate-preview-stats span {
-  display: block;
+.rate-preview-stats div + div {
+  border-left: 1px solid var(--app-border-subtle);
+  padding-left: 1rem;
+}
+
+.rate-preview-stats dt {
   color: var(--app-text-muted);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
 }
 
-.rate-preview-stats strong {
-  display: block;
-  margin-top: 0.2rem;
+.rate-preview-stats dd {
+  margin: 0.125rem 0 0;
+  color: var(--app-text);
   font-family: var(--font-mono);
-  font-size: 0.98rem;
-  line-height: 1.1;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .rate-preview-svg {
   width: 100%;
-  height: 190px;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
+  height: 176px;
+  border-radius: 8px;
   background: var(--app-panel-muted);
 }
 
@@ -634,23 +628,19 @@ function clamp(value: number, min: number, max: number): number {
   fill: none;
   stroke: var(--app-border);
   stroke-linecap: round;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .preview-stop-line {
-  stroke: color-mix(in srgb, var(--app-error) 36%, var(--app-border));
-  stroke-dasharray: 4 5;
+  stroke: color-mix(in srgb, var(--app-error) 40%, var(--app-border));
+  stroke-dasharray: 3 5;
   stroke-linecap: round;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .preview-label {
   fill: var(--app-text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 11px;
 }
 
 .preview-label-red {
@@ -659,29 +649,29 @@ function clamp(value: number, min: number, max: number): number {
 
 .preview-meter-shell,
 .preview-tank-shell {
-  fill: var(--app-panel-muted);
-  stroke: var(--app-border);
+  fill: var(--app-panel);
+  stroke: var(--app-border-subtle);
   stroke-width: 1;
 }
 
 .preview-meter-segment {
-  fill: var(--app-panel);
+  fill: var(--app-border-subtle);
 }
 
 .preview-meter-segment-filled,
 .preview-window-fill,
 .preview-tank-fill {
-  fill: var(--app-success);
+  fill: color-mix(in srgb, var(--app-success) 70%, var(--app-panel));
 }
 
 .preview-tank-fill-amber {
-  fill: var(--app-warning);
+  fill: color-mix(in srgb, var(--app-warning) 75%, var(--app-panel));
 }
 
 .preview-sweep {
-  stroke: var(--app-accent);
+  stroke: var(--app-text-muted);
   stroke-linecap: round;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .preview-rail-hit {
@@ -689,51 +679,45 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .preview-drain-line {
-  stroke: var(--app-accent);
-  stroke-dasharray: 5 4;
+  stroke: var(--app-text-muted);
+  stroke-dasharray: 4 4;
   stroke-linecap: round;
-  stroke-width: 2;
+  stroke-width: 1.5;
 }
 
 .preview-refill-line {
   fill: none;
-  stroke: var(--app-accent);
+  stroke: var(--app-text-muted);
   stroke-linecap: round;
-  stroke-width: 2;
-}
-
-.preview-request {
-  filter: drop-shadow(0 0 9px currentColor);
+  stroke-width: 1.5;
 }
 
 .preview-request-allowed {
-  color: var(--app-accent);
   fill: var(--app-accent);
 }
 
 .preview-request-rejected {
-  color: var(--app-error);
   fill: var(--app-error);
 }
 
 @media (min-width: 720px) {
   .rate-preview-header {
-    grid-template-columns: minmax(0, 1fr) 22rem;
+    grid-template-columns: minmax(0, 1fr) 20rem;
     align-items: start;
   }
 }
 
 @media (max-width: 560px) {
-  .rate-preview {
-    padding: 0.8rem;
+  .rate-preview-stats {
+    gap: 0.75rem;
   }
 
-  .rate-preview-stats {
-    grid-template-columns: 1fr;
+  .rate-preview-stats div + div {
+    padding-left: 0.75rem;
   }
 
   .rate-preview-svg {
-    height: 160px;
+    height: 150px;
   }
 }
 </style>

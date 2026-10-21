@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -9,6 +9,7 @@ import PublicRateLimitPreview from "@/components/editors/PublicRateLimitPreview.
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
@@ -82,6 +83,11 @@ const algorithmOptions = [
   { label: "Sliding window", value: PublicRateLimitAlgorithm.SLIDING_WINDOW },
   { label: "Token bucket", value: PublicRateLimitAlgorithm.TOKEN_BUCKET },
   { label: "Leaky bucket", value: PublicRateLimitAlgorithm.LEAKY_BUCKET },
+];
+
+const responseBodySourceOptions = [
+  { label: "Inline", value: PublicResponseBodyMode.INLINE },
+  { label: "Template", value: PublicResponseBodyMode.TEMPLATE },
 ];
 
 const usesBurst = computed(() =>
@@ -231,11 +237,11 @@ defineExpose({ openCreate, openEdit, close });
     <NDrawerContent :title="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Priority
           <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
@@ -244,31 +250,23 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <section class="layout-grid space-lg">
-        <NButtonGroup class="layout-grid cols-two mq-sm-cols-four" size="small" role="group" aria-label="Rate-limit algorithm">
-          <NButton
-            v-for="option in algorithmOptions"
-            :key="option.value"
-            attr-type="button"
-            :type="form.algorithm === option.value ? 'primary' : 'default'"
-            :aria-pressed="form.algorithm === option.value"
-            @click="form.algorithm = option.value"
-          >
-            {{ option.label }}
-          </NButton>
-        </NButtonGroup>
+      <section class="editor-group layout-grid space-lg">
+        <div class="layout-row wrap-items align-center spread-items space-md">
+          <h3 class="copy-sm weight-semibold base-text">Budget</h3>
+          <SegmentedControl v-model="form.algorithm" :options="algorithmOptions" label="Rate-limit algorithm" />
+        </div>
         <div class="layout-grid space-lg mq-sm-cols-three">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Limit
             <NInputNumber :show-button="false" v-model:value="form.limit" size="small" :min="1" required />
-            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Max requests allowed per window.</p>
+            <span class="weight-normal muted-text">Max requests allowed per window.</span>
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Window seconds
             <NInputNumber :show-button="false" v-model:value="form.windowSeconds" size="small" :min="1" :step="1" required />
-            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Duration of each rate limit window.</p>
+            <span class="weight-normal muted-text">Duration of each rate limit window.</span>
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Burst
             <DisabledHint full-width :disabled="Boolean(burstDisabledReason)" :reason="burstDisabledReason">
               <NInputNumber :show-button="false"
@@ -280,94 +278,78 @@ defineExpose({ openCreate, openEdit, close });
             </DisabledHint>
           </label>
         </div>
-      </section>
 
-      <PublicRateLimitPreview
-        :algorithm="form.algorithm"
-        :limit="form.limit"
-        :window-seconds="form.windowSeconds"
-        :burst="form.burst"
-        :enabled="form.enabled"
-      />
+        <PublicRateLimitPreview
+          :algorithm="form.algorithm"
+          :limit="form.limit"
+          :window-seconds="form.windowSeconds"
+          :burst="form.burst"
+          :enabled="form.enabled"
+        />
+      </section>
 
       <PublicPolicyMatchEditor :form="form.match" />
 
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
-      <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
-        <h4 class="copy-sm weight-semibold base-text">Denied response</h4>
+      <section class="editor-group layout-grid space-lg">
+        <h3 class="copy-sm weight-semibold base-text">Denied response</h3>
         <div class="layout-grid space-lg mq-sm-cols-three">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Status
             <NInputNumber :show-button="false" v-model:value="form.responseStatusCode" size="small" :min="400" :max="599" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
             Content type
             <NInput v-model:value="form.responseContentType" size="small" />
           </label>
         </div>
-        <div class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
-          <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Body source
-            <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="Rate-limit response body source">
-              <NButton
-                attr-type="button"
-                :type="form.responseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
-                :aria-pressed="form.responseBodyMode === PublicResponseBodyMode.INLINE"
-                @click="form.responseBodyMode = PublicResponseBodyMode.INLINE"
-              >
-                Inline
-              </NButton>
-              <NButton
-                attr-type="button"
-                :type="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'primary' : 'default'"
-                :aria-pressed="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE"
-                @click="form.responseBodyMode = PublicResponseBodyMode.TEMPLATE"
-              >
-                Template
-              </NButton>
-            </NButtonGroup>
-          </div>
-          <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Template
-            <AccessibleSelect
-              v-model:value="form.responseBodyTemplateId"
-              accessible-label="Rate limit response template"
-              size="small"
-              :options="genericTemplateOptions"
-              :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
-              :disabled="!genericTemplates.length"
-            />
-          </label>
-          <label v-else class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Body
-            <NInput v-model:value="form.responseBody" type="textarea" class="mono-text" :autosize="{ minRows: 4, maxRows: 8 }" />
-          </label>
+        <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Body source
+          <SegmentedControl v-model="form.responseBodyMode" :options="responseBodySourceOptions" label="Rate-limit response body source" />
         </div>
+        <label v-if="form.responseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Template
+          <AccessibleSelect
+            v-model:value="form.responseBodyTemplateId"
+            accessible-label="Rate limit response template"
+            size="small"
+            :options="genericTemplateOptions"
+            :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
+            :disabled="!genericTemplates.length"
+          />
+        </label>
+        <label v-else class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Body
+          <NInput v-model:value="form.responseBody" type="textarea" class="mono-text" :autosize="{ minRows: 4, maxRows: 8 }" />
+        </label>
         <div class="layout-grid space-sm">
           <div class="layout-row align-center spread-items space-md">
-            <span class="copy-xs weight-medium label-case letter-wide muted-text">Headers</span>
-            <NButton secondary size="small" @click="addResponseHeader">Add Header</NButton>
+            <span class="copy-xs weight-medium muted-text">Headers</span>
+            <NButton secondary size="small" attr-type="button" @click="addResponseHeader">Add Header</NButton>
           </div>
+          <p v-if="!form.responseHeaders.length" class="copy-xs muted-text">No extra response headers.</p>
           <div v-for="(header, index) in form.responseHeaders" :key="index" class="layout-grid space-sm mq-sm-two-auto">
             <NInput v-model:value="header.name" size="small" placeholder="Name" />
             <NInput v-model:value="header.value" size="small" placeholder="Value" />
             <NButton
               type="error"
+              secondary
               size="small"
               class="row-remove-button"
+              attr-type="button"
               aria-label="Remove response header"
               title="Remove response header"
               @click="removeResponseHeader(index)"
             >
-              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+              <template #icon><TrashIcon class="icon-sm" /></template>
             </NButton>
           </div>
         </div>
       </section>
 
       <div class="editor-drawer-actions layout-row align-end-row space-md">
-        <NButton secondary @click="close">Cancel</NButton>
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="rateLimitSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
             {{ form.id ? 'Save Changes' : 'Create Rule' }}
@@ -380,6 +362,25 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
+.editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
+}
+
 .row-remove-button {
   width: 2.25rem;
   height: 2.25rem;

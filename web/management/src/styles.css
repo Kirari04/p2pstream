@@ -2646,39 +2646,6 @@ body:has(.app-sidebar--mobile-open) {
   outline-offset: 1px;
 }
 
-.app-main .policy-summary-grid {
-  display: flex;
-  overflow-x: auto;
-  gap: 0;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 10px;
-  background: var(--app-panel);
-}
-
-.app-main .policy-summary-card {
-  min-width: 10rem;
-  min-height: 0;
-  flex: 1 0 10rem;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 0.875rem 1rem;
-}
-
-.app-main .policy-summary-card + .policy-summary-card {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.app-main .policy-summary-card--active {
-  background: var(--app-accent-soft);
-  box-shadow: none;
-}
-
-.app-main .policy-summary-card--active .base-text {
-  color: var(--app-text);
-}
-
 .empty-state .n-empty__description {
   color: var(--app-text);
   font-weight: 600;

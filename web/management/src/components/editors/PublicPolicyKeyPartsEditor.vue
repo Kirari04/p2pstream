@@ -52,11 +52,14 @@ function removeDisabledReason(): string {
 </script>
 
 <template>
-  <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
+  <section class="editor-group layout-grid space-lg">
     <div class="layout-row align-center spread-items space-md">
-      <h4 class="copy-sm weight-semibold base-text">Key parts</h4>
+      <div class="layout-grid space-2xs min-width-zero">
+        <h3 class="copy-sm weight-semibold base-text">Key parts</h3>
+        <p v-if="disabledReason" class="copy-xs line-normal muted-text">{{ disabledReason }}</p>
+      </div>
       <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason || ''">
-        <NButton secondary size="small" :disabled="Boolean(disabledReason)" @click="addKeyPart">
+        <NButton secondary size="small" attr-type="button" :disabled="Boolean(disabledReason)" @click="addKeyPart">
           Add Key
         </NButton>
       </DisabledHint>
@@ -81,14 +84,16 @@ function removeDisabledReason(): string {
         <DisabledHint :disabled="Boolean(removeDisabledReason())" :reason="removeDisabledReason()">
           <NButton
             type="error"
+            secondary
             size="small"
+            attr-type="button"
             class="row-remove-button"
             aria-label="Remove key part"
             title="Remove key part"
             :disabled="Boolean(removeDisabledReason())"
             @click="removeKeyPart(index)"
           >
-            <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            <template #icon><TrashIcon class="icon-sm" /></template>
           </NButton>
         </DisabledHint>
       </div>
@@ -97,6 +102,25 @@ function removeDisabledReason(): string {
 </template>
 
 <style scoped>
+.editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
+}
+
 .row-remove-button {
   width: 2.25rem;
   height: 2.25rem;

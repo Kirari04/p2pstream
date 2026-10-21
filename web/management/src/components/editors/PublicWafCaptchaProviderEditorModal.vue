@@ -138,22 +138,26 @@ defineExpose({ openCreate, openEdit, close });
     <NDrawerContent :title="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitProvider">
       <section class="layout-grid space-lg mq-sm-cols-two">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Provider
           <AccessibleSelect v-model:value="form.providerType" accessible-label="Captcha provider type" size="small" :options="providerOptions" />
         </label>
       </section>
 
-      <section class="layout-grid space-lg">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+      <section class="editor-group layout-grid space-lg">
+        <div class="layout-grid space-2xs">
+          <h3 class="copy-sm weight-semibold base-text">Credentials</h3>
+          <p class="copy-xs line-normal muted-text">The site key is embedded in challenge pages. When editing, leave the secret blank to keep the saved one.</p>
+        </div>
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Site key
           <NInput v-model:value="form.siteKey" size="small" autocomplete="off" required />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Secret key
           <NInput
             v-model:value="form.secretKey"
@@ -169,7 +173,7 @@ defineExpose({ openCreate, openEdit, close });
       </section>
 
       <div class="editor-drawer-actions layout-row align-end-row space-md">
-        <NButton secondary @click="close">Cancel</NButton>
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(submitDisabledReason)" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
             {{ form.id ? 'Save Changes' : 'Create Provider' }}
@@ -180,3 +184,24 @@ defineExpose({ openCreate, openEdit, close });
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style scoped>
+.editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
+}
+</style>

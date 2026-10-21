@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Globe2 as GlobeIcon, ShieldAlert as ShieldAlertIcon } from "@lucide/vue";
-import { NAlert, NButton, NButtonGroup, NSelect, NTag } from "naive-ui";
+import { ShieldAlert as ShieldAlertIcon } from "@lucide/vue";
+import { NAlert, NSelect, NTag } from "naive-ui";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import { countryOptions, isIsoCountryCode } from "@/lib/countryCatalog";
 import type { WafGeoRestrictionForm } from "@/lib/publicWafGeoRestriction";
 import {
@@ -58,6 +59,11 @@ const modeOptions = computed(() => [
       : `${titleCase(actionVerb.value)} outside`,
   },
 ]);
+const modeSegmentOptions = computed(() => modeOptions.value.map((option) => ({ ...option, disabled: props.disabled })));
+const unknownBehaviorOptions = computed(() => [
+  { label: "Apply action (fail closed)", value: PublicWafGeoUnknownBehavior.APPLY_RULE, disabled: props.disabled },
+  { label: "Bypass rule (fail open)", value: PublicWafGeoUnknownBehavior.BYPASS_RULE, disabled: props.disabled },
+]);
 const modeDescription = computed(() => {
   switch (props.modelValue.mode) {
     case PublicWafGeoRestrictionMode.SELECTED_COUNTRIES:
@@ -97,47 +103,37 @@ function titleCase(value: string): string {
 </script>
 
 <template>
-  <section class="geo-editor layout-grid space-lg round-md framed frame-standard muted-bg pad-lg" aria-labelledby="waf-geo-heading">
+  <section class="geo-editor editor-group layout-grid space-lg" aria-labelledby="waf-geo-heading">
     <div class="layout-row align-start spread-items space-lg">
-      <div class="layout-grid space-xs min-width-zero">
-        <div class="layout-row align-center space-sm">
-          <GlobeIcon class="icon-sm accent-text" aria-hidden="true" />
-          <h4 id="waf-geo-heading" class="copy-sm weight-semibold base-text">Geographic targeting</h4>
-        </div>
+      <div class="layout-grid space-2xs min-width-zero">
+        <h3 id="waf-geo-heading" class="copy-sm weight-semibold base-text">Geographic targeting</h3>
         <p class="copy-xs line-normal muted-text">
           Country is combined with the request match using AND. It narrows when this rule can act; it never skips later rules.
         </p>
       </div>
-      <NTag v-if="enabled" size="small" :bordered="false" type="info">{{ selectedCountLabel }}</NTag>
+      <NTag v-if="enabled" size="small" :bordered="false">{{ selectedCountLabel }}</NTag>
     </div>
 
-    <div class="layout-grid space-xs">
-      <span class="copy-xs weight-medium label-case letter-wide muted-text">Apply action by country</span>
-      <NButtonGroup class="geo-editor__modes layout-grid cols-one mq-sm-cols-three" size="small" role="group" aria-label="Geographic restriction mode">
-        <NButton
-          v-for="option in modeOptions"
-          :key="option.value"
-          attr-type="button"
-          :disabled="disabled"
-          :type="modelValue.mode === option.value ? 'primary' : 'default'"
-          :aria-pressed="modelValue.mode === option.value"
-          @click="updateMode(option.value)"
-        >
-          {{ option.label }}
-        </NButton>
-      </NButtonGroup>
-      <p class="copy-xs line-normal muted-text">{{ modeDescription }}</p>
+    <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+      Apply action by country
+      <SegmentedControl
+        :model-value="modelValue.mode"
+        :options="modeSegmentOptions"
+        label="Geographic restriction mode"
+        @update:model-value="updateMode"
+      />
+      <span class="weight-normal line-normal muted-text">{{ modeDescription }}</span>
     </div>
 
     <template v-if="enabled">
-      <NAlert v-if="geoIpEnabled === false" type="warning" :show-icon="false">
+      <NAlert v-if="geoIpEnabled === false" type="warning" :show-icon="false" :bordered="false">
         GeoIP is disabled. Enable it and load a valid country database before enabling this rule.
       </NAlert>
-      <NAlert v-else-if="geoIpReady === false" type="warning" :show-icon="false">
+      <NAlert v-else-if="geoIpReady === false" type="warning" :show-icon="false" :bordered="false">
         No usable country database is loaded. This rule will treat every visitor as unknown until refresh succeeds.
       </NAlert>
 
-      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+      <label class="layout-grid space-xs copy-xs weight-medium muted-text">
         Countries
         <NSelect
           :value="modelValue.countryCodes"
@@ -152,41 +148,25 @@ function titleCase(value: string): string {
           :disabled="disabled"
           @update:value="updateCountryCodes"
         />
-        <span class="normal-text letter-normal weight-normal line-normal muted-text">
+        <span class="weight-normal line-normal muted-text">
           Uses MaxMind's <span class="mono-text">country.iso_code</span>. GeoIP is approximate and is not proof of physical location.
         </span>
       </label>
 
-      <div class="layout-grid space-sm">
-        <div class="layout-grid space-2xs">
-          <span class="copy-xs weight-medium label-case letter-wide muted-text">Unknown visitor</span>
-          <p class="copy-xs line-normal muted-text">
-            Includes unresolved trusted-proxy headers, private or special-use addresses, absent database records, and an unavailable database.
-          </p>
-        </div>
-        <NButtonGroup class="geo-editor__unknown layout-grid cols-one mq-sm-cols-two" size="small" role="group" aria-label="Unknown country behavior">
-          <NButton
-            attr-type="button"
-            :disabled="disabled"
-            :type="modelValue.unknownBehavior === PublicWafGeoUnknownBehavior.APPLY_RULE ? 'primary' : 'default'"
-            :aria-pressed="modelValue.unknownBehavior === PublicWafGeoUnknownBehavior.APPLY_RULE"
-            @click="updateUnknownBehavior(PublicWafGeoUnknownBehavior.APPLY_RULE)"
-          >
-            Apply action (fail closed)
-          </NButton>
-          <NButton
-            attr-type="button"
-            :disabled="disabled"
-            :type="modelValue.unknownBehavior === PublicWafGeoUnknownBehavior.BYPASS_RULE ? 'warning' : 'default'"
-            :aria-pressed="modelValue.unknownBehavior === PublicWafGeoUnknownBehavior.BYPASS_RULE"
-            @click="updateUnknownBehavior(PublicWafGeoUnknownBehavior.BYPASS_RULE)"
-          >
-            Bypass rule (fail open)
-          </NButton>
-        </NButtonGroup>
+      <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+        Unknown visitor
+        <SegmentedControl
+          :model-value="modelValue.unknownBehavior"
+          :options="unknownBehaviorOptions"
+          label="Unknown country behavior"
+          @update:model-value="updateUnknownBehavior"
+        />
+        <span class="weight-normal line-normal muted-text">
+          Includes unresolved trusted-proxy headers, private or special-use addresses, absent database records, and an unavailable database.
+        </span>
         <div v-if="modelValue.unknownBehavior === PublicWafGeoUnknownBehavior.BYPASS_RULE" class="geo-editor__fail-open layout-row align-start space-sm">
           <ShieldAlertIcon class="icon-sm warning-text no-shrink" aria-hidden="true" />
-          <p class="copy-xs line-normal warning-text">
+          <p class="copy-xs weight-normal line-normal warning-text">
             Unknown visitors bypass this rule completely. Choose this only when availability is more important than enforcing the action during lookup failures.
           </p>
         </div>
@@ -196,20 +176,29 @@ function titleCase(value: string): string {
 </template>
 
 <style scoped>
-.geo-editor__modes,
-.geo-editor__unknown {
-  width: 100%;
+.editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
 }
 
-.geo-editor__modes :deep(.n-button),
-.geo-editor__unknown :deep(.n-button) {
-  width: 100%;
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
 }
 
 .geo-editor__fail-open {
-  border: 1px solid color-mix(in srgb, var(--app-warning) 40%, var(--app-border));
-  border-radius: 6px;
+  margin-top: 0.25rem;
+  border-radius: 8px;
   background: color-mix(in srgb, var(--app-warning) 9%, var(--app-panel));
-  padding: 0.75rem;
+  padding: 0.625rem 0.75rem;
 }
 </style>

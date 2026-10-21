@@ -132,7 +132,8 @@ withDefaults(defineProps<{
   }
 
   .section-card--card > .section-card__header,
-  .section-card--card > .section-card__body {
+  .section-card--card > .section-card__body,
+  .section-card__footer {
     padding-inline: 1rem;
   }
 }
