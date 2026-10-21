@@ -66,7 +66,7 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
   {
     title: "Name",
     key: "name",
-    minWidth: 180,
+    minWidth: 160,
     render: (token) => h("bdi", {
       class: "clip-text base-text",
       dir: "ltr",
@@ -76,19 +76,19 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
   {
     title: "Expires",
     key: "expires",
-    width: 180,
+    width: 190,
     render: (token) => h("span", { class: "mono-text copy-xs" }, formatDate(token.expiresAtUnixMillis)),
   },
   {
     title: "Last Used",
     key: "lastUsed",
-    width: 180,
+    width: 190,
     render: (token) => h("span", { class: "mono-text copy-xs" }, formatDate(token.lastUsedAtUnixMillis)),
   },
   {
     title: "Status",
     key: "status",
-    width: 140,
+    width: 110,
     render: (token) => h(
       NTag,
       { size: "small", bordered: false, type: naiveTagType(tokenStatusSeverity(token)) },
@@ -98,8 +98,9 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
   {
     title: "Actions",
     key: "actions",
-    width: 96,
+    width: 110,
     align: "right",
+    fixed: "right",
     render: (token) => h(
       DisabledHint,
       { disabled: Boolean(actionDisabledReason.value), reason: actionDisabledReason.value },
@@ -108,12 +109,13 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
           NButton,
           {
             type: "error",
+            secondary: true,
             size: "small",
             "aria-label": `Revoke ${diagnosticExcerpt(token.name, 48).text}`,
             disabled: Boolean(actionDisabledReason.value),
             onClick: () => void deleteToken(token),
           },
-          { icon: () => h(TrashIcon, { class: "icon-sm" }) },
+          { icon: () => h(TrashIcon, { class: "icon-sm" }), default: () => "Revoke" },
         ),
       },
     ),
