@@ -1881,6 +1881,20 @@ samp {
   gap: 0.75rem;
 }
 
+@container (min-width: 40rem) {
+  .app-header__bar {
+    flex-wrap: nowrap;
+  }
+
+  .app-header__context {
+    flex: 1 1 0;
+  }
+
+  .app-header__actions {
+    flex: 0 0 auto;
+  }
+}
+
 @container (max-width: 40rem) {
   .app-header__actions {
     flex-wrap: wrap;
