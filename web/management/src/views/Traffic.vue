@@ -547,7 +547,7 @@ onBeforeUnmount(() => {
 
       <div class="surface-card hide-overflow">
         <div class="traffic-table-heading divider-bottom frame-standard pad-x-xl pad-y-lg">
-          <div>
+          <div class="layout-grid space-2xs">
             <h4 class="weight-semibold">Recent traces</h4>
             <p class="copy-xs muted-text">{{ traceTableSummary }}</p>
           </div>
@@ -695,6 +695,8 @@ onBeforeUnmount(() => {
 }
 
 .traffic-status-item {
+  display: grid;
+  gap: 0.25rem;
   min-width: 0;
   background: var(--app-panel-muted);
   padding: 0.85rem;

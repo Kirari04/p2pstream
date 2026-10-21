@@ -161,8 +161,9 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Actions",
     key: "actions",
-    width: 250,
+    width: 170,
     align: "right",
+    fixed: "right",
     render: (environment) => h("div", { class: "layout-row wrap-items align-center align-end-row space-sm" }, [
       environmentNeedsCertificateAction(environment) ? h(NButton, {
         secondary: true,
@@ -654,7 +655,7 @@ function handleTrustModalUpdate(show: boolean) {
         :pagination="false"
         :bordered="false"
         :single-line="false"
-        :scroll-x="880"
+        :scroll-x="800"
         :loading="isLoading"
         size="small"
       />

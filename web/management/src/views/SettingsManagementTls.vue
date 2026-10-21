@@ -263,7 +263,7 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
       <div class="layout-row layout-column space-md mq-md-row mq-md-spread mq-md-align-center">
         <div class="layout-row align-center space-md">
           <span class="tls-mark"><ShieldIcon class="icon-md" /></span>
-          <div>
+          <div class="layout-grid space-2xs">
             <p class="copy-xs label-case letter-wide muted-text">Shared management endpoint</p>
             <h2 class="copy-lg weight-semibold">Certificate &amp; agent trust</h2>
           </div>
@@ -318,7 +318,7 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
 
     <section v-if="showFleet" class="round-lg framed frame-standard panel-bg pad-xl stack-lg">
       <div class="layout-row layout-column space-md mq-md-row mq-md-spread mq-md-align-end">
-        <div>
+        <div class="layout-grid space-2xs">
           <template v-if="phase === ManagementTlsRotationPhase.IDLE">
             <p class="copy-xs label-case letter-wide muted-text">Durable fleet trust · generation {{ rotation?.desiredTrustGeneration ?? 0n }}</p>
             <h3 class="copy-md weight-semibold">{{ enabledAgentCount }} enabled · {{ rotation?.trustAttentionAgentCount ?? 0 }} needing attention</h3>
@@ -362,7 +362,7 @@ function certificateNames(cert?: ManagementTlsCertificateSummary): string {
     </section>
 
     <section v-if="repairCommand" class="round-lg framed frame-standard muted-bg pad-xl stack-md">
-      <div>
+      <div class="layout-grid space-2xs">
         <p class="copy-xs label-case letter-wide muted-text">Recovery</p>
         <h3 class="copy-md weight-semibold">Repair an agent that cannot reconnect</h3>
         <p class="copy-sm muted-text">Run this on a current compatible installation to restore management trust. For an incompatible or damaged agent, rerun its full install command from the Agents page so the identity and token are installed again.</p>
