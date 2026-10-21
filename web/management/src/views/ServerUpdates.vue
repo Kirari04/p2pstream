@@ -11,6 +11,7 @@ import { parsePendingServerUpdate, serverUpdateDuration, serverUpdateTerminal, t
 import ServerUpdateProgress from "@/components/updates/ServerUpdateProgress.vue";
 import type { GetServerUpdateOverviewResponse, PreviewServerUpdateResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 import PageHeader from "@/components/ui/PageHeader.vue";
+import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 
 const client = useManagementClient();
 const environmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
@@ -244,7 +245,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <p class="muted-text">The preview checks this server, release compatibility, and the saved deployment. Updating this server also restarts its public proxy and agent tunnels.</p>
     </NCard>
 
-    <NModal :show="Boolean(plan)" preset="card" title="Update the selected server" :style="{ width: 'min(560px, calc(100vw - 32px))' }" :mask-closable="!busy" @update:show="(show) => { if (!show && !busy) plan = null; }">
+    <NModal :show="Boolean(plan)" preset="card" title="Update the selected server" :style="modalCardStyle('35rem')" :content-style="modalScrollableContentStyle()" :mask-closable="!busy" @update:show="(show) => { if (!show && !busy) plan = null; }">
       <template v-if="plan">
         <p><strong>{{ environmentLabel }}</strong> will update from <strong>{{ plan.currentVersion }}</strong> to <strong>{{ plan.target?.version }}</strong>.</p>
         <p>The updater will download the verified image, stop the server, back up its data, and check the replacement. If validation fails, it will restore the previous version and backup.</p>
