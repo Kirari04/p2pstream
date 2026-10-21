@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -235,9 +236,19 @@ func TestDockerReviewNativeGuard(t *testing.T) {
 			t.Fatal("invalid stale container inspection", err)
 		}
 		if !states[0].State.Running {
-			logs, _ := d.command(ctx, "logs", staleName)
-			if states[0].State.ExitCode == 0 || !strings.Contains(string(logs), "runtime start is blocked") {
-				t.Fatalf("stale generation did not fail at admission: exit=%d logs=%s", states[0].State.ExitCode, logs)
+			// Docker preserves the container's output streams. Startup admission
+			// errors are written to stderr, which the production command helper
+			// intentionally omits from successful command results.
+			logsCommand := exec.CommandContext(ctx, d.Config.Docker, "logs", staleName)
+			logsCommand.Env = []string{"PATH=/usr/local/bin:/usr/bin:/bin", "HOME=/root", "DOCKER_HOST=unix:///var/run/docker.sock", "COMPOSE_DISABLE_ENV_FILE=1"}
+			logsCommand.WaitDelay = 5 * time.Second
+			var logs limitedBuffer
+			logsCommand.Stdout, logsCommand.Stderr = &logs, &logs
+			if err := logsCommand.Run(); err != nil {
+				t.Fatal("cannot read stale runtime admission diagnostics", err)
+			}
+			if states[0].State.ExitCode == 0 || !strings.Contains(logs.String(), "runtime start is blocked") {
+				t.Fatalf("stale generation did not fail at admission: exit=%d logs=%s", states[0].State.ExitCode, logs.String())
 			}
 			break
 		}

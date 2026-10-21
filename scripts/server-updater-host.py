@@ -228,6 +228,7 @@ def source_layout(source_dir, files, project, owned_aliases=None):
     require(len(defaults) <= 1, 'Multiple default Compose files exist; resolve the default command context before enrollment')
     owned_aliases = owned_aliases or {}
     for path in defaults:
+        require(stat.S_ISREG(path.lstat().st_mode), 'Default Compose files must be regular files without symlinks')
         require(str(path) in files or owned_aliases.get(str(path)) == digest(path.read_bytes()), 'An unrelated default Compose file exists; resolve the default command context before enrollment')
     for name in ('compose.override.yaml', 'compose.override.yml', 'docker-compose.override.yaml', 'docker-compose.override.yml'):
         path = directory / name
@@ -649,10 +650,38 @@ class Host:
         require(self.journal.get('phase') == 'removed', 'Only a completed removal can be reenrolled')
         self.settle_helper()
         self.wait_original()
+        self.save_reenrollment_context()
         self.archive_state()
         self.journal = {}
         self.config = None
         self.updater = None
+
+    def save_reenrollment_context(self):
+        require(self.journal.get('phase') == 'removed', 'Reenrollment ownership requires a completed removal')
+        plan = self.journal.get('source_bridge')
+        if not plan:
+            return
+        exported = plan.get('export_sha256', '')
+        require(HEX.fullmatch(exported), 'Completed removal lacks an exported deployment digest')
+        primary = self.journal['source_layout']['primary']
+        aliases = {item['path']: exported for item in plan['files'] if item['editable'] is None}
+        context = {'installation': self.journal['installation'], 'source_directory': self.journal['source_directory'],
+                   'compose_options': self.journal['compose_options'], 'source_files': self.journal['source_files'],
+                   'primary': primary, 'export_sha256': exported, 'aliases': aliases}
+        self.validate_reenrollment_context(context)
+        atomic(self.directory / 'reenrollment.json', context)
+
+    def validate_reenrollment_context(self, context):
+        require(context['primary'] in context['source_files'] and HEX.fullmatch(context['export_sha256']), 'Unsafe reenrollment ownership receipt')
+        for name in context['source_files']:
+            path = Path(name)
+            require(path.is_absolute() and stat.S_ISREG(path.lstat().st_mode), 'Recorded Compose sources must remain regular files without symlinks')
+        # Selected source files remain operator-editable after removal. Their
+        # current resolved settings must pass normal running-model preflight;
+        # historical content ownership is needed only for the extra alias.
+        for name, expected in context['aliases'].items():
+            path = Path(name)
+            require(path.is_absolute() and expected == context['export_sha256'] and stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == expected, 'Exported default Compose alias changed; inspect it before reenrollment')
 
     def discard_preparation(self):
         phase = self.journal.get('recovery_phase') or self.journal['phase']
@@ -671,7 +700,7 @@ class Host:
         if marker.exists():
             transaction = read_json(marker)
         else:
-            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json'}]
+            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json'}]
             transaction = {'id': str(uuid.uuid4()), 'stage': 'copying', 'names': names}
             atomic(marker, transaction)
         archive = self.archive_directory(transaction)
@@ -704,7 +733,7 @@ class Host:
 
     def archive_directory(self, transaction):
         require(str(uuid.UUID(transaction['id'])) == transaction['id'], 'Invalid archive identity')
-        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json'} for n in transaction['names']), 'Unsafe archive inventory')
+        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json'} for n in transaction['names']), 'Unsafe archive inventory')
         return self.directory / 'history' / transaction['id']
 
     def sync_directory(self):
@@ -1009,18 +1038,26 @@ def install(args, options):
     migration_requested = False
     owned_aliases = {}
     removed_source_files = None
-    if (STATE / 'host.json').exists():
+    if any((STATE / name).exists() for name in ('host.json', 'archive.json', 'reenrollment.json')):
         host = Host()
         with host.lock(allow_archive=True):
-            require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
-            if host.journal['phase'] == 'removed':
+            if host.journal:
+                require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
+            elif (STATE / 'reenrollment.json').exists():
+                context = read_json(STATE / 'reenrollment.json')
+                require(context['installation'] == identity, 'Reenrollment ownership belongs to another installation')
+                if context['source_directory'] == source_dir and context['compose_options'] == options:
+                    host.validate_reenrollment_context(context)
+                    owned_aliases = context['aliases']
+                    removed_source_files = context['source_files']
+            if host.journal.get('phase') == 'removed':
                 plan = host.journal.get('source_bridge', {})
                 owned_aliases = {item['path']: plan.get('export_sha256') for item in plan.get('files', []) if item['editable'] is None}
                 if host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options:
                     removed_source_files = host.journal.get('source_files')
-            if host.journal['phase'] != 'removed':
+            if host.journal and host.journal['phase'] != 'removed':
                 require(host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options, 'Use the recorded Compose context for this enrollment')
-            if host.journal['phase'] == 'healthy':
+            if host.journal.get('phase') == 'healthy':
                 try:
                     host.healthy()
                 except (Failure, OSError, ValueError) as error:
@@ -1056,7 +1093,7 @@ def install(args, options):
                     return
         # Reuse the saved tools, pins and credentials, never the downloaded
         # helper, to resume an interrupted enrollment.
-        if host.journal['phase'] != 'removed' and not migration_requested:
+        if host.journal and host.journal['phase'] != 'removed' and not migration_requested:
             manage(argparse.Namespace(action='repair'))
             return
     # Roundtrip the escaped snapshot with precisely the host Compose version.
@@ -1136,6 +1173,8 @@ def install(args, options):
                    version=args.expect_version, commit=args.expect_commit, channel=args.expect_channel,
                    architecture=arch, repository=args.repository, manifest_sha256=manifest_hash,
                    updater_image=updater_image, server_image=server_image, source_files=source_files, source_layout=layout)
+        (STATE / 'reenrollment.json').unlink(missing_ok=True)
+        host.sync_directory()
         deployment_directory = host.prepare_deployment_directory()
         host.command('enroll', '--directory', str(STATE), '--compose', str(STATE / 'input.json'), '--image', server_image,
                      '--updater-image', updater_image, '--installation', identity, '--release-directory', str(STATE / 'release'), '--deployment-directory', str(deployment_directory))

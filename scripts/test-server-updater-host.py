@@ -75,8 +75,8 @@ class Lifecycle(unittest.TestCase):
                     if outer.failure == 'layout':
                         raise host.Failure('unsupported layout')
                     cfg = {'instance_id': ID, 'repository': 'test/repo', 'project': 'custom-project', 'token': 'private-token' * 4, 'control_dir': str(outer.state / 'control'), 'data_volume': 'custom-data'}
-                    model = copy.deepcopy(outer.model)
-                    model['services']['p2pstream']['image'] = REF
+                    model = host.read_json(Path(args[args.index('--compose') + 1]))
+                    model['services']['p2pstream']['image'] = args[args.index('--image') + 1]
                     model['services']['p2pstream']['environment']['SERVER_UPDATE_TOKEN'] = cfg['token']
                     model['services']['p2pstream']['labels'] = {'p2pstream.server-update.instance': ID}
                     model['services']['p2pstream-server-updater'] = {'image': HELPER, 'volumes': []}
@@ -225,6 +225,25 @@ class Lifecycle(unittest.TestCase):
                 return outer.identity
         with patch.object(installed, 'STATE', self.state), patch.object(installed, 'Host', InstalledHost), patch.object(installed, 'docker', self.docker), patch.object(installed, 'local_engine', return_value='amd64'), patch.object(installed, 'Failure', host.Failure), patch.object(installed, 'UnsettledHelper', host.UnsettledHelper):
             installed.manage(argparse.Namespace(action='repair'))
+    def custom_removed_deployment(self):
+        (self.source / 'compose.yaml').unlink()
+        custom = self.source / 'custom.yaml'
+        custom.write_text('fixture input')
+        self.options[3] = str(custom)
+        self.managed = True
+        self.install()
+        current_image = 'ghcr.io/test/repo@sha256:' + 'e' * 64
+        controller = host.Host()
+        with controller.lock():
+            model = host.read_json(controller.current_model_path())
+            model['services']['p2pstream']['image'] = current_image
+            model['services']['p2pstream']['environment']['SECRET'] = 'exported-current-settings'
+            controller.write_model(model)
+            controller.runtime('block')
+            controller.deploy_server()
+        host.manage(argparse.Namespace(action='remove'))
+        self.raw = custom.read_bytes()
+        return current_image
     def test_fresh_custom_context_and_idempotent_rerun(self):
         self.install()
         cfg = (self.state / 'config.json').read_bytes()
@@ -334,6 +353,105 @@ class Lifecycle(unittest.TestCase):
         self.assertIn('include', host.read_json(custom))
         self.assertEqual(host.read_json(self.source / 'prod.yaml'), {})
 
+    def test_custom_remove_reenroll_preserves_alias_ownership_across_archive_commit(self):
+        current_image = self.custom_removed_deployment()
+        metadata = (self.manifest, self.descriptor, current_image, 'f' * 64)
+        with patch.object(host, 'release_metadata', return_value=metadata):
+            with patch.object(host.Host, 'finish_archive', side_effect=KeyboardInterrupt()):
+                with self.assertRaises(KeyboardInterrupt):
+                    self.install()
+            self.assertFalse((self.state / 'host.json').exists())
+            self.assertTrue((self.state / 'archive.json').exists())
+            receipt = host.read_json(self.state / 'reenrollment.json')
+            self.assertEqual(receipt['aliases'][str(self.source / 'compose.yaml')], host.digest((self.source / 'compose.yaml').read_bytes()))
+            self.assertEqual(receipt['compose_options'], self.options)
+            self.install()
+        cfg = host.read_json(self.state / 'config.json')
+        current = host.read_json(Path(cfg['deployment_file']))
+        self.assertEqual(current['services']['p2pstream']['image'], current_image)
+        self.assertEqual(current['services']['p2pstream']['environment']['SECRET'], 'exported-current-settings')
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertFalse((self.state / 'reenrollment.json').exists())
+        self.assertIn('include', host.read_json(self.source / 'compose.yaml'))
+
+    def test_custom_remove_reenroll_preserves_receipt_after_archive_cleanup_before_new_journal(self):
+        current_image = self.custom_removed_deployment()
+        original = host.Host.phase
+        def interrupted(controller, phase, **values):
+            if phase == 'preparing':
+                raise KeyboardInterrupt()
+            return original(controller, phase, **values)
+        metadata = (self.manifest, self.descriptor, current_image, 'f' * 64)
+        with patch.object(host, 'release_metadata', return_value=metadata):
+            with patch.object(host.Host, 'phase', interrupted):
+                with self.assertRaises(KeyboardInterrupt):
+                    self.install()
+            self.assertFalse((self.state / 'host.json').exists())
+            self.assertFalse((self.state / 'archive.json').exists())
+            self.assertTrue((self.state / 'reenrollment.json').exists())
+            self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertFalse((self.state / 'reenrollment.json').exists())
+
+    def test_reenrollment_receipt_refuses_modified_or_symlink_default_alias(self):
+        current_image = self.custom_removed_deployment()
+        controller = host.Host()
+        with controller.lock():
+            controller.archive_removed()
+        alias = self.source / 'compose.yaml'
+        exported = alias.read_bytes()
+        alias.write_bytes(exported + b' ')
+        metadata = (self.manifest, self.descriptor, current_image, 'f' * 64)
+        with patch.object(host, 'release_metadata', return_value=metadata):
+            with self.assertRaisesRegex(host.Failure, 'Exported default Compose alias changed'):
+                self.install()
+            self.assertFalse((self.state / 'host.json').exists())
+            alias.unlink()
+            alias.symlink_to(self.source / 'custom.yaml')
+            with self.assertRaisesRegex(host.Failure, 'Exported default Compose alias changed'):
+                self.install()
+        self.assertTrue(alias.is_symlink())
+        self.assertTrue((self.state / 'reenrollment.json').exists())
+
+    def test_reenrollment_accepts_applied_primary_edits_but_refuses_unapplied_input_drift(self):
+        current_image = self.custom_removed_deployment()
+        controller = host.Host()
+        with controller.lock():
+            controller.archive_removed()
+        primary = self.source / 'custom.yaml'
+        alias = self.source / 'compose.yaml'
+        alias_before = alias.read_bytes()
+        model = host.read_json(primary)
+        model['services']['p2pstream']['environment']['SECRET'] = 'operator-applied-current-settings'
+        host.atomic(primary, model)
+        self.raw = primary.read_bytes()
+        original_docker = self.docker
+        def updated_hash(*args, **kwargs):
+            if args[0] == 'compose' and '--hash' in args:
+                return subprocess.CompletedProcess(args, 0, ('p2pstream ' + 'b' * 64 + '\n').encode(), b'')
+            return original_docker(*args, **kwargs)
+        metadata = (self.manifest, self.descriptor, current_image, 'f' * 64)
+        with patch.object(host, 'release_metadata', return_value=metadata), patch.object(host, 'docker', updated_hash):
+            with self.assertRaisesRegex(host.Failure, 'Compose inputs differ from the running server'):
+                self.install()
+            self.assertEqual(alias.read_bytes(), alias_before)
+            self.assertFalse((self.state / 'host.json').exists())
+            # Model the operator's ordinary Compose application: now the live
+            # container carries the new selected source hash, with the known
+            # extra default alias still exactly the previous exported bytes.
+            self.info['Config']['Labels']['com.docker.compose.config-hash'] = 'b' * 64
+            self.install()
+        cfg = host.read_json(self.state / 'config.json')
+        self.assertEqual(host.read_json(Path(cfg['deployment_file']))['services']['p2pstream']['environment']['SECRET'], 'operator-applied-current-settings')
+        self.assertFalse((self.state / 'reenrollment.json').exists())
+        self.assertIn('include', host.read_json(alias))
+
+    def test_active_host_journal_takes_precedence_over_stale_reenrollment_receipt(self):
+        self.install()
+        host.atomic(self.state / 'reenrollment.json', {'installation': 'other'})
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
     def test_unrelated_default_or_automatic_override_rejected_before_state_changes(self):
         self.managed = True
         automatic = self.source / 'compose.override.yaml'
@@ -342,6 +460,16 @@ class Lifecycle(unittest.TestCase):
             self.install()
         self.assertFalse((self.state / 'config.json').exists())
         self.assertEqual(automatic.read_text(), 'operator settings')
+
+    def test_unrelated_default_file_is_never_adopted_for_custom_input_context(self):
+        custom = self.source / 'custom.yaml'
+        custom.write_text('fixture input')
+        self.options[3] = str(custom)
+        original_default = (self.source / 'compose.yaml').read_bytes()
+        with self.assertRaisesRegex(host.Failure, 'unrelated default Compose file'):
+            self.install()
+        self.assertEqual((self.source / 'compose.yaml').read_bytes(), original_default)
+        self.assertFalse((self.state / 'config.json').exists())
 
     def test_default_compose_environment_must_select_recorded_inputs_and_project(self):
         original_docker = self.docker

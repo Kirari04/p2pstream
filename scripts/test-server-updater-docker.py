@@ -26,6 +26,12 @@ def docker(*args):
     return command("docker", *args)
 
 
+def docker_test(*args):
+    # Keep Go assertion output visible when a disposable test helper exits.
+    # Ordinary Docker inspection output remains captured by docker().
+    subprocess.run(["docker", *args], check=True)
+
+
 def wait_for(fn, seconds=90):
     deadline = time.monotonic() + seconds
     while True:
@@ -90,7 +96,7 @@ def main():
         env = ["-e", "REVIEW_STATE=" + str(state), "-e", "REVIEW_SCENARIO=" + args.scenario,
                "-e", "REVIEW_BASELINE=" + images["baseline"], "-e", "REVIEW_HELPER=" + helper,
                "-e", "REVIEW_INSTALLATION=" + installation]
-        docker("run", "--rm", "-v", "/review:/review", *env, helper, "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewEnroll$")
+        docker_test("run", "--rm", "-v", "/review:/review", *env, helper, "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewEnroll$")
         def runtime_action(action):
             return docker("run", "--rm", "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock",
                 "-v", project + "-data:/server-data", helper, "/app/p2pstream", "server-updater", action,
@@ -130,7 +136,7 @@ def main():
         wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
         c = json.loads((state / "config.json").read_text())
         assert c["deployment_protocol"] == 2 and c["deployment_file"] == str(canonical)
-        docker("run", "--rm", "--label", "p2pstream.server-update.executor=" + c["instance_id"],
+        docker_test("run", "--rm", "--label", "p2pstream.server-update.executor=" + c["instance_id"],
             "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock", "-v", project + "-data:/server-data",
             "-e", "REVIEW_CONFIG=" + str(state / "config.json"), helper,
             "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewNativeGuard$")
@@ -182,7 +188,7 @@ def main():
         assert recreated_info["Config"]["Image"] == expected_image
         assert recreated_info["Config"]["Labels"]["p2pstream.server-update.instance"] == json.loads((state / "config.json").read_text())["instance_id"]
         assert any(m["Destination"] == "/run/p2pstream-server-update" and not m["RW"] for m in recreated_info["Mounts"])
-        docker("run", "--rm", "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock",
+        docker_test("run", "--rm", "-v", "/review:/review", "-v", "/var/run/docker.sock:/var/run/docker.sock",
             "-e", "REVIEW_CONFIG=" + str(state / "config.json"), helper,
             "/app/server-update-test", "-test.v", "-test.run=^TestDockerReviewRuntimeReceipt$")
         receipt_check = json.loads((state / "native-runtime-receipt.json").read_text())
