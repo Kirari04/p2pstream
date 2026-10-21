@@ -405,6 +405,10 @@ class Lifecycle(unittest.TestCase):
         with patch.object(host, 'release_metadata', return_value=metadata):
             with self.assertRaisesRegex(host.Failure, 'Exported default Compose alias changed'):
                 self.install()
+            alias.unlink()
+            alias.symlink_to(self.source / 'missing-target.yaml')
+            with self.assertRaisesRegex(host.Failure, 'Exported default Compose alias changed'):
+                self.install()
             self.assertFalse((self.state / 'host.json').exists())
             alias.unlink()
             alias.symlink_to(self.source / 'custom.yaml')
@@ -412,6 +416,47 @@ class Lifecycle(unittest.TestCase):
                 self.install()
         self.assertTrue(alias.is_symlink())
         self.assertTrue((self.state / 'reenrollment.json').exists())
+
+    def missing_alias_reenrollment(self, archived):
+        current_image = self.custom_removed_deployment()
+        if archived:
+            controller = host.Host()
+            with controller.lock():
+                controller.archive_removed()
+        alias = self.source / 'compose.yaml'
+        alias.unlink()
+        with patch.object(host, 'release_metadata', return_value=(self.manifest, self.descriptor, current_image, 'f' * 64)):
+            self.install()
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'healthy')
+        self.assertIsNone(journal['source_layout']['existing_alias_sha256'])
+        created_alias = next(item for item in journal['source_bridge']['files'] if item['path'] == str(alias))
+        self.assertIsNone(created_alias['original_sha256'])
+        self.assertIsNone(created_alias['original_backup'])
+        self.assertIn('include', host.read_json(alias))
+        cfg = host.read_json(self.state / 'config.json')
+        self.assertEqual(host.read_json(Path(cfg['deployment_file']))['services']['p2pstream']['image'], current_image)
+
+    def test_reenrollment_recreates_deleted_alias_before_archive(self):
+        self.missing_alias_reenrollment(archived=False)
+
+    def test_reenrollment_recreates_deleted_alias_from_durable_receipt(self):
+        self.missing_alias_reenrollment(archived=True)
+
+    def test_missing_alias_does_not_relax_receipt_path_or_export_hash_binding(self):
+        self.custom_removed_deployment()
+        controller = host.Host()
+        with controller.lock():
+            controller.archive_removed()
+        context = host.read_json(self.state / 'reenrollment.json')
+        alias = self.source / 'compose.yaml'
+        alias.unlink()
+        self.assertEqual(controller.validate_reenrollment_context(context), {})
+        for aliases in [{'relative-compose.yaml': context['export_sha256']}, {str(alias): '0' * 64}]:
+            with self.subTest(aliases=aliases):
+                invalid = dict(context, aliases=aliases)
+                with self.assertRaisesRegex(host.Failure, 'Exported default Compose alias changed'):
+                    controller.validate_reenrollment_context(invalid)
 
     def test_reenrollment_accepts_applied_primary_edits_but_refuses_unapplied_input_drift(self):
         current_image = self.custom_removed_deployment()

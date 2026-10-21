@@ -255,7 +255,7 @@ def source_layout(source_dir, files, project, owned_aliases=None):
     else:
         primary = str(defaults[0]) if defaults and str(defaults[0]) in files else files[0]
     alias = str(defaults[0]) if defaults and str(defaults[0]) not in files else str(directory / 'compose.yaml') if not defaults and not values.get('COMPOSE_FILE') else None
-    return {'primary': primary, 'default_alias': alias, 'existing_alias_sha256': owned_aliases.get(alias)}
+    return {'primary': primary, 'default_alias': alias, 'existing_alias_sha256': owned_aliases.get(alias) if alias and os.path.lexists(alias) else None}
 
 class Host:
     def __init__(self, directory=STATE):
@@ -679,9 +679,15 @@ class Host:
         # Selected source files remain operator-editable after removal. Their
         # current resolved settings must pass normal running-model preflight;
         # historical content ownership is needed only for the extra alias.
+        existing_aliases = {}
         for name, expected in context['aliases'].items():
             path = Path(name)
-            require(path.is_absolute() and expected == context['export_sha256'] and stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == expected, 'Exported default Compose alias changed; inspect it before reenrollment')
+            require(path.is_absolute() and expected == context['export_sha256'], 'Exported default Compose alias changed; inspect it before reenrollment')
+            if not os.path.lexists(path):
+                continue  # No existing file needs historical ownership proof.
+            require(stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == expected, 'Exported default Compose alias changed; inspect it before reenrollment')
+            existing_aliases[name] = expected
+        return existing_aliases
 
     def discard_preparation(self):
         phase = self.journal.get('recovery_phase') or self.journal['phase']
@@ -1047,12 +1053,11 @@ def install(args, options):
                 context = read_json(STATE / 'reenrollment.json')
                 require(context['installation'] == identity, 'Reenrollment ownership belongs to another installation')
                 if context['source_directory'] == source_dir and context['compose_options'] == options:
-                    host.validate_reenrollment_context(context)
-                    owned_aliases = context['aliases']
+                    owned_aliases = host.validate_reenrollment_context(context)
                     removed_source_files = context['source_files']
             if host.journal.get('phase') == 'removed':
                 plan = host.journal.get('source_bridge', {})
-                owned_aliases = {item['path']: plan.get('export_sha256') for item in plan.get('files', []) if item['editable'] is None}
+                owned_aliases = {item['path']: plan.get('export_sha256') for item in plan.get('files', []) if item['editable'] is None and os.path.lexists(item['path'])}
                 if host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options:
                     removed_source_files = host.journal.get('source_files')
             if host.journal and host.journal['phase'] != 'removed':
