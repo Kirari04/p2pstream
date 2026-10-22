@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, h, reactive, ref, watch } from "vue";
+import { ChevronRight as ChevronRightIcon } from "@lucide/vue";
 import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
@@ -10,6 +11,7 @@ import type { DataTableColumns, DropdownOption, UploadFileInfo } from "naive-ui"
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import PublicTlsCertificateFacts from "@/components/public-tls/PublicTlsCertificateFacts.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import MetricCard from "@/components/ui/MetricCard.vue";
 import MetricStrip from "@/components/ui/MetricStrip.vue";
@@ -21,7 +23,6 @@ import { useManagementContext } from "@/composables/useManagementContext";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 import { displayHostnamePattern } from "@/lib/idnHostnames";
-import { managementCertificateExpiryStatus } from "@/lib/managementTlsPresentation";
 import {
   acmeChallengeTypeForMethod,
   dnsCredentialName,
@@ -40,6 +41,12 @@ import {
   type TlsMethod,
 } from "@/lib/publicProxyLabels";
 import { editorDrawerWidth, naiveTagType } from "@/lib/naiveUi";
+import {
+  publicTlsAttentionReason,
+  publicTlsAttentionText,
+  publicTlsExpiryStatus,
+  publicTlsNeedsRenewal,
+} from "@/lib/publicTlsPresentation";
 import {
   PublicAcmeCa,
   PublicAcmeChallengeType,
@@ -110,7 +117,6 @@ type TlsTableRow =
   | { kind: "certificate"; key: string; cert: PublicTlsCertificate }
   | { kind: "fallback"; key: string; listenerName: string };
 
-const RENEWAL_ATTENTION_DAYS = 30;
 const activeCertificateMenuId = ref("");
 const tlsTableRows = computed<TlsTableRow[]>(() => {
   if (tlsCertificates.value.length) {
@@ -125,15 +131,14 @@ const certificateIssues = computed(() => tlsCertificates.value
   .filter((cert) => cert.lastError || tlsCertificateHostnameGuidance(cert))
   .map((cert) => ({ cert, guidance: tlsCertificateHostnameGuidance(cert) })));
 const hasRenewalAttention = computed(() => tlsCertificates.value.some(certificateNeedsRenewal));
-const certificateActionsWidth = computed(() => hasRenewalAttention.value ? 270 : 190);
-const certificateTableWidth = computed(() => 190 + 170 + 140 + 170 + certificateActionsWidth.value);
+const certificateActionsWidth = computed(() => hasRenewalAttention.value ? 260 : 190);
+const CERTIFICATE_EXPAND_WIDTH = 40;
+const certificateTableWidth = computed(() => CERTIFICATE_EXPAND_WIDTH + 170 + 170 + 140 + 170 + certificateActionsWidth.value);
 
+// Lifetime-relative thresholds live in publicTlsPresentation so short-lived
+// Let's Encrypt certificates are not flagged for most of their life.
 function certificateNeedsRenewal(cert: PublicTlsCertificate): boolean {
-  if (cert.source !== PublicTlsCertificateSource.ACME || !cert.enabled) return false;
-  if (cert.status === PublicTlsCertificateStatus.ERROR) return true;
-  if (cert.expiresAtUnixMillis === 0n) return false;
-  const days = Math.ceil((Number(cert.expiresAtUnixMillis) - Date.now()) / 86_400_000);
-  return days <= RENEWAL_ATTENTION_DAYS;
+  return publicTlsNeedsRenewal(cert);
 }
 
 function safeHostname(cert: PublicTlsCertificate, limit = 64): string {
@@ -164,11 +169,31 @@ function muted(text: string, extra = "") {
   return h("span", { class: `clip-text copy-xs muted-text ${extra}`, title: text }, text);
 }
 
+function renderCertificateExpandIcon({ expanded, rowData }: { expanded: boolean; rowData: unknown }) {
+  const row = rowData as TlsTableRow;
+  const host = row.kind === "certificate" ? safeHostname(row.cert, 48) : "";
+  return h("button", {
+    type: "button",
+    class: "tls-expand-button",
+    "aria-expanded": expanded ? "true" : "false",
+    "aria-label": `${expanded ? "Hide" : "Show"} certificate details for ${host}`,
+    title: expanded ? "Hide certificate details" : "Show certificate details",
+  }, [h(ChevronRightIcon, { class: "icon-sm tls-expand-icon", "aria-hidden": "true" })]);
+}
+
 const certificateColumns = computed<DataTableColumns<TlsTableRow>>(() => [
+  {
+    type: "expand",
+    width: CERTIFICATE_EXPAND_WIDTH,
+    expandable: (row) => row.kind === "certificate",
+    renderExpand: (row) => row.kind === "certificate"
+      ? h(PublicTlsCertificateFacts, { certificate: row.cert, hostnameLabel: safeHostname(row.cert, 48) })
+      : null,
+  },
   {
     title: "Hostname",
     key: "hostname",
-    minWidth: 190,
+    minWidth: 170,
     render: (row) => {
       if (row.kind === "fallback") {
         return h("div", { class: "tls-cell" }, [
@@ -213,9 +238,7 @@ const certificateColumns = computed<DataTableColumns<TlsTableRow>>(() => [
             default: () => isDefaultSelfSignedCertificate(cert) ? "Self-signed" : tlsSourceLabel(cert),
           }),
         ]),
-        cert.lastError
-          ? h("span", { class: "clip-text copy-xs error-text" }, "Error details below")
-          : muted(tlsCertificateSummary(cert)),
+        certificateStatusDetail(cert),
       ]);
     },
   },
@@ -232,7 +255,7 @@ const certificateColumns = computed<DataTableColumns<TlsTableRow>>(() => [
           muted(cert.source === PublicTlsCertificateSource.ACME ? "Not issued yet" : "Expiry unknown"),
         ]);
       }
-      const expiry = managementCertificateExpiryStatus(cert.expiresAtUnixMillis);
+      const expiry = publicTlsExpiryStatus(cert);
       const validity = tlsCertificateValiditySummary(cert);
       return h("div", { class: "tls-cell" }, [
         h(NTag, { size: "small", bordered: false, type: expiry.type, class: "fit-width" }, { default: () => expiry.label }),
@@ -326,6 +349,16 @@ const certificateColumns = computed<DataTableColumns<TlsTableRow>>(() => [
     },
   },
 ]);
+
+function certificateStatusDetail(cert: PublicTlsCertificate) {
+  if (cert.lastError) return h("span", { class: "clip-text copy-xs error-text" }, "Error details below");
+  const reason = publicTlsAttentionReason(cert);
+  if (reason && reason !== "error") {
+    const text = publicTlsAttentionText(reason);
+    return h("span", { class: "clip-text copy-xs warning-text", title: text }, text);
+  }
+  return muted(tlsCertificateSummary(cert));
+}
 
 function tlsRowKey(row: TlsTableRow): string {
   return row.key;
@@ -731,6 +764,8 @@ watch(tlsDnsCredentials, () => {
         :data="tlsTableRows"
         :row-key="tlsRowKey"
         :row-props="tlsRowProps"
+        :render-expand-icon="renderCertificateExpandIcon"
+        sticky-expanded-rows
         :pagination="false"
         :bordered="false"
        
@@ -972,6 +1007,50 @@ watch(tlsDnsCredentials, () => {
 
 :deep(.tls-tabular) {
   font-variant-numeric: tabular-nums;
+}
+
+:deep(.n-data-table-expand-trigger) {
+  width: auto;
+  height: auto;
+  vertical-align: middle;
+}
+
+:deep(.tls-expand-button) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+}
+
+:deep(.tls-expand-button:hover) {
+  background: var(--app-hover);
+  color: var(--app-text);
+}
+
+:deep(.tls-expand-button:focus-visible) {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 1px;
+}
+
+:deep(.tls-expand-icon) {
+  transition: transform 0.15s ease;
+}
+
+:deep(.tls-expand-button[aria-expanded="true"] .tls-expand-icon) {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :deep(.tls-expand-icon) {
+    transition: none;
+  }
 }
 
 :deep(.tls-actions) {

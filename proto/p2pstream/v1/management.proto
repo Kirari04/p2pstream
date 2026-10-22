@@ -269,6 +269,19 @@ enum PublicTlsCertificateStatus {
   PUBLIC_TLS_CERTIFICATE_STATUS_ERROR = 4;
 }
 
+// Describes whether the leaf certificate facts on PublicTlsCertificate could be
+// read from the certificate material currently stored for the mapping.
+enum PublicTlsCertificateLeafState {
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_UNSPECIFIED = 0;
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_AVAILABLE = 1;
+  // No certificate material is stored yet, or the file does not exist.
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_MISSING = 2;
+  // The certificate file exists but could not be read.
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_UNREADABLE = 3;
+  // The certificate file does not contain a parseable X.509 certificate.
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_INVALID = 4;
+}
+
 enum TrafficTraceLevel {
   TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
   TRAFFIC_TRACE_LEVEL_BASIC = 1;
@@ -874,6 +887,17 @@ message PublicTlsCertificate {
   int64 expires_at_unix_millis = 17;
   int64 next_renewal_at_unix_millis = 18;
   int64 last_renewal_attempt_at_unix_millis = 19;
+  // Read-only facts about the leaf certificate currently stored for this
+  // mapping. Empty unless leaf_state is AVAILABLE.
+  PublicTlsCertificateLeafState leaf_state = 20;
+  // Issuer distinguished name, formatted like ManagementTlsCertificateSummary.issuer.
+  string leaf_issuer = 21;
+  repeated string leaf_dns_names = 22;
+  repeated string leaf_ip_addresses = 23;
+  // Lowercase hex SHA-256 of the DER leaf, like ManagementTlsCertificateSummary.sha256.
+  string leaf_sha256 = 24;
+  // Uppercase hex serial number without separators.
+  string leaf_serial_number = 25;
 }
 
 message PublicTlsDnsCredential {
