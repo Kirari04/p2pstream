@@ -6,7 +6,11 @@ import {
   type PublicSite,
   type PublicSiteHost,
 } from "@/gen/proto/p2pstream/v1/management_pb";
-import { asciiHostnamePattern } from "@/lib/idnHostnames";
+import {
+  asciiHostnamePattern,
+  displayHostnamePattern,
+  displayMigratedSiteName,
+} from "@/lib/idnHostnames";
 
 export type SiteAliasForm = {
   id: string;
@@ -208,18 +212,111 @@ export function publicSiteValidationReason(input: {
   return "";
 }
 
+export type PublicSiteLifecycleState = "published" | "draft" | "disabled";
+
+/** Lifecycle bucket behind the State column: unpublished sites are drafts whether or not they are enabled. */
+export function publicSiteLifecycleState(
+  site: PublicSite,
+): PublicSiteLifecycleState {
+  if (!site.published) return "draft";
+  return site.enabled ? "published" : "disabled";
+}
+
 export function publicSiteLifecycleLabel(site: PublicSite): string {
-  if (!site.published) return "Draft";
-  return site.enabled ? "Published" : "Published · disabled";
+  switch (publicSiteLifecycleState(site)) {
+    case "draft":
+      return "Draft";
+    case "published":
+      return "Published";
+    default:
+      return "Published · disabled";
+  }
+}
+
+/** True when a readiness blocker exists; the Readiness column shows these in the error tone. */
+export function publicSiteNeedsAttention(site: PublicSite): boolean {
+  return site.readiness.some(
+    (item) => item.severity === PublicSiteReadinessSeverity.BLOCKER,
+  );
+}
+
+export type PublicSiteFilter = {
+  text: string;
+  state: "all" | PublicSiteLifecycleState;
+  readiness: "all" | "attention" | "ready";
+  /** "all" or a listener ID as a decimal string. */
+  listenerId: string;
+};
+
+export function emptyPublicSiteFilter(): PublicSiteFilter {
+  return { text: "", state: "all", readiness: "all", listenerId: "all" };
+}
+
+export function isPublicSiteFilterActive(filter: PublicSiteFilter): boolean {
+  return (
+    Boolean(filter.text.trim()) ||
+    filter.state !== "all" ||
+    filter.readiness !== "all" ||
+    filter.listenerId !== "all"
+  );
+}
+
+/**
+ * Text a site can be found by: its name (stored and display form), every
+ * hostname in both the stored ASCII form and the Unicode display form, and the
+ * names of its assigned listeners.
+ */
+export function publicSiteSearchText(
+  site: PublicSite,
+  listenerNames: ReadonlyMap<string, string>,
+): string[] {
+  const hostnames = [
+    site.canonicalHostname,
+    ...site.hosts.map((host) => host.hostnamePattern),
+  ].filter(Boolean);
+  return [
+    site.name,
+    displayMigratedSiteName(site.name),
+    ...hostnames,
+    ...hostnames.map(displayHostnamePattern),
+    ...publicSiteListenerIDs(site).map(
+      (id) => listenerNames.get(id.toString()) ?? "",
+    ),
+  ].filter(Boolean);
+}
+
+export function filterPublicSites(
+  sites: readonly PublicSite[],
+  filter: PublicSiteFilter,
+  listenerNames: ReadonlyMap<string, string>,
+): PublicSite[] {
+  const query = filter.text.trim().toLocaleLowerCase();
+  return sites.filter((site) => {
+    if (
+      filter.state !== "all" &&
+      publicSiteLifecycleState(site) !== filter.state
+    )
+      return false;
+    if (filter.readiness !== "all") {
+      const needsAttention = publicSiteNeedsAttention(site);
+      if (needsAttention !== (filter.readiness === "attention")) return false;
+    }
+    if (
+      filter.listenerId !== "all" &&
+      !publicSiteListenerIDs(site).some(
+        (id) => id.toString() === filter.listenerId,
+      )
+    )
+      return false;
+    if (!query) return true;
+    return publicSiteSearchText(site, listenerNames).some((value) =>
+      value.toLocaleLowerCase().includes(query),
+    );
+  });
 }
 
 export function publicSiteReadinessLabel(site: PublicSite): string {
-  if (
-    site.readiness.some(
-      (item) => item.severity === PublicSiteReadinessSeverity.BLOCKER,
-    )
-  )
-    return "Needs attention";
+  if (publicSiteNeedsAttention(site)) return "Needs attention";
   if (
     site.readiness.some(
       (item) => item.severity === PublicSiteReadinessSeverity.WARNING,

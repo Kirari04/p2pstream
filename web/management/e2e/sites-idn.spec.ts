@@ -18,10 +18,11 @@ test("shows IDN Site hostnames in Unicode while retaining ASCII DNS values", asy
   await authenticate(page, baseURL);
   await page.goto("/#/proxy/sites");
 
-  const surface = page.getByRole("region", { name: "Sites", exact: true });
-  await surface
-    .getByRole("button", { name: "Add site", exact: true })
-    .click();
+  // "Add site" is the Proxy page header action while the Sites tab is active.
+  await expect(
+    page.getByRole("region", { name: "Sites", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add site", exact: true }).click();
 
   let workspace = page.getByRole("dialog", { name: "Create site workspace" });
   await workspace.getByLabel("Site name").fill("idn-site-e2e");

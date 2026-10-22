@@ -5,10 +5,15 @@ import {
   PublicSiteListenerBehavior,
   PublicSiteReadinessSeverity,
   PublicSiteTlsCoverage,
+  PublicSiteSchema,
   UpdatePublicRouteRequestSchema,
   type PublicSite,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
+  emptyPublicSiteFilter,
+  filterPublicSites,
+  isPublicSiteFilterActive,
+  publicSiteLifecycleState,
   publicRouteDefaultScopeLabel,
   publicRouteSiteSelectionState,
   publicSiteTLSCoverage,
@@ -189,6 +194,80 @@ describe("public sites", () => {
     } as unknown as PublicSite;
     expect(publicSiteLifecycleLabel(disabled)).toBe("Published · disabled");
     expect(publicSiteReadinessLabel(disabled)).toBe("Ready");
+  });
+
+  test("filters sites by search text, lifecycle, readiness, and listener", () => {
+    const listenerNames = new Map([
+      ["1", "edge-http"],
+      ["2", "Edge-TLS"],
+    ]);
+    const published = create(PublicSiteSchema, {
+      id: 1n,
+      name: "shop",
+      published: true,
+      enabled: true,
+      canonicalHostname: "xn--zribadi-n2a.example",
+      hosts: [{ hostnamePattern: "xn--zribadi-n2a.example" }],
+      listenerBindings: [{ listenerId: 2n }],
+    });
+    const draft = create(PublicSiteSchema, {
+      id: 2n,
+      name: "migrated-3-xn--bcher-kva.example",
+      published: false,
+      enabled: true,
+      readiness: [{ severity: PublicSiteReadinessSeverity.BLOCKER }],
+      listenerId: 1n,
+    });
+    const disabled = create(PublicSiteSchema, {
+      id: 3n,
+      name: "Legacy-API",
+      published: true,
+      enabled: false,
+      readiness: [{ severity: PublicSiteReadinessSeverity.WARNING }],
+      hosts: [{ hostnamePattern: "*.api.example.com" }],
+      listenerBindings: [{ listenerId: 1n }, { listenerId: 2n }],
+    });
+    const sites = [published, draft, disabled];
+    const ids = (filter: Partial<ReturnType<typeof emptyPublicSiteFilter>>) =>
+      filterPublicSites(
+        sites,
+        { ...emptyPublicSiteFilter(), ...filter },
+        listenerNames,
+      ).map((site) => site.id);
+
+    expect(ids({})).toEqual([1n, 2n, 3n]);
+    expect(isPublicSiteFilterActive(emptyPublicSiteFilter())).toBe(false);
+    expect(
+      isPublicSiteFilterActive({ ...emptyPublicSiteFilter(), text: "  " }),
+    ).toBe(false);
+    expect(
+      isPublicSiteFilterActive({ ...emptyPublicSiteFilter(), listenerId: "1" }),
+    ).toBe(true);
+
+    // Name, case-insensitive, and the decoded migrated-site name.
+    expect(ids({ text: "legacy-api" })).toEqual([3n]);
+    expect(ids({ text: "BÜCHER" })).toEqual([2n]);
+    // Hostnames match in both the stored ASCII form and the Unicode display form.
+    expect(ids({ text: "xn--zribadi" })).toEqual([1n]);
+    expect(ids({ text: "züribadi" })).toEqual([1n]);
+    expect(ids({ text: "*.api." })).toEqual([3n]);
+    // Assigned listener names, including the legacy single-listener field.
+    expect(ids({ text: "edge-tls" })).toEqual([1n, 3n]);
+    expect(ids({ text: "edge-http" })).toEqual([2n, 3n]);
+    expect(ids({ text: "missing" })).toEqual([]);
+
+    expect(publicSiteLifecycleState(draft)).toBe("draft");
+    expect(ids({ state: "published" })).toEqual([1n]);
+    expect(ids({ state: "draft" })).toEqual([2n]);
+    expect(ids({ state: "disabled" })).toEqual([3n]);
+
+    // Only blockers need attention; warnings still count as ready, like the Readiness column.
+    expect(ids({ readiness: "attention" })).toEqual([2n]);
+    expect(ids({ readiness: "ready" })).toEqual([1n, 3n]);
+
+    expect(ids({ listenerId: "1" })).toEqual([2n, 3n]);
+    expect(ids({ listenerId: "2", state: "published" })).toEqual([1n]);
+    expect(ids({ listenerId: "9" })).toEqual([]);
   });
 
   test("keeps legacy detach distinct from an old-client omitted site field", () => {

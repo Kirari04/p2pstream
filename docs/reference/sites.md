@@ -4,6 +4,8 @@ A Site is the public routing boundary for a set of hostnames and routes. A Site 
 
 Configure sites under **Proxy → Sites**. Create or open a site, configure its hostnames and listeners, and add routes inside the site workspace. New sites are saved as drafts and do not affect traffic until they are published.
 
+**Add site** is in the Proxy page header while the Sites tab is open. Above the site list, the filter box matches site names, hostnames (in ASCII or Unicode form) and assigned listener names. You can also narrow the list by state (published, draft, disabled), by readiness (needs attention or ready) and, when there is more than one listener, by listener. Filters only change what the list shows; they don't change any site.
+
 ## Lifecycle
 
 | State | Hostname or default site ownership | Routing behavior |

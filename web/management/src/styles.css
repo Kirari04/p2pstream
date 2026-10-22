@@ -2454,9 +2454,13 @@ body:has(.app-sidebar--mobile-open) {
   .app-sidebar__group-label,
   .app-sidebar__label,
   .app-sidebar__chevron,
-  .app-sidebar__operator-copy,
   .app-sidebar__collapse span {
     display: initial;
+  }
+
+  /* Stacked "Signed in as" / username; `initial` would make it inline. */
+  .app-sidebar__operator-copy {
+    display: grid;
   }
 
   .app-sidebar__collapse {

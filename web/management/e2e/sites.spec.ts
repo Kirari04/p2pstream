@@ -74,10 +74,11 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   await expect(
     page.getByRole("tab", { name: /routes configured/i }),
   ).toHaveCount(0);
-  const sitesSurface = page.getByRole("region", { name: "Sites", exact: true });
-  await sitesSurface
-    .getByRole("button", { name: "Add site", exact: true })
-    .click();
+  // "Add site" is the Proxy page header action while the Sites tab is active.
+  await expect(
+    page.getByRole("region", { name: "Sites", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add site", exact: true }).click();
 
   let workspace = page.getByRole("dialog", { name: "Create site workspace" });
   await expect(workspace).toBeVisible();

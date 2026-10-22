@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref, type HTMLAttributes } from "vue";
+import { computed, h, reactive, ref, watch, type HTMLAttributes } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   NAlert,
@@ -22,6 +22,7 @@ import { X as TimesIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import PublicSiteMigrationPanel from "@/components/PublicSiteMigrationPanel.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
 import MetricCard from "@/components/ui/MetricCard.vue";
@@ -48,9 +49,14 @@ import {
   severityForState,
 } from "@/lib/publicProxyLabels";
 import {
+  emptyPublicSiteFilter,
+  filterPublicSites,
+  isPublicSiteFilterActive,
   publicSiteLifecycleLabel,
   publicSiteListenerIDs,
+  publicSiteNeedsAttention,
   publicSiteReadinessLabel,
+  type PublicSiteFilter,
 } from "@/lib/publicSites";
 import { naiveTagType } from "@/lib/naiveUi";
 import {
@@ -134,6 +140,56 @@ const displayedListeners = computed(() => {
       return left.name.localeCompare(right.name);
     });
 });
+const siteFilter = reactive<PublicSiteFilter>(emptyPublicSiteFilter());
+const siteListenerNames = computed(
+  () =>
+    new Map(
+      listeners.value.map((listener) => [listener.id.toString(), listener.name]),
+    ),
+);
+const displayedSites = computed(() =>
+  filterPublicSites(sites.value, siteFilter, siteListenerNames.value),
+);
+const siteFilterActive = computed(() => isPublicSiteFilterActive(siteFilter));
+const siteFilterResultLabel = computed(
+  () =>
+    `${displayedSites.value.length.toString()} of ${sites.value.length.toString()} ${sites.value.length === 1 ? "site" : "sites"}`,
+);
+const siteStateFilterOptions = [
+  { label: "All states", value: "all" },
+  { label: "Published", value: "published" },
+  { label: "Draft", value: "draft" },
+  { label: "Disabled", value: "disabled" },
+];
+const siteReadinessFilterOptions = [
+  { label: "Any readiness", value: "all" },
+  { label: "Needs attention", value: "attention" },
+  { label: "Ready", value: "ready" },
+];
+const showSiteListenerFilter = computed(() => listeners.value.length > 1);
+const siteListenerFilterOptions = computed(() => [
+  { label: "All listeners", value: "all" },
+  ...listeners.value.map((listener) => ({
+    label: safeListenerName(listener),
+    value: listener.id.toString(),
+  })),
+]);
+// A hidden or deleted listener must not keep filtering the list invisibly.
+watch(
+  () =>
+    showSiteListenerFilter.value &&
+    listeners.value.some(
+      (listener) => listener.id.toString() === siteFilter.listenerId,
+    ),
+  (selectionAvailable) => {
+    if (!selectionAvailable) siteFilter.listenerId = "all";
+  },
+);
+
+function clearSiteFilters() {
+  Object.assign(siteFilter, emptyPublicSiteFilter());
+}
+
 const listenerTableWidth = 810;
 const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
   {
@@ -328,7 +384,7 @@ const siteColumns = computed<DataTableColumns<PublicSite>>(() => [
           ),
           h(
             "span",
-            { class: "mono-text copy-xs muted-text" },
+            { class: "site-table__id mono-text copy-xs muted-text" },
             `#${site.id.toString()}`,
           ),
         ]),
@@ -417,9 +473,7 @@ const siteColumns = computed<DataTableColumns<PublicSite>>(() => [
           {
             size: "small",
             bordered: false,
-            type: site.readiness.some((item) => item.severity === 1)
-              ? "error"
-              : "success",
+            type: publicSiteNeedsAttention(site) ? "error" : "success",
           },
           { default: () => publicSiteReadinessLabel(site) },
         ),
@@ -534,6 +588,11 @@ const proxySections = computed<ProxySectionSummary[]>(() => [
 ]);
 const activeProxySection = computed<ProxySectionKey>(() =>
   normalizeProxySection(route.params.section),
+);
+const activeProxyPrimaryAction = computed(() =>
+  activeProxySection.value === "sites"
+    ? { label: "Add site", run: openAddSiteModal }
+    : { label: "Add listener", run: openAddListenerModal },
 );
 const activeProxyMeta = computed(
   () =>
@@ -777,7 +836,7 @@ async function deleteSite(site: PublicSite) {
           :reason="busyDisabledReason"
         >
           <NButton
-            type="primary"
+            secondary
             size="small"
             :loading="isBusy && !proxyIsRunning"
             :disabled="Boolean(busyDisabledReason)"
@@ -804,6 +863,14 @@ async function deleteSite(site: PublicSite) {
             Stop proxy
           </NButton>
         </DisabledHint>
+        <NButton
+          type="primary"
+          size="small"
+          @click="activeProxyPrimaryAction.run"
+        >
+          <template #icon><PlusIcon class="icon-sm" /></template>
+          {{ activeProxyPrimaryAction.label }}
+        </NButton>
       </template>
     </PageHeader>
 
@@ -858,21 +925,59 @@ async function deleteSite(site: PublicSite) {
             description="Build hostnames, listener behavior, and routes in one workspace, then publish when ready."
             flush
           >
-            <template #actions>
-              <NButton type="primary" size="small" @click="openAddSiteModal">
-                <template #icon><PlusIcon class="icon-sm" /></template>
-                Add site
-              </NButton>
-            </template>
+            <div v-if="sites.length" class="site-list-toolbar">
+              <div class="site-local-filter" role="group" aria-label="Filter sites">
+                <NInput
+                  v-model:value="siteFilter.text"
+                  size="small"
+                  clearable
+                  placeholder="Filter sites"
+                  :input-props="{ 'aria-label': 'Filter sites by name, hostname, or listener' }"
+                >
+                  <template #prefix><SearchIcon class="icon-sm" /></template>
+                </NInput>
+                <AccessibleSelect
+                  v-model:value="siteFilter.state"
+                  accessible-label="Filter sites by state"
+                  size="small"
+                  :options="siteStateFilterOptions"
+                />
+                <AccessibleSelect
+                  v-model:value="siteFilter.readiness"
+                  accessible-label="Filter sites by readiness"
+                  size="small"
+                  :options="siteReadinessFilterOptions"
+                />
+                <AccessibleSelect
+                  v-if="showSiteListenerFilter"
+                  v-model:value="siteFilter.listenerId"
+                  accessible-label="Filter sites by listener"
+                  size="small"
+                  :options="siteListenerFilterOptions"
+                />
+                <NButton
+                  v-if="siteFilterActive"
+                  quaternary
+                  size="small"
+                  @click="clearSiteFilters"
+                >
+                  <template #icon><TimesIcon class="icon-sm" /></template>
+                  Clear filters
+                </NButton>
+                <p class="site-filter-result" aria-live="polite">
+                  {{ siteFilterResultLabel }}
+                </p>
+              </div>
+            </div>
             <div
-              v-if="sites.length"
+              v-if="displayedSites.length"
               role="region"
               aria-label="Configured virtual host sites"
             >
               <NDataTable
                 class="proxy-table"
                 :columns="siteColumns"
-                :data="sites"
+                :data="displayedSites"
                 :row-key="siteRowKey"
                 :row-props="siteRowProps"
                 :pagination="false"
@@ -882,11 +987,21 @@ async function deleteSite(site: PublicSite) {
                 size="small"
               />
             </div>
+            <div v-else-if="sites.length" class="site-filter-empty">
+              <EmptyState
+                title="No matching sites"
+                description="No site matches the current search and filters."
+              />
+              <NButton secondary size="small" @click="clearSiteFilters">
+                <template #icon><TimesIcon class="icon-sm" /></template>
+                Show all sites
+              </NButton>
+            </div>
             <EmptyState
               v-else
               title="No sites configured"
               description="Create a draft site, add its listener assignments and routes, then publish it when readiness checks pass. Drafts never affect live traffic."
-              action-label="Add site"
+              action-label="Create a site"
               @action="openAddSiteModal"
             />
           </SectionCard>
@@ -911,12 +1026,6 @@ async function deleteSite(site: PublicSite) {
           description="Incoming endpoints where the proxy accepts connections."
           flush
         >
-          <template #actions>
-            <NButton type="primary" size="small" @click="openAddListenerModal">
-              <template #icon><PlusIcon class="icon-sm" /></template>
-              Add listener
-            </NButton>
-          </template>
           <div v-if="listeners.length" class="listener-filter">
             <NInput
               v-model:value="listenerFilterText"
@@ -954,7 +1063,7 @@ async function deleteSite(site: PublicSite) {
             v-else
             title="No listeners configured"
             description="Listeners accept public HTTP or HTTPS traffic on published ports."
-            action-label="Add listener"
+            action-label="Create a listener"
             @action="openAddListenerModal"
           />
         </SectionCard>
@@ -1001,6 +1110,40 @@ async function deleteSite(site: PublicSite) {
   white-space: nowrap;
 }
 
+/* Sites list toolbar: filters only. "Add site" lives in the page header. */
+.site-list-toolbar {
+  display: grid;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.75rem 1.25rem;
+}
+
+.site-local-filter {
+  display: grid;
+  min-width: 0;
+  gap: 0.625rem;
+}
+
+.site-filter-result {
+  align-self: center;
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.site-filter-empty {
+  display: grid;
+  justify-items: center;
+  padding-bottom: 2.5rem;
+}
+
+.site-filter-empty > :deep(.empty-state) {
+  padding-bottom: 0.75rem;
+}
+
 /* Cell content is rendered by column functions, so it needs :deep(). */
 .proxy-table :deep(.listener-error-disclosure) {
   max-width: 18rem;
@@ -1044,6 +1187,11 @@ async function deleteSite(site: PublicSite) {
 .proxy-table :deep(.site-table__aliases) {
   flex-wrap: wrap;
   gap: 0.375rem;
+}
+
+.proxy-table :deep(.site-table__id) {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .proxy-table :deep(.site-table__name) {
@@ -1115,7 +1263,28 @@ async function deleteSite(site: PublicSite) {
   color: var(--app-text-muted);
 }
 
+@media (min-width: 640px) {
+  .site-local-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .site-local-filter > :deep(.n-input) {
+    width: 18rem;
+    max-width: 100%;
+  }
+
+  .site-local-filter > :deep(.n-select) {
+    width: 10rem;
+  }
+}
+
 @media (max-width: 639px) {
+  .site-list-toolbar {
+    padding-inline: 1rem;
+  }
+
   .listener-filter {
     padding-inline: 1rem;
   }
