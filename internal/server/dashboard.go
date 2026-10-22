@@ -53,7 +53,11 @@ func (a *App) GetDashboard(
 
 	now := time.Now().UTC()
 	if a.dashboardCacheActive() {
-		return connect.NewResponse(a.dashboardResponseFromCache(now)), nil
+		resp, ok := a.dashboardResponseFromCache(now)
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("dashboard statistics are temporarily unavailable; please retry"))
+		}
+		return connect.NewResponse(resp), nil
 	}
 
 	resp, err := a.buildDashboardDirect(ctx, now)

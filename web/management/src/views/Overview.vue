@@ -249,13 +249,13 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 </script>
 
 <template>
-  <div v-if="dashboardValue && status" class="overview-page">
+  <div class="overview-page">
     <section class="overview-header">
       <div>
         <h1>Proxy Overview</h1>
         <p>Health, traffic, and configuration signals for the selected environment.</p>
       </div>
-      <NButtonGroup class="window-tabs" role="group" aria-label="Dashboard window" size="small">
+      <NButtonGroup v-if="dashboardValue && status" class="window-tabs" role="group" aria-label="Dashboard window" size="small">
         <NButton
           v-for="window in windowLabels"
           :key="window"
@@ -269,6 +269,13 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
       </NButtonGroup>
     </section>
 
+    <section v-if="!dashboardValue || !status" class="empty-panel" role="status" aria-live="polite">
+      <h2>Waiting for dashboard metrics</h2>
+      <p>No dashboard snapshot is available yet. This page retries automatically.</p>
+      <router-link to="/monitor/diagnostics/overview" class="diagnostics-link">Open diagnostics</router-link>
+    </section>
+
+    <template v-else>
     <section class="status-summary" aria-labelledby="proxy-health-title">
       <div class="status-summary__identity">
         <p id="proxy-health-title">Proxy health</p>
@@ -510,6 +517,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
         </div>
       </div>
     </section>
+    </template>
   </div>
 </template>
 
