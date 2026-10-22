@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"connectrpc.com/connect"
 	"github.com/rs/zerolog/log"
@@ -500,42 +501,96 @@ func (a *App) CreateAgentUpdateCampaign(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&p2pstreamv1.CreateAgentUpdateCampaignResponse{Campaign: campaign}), nil
 }
 
+const (
+	agentUpdateCampaignListDefaultLimit = 50
+	agentUpdateCampaignListMaxLimit     = 100
+	agentUpdateCampaignListMaxQuery     = 200
+)
+
+var agentUpdateCampaignListAllStates = []string{"running", "paused", "cancelled", "completed"}
+
 func (a *App) ListAgentUpdateCampaigns(ctx context.Context, req *connect.Request[p2pstreamv1.ListAgentUpdateCampaignsRequest]) (*connect.Response[p2pstreamv1.ListAgentUpdateCampaignsResponse], error) {
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
-	limit := req.Msg.Limit
+	limit := req.Msg.GetLimit()
 	if limit == 0 {
-		limit = 50
+		limit = agentUpdateCampaignListDefaultLimit
 	}
-	if limit < 1 || limit > 100 {
+	if limit < 1 || limit > agentUpdateCampaignListMaxLimit {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("limit must be between 1 and 100"))
 	}
+	offset := req.Msg.GetOffset()
+	if offset < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("offset must not be negative"))
+	}
+	query := strings.TrimSpace(req.Msg.GetQuery())
+	if !utf8.ValidString(query) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("query must be valid UTF-8"))
+	}
+	if utf8.RuneCountInString(query) > agentUpdateCampaignListMaxQuery {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("query must be at most %d characters", agentUpdateCampaignListMaxQuery))
+	}
+	states, err := agentUpdateCampaignStateFilter(req.Msg.GetStates())
+	if err != nil {
+		return nil, err
+	}
+	statesCSV := strings.Join(states, ",")
 	// Recovery controls must remain discoverable even after many later finished
-	// campaigns. A cancelled campaign can still own a cordoned assignment.
-	rows, err := a.DB.QueryContext(ctx, `SELECT c.id FROM agent_update_campaigns c ORDER BY (c.state IN ('running','paused') OR EXISTS (SELECT 1 FROM agent_update_assignments x WHERE x.campaign_id=c.id AND (x.cordoned=1 OR x.state NOT IN ('succeeded','failed','cancelled') OR (x.state='failed' AND x.desired_action='rollback')))) DESC,c.id DESC LIMIT ?`, limit)
+	// campaigns. A cancelled campaign can still own a cordoned assignment, so
+	// the query orders attention-needing campaigns first, then newest first.
+	rows, err := a.DB.ListAgentUpdateCampaignsFiltered(ctx, db.ListAgentUpdateCampaignsFilteredParams{
+		StatesCsv: statesCSV,
+		Query:     query,
+		RowOffset: offset,
+		RowLimit:  limit,
+	})
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, publicDBError(err)
-		}
-		ids = append(ids, id)
+	total, err := a.DB.CountAgentUpdateCampaignsFiltered(ctx, db.CountAgentUpdateCampaignsFilteredParams{
+		StatesCsv: statesCSV,
+		Query:     query,
+	})
+	if err != nil {
+		return nil, publicDBError(err)
 	}
-	rows.Close()
-	resp := &p2pstreamv1.ListAgentUpdateCampaignsResponse{}
-	for _, id := range ids {
-		campaign, err := a.getAgentUpdateCampaignProto(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-		resp.Campaigns = append(resp.Campaigns, campaign)
+	campaigns, err := a.agentUpdateCampaignProtos(ctx, rows)
+	if err != nil {
+		return nil, err
 	}
-	return connect.NewResponse(resp), nil
+	return connect.NewResponse(&p2pstreamv1.ListAgentUpdateCampaignsResponse{Campaigns: campaigns, TotalCount: total}), nil
+}
+
+// agentUpdateCampaignStateFilter maps requested states to stored state names.
+// An empty request means every state.
+func agentUpdateCampaignStateFilter(requested []p2pstreamv1.AgentUpdateCampaignState) ([]string, error) {
+	if len(requested) == 0 {
+		return agentUpdateCampaignListAllStates, nil
+	}
+	seen := make(map[string]struct{}, len(agentUpdateCampaignListAllStates))
+	states := make([]string, 0, len(agentUpdateCampaignListAllStates))
+	for _, state := range requested {
+		var name string
+		switch state {
+		case p2pstreamv1.AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_RUNNING:
+			name = "running"
+		case p2pstreamv1.AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_PAUSED:
+			name = "paused"
+		case p2pstreamv1.AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_CANCELLED:
+			name = "cancelled"
+		case p2pstreamv1.AgentUpdateCampaignState_AGENT_UPDATE_CAMPAIGN_STATE_COMPLETED:
+			name = "completed"
+		default:
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("states must contain only running, paused, cancelled, or completed"))
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		states = append(states, name)
+	}
+	return states, nil
 }
 
 func (a *App) PauseAgentUpdateCampaign(ctx context.Context, req *connect.Request[p2pstreamv1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[p2pstreamv1.ChangeAgentUpdateCampaignStateResponse], error) {
@@ -1831,16 +1886,42 @@ func agentUpdateAssignmentScanDestinations(x *agentUpdateAssignmentRow) []any {
 }
 
 func (a *App) getAgentUpdateCampaignProto(ctx context.Context, id int64) (*p2pstreamv1.AgentUpdateCampaign, error) {
-	var c agentUpdateCampaignRow
+	var c db.AgentUpdateCampaign
 	err := a.DB.QueryRowContext(ctx, `SELECT id,name,state,generation,target_version,target_commit,manifest_sha256,release_sequence,security_epoch,minimum_updater_version,minimum_tunnel_protocol,maximum_tunnel_protocol,artifacts_json,max_unavailable,minimum_eligible_agents_per_route,canary_count,wave_size,healthy_dwell_millis,created_by_user_id,created_at,updated_at,completed_at FROM agent_update_campaigns WHERE id=?`, id).Scan(&c.ID, &c.Name, &c.State, &c.Generation, &c.TargetVersion, &c.TargetCommit, &c.ManifestSha256, &c.ReleaseSequence, &c.SecurityEpoch, &c.MinimumUpdaterVersion, &c.MinimumTunnelProtocol, &c.MaximumTunnelProtocol, &c.ArtifactsJson, &c.MaxUnavailable, &c.MinimumEligibleAgentsPerRoute, &c.CanaryCount, &c.WaveSize, &c.HealthyDwellMillis, &c.CreatedByUserID, &c.CreatedAt, &c.UpdatedAt, &c.CompletedAt)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if err := json.Unmarshal([]byte(c.ArtifactsJson), &c.Artifacts); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+	campaigns, err := a.agentUpdateCampaignProtos(ctx, []db.AgentUpdateCampaign{c})
+	if err != nil {
+		return nil, err
 	}
-	result := &p2pstreamv1.AgentUpdateCampaign{Id: c.ID, Name: c.Name, State: campaignStateProto(c.State), Generation: c.Generation, Target: campaignTargetProto(c), Policy: &p2pstreamv1.AgentUpdatePolicy{MaxUnavailable: c.MaxUnavailable, MinimumEligibleAgentsPerRoute: c.MinimumEligibleAgentsPerRoute, CanaryCount: c.CanaryCount, WaveSize: c.WaveSize, HealthyDwellMillis: c.HealthyDwellMillis}, CreatedAtUnixMillis: c.CreatedAt.UnixMilli(), UpdatedAtUnixMillis: c.UpdatedAt.UnixMilli()}
-	rows, err := a.DB.QueryContext(ctx, `SELECT x.id,x.campaign_id,x.agent_id,x.state,x.desired_action,x.generation,x.cordoned,x.failure_code,x.failure_detail,x.attested_manifest_sha256,x.attested_binary_sha256,x.attested_activation_counter,x.activation_nonce_hash,x.authorization_action,x.authorization_server_version,x.command_sequence,x.authorization_nonce,x.authorization_sha256,x.authorization_payload,x.authorization_signature,x.authorization_issued_at,x.authorization_expires_at,x.root_action_counter,x.root_action_receipt_payload,x.root_action_receipt_signature,x.root_action_completed_at,x.root_result_kind,x.root_result_manifest_sha256,x.root_result_version,x.root_result_commit,x.root_result_release_sequence,x.root_result_security_epoch,x.root_result_os,x.root_result_arch,x.root_result_artifact_name,x.root_result_artifact_size,x.root_result_artifact_sha256,x.running_version,x.running_commit,x.observed_version,x.observed_commit,x.activated_at,x.fresh_tunnel_at,x.healthy_at,x.last_report_at,x.created_at,x.updated_at,a.public_id,a.name FROM agent_update_assignments x JOIN agents a ON a.id=x.agent_id WHERE x.campaign_id=? ORDER BY x.id`, id)
+	return campaigns[0], nil
+}
+
+// agentUpdateCampaignProtos converts campaign rows, preserving their order,
+// and loads every campaign's assignments with a single query.
+func (a *App) agentUpdateCampaignProtos(ctx context.Context, campaigns []db.AgentUpdateCampaign) ([]*p2pstreamv1.AgentUpdateCampaign, error) {
+	if len(campaigns) == 0 {
+		return nil, nil
+	}
+	result := make([]*p2pstreamv1.AgentUpdateCampaign, 0, len(campaigns))
+	byID := make(map[int64]*p2pstreamv1.AgentUpdateCampaign, len(campaigns))
+	placeholders := make([]string, 0, len(campaigns))
+	args := make([]any, 0, len(campaigns))
+	for _, row := range campaigns {
+		c := agentUpdateCampaignRow{AgentUpdateCampaign: row}
+		if err := json.Unmarshal([]byte(c.ArtifactsJson), &c.Artifacts); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		campaign := &p2pstreamv1.AgentUpdateCampaign{Id: c.ID, Name: c.Name, State: campaignStateProto(c.State), Generation: c.Generation, Target: campaignTargetProto(c), Policy: &p2pstreamv1.AgentUpdatePolicy{MaxUnavailable: c.MaxUnavailable, MinimumEligibleAgentsPerRoute: c.MinimumEligibleAgentsPerRoute, CanaryCount: c.CanaryCount, WaveSize: c.WaveSize, HealthyDwellMillis: c.HealthyDwellMillis}, CreatedAtUnixMillis: c.CreatedAt.UnixMilli(), UpdatedAtUnixMillis: c.UpdatedAt.UnixMilli()}
+		result = append(result, campaign)
+		if _, ok := byID[c.ID]; !ok {
+			byID[c.ID] = campaign
+			placeholders = append(placeholders, "?")
+			args = append(args, c.ID)
+		}
+	}
+	rows, err := a.DB.QueryContext(ctx, `SELECT x.id,x.campaign_id,x.agent_id,x.state,x.desired_action,x.generation,x.cordoned,x.failure_code,x.failure_detail,x.attested_manifest_sha256,x.attested_binary_sha256,x.attested_activation_counter,x.activation_nonce_hash,x.authorization_action,x.authorization_server_version,x.command_sequence,x.authorization_nonce,x.authorization_sha256,x.authorization_payload,x.authorization_signature,x.authorization_issued_at,x.authorization_expires_at,x.root_action_counter,x.root_action_receipt_payload,x.root_action_receipt_signature,x.root_action_completed_at,x.root_result_kind,x.root_result_manifest_sha256,x.root_result_version,x.root_result_commit,x.root_result_release_sequence,x.root_result_security_epoch,x.root_result_os,x.root_result_arch,x.root_result_artifact_name,x.root_result_artifact_size,x.root_result_artifact_sha256,x.running_version,x.running_commit,x.observed_version,x.observed_commit,x.activated_at,x.fresh_tunnel_at,x.healthy_at,x.last_report_at,x.created_at,x.updated_at,a.public_id,a.name FROM agent_update_assignments x JOIN agents a ON a.id=x.agent_id WHERE x.campaign_id IN (`+strings.Join(placeholders, ",")+`) ORDER BY x.campaign_id,x.id`, args...)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
@@ -1852,9 +1933,14 @@ func (a *App) getAgentUpdateCampaignProto(ctx context.Context, id int64) (*p2pst
 		if err := rows.Scan(destinations...); err != nil {
 			return nil, publicDBError(err)
 		}
-		result.Assignments = append(result.Assignments, assignmentProto(x))
+		if campaign := byID[x.CampaignID]; campaign != nil {
+			campaign.Assignments = append(campaign.Assignments, assignmentProto(x))
+		}
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, publicDBError(err)
+	}
+	return result, nil
 }
 
 func campaignTargetProto(c agentUpdateCampaignRow) *p2pstreamv1.AgentUpdateTarget {

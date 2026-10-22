@@ -79,6 +79,30 @@ func (q *Queries) CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql
 	return err
 }
 
+const countAgentUpdateCampaignsFiltered = `-- name: CountAgentUpdateCampaignsFiltered :one
+SELECT COUNT(*)
+FROM agent_update_campaigns c
+WHERE instr(',' || CAST(?1 AS TEXT) || ',', ',' || c.state || ',') > 0
+  AND (
+    CAST(?2 AS TEXT) = ''
+    OR instr(lower(c.name), lower(?2)) > 0
+    OR instr(lower(c.target_version), lower(?2)) > 0
+    OR instr(lower(c.target_commit), lower(?2)) > 0
+  )
+`
+
+type CountAgentUpdateCampaignsFilteredParams struct {
+	StatesCsv string `json:"states_csv"`
+	Query     string `json:"query"`
+}
+
+func (q *Queries) CountAgentUpdateCampaignsFiltered(ctx context.Context, arg CountAgentUpdateCampaignsFilteredParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAgentUpdateCampaignsFiltered, arg.StatesCsv, arg.Query)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countPublicListeners = `-- name: CountPublicListeners :one
 SELECT COUNT(*) FROM public_listeners
 `
@@ -3830,6 +3854,94 @@ func (q *Queries) ListAgentStatRollupMinutesSince(ctx context.Context, bucketUni
 	return items, nil
 }
 
+const listAgentUpdateCampaignsFiltered = `-- name: ListAgentUpdateCampaignsFiltered :many
+SELECT c.id, c.name, c.state, c.generation, c.target_version, c.target_commit, c.manifest_sha256, c.release_sequence, c.security_epoch, c.minimum_updater_version, c.minimum_tunnel_protocol, c.maximum_tunnel_protocol, c.artifacts_json, c.max_unavailable, c.minimum_eligible_agents_per_route, c.canary_count, c.wave_size, c.healthy_dwell_millis, c.created_by_user_id, c.created_at, c.updated_at, c.completed_at
+FROM agent_update_campaigns c
+WHERE instr(',' || CAST(?1 AS TEXT) || ',', ',' || c.state || ',') > 0
+  AND (
+    CAST(?2 AS TEXT) = ''
+    OR instr(lower(c.name), lower(?2)) > 0
+    OR instr(lower(c.target_version), lower(?2)) > 0
+    OR instr(lower(c.target_commit), lower(?2)) > 0
+  )
+ORDER BY (
+    c.state IN ('running', 'paused')
+    OR EXISTS (
+      SELECT 1 FROM agent_update_assignments x
+      WHERE x.campaign_id = c.id
+        AND (
+          x.cordoned = 1
+          OR x.state NOT IN ('succeeded', 'failed', 'cancelled')
+          OR (x.state = 'failed' AND x.desired_action = 'rollback')
+        )
+    )
+  ) DESC, c.id DESC
+LIMIT ?4 OFFSET ?3
+`
+
+type ListAgentUpdateCampaignsFilteredParams struct {
+	StatesCsv string `json:"states_csv"`
+	Query     string `json:"query"`
+	RowOffset int64  `json:"row_offset"`
+	RowLimit  int64  `json:"row_limit"`
+}
+
+// Campaigns needing operator attention (running/paused, or still owning an
+// unfinished, cordoned, or rollback-failed assignment) sort first so recovery
+// controls stay reachable; everything else is newest first. states_csv is a
+// comma-separated list of validated state names. query is matched as a literal,
+// ASCII case-insensitive substring; an empty query disables the text filter.
+func (q *Queries) ListAgentUpdateCampaignsFiltered(ctx context.Context, arg ListAgentUpdateCampaignsFilteredParams) ([]AgentUpdateCampaign, error) {
+	rows, err := q.db.QueryContext(ctx, listAgentUpdateCampaignsFiltered,
+		arg.StatesCsv,
+		arg.Query,
+		arg.RowOffset,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AgentUpdateCampaign
+	for rows.Next() {
+		var i AgentUpdateCampaign
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.State,
+			&i.Generation,
+			&i.TargetVersion,
+			&i.TargetCommit,
+			&i.ManifestSha256,
+			&i.ReleaseSequence,
+			&i.SecurityEpoch,
+			&i.MinimumUpdaterVersion,
+			&i.MinimumTunnelProtocol,
+			&i.MaximumTunnelProtocol,
+			&i.ArtifactsJson,
+			&i.MaxUnavailable,
+			&i.MinimumEligibleAgentsPerRoute,
+			&i.CanaryCount,
+			&i.WaveSize,
+			&i.HealthyDwellMillis,
+			&i.CreatedByUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAgents = `-- name: ListAgents :many
 SELECT id, public_id, name, token_hash, enabled, last_connected_at, last_disconnected_at, created_at, updated_at, agent_version, agent_commit
 FROM agents
@@ -3857,6 +3969,55 @@ func (q *Queries) ListAgents(ctx context.Context) ([]Agent, error) {
 			&i.UpdatedAt,
 			&i.AgentVersion,
 			&i.AgentCommit,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllAgentConnectionsSince = `-- name: ListAllAgentConnectionsSince :many
+SELECT id, CAST(agent_id AS INTEGER) AS agent_id, connected_at, disconnected_at
+FROM connections
+WHERE agent_id IS NOT NULL
+  AND (
+    connected_at >= ?1
+    OR disconnected_at IS NULL
+    OR disconnected_at >= ?1
+  )
+ORDER BY agent_id ASC, connected_at ASC, id ASC
+`
+
+type ListAllAgentConnectionsSinceRow struct {
+	ID             int64        `json:"id"`
+	AgentID        int64        `json:"agent_id"`
+	ConnectedAt    time.Time    `json:"connected_at"`
+	DisconnectedAt sql.NullTime `json:"disconnected_at"`
+}
+
+// Fleet variant of ListAgentConnectionsSince: one scan for every agent,
+// grouped by agent so callers can split rows without re-sorting.
+func (q *Queries) ListAllAgentConnectionsSince(ctx context.Context, since time.Time) ([]ListAllAgentConnectionsSinceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllAgentConnectionsSince, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAllAgentConnectionsSinceRow
+	for rows.Next() {
+		var i ListAllAgentConnectionsSinceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.ConnectedAt,
+			&i.DisconnectedAt,
 		); err != nil {
 			return nil, err
 		}
