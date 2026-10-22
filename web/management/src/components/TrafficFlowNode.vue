@@ -3,6 +3,7 @@ import { computed, type Component } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
 import {
+  AppWindow,
   Box,
   CornerUpRight,
   Crosshair,
@@ -30,6 +31,7 @@ const kindIcons: Record<TrafficNodeKind, Component> = {
   "traffic-shaper": Waves,
   cache: Database,
   route: Signpost,
+  site: AppWindow,
   target: Crosshair,
   redirect: CornerUpRight,
   agent: Server,

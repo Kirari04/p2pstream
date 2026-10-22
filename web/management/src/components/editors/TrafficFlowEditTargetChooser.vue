@@ -26,6 +26,8 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
   switch (kind) {
     case "listener":
       return "Listener";
+    case "site":
+      return "Site";
     case "route":
       return "Route";
     case "target":

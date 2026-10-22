@@ -14,10 +14,12 @@ import {
 import { NButton } from "naive-ui";
 import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
 import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import {
   CACHE_KEY,
   TrafficRequestPathCache,
   createTrafficFlowConfigIndex,
+  type TrafficFlowDetail,
   type TrafficRequestPathCacheEntry,
 } from "@/lib/trafficFlowLayout";
 import {
@@ -93,7 +95,14 @@ const edgeTypes: EdgeTypesObject = {
   trafficBypass: markRaw(TrafficFlowEdge),
 };
 
+const detailStorageKey = "p2pstream:traffic-flow-detail";
+const detailOptions: { value: TrafficFlowDetail; label: string }[] = [
+  { value: "sites", label: "Sites" },
+  { value: "routes", label: "Routes" },
+];
+
 const { fitView, viewport } = useVueFlow(FLOW_ID);
+const detail = ref<TrafficFlowDetail>(loadDetailPreference());
 const configIndex = computed(() => createTrafficFlowConfigIndex(props.config));
 const requestPathCache = new TrafficRequestPathCache();
 const tokenMotionPlanCache = new Map<string, MotionPlan>();
@@ -116,6 +125,7 @@ const layout = computed(() => buildTrafficFlowGraph({
   requests: props.requests,
   configIndex: configIndex.value,
   requestPath: cachedRequestPath,
+  detail: detail.value,
 }));
 
 const activeCacheStatus = computed<CacheNodeStatus | undefined>(() => {
@@ -329,6 +339,12 @@ watch(
   { flush: "post" },
 );
 
+watch(detail, (value) => {
+  saveDetailPreference(value);
+  // Vue Flow syncs the new node set after this render; fit once it has.
+  scheduleDiagramFit();
+}, { flush: "post" });
+
 watch(
   motionLayoutSignature,
   () => {
@@ -526,7 +542,23 @@ function tokenPoint(token: VisualToken): Point | null {
 }
 
 function cachedRequestPath(request: TraceRequest) {
-  return requestPathCache.get(request, configIndex.value);
+  return requestPathCache.get(request, configIndex.value, detail.value);
+}
+
+function loadDetailPreference(): TrafficFlowDetail {
+  try {
+    return window.localStorage.getItem(detailStorageKey) === "routes" ? "routes" : "sites";
+  } catch {
+    return "sites";
+  }
+}
+
+function saveDetailPreference(value: TrafficFlowDetail) {
+  try {
+    window.localStorage.setItem(detailStorageKey, value);
+  } catch {
+    // Storage can be unavailable (private mode, quota); the choice then lasts for this page only.
+  }
 }
 
 function motionPlanForCachedPath(requestId: string, cached: TrafficRequestPathCacheEntry): MotionPlan {
@@ -651,6 +683,7 @@ function clamp(value: number, min: number, max: number): number {
       <div class="flow-status">
         <span>{{ visualTokens.length }} rendered</span>
         <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
+        <SegmentedControl v-model="detail" class="flow-detail" label="Diagram detail" :options="detailOptions" />
         <NButton size="small" secondary attr-type="button" aria-label="Fit traffic flow to view" @click="fitDiagram()">Fit</NButton>
       </div>
 
@@ -786,8 +819,14 @@ function clamp(value: number, min: number, max: number): number {
   backdrop-filter: blur(8px);
 }
 
-.flow-status :deep(.n-button) {
+.flow-status :deep(.n-button),
+.flow-detail {
   font-family: var(--font-body);
+}
+
+/* Sits inside the toolbar's own surface, so the track blends into it. */
+.flow-detail {
+  padding: 0.125rem;
 }
 
 .flow-overflow {

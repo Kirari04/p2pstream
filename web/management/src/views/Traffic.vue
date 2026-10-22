@@ -436,7 +436,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="dashboard" class="traffic-page" :aria-busy="traceSettingsState === 'loading'">
-    <PageHeader title="Traffic flow" description="Live request routing across listeners, routes, targets, agents, and upstreams.">
+    <PageHeader title="Traffic flow" description="Live request routing across listeners, sites, routes, agents, and upstreams.">
       <template #badge>
         <NTag size="small" :bordered="false" :type="streamStateTagType">{{ streamStateLabel() }}</NTag>
       </template>

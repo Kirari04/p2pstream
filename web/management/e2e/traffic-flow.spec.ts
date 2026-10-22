@@ -16,6 +16,31 @@ test("renders the traffic flow diagram through the management page", async ({ pa
   await expect(page.getByText(/Keyboard node list/)).toBeVisible();
 });
 
+test("switches the diagram between sites and routes and remembers the choice", async ({ page }, testInfo) => {
+  const baseURL = testInfo.project.use.baseURL as string;
+  await authenticate(page, baseURL);
+
+  await page.goto("/#/monitor/traffic");
+  const detail = page.getByRole("group", { name: "Diagram detail" });
+  const sites = detail.getByRole("button", { name: "Sites", exact: true });
+  const routes = detail.getByRole("button", { name: "Routes", exact: true });
+  await expect(sites).toHaveAttribute("aria-pressed", "true");
+  await expect(routes).toHaveAttribute("aria-pressed", "false");
+
+  const diagram = page.locator(".traffic-flow-shell");
+  await routes.click();
+  await expect(routes).toHaveAttribute("aria-pressed", "true");
+  await expect(diagram.locator(".traffic-flow-node-site")).toHaveCount(0);
+  await expect(diagram.locator(".traffic-flow-node-ingress")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("group", { name: "Diagram detail" }).getByRole("button", { name: "Routes", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("group", { name: "Diagram detail" }).getByRole("button", { name: "Sites", exact: true }).click();
+  await expect(diagram.locator(".traffic-flow-node-target")).toHaveCount(0);
+  await expect(diagram.locator(".traffic-flow-node-response")).toBeVisible();
+});
+
 test("waits for authoritative trace settings before enabling controls", async ({ page }, testInfo) => {
   let releaseSettings = () => {};
   const settingsGate = new Promise<void>((resolve) => {

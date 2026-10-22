@@ -56,6 +56,8 @@ Use Headers and Debug temporarily because they can expose operational details an
   <figcaption>Monitor → Traffic can pause live updates, search or filter recent traces, and render sampled request paths across listeners, policies, route and target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
+The flow diagram groups routes by site by default. Switch **Diagram detail** to **Routes** to see each route and target as its own node.
+
 The trace-details drawer complements the flow diagram when one request needs deeper inspection. It starts with the outcome, resolved flow, lifecycle, and policy decisions; exact headers, raw attributes, and debug data remain progressively disclosed at the tracing levels that capture them.
 
 **Monitor → Diagnostics** ranks retained failure dimensions and shows recent failure or retry samples for the selected dashboard window. A retry sample exposes its rule ID, attempt count, outcome, and initial error kind. Filter by a failure dimension before opening an exact sample in its details drawer; refresh when the snapshot is stale or unavailable.
