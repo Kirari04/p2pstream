@@ -2,12 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type HTMLAttributes } from "vue";
 import { onBeforeRouteLeave, onBeforeRouteUpdate, RouterLink, useRoute, useRouter } from "vue-router";
 import { ChevronRight as ChevronRightIcon } from "@lucide/vue";
+import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Search as SearchIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { X as XIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber, NTabPane, NTabs, NTag } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NDropdown, NInput, NInputNumber, NTabPane, NTabs, NTag, type DropdownOption } from "naive-ui";
 import { useManagementClient } from "@/composables/useManagementClient";
 import EmptyState from "@/components/EmptyState.vue";
 import PublicProxyEditorHost from "@/components/editors/PublicProxyEditorHost.vue";
@@ -283,6 +284,11 @@ const policyPrimaryActions: Partial<Record<PolicySectionKey, { label: string; ru
   "traffic-shaper": { label: "Add traffic shaper", run: openAddTrafficShaperRuleModal },
   "visitor-identity": { label: "Add custom source", run: openAddTrustedProxySource },
 };
+// Row menus hold the destructive action; the confirm dialog names what is deleted.
+function deleteMenuOptions(label: string): DropdownOption[] {
+  return [{ label, key: "delete", props: { role: "menuitem" } }];
+}
+
 const activePolicyPrimaryAction = computed(() => {
   if (activePolicySection.value === "waf" && activeWafSubpage.value === "captcha-providers") {
     return { label: "Add captcha provider", run: openAddWafCaptchaProviderModal };
@@ -1046,9 +1052,12 @@ async function deleteTrafficShaperRule(id: bigint) {
                       <template #icon><PencilIcon class="icon-sm" /></template>
                       Edit
                     </NButton>
-                    <NButton type="error" secondary size="small" aria-label="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
-                      Delete
-                    </NButton>
+                    <NDropdown trigger="click" :options="deleteMenuOptions('Delete rate-limit rule')" @select="() => deleteRateLimitRule(rule.id)">
+                      <NButton secondary size="small" :aria-label="`More actions for rate-limit rule ${rule.name}`">
+                        <template #icon><MoreIcon class="icon-sm" /></template>
+                        More
+                      </NButton>
+                    </NDropdown>
                   </div>
                 </div>
                 <PolicyExactValues
@@ -1195,9 +1204,12 @@ async function deleteTrafficShaperRule(id: bigint) {
                         <template #icon><PencilIcon class="icon-sm" /></template>
                         Edit
                       </NButton>
-                      <NButton type="error" secondary size="small" aria-label="Delete WAF rule" @click="deleteWafRule(rule.id)">
-                        Delete
-                      </NButton>
+                      <NDropdown trigger="click" :options="deleteMenuOptions('Delete WAF rule')" @select="() => deleteWafRule(rule.id)">
+                        <NButton secondary size="small" :aria-label="`More actions for WAF rule ${rule.name}`">
+                          <template #icon><MoreIcon class="icon-sm" /></template>
+                          More
+                        </NButton>
+                      </NDropdown>
                     </div>
                   </div>
                   <PolicyExactValues
@@ -1278,9 +1290,12 @@ async function deleteTrafficShaperRule(id: bigint) {
                         <template #icon><PencilIcon class="icon-sm" /></template>
                         Edit
                       </NButton>
-                      <NButton type="error" secondary size="small" aria-label="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
-                        Delete
-                      </NButton>
+                      <NDropdown trigger="click" :options="deleteMenuOptions('Delete captcha provider')" @select="() => deleteWafCaptchaProvider(provider.id)">
+                        <NButton secondary size="small" :aria-label="`More actions for captcha provider ${provider.name}`">
+                          <template #icon><MoreIcon class="icon-sm" /></template>
+                          More
+                        </NButton>
+                      </NDropdown>
                     </div>
                   </div>
                   <PolicyExactValues
@@ -1421,9 +1436,12 @@ async function deleteTrafficShaperRule(id: bigint) {
                         <template #icon><PencilIcon class="icon-sm" /></template>
                         Edit
                       </NButton>
-                      <NButton type="error" secondary size="small" aria-label="Delete cache rule" @click="deleteCacheRule(rule.id)">
-                        Delete
-                      </NButton>
+                      <NDropdown trigger="click" :options="deleteMenuOptions('Delete cache rule')" @select="() => deleteCacheRule(rule.id)">
+                        <NButton secondary size="small" :aria-label="`More actions for cache rule ${rule.name}`">
+                          <template #icon><MoreIcon class="icon-sm" /></template>
+                          More
+                        </NButton>
+                      </NDropdown>
                     </div>
                   </div>
                   <PolicyExactValues
@@ -1692,9 +1710,12 @@ async function deleteTrafficShaperRule(id: bigint) {
                         <template #icon><PencilIcon class="icon-sm" /></template>
                         Edit
                       </NButton>
-                      <NButton type="error" secondary size="small" aria-label="Delete retry rule" @click="deleteRetryRule(rule.id)">
-                        Delete
-                      </NButton>
+                      <NDropdown trigger="click" :options="deleteMenuOptions('Delete retry rule')" @select="() => deleteRetryRule(rule.id)">
+                        <NButton secondary size="small" :aria-label="`More actions for retry rule ${rule.name}`">
+                          <template #icon><MoreIcon class="icon-sm" /></template>
+                          More
+                        </NButton>
+                      </NDropdown>
                     </div>
                   </div>
                   <PolicyExactValues
@@ -1834,9 +1855,12 @@ async function deleteTrafficShaperRule(id: bigint) {
                       <template #icon><PencilIcon class="icon-sm" /></template>
                       Edit
                     </NButton>
-                    <NButton type="error" secondary size="small" aria-label="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
-                      Delete
-                    </NButton>
+                    <NDropdown trigger="click" :options="deleteMenuOptions('Delete traffic-shaper rule')" @select="() => deleteTrafficShaperRule(rule.id)">
+                      <NButton secondary size="small" :aria-label="`More actions for traffic-shaper rule ${rule.name}`">
+                        <template #icon><MoreIcon class="icon-sm" /></template>
+                        More
+                      </NButton>
+                    </NDropdown>
                   </div>
                 </div>
                 <PolicyExactValues
