@@ -159,7 +159,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
 <template>
   <div class="server-updates">
-    <PageHeader title="Server Updates" :level="2" hide-title>
+    <PageHeader title="Server updates">
       <template #description>Verified releases for <bdi dir="ltr">{{ environmentLabel }}</bdi>, with a data backup and recovery to the previous version.</template>
       <template #actions>
         <NButton secondary size="small" :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="14" /></template>Refresh status</NButton>

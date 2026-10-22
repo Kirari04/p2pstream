@@ -1,28 +1,28 @@
 # Routing Rules Reference
 
-Routes belong to Sites. A request first selects a Site from the incoming listener and hostname, then evaluates that Site's shared route list.
+Routes belong to sites. A request first selects a site from the incoming listener and hostname, then evaluates that site's shared route list.
 
-Configure routes from **Proxy → Sites**. Open or create a Site and use its route section to add, edit, clone, order, enable, disable, or delete routes. New routes are bound to the open Site automatically.
+Configure routes from **Proxy → Sites**. Open or create a site and use its route section to add, edit, clone, order, enable, disable, or delete routes. New routes are bound to the open site automatically.
 
-Existing standalone listener routes may remain active after an upgrade until they complete the revision-bound migration described in [Sites](./sites#migrating-standalone-routes). They cannot be created through the normal Site workflow.
+Existing standalone listener routes may remain active after an upgrade until they complete the revision-bound migration described in [Sites](./sites#migrating-standalone-routes). They cannot be created through the normal site workflow.
 
 ## Route fields and defaults
 
 | Field | Rule |
 | --- | --- |
-| `site_id` | Required for Site route creation. It identifies the owning Site. |
+| `site_id` | Required for site route creation. It identifies the owning site. |
 | `priority` | Lower numbers evaluate first. Route ID breaks a tie. |
-| `path_prefix` | Must start with `/` when set. An empty path matches within the owning Site. |
+| `path_prefix` | Must start with `/` when set. An empty path matches within the owning site. |
 | `path_security_mode` | Defaults to `strict`. Use `allow_encoded_separators` only for an upstream that requires encoded `/` or `\` identifiers. |
 | `access_policy_id` | Optional reusable identity policy. Requests fail closed when its provider or policy is unavailable. |
 | `action` | `forward` or `redirect`; defaults to forward when unspecified. |
 | `target_load_balancing` | Defaults to round-robin for forward target pools. |
-| `is_default` | Handles path misses inside the owning Site. A Site can have one default route. |
+| `is_default` | Handles path misses inside the owning site. A Site can have one default route. |
 | `redirect_status_code` | `301`, `302`, `307`, or `308`; defaults to `302` when unset. |
 | `redirect_preserve_path_suffix` | Defaults enabled. |
 | `redirect_preserve_query` | Defaults enabled. |
 
-Hostname matching belongs to the Site. A Site-owned route does not define a separate host pattern or listener scope. All Serve listener assignments use the same route paths and targets.
+Hostname matching belongs to the site. A Site-owned route does not define a separate host pattern or listener scope. All Serve listener assignments use the same route paths and targets.
 
 ## Target fields
 
@@ -49,21 +49,21 @@ Forward routes require at least one enabled target.
 
 Static targets use `static_status_code`, `static_response_headers`, and either inline body text or a generic response template.
 
-Agent labels are configured in the **Edit Agent** drawer. Labels under `p2pstream.io/` are system-owned. Use `p2pstream.io/agent-id=<agent public ID>` for exact-agent targeting. Empty selector values match only agents with the same empty label value.
+Agent labels are configured in the **Edit agent** drawer. Labels under `p2pstream.io/` are system-owned. Use `p2pstream.io/agent-id=<agent public ID>` for exact-agent targeting. Empty selector values match only agents with the same empty label value.
 
-Sensitive header values and basic-auth passwords remain write-only. An ordinary saved edit preserves their saved state. Cloning cannot copy masked values: the clone retains enabled basic authentication but blocks saving until its password is re-entered, and each masked sensitive header needs a new value. A cloned route also starts with its default-route flag cleared so it cannot silently replace the Site's current default.
+Sensitive header values and basic-auth passwords remain write-only. An ordinary saved edit preserves their saved state. Cloning cannot copy masked values: the clone retains enabled basic authentication but blocks saving until its password is re-entered, and each masked sensitive header needs a new value. A cloned route also starts with its default-route flag cleared so it cannot silently replace the site's current default.
 
 ## Path matching and defaults
 
-Routes are sorted by priority ascending, then route ID ascending. p2pstream selects the first enabled non-default route whose path prefix matches. If none matches, it selects the Site's enabled default route. With no match, the selected Site returns `404`; it does not try another Site.
+Routes are sorted by priority ascending, then route ID ascending. p2pstream selects the first enabled non-default route whose path prefix matches. If none matches, it selects the site's enabled default route. With no match, the selected site returns `404`; it does not try another site.
 
 | Priority | Path | Result |
 | --- | --- | --- |
-| `10` | `/api` | Checked first inside the selected Site. |
-| `20` | `/` | Broad path fallback inside the same Site. |
+| `10` | `/api` | Checked first inside the selected site. |
+| `20` | `/` | Broad path fallback inside the same site. |
 | default | empty | Used only when no non-default path route matches. |
 
-A listener's Default Site handles an unmatched hostname. A Site's default route handles an unmatched path. These are independent settings.
+A listener's default site handles an unmatched hostname. A Site's default route handles an unmatched path. These are independent settings.
 
 ## Path security
 
@@ -80,7 +80,7 @@ WAF, rate-limit, and traffic-shaper path matching use p2pstream's decoded reques
 
 ## Runtime effects
 
-p2pstream performs a lightweight Site and route match before WAF, rate limits, access control, and traffic shapers to determine path security and access policy. This pass does not select a target or advance load-balancer state. Target selection still happens after those policy layers.
+p2pstream performs a lightweight site and route match before WAF, rate limits, access control, and traffic shapers to determine path security and access policy. This pass does not select a target or advance load-balancer state. Target selection still happens after those policy layers.
 
 An assigned access policy applies to forward, static, and redirect routes. Protected routes bypass shared cache. See [Identity-Aware Access](./access-control).
 

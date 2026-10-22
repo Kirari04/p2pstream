@@ -231,10 +231,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('60rem')"
-    :aria-label="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'"
+    :aria-label="form.id ? 'Edit rate limit' : 'Add rate limit'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Rate Limit' : 'Add Rate Limit'" closable>
+    <NDrawerContent :title="form.id ? 'Edit rate limit' : 'Add rate limit'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
@@ -326,7 +326,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-sm">
           <div class="layout-row align-center spread-items space-md">
             <span class="copy-xs weight-medium muted-text">Headers</span>
-            <NButton secondary size="small" attr-type="button" @click="addResponseHeader">Add Header</NButton>
+            <NButton secondary size="small" attr-type="button" @click="addResponseHeader">Add header</NButton>
           </div>
           <p v-if="!form.responseHeaders.length" class="copy-xs muted-text">No extra response headers.</p>
           <div v-for="(header, index) in form.responseHeaders" :key="index" class="layout-grid space-sm mq-sm-two-auto">
@@ -343,6 +343,7 @@ defineExpose({ openCreate, openEdit, close });
               @click="removeResponseHeader(index)"
             >
               <template #icon><TrashIcon class="icon-sm" /></template>
+              Remove
             </NButton>
           </div>
         </div>
@@ -352,7 +353,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="rateLimitSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-            {{ form.id ? 'Save Changes' : 'Create Rule' }}
+            {{ form.id ? 'Save changes' : 'Create rule' }}
           </NButton>
         </DisabledHint>
       </div>
@@ -374,12 +375,6 @@ label.layout-grid {
 
 :deep(.disabled-hint-full > .n-input-number) {
   flex: 1 1 auto;
-}
-
-.row-remove-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0 !important;
 }
 
 @media (max-width: 720px) {

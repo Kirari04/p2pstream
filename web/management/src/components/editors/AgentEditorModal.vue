@@ -161,10 +161,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('44rem')"
-    :aria-label="agentForm.id ? 'Edit Agent' : 'Add Agent'"
+    :aria-label="agentForm.id ? 'Edit agent' : 'Add agent'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="agentForm.id ? 'Edit Agent' : 'Add Agent'" closable>
+    <NDrawerContent :title="agentForm.id ? 'Edit agent' : 'Add agent'" closable>
     <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="editor-drawer-form agent-editor">
       <label class="agent-editor__field">
         <span class="agent-editor__label">Name</span>
@@ -181,7 +181,7 @@ defineExpose({ openCreate, openEdit, close });
           </div>
           <NButton secondary size="small" @click="addLabel">
             <template #icon><PlusIcon class="icon-sm" /></template>
-            Add Label
+            Add label
           </NButton>
         </div>
         <div v-if="agentForm.labels.length" class="agent-editor__label-rows">
@@ -196,6 +196,7 @@ defineExpose({ openCreate, openEdit, close });
             </label>
             <NButton type="error" secondary size="small" aria-label="Remove label" title="Remove label" class="agent-editor__remove" @click="removeLabel(index)">
               <template #icon><TrashIcon class="icon-sm" /></template>
+              Remove
             </NButton>
           </div>
         </div>
@@ -216,7 +217,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(agentSubmitDisabledReason)" :reason="agentSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(agentSubmitDisabledReason)">
-            {{ agentForm.id ? 'Save Changes' : 'Create Agent' }}
+            {{ agentForm.id ? 'Save changes' : 'Create agent' }}
           </NButton>
         </DisabledHint>
       </div>

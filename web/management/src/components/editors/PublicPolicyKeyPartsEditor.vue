@@ -60,7 +60,7 @@ function removeDisabledReason(): string {
       </div>
       <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason || ''">
         <NButton secondary size="small" attr-type="button" :disabled="Boolean(disabledReason)" @click="addKeyPart">
-          Add Key
+          Add key
         </NButton>
       </DisabledHint>
     </div>
@@ -94,6 +94,7 @@ function removeDisabledReason(): string {
             @click="removeKeyPart(index)"
           >
             <template #icon><TrashIcon class="icon-sm" /></template>
+            Remove
           </NButton>
         </DisabledHint>
       </div>
@@ -116,9 +117,4 @@ label.layout-grid {
   flex: 1 1 auto;
 }
 
-.row-remove-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0 !important;
-}
 </style>

@@ -19,7 +19,6 @@ import { Play as PlayIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Search as SearchIcon } from "@lucide/vue";
 import { X as TimesIcon } from "@lucide/vue";
-import { Trash2 as TrashIcon } from "@lucide/vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
@@ -173,7 +172,7 @@ const listenerColumns = computed<DataTableColumns<PublicListener>>(() => [
         h(
           "span",
           { class: "copy-xs muted-text" },
-          `${listenerRouteCount(listener)} Site routes`,
+          `${listenerRouteCount(listener)} site routes`,
         ),
       ]),
   },
@@ -485,20 +484,28 @@ const siteColumns = computed<DataTableColumns<PublicSite>>(() => [
           },
         ),
         h(
-          NButton,
+          NDropdown,
           {
-            type: "error",
-            secondary: true,
-            size: "small",
-            "aria-label": `Delete site ${diagnosticExcerpt(site.name, 48).text}`,
-            title: siteRouteCount(site)
-              ? "Review Site routes before deletion"
-              : "Delete site",
-            onClick: () => void deleteSite(site),
+            trigger: "click",
+            options: siteMenuOptions(site),
+            onSelect: (key: string | number) => {
+              if (key === "delete") void deleteSite(site);
+            },
           },
           {
-            icon: () => h(TrashIcon, { class: "icon-sm" }),
-            default: () => "Delete",
+            default: () =>
+              h(
+                NButton,
+                {
+                  secondary: true,
+                  size: "small",
+                  "aria-label": `More actions for site ${diagnosticExcerpt(site.name, 48).text}`,
+                },
+                {
+                  icon: () => h(MoreIcon, { class: "icon-sm" }),
+                  default: () => "More",
+                },
+              ),
           },
         ),
       ]),
@@ -519,7 +526,7 @@ const proxySections = computed<ProxySectionSummary[]>(() => [
   },
   {
     key: "listeners",
-    label: "Public Listeners",
+    label: "Public listeners",
     value: listeners.value.length.toString(),
     detail: `${runningListeners.value.toString()} running`,
     description: "Incoming endpoints where the proxy accepts connections.",
@@ -570,6 +577,18 @@ function listenerAttentionRank(listener: PublicListener): number {
   if (listener.enabled && !runtime?.running) return 1;
   if (listener.enabled) return 2;
   return 3;
+}
+
+function siteMenuOptions(site: PublicSite) {
+  return [
+    {
+      label: "Delete site",
+      key: "delete",
+      props: {
+        title: siteRouteCount(site) ? "Review site routes before deletion" : undefined,
+      },
+    },
+  ];
 }
 
 function listenerMenuOptions(listener: PublicListener) {
@@ -657,7 +676,7 @@ function editLegacyRoute(routeId: bigint) {
 async function deleteListener(listener: PublicListener) {
   if (
     !(await confirm(
-      "Delete Listener",
+      "Delete listener",
       `Delete "${diagnosticInspectionText(listener.name)}"? It will stop accepting connections and be permanently removed.`,
     ))
   )
@@ -726,7 +745,7 @@ async function deleteSite(site: PublicSite) {
       await confirm(
         "Site still owns routes",
         `“${diagnosticInspectionText(site.name)}” owns ${routeCount.toString()} ${routeCount === 1 ? "route" : "routes"}. Open its workspace to review or delete those routes first?`,
-        "Open Site",
+        "Open site",
       )
     )
       editSite(site);
@@ -734,7 +753,7 @@ async function deleteSite(site: PublicSite) {
   }
   if (
     !(await confirm(
-      "Delete Site",
+      "Delete site",
       `Delete “${diagnosticInspectionText(site.name)}” and release its ${site.hosts.length.toString()} claimed ${site.hosts.length === 1 ? "hostname" : "hostnames"}? Routes are never reassigned automatically.`,
     ))
   )
@@ -842,7 +861,7 @@ async function deleteSite(site: PublicSite) {
             <template #actions>
               <NButton type="primary" size="small" @click="openAddSiteModal">
                 <template #icon><PlusIcon class="icon-sm" /></template>
-                Add Site
+                Add site
               </NButton>
             </template>
             <div
@@ -866,8 +885,8 @@ async function deleteSite(site: PublicSite) {
             <EmptyState
               v-else
               title="No sites configured"
-              description="Create a draft Site, add its listener assignments and routes, then publish it when readiness checks pass. Drafts never affect live traffic."
-              action-label="Add Site"
+              description="Create a draft site, add its listener assignments and routes, then publish it when readiness checks pass. Drafts never affect live traffic."
+              action-label="Add site"
               @action="openAddSiteModal"
             />
           </SectionCard>
@@ -879,7 +898,7 @@ async function deleteSite(site: PublicSite) {
         name="listeners"
         role="tabpanel"
         aria-labelledby="proxy-tab-listeners"
-        :tab="`Public Listeners · ${listeners.length}`"
+        :tab="`Public listeners · ${listeners.length}`"
         :tab-props="
           proxyTabProps(
             'listeners',
@@ -888,14 +907,14 @@ async function deleteSite(site: PublicSite) {
         "
       >
         <SectionCard
-          title="Public Listeners"
+          title="Public listeners"
           description="Incoming endpoints where the proxy accepts connections."
           flush
         >
           <template #actions>
             <NButton type="primary" size="small" @click="openAddListenerModal">
               <template #icon><PlusIcon class="icon-sm" /></template>
-              Add Listener
+              Add listener
             </NButton>
           </template>
           <div v-if="listeners.length" class="listener-filter">
@@ -935,7 +954,7 @@ async function deleteSite(site: PublicSite) {
             v-else
             title="No listeners configured"
             description="Listeners accept public HTTP or HTTPS traffic on published ports."
-            action-label="Add Listener"
+            action-label="Add listener"
             @action="openAddListenerModal"
           />
         </SectionCard>

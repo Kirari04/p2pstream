@@ -45,7 +45,7 @@ const advancedOpen = ref(false);
 let generation = 0;
 
 const mode = computed(() => session.value?.mode ?? "create");
-const titles: Record<AgentSetupMode, string> = { create: "Install Agent", reinstall: "Reinstall / Repair Agent", "enable-updates": "Enable Managed Updates", rotate: "Apply Rotated Token" };
+const titles: Record<AgentSetupMode, string> = { create: "Install agent", reinstall: "Reinstall / repair agent", "enable-updates": "Enable managed updates", rotate: "Apply rotated token" };
 const descriptions: Record<AgentSetupMode, string> = {
   create: "Install this agent with one command. Managed updates are included when available.",
   reinstall: "Reuse the token stored on this host, refresh its configuration, and restart the agent. Managed updates are included when available.",
@@ -170,7 +170,7 @@ async function copyCommand() {
 
 async function close() {
   if (!copied.value && (session.value?.token || managed.value?.updaterEnrollmentToken)) {
-    if (!await discardDialog.confirm("Close Without Copying?", "Closing now discards the one-time credentials in this command.", "Discard Credentials")) return;
+    if (!await discardDialog.confirm("Close without copying?", "Closing now discards the one-time credentials in this command.", "Discard credentials")) return;
   }
   generation += 1;
   session.value = null;
@@ -209,8 +209,8 @@ defineExpose({ openCreated, openExisting, openRotated });
         <summary>Advanced setup options<small>Release, TLS, and optional local files</small></summary>
         <div class="agent-advanced-options__body">
           <div class="layout-grid space-md mq-md-cols-two">
-            <label class="agent-setup-field">GitHub Repository<NInput v-model:value="repository" size="small" :disabled="loading || Boolean(managed && managedUpdates)" /></label>
-            <label class="agent-setup-field">Release Version<NInput v-model:value="releaseVersion" size="small" :disabled="loading || Boolean(managed && managedUpdates)" placeholder="latest or vX.Y.Z" /></label>
+            <label class="agent-setup-field">GitHub repository<NInput v-model:value="repository" size="small" :disabled="loading || Boolean(managed && managedUpdates)" /></label>
+            <label class="agent-setup-field">Release version<NInput v-model:value="releaseVersion" size="small" :disabled="loading || Boolean(managed && managedUpdates)" placeholder="latest or vX.Y.Z" /></label>
             <label v-if="tab === 'install'" class="agent-setup-field">Installer file (optional)<NInput v-model:value="installerPath" size="small" placeholder="Download automatically" /></label>
             <label v-if="tab === 'install'" class="agent-setup-field">Agent binary (optional)<NInput v-model:value="binaryPath" size="small" placeholder="Download automatically" /></label>
             <label v-if="tab === 'docker'" class="agent-setup-field">Docker image<NInput v-model:value="dockerImage" size="small" @update:value="dockerImageTouched = true" /></label>

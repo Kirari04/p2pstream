@@ -204,7 +204,7 @@ describe("public sites", () => {
     expect(publicRouteSiteSelectionState("7", "2", sites)).toBe("unavailable");
     expect(publicRouteSiteSelectionState("7", "1", [])).toBe("unavailable");
     expect(publicRouteSiteSelectionState("0", "2", sites)).toBe("legacy");
-    expect(publicRouteDefaultScopeLabel("site")).toBe("One default per Site.");
+    expect(publicRouteDefaultScopeLabel("site")).toBe("One default per site.");
     expect(publicRouteDefaultScopeLabel("legacy")).toContain("per listener");
     expect(publicRouteDefaultScopeLabel("unavailable")).toContain(
       "before saving a default route",

@@ -20,17 +20,17 @@ test("shows IDN Site hostnames in Unicode while retaining ASCII DNS values", asy
 
   const surface = page.getByRole("region", { name: "Sites", exact: true });
   await surface
-    .getByRole("button", { name: "Add Site", exact: true })
+    .getByRole("button", { name: "Add site", exact: true })
     .click();
 
-  let workspace = page.getByRole("dialog", { name: "Create Site workspace" });
+  let workspace = page.getByRole("dialog", { name: "Create site workspace" });
   await workspace.getByLabel("Site name").fill("idn-site-e2e");
-  await workspace.getByRole("button", { name: "Create draft Site" }).click();
+  await workspace.getByRole("button", { name: "Create draft site" }).click();
   workspace = page.getByRole("dialog", { name: "Site workspace" });
   await workspace.getByRole("button", { name: "Add hostname" }).click();
   await workspace.getByRole("textbox", { name: /^Hostname 1\b/ }).fill("züribadi.example");
   await workspace.getByLabel("Canonical hostname").fill("züribadi.example");
-  await workspace.getByRole("button", { name: "Save Site settings" }).click();
+  await workspace.getByRole("button", { name: "Save site settings" }).click();
   await expect(workspace.getByText("Site settings saved")).toBeVisible();
 
   const config = await connectRPC<ProxyConfig>(

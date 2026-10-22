@@ -265,7 +265,7 @@ const routeForm = reactive({
 let nextSelectorRowID = 1;
 
 const routeScopeOptions = computed(() => [
-  { label: "Listener-wide (no Site)", value: "0" },
+  { label: "Listener-wide (no site)", value: "0" },
   ...sites.value
     .filter((site) => site.listenerId.toString() === routeForm.listenerId)
     .map((site) => ({
@@ -280,7 +280,7 @@ const routeScopeOptions = computed(() => [
   )
     ? [
         {
-          label: `Unavailable Site #${routeForm.siteId} · choose another scope`,
+          label: `Unavailable site #${routeForm.siteId} · choose another scope`,
           value: routeForm.siteId,
           disabled: true,
         },
@@ -332,24 +332,24 @@ const routeIsRedirect = computed(
 );
 const modalTitle = computed(() =>
   routeFormMode.value === "edit"
-    ? "Edit Route"
+    ? "Edit route"
     : routeFormMode.value === "clone"
-      ? "Clone Route"
-      : "Add Route",
+      ? "Clone route"
+      : "Add route",
 );
 const submitLabel = computed(() =>
   routeFormMode.value === "edit"
-    ? "Save Changes"
+    ? "Save changes"
     : routeFormMode.value === "clone"
-      ? "Create Clone"
-      : "Create Route",
+      ? "Create clone"
+      : "Create route",
 );
 const routeSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!isWorkspaceRoute.value && !listeners.value.length)
     return "Create a listener before creating a route.";
   if (routeSiteSelectionState.value === "unavailable")
-    return "Choose a Site on this listener or select Listener-wide (no Site).";
+    return "Choose a site on this listener or select Listener-wide (no site).";
   if (routeIsRedirect.value && routeForm.redirectTarget.trim() === "")
     return "Enter a redirect target.";
   if (!routeIsRedirect.value && !routeForm.targets.length)
@@ -689,7 +689,7 @@ async function close() {
     isDirty.value &&
     !(await confirm(
       "Discard route changes?",
-      "This route has unsaved changes. Discard them and return to the Site workspace?",
+      "This route has unsaved changes. Discard them and return to the site workspace?",
       "Discard changes",
     ))
   )
@@ -1042,8 +1042,8 @@ defineExpose({
             {{ selectedSiteListenerNames }}
           </p>
           <p class="margin-top-xs copy-xs line-normal muted-text">
-            This route is locked to its Site. Saving it updates the persisted
-            route only; unsaved Site settings remain unchanged.
+            This route is locked to its site. Saving it updates the persisted
+            route only; unsaved site settings remain unchanged.
           </p>
         </section>
         <NAlert v-if="cloneSecretWarning" type="warning" :bordered="false">
@@ -1097,24 +1097,24 @@ defineExpose({
             Routing scope
             <AccessibleSelect
               v-model:value="routeForm.siteId"
-              accessible-label="Route Site or listener-wide scope"
+              accessible-label="Route site or listener-wide scope"
               size="small"
               :options="routeScopeOptions"
             />
             <span v-if="selectedSite" class="weight-normal muted-text"
-              >Hostnames come from Site “{{ selectedSite.name }}”. Requests for
-              claimed hosts stay within that Site.</span
+              >Hostnames come from site “{{ selectedSite.name }}”. Requests for
+              claimed hosts stay within that site.</span
             >
             <span
               v-else-if="routeSiteSelectionState === 'unavailable'"
               class="weight-normal warning-text"
-              >The saved Site is unavailable on this listener. Choose another
-              Site or Listener-wide (no Site); nothing is detached
+              >The saved site is unavailable on this listener. Choose another
+              site or Listener-wide (no site); nothing is detached
               automatically.</span
             >
             <span v-else class="weight-normal muted-text"
               >Listener-wide routes are retained for configurations that have
-              not been moved into a Site.</span
+              not been moved into a site.</span
             >
           </label>
           <label
@@ -1277,7 +1277,7 @@ defineExpose({
               @click="addTarget"
             >
               <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
-              Add Target
+              Add target
             </NButton>
           </div>
 
@@ -1459,6 +1459,7 @@ defineExpose({
                         <template #icon
                           ><TrashIcon class="icon-sm icon-sm"
                         /></template>
+                        Remove
                       </NButton>
                     </div>
                   </div>
@@ -1474,7 +1475,7 @@ defineExpose({
                       <template #icon
                         ><PlusIcon class="icon-sm icon-sm"
                       /></template>
-                      Add Selector
+                      Add selector
                     </NButton>
                     <div
                       data-testid="selector-match-preview"
@@ -1623,7 +1624,7 @@ defineExpose({
                           @click="removeUpstreamHeader(target, headerIndex)"
                           ><template #icon
                             ><TrashIcon class="icon-sm" /></template
-                        ></NButton>
+                        >Remove</NButton>
                       </div>
                     </section>
                     <section
@@ -1809,7 +1810,7 @@ defineExpose({
                           @click="removeResponseHeader(target, headerIndex)"
                           ><template #icon
                             ><TrashIcon class="icon-sm" /></template
-                        ></NButton>
+                        >Remove</NButton>
                       </div>
                     </section>
                   </div>

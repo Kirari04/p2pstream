@@ -50,7 +50,7 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
   <NModal
     :show="modelValue"
     preset="card"
-    :title="request ? `Edit ${request.nodeLabel}` : 'Edit Settings'"
+    :title="request ? `Edit ${request.nodeLabel}` : 'Edit settings'"
     :style="modalCardStyle('34rem')"
     :content-style="modalScrollableContentStyle()"
     :bordered="false"

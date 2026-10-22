@@ -18,7 +18,7 @@ Proxy targets have a transport:
 | Direct | The p2pstream server connects to the upstream origin. |
 | Agent | The server selects a connected agent by label selector, then uses that agent to dial the upstream TCP origin. |
 
-Open a Site under **Proxy -> Sites** to see its routes and target summaries. Add or edit a route in the nested editor; the Site supplies its hostnames and listener assignments, and the route owns its target pool.
+Open a site under **Proxy -> Sites** to see its routes and target summaries. Add or edit a route in the nested editor; the site supplies its hostnames and listener assignments, and the route owns its target pool.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream Edit Route drawer showing a direct proxy target with URL, priority group, weight, response-header timeout, TLS verification, and enabled state">

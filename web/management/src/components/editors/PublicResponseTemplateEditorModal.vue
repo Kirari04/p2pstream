@@ -40,8 +40,8 @@ const kindOptions = [
   { label: "Local access sign-in page", value: PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE },
 ];
 
-const modalTitle = computed(() => form.id ? "Edit Response Template" : "Add Response Template");
-const submitLabel = computed(() => form.id ? "Save Changes" : "Create Template");
+const modalTitle = computed(() => form.id ? "Edit response template" : "Add response template");
+const submitLabel = computed(() => form.id ? "Save changes" : "Create template");
 const requiredPlaceholders = computed(() => {
   switch (form.kind) {
     case PublicResponseTemplateKind.WAF_CAPTCHA_PAGE:

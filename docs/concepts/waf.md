@@ -34,7 +34,7 @@ Custom waiting-room pages must include <code v-pre>{{ .queue_position }}</code> 
 
 Automatic waiting-room activation can use request rate, traffic spike, proxy active requests, target active requests, agent active requests, server CPU, and agent CPU pressure signals.
 
-Manage these controls under **Traffic Policy → WAF**. The filterable WAF rules table and captcha providers appear first. **Visitor identity & GeoIP** is a separate section on the same tab because its trusted-source and country-database settings affect WAF country restrictions and any policy keyed by resolved client identity. Use **Request Tester** to validate a representative request against the current policy configuration.
+Manage these controls under **Traffic policy → WAF**. The filterable WAF rules table and captcha providers appear first. **Visitor identity & GeoIP** is a separate section on the same tab because its trusted-source and country-database settings affect WAF country restrictions and any policy keyed by resolved client identity. Use **Request tester** to validate a representative request against the current policy configuration.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/edit_waf_modal.png" alt="p2pstream Edit WAF Rule drawer showing action, activation mode, CEL request match, and geographic targeting">

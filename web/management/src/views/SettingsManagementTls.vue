@@ -57,7 +57,7 @@ async function copyRepairCommand() {
 
 <template>
   <div class="stack-xl management-tls-page">
-    <PageHeader title="Management TLS" :level="2" hide-title description="Certificate serving this management UI and the CA bundle agents use to trust it.">
+    <PageHeader title="Management TLS" description="Certificate serving this management UI and the CA bundle agents use to trust it.">
       <template #actions>
         <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh certificate status" @click="refresh()">
           <template #icon><RefreshIcon class="icon-sm" /></template>

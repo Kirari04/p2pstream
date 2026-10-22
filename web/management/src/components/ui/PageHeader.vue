@@ -1,23 +1,15 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
+defineProps<{
   title: string;
   description?: string;
-  /** Heading level; settings sub-pages render below the "Settings" page title. */
-  level?: 1 | 2;
-  /** Keep the heading for assistive tech only, when a tab label already shows it. */
-  hideTitle?: boolean;
-}>(), {
-  level: 1,
-  hideTitle: false,
-});
+}>();
 </script>
 
 <template>
   <header class="page-header">
     <div class="page-header__copy">
-      <component :is="`h${level}`" v-if="hideTitle" class="visually-hidden">{{ title }}</component>
-      <div v-else class="page-header__title-row">
-        <component :is="`h${level}`" class="page-header__title" :class="{ 'page-header__title--sub': level === 2 }">{{ title }}</component>
+      <div class="page-header__title-row">
+        <h1 class="page-header__title">{{ title }}</h1>
         <slot name="badge" />
       </div>
       <p v-if="description || $slots.description" class="page-header__description">
@@ -60,11 +52,6 @@ withDefaults(defineProps<{
   letter-spacing: -0.015em;
   line-height: 1.25;
   text-wrap: balance;
-}
-
-.page-header__title--sub {
-  font-size: 1.0625rem;
-  letter-spacing: -0.005em;
 }
 
 .page-header__description {

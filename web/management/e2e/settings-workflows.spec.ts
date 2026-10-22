@@ -18,11 +18,11 @@ test("keeps API token creation focused in a dismissible editor drawer", async ({
   await authenticate(page, baseURL);
   await page.goto("/#/settings/api-tokens");
 
-  await expect(page.getByRole("heading", { name: "API Tokens", exact: true }).last()).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Create API Token" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "API tokens", exact: true }).last()).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Create API token" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Create Token", exact: true }).first().click();
-  const drawer = page.getByRole("dialog", { name: "Create API Token" });
+  await page.getByRole("button", { name: "Create token", exact: true }).first().click();
+  const drawer = page.getByRole("dialog", { name: "Create API token" });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByLabel("Name", { exact: true })).toBeFocused();
   await drawer.getByLabel("Name", { exact: true }).fill("Deployment automation");
@@ -65,7 +65,7 @@ test("keeps environment lifecycle actions behind a labeled row menu", async ({ p
   await row.getByRole("button", { name: `More actions for ${environmentName}` }).click();
   await page.getByRole("menuitem", { name: "Edit environment", exact: true }).click();
 
-  const drawer = page.getByRole("dialog", { name: "Edit Environment" });
+  const drawer = page.getByRole("dialog", { name: "Edit environment" });
   await expect(drawer).toBeVisible();
   await expect(drawer.getByLabel("Name", { exact: true })).toHaveValue(environmentName);
 });

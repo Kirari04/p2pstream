@@ -76,10 +76,10 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   ).toHaveCount(0);
   const sitesSurface = page.getByRole("region", { name: "Sites", exact: true });
   await sitesSurface
-    .getByRole("button", { name: "Add Site", exact: true })
+    .getByRole("button", { name: "Add site", exact: true })
     .click();
 
-  let workspace = page.getByRole("dialog", { name: "Create Site workspace" });
+  let workspace = page.getByRole("dialog", { name: "Create site workspace" });
   await expect(workspace).toBeVisible();
   await workspace.getByLabel("Site name").fill(siteName);
   await Promise.all([
@@ -88,7 +88,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
         response.url().includes("/CreatePublicSite") &&
         response.status() === 200,
     ),
-    workspace.getByRole("button", { name: "Create draft Site" }).click(),
+    workspace.getByRole("button", { name: "Create draft site" }).click(),
   ]);
 
   workspace = page.getByRole("dialog", { name: "Site workspace" });
@@ -127,7 +127,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   await workspace.getByLabel("Site name").fill(`${siteName}-unsaved`);
 
   await workspace.getByRole("button", { name: "Add the first route" }).click();
-  let routeEditor = page.getByRole("dialog", { name: "Add Route" });
+  let routeEditor = page.getByRole("dialog", { name: "Add route" });
   await expect(routeEditor.getByText(siteName)).toBeVisible();
   await expect(
     routeEditor.getByRole("combobox", { name: "Route listener" }),
@@ -145,7 +145,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
         response.url().includes("/CreatePublicRoute") &&
         response.status() === 200,
     ),
-    routeEditor.getByRole("button", { name: "Create Route" }).click(),
+    routeEditor.getByRole("button", { name: "Create route" }).click(),
   ]);
   await expect(routeEditor).toBeHidden();
   await expect(workspace).toBeVisible();
@@ -154,20 +154,20 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   );
   await expect(
     workspace.getByText(
-      "Route saved. Your unsaved Site settings are still here.",
+      "Route saved. Your unsaved site settings are still here.",
     ),
   ).toBeVisible();
   await expect(workspace.getByText("/home", { exact: true })).toBeVisible();
 
   await workspace.getByRole("button", { name: "Add route" }).click();
-  routeEditor = page.getByRole("dialog", { name: "Add Route" });
+  routeEditor = page.getByRole("dialog", { name: "Add route" });
   await routeEditor.getByLabel("Path prefix").fill("/api");
   await chooseNaiveSelectOption(
     page,
     routeEditor.getByRole("combobox", { name: "Target 1 type" }),
     "Static",
   );
-  await routeEditor.getByRole("button", { name: "Add Target" }).click();
+  await routeEditor.getByRole("button", { name: "Add target" }).click();
   await chooseNaiveSelectOption(
     page,
     routeEditor.getByRole("combobox", { name: "Target 2 type" }),
@@ -185,12 +185,12 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   await routeEditor.screenshot({
     path: testInfo.outputPath("site-route-editor-desktop.png"),
   });
-  await routeEditor.getByRole("button", { name: "Create Route" }).click();
+  await routeEditor.getByRole("button", { name: "Create route" }).click();
   await expect(routeEditor).toBeHidden();
   await expect(workspace.getByText("/api", { exact: true })).toBeVisible();
 
   await workspace.getByRole("button", { name: "Add route" }).click();
-  routeEditor = page.getByRole("dialog", { name: "Add Route" });
+  routeEditor = page.getByRole("dialog", { name: "Add route" });
   await routeEditor.getByLabel("Path prefix").fill("/cancelled");
   await routeEditor.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "Discard changes" }).click();
@@ -198,7 +198,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   await expect(workspace).toBeVisible();
 
   await workspace.getByRole("button", { name: "Add route" }).click();
-  routeEditor = page.getByRole("dialog", { name: "Add Route" });
+  routeEditor = page.getByRole("dialog", { name: "Add route" });
   await page.keyboard.press("Escape");
   await expect(routeEditor).toBeHidden();
   await expect(workspace).toBeVisible();
@@ -237,7 +237,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
     .getByRole("button", { name: "Edit route" })
     .first();
   await mobileRouteTrigger.click();
-  routeEditor = page.getByRole("dialog", { name: "Edit Route" });
+  routeEditor = page.getByRole("dialog", { name: "Edit route" });
   await expect(routeEditor).toBeVisible();
   await expect
     .poll(() =>
@@ -270,7 +270,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
       element.contains(document.activeElement),
     ),
   ).toBe(true);
-  const routeSave = routeEditor.getByRole("button", { name: "Save Changes" });
+  const routeSave = routeEditor.getByRole("button", { name: "Save changes" });
   await routeSave.focus();
   await page.keyboard.press("Tab");
   expect(
@@ -290,7 +290,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
         response.url().includes("/UpdatePublicSite") &&
         response.status() === 200,
     ),
-    workspace.getByRole("button", { name: "Save Site settings" }).click(),
+    workspace.getByRole("button", { name: "Save site settings" }).click(),
   ]);
   await expect(workspace.getByText("Site settings saved")).toBeVisible();
   const readinessToggle = workspace.locator(".site-readiness__summary");
@@ -303,7 +303,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   await expect(configureTls).toBeVisible();
   await configureTls.click();
   const tlsEditor = page.getByRole("dialog", {
-    name: "Configure TLS for Site",
+    name: "Configure TLS for site",
   });
   await expect(tlsEditor).toBeVisible();
   await expect(
@@ -319,12 +319,12 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
         response.url().includes("/CreatePublicTlsCertificate") &&
         response.status() === 200,
     ),
-    tlsEditor.getByRole("button", { name: "Create TLS Mapping" }).click(),
+    tlsEditor.getByRole("button", { name: "Create TLS mapping" }).click(),
   ]);
   await expect(tlsEditor).toBeHidden();
   await expect(workspace).toBeVisible();
   await expect(
-    workspace.getByRole("button", { name: "Publish Site" }),
+    workspace.getByRole("button", { name: "Publish site" }),
   ).toBeEnabled();
   await Promise.all([
     page.waitForResponse(
@@ -332,7 +332,7 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
         response.url().includes("/PublishPublicSite") &&
         response.status() === 200,
     ),
-    workspace.getByRole("button", { name: "Publish Site" }).click(),
+    workspace.getByRole("button", { name: "Publish site" }).click(),
   ]);
   await expect(workspace.getByText("Published", { exact: true })).toBeVisible();
 
@@ -340,17 +340,17 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
     .getByRole("button", { name: "Edit route" })
     .first();
   await editRouteButton.click();
-  routeEditor = page.getByRole("dialog", { name: "Edit Route" });
+  routeEditor = page.getByRole("dialog", { name: "Edit route" });
   await routeEditor.getByLabel("Priority", { exact: true }).fill("42");
-  await routeEditor.getByRole("button", { name: "Save Changes" }).click();
+  await routeEditor.getByRole("button", { name: "Save changes" }).click();
   await expect(routeEditor).toBeHidden();
   await expect(workspace.getByText("Priority 42")).toBeVisible();
 
   await workspace.getByRole("button", { name: "Clone route" }).first().click();
-  routeEditor = page.getByRole("dialog", { name: "Clone Route" });
+  routeEditor = page.getByRole("dialog", { name: "Clone route" });
   await expect(routeEditor.getByLabel("Default route")).not.toBeChecked();
   await routeEditor.getByLabel("Path prefix").fill("/clone");
-  await routeEditor.getByRole("button", { name: "Create Clone" }).click();
+  await routeEditor.getByRole("button", { name: "Create clone" }).click();
   await expect(workspace.getByText("/clone", { exact: true })).toBeVisible();
   const cloneRow = workspace.locator("[data-testid^='site-route-']").filter({
     hasText: "/clone",
@@ -363,13 +363,13 @@ test("keeps the Site workspace open through draft, route, clone, failure, keyboa
   ).toBeVisible();
 
   await workspace.getByRole("button", { name: "Add route" }).click();
-  routeEditor = page.getByRole("dialog", { name: "Add Route" });
+  routeEditor = page.getByRole("dialog", { name: "Add route" });
   await routeEditor.getByLabel("Path prefix").fill("/retry-after-failure");
   await page.route(
     "**/p2pstream.v1.AgentManagementService/CreatePublicRoute",
     async (route) => route.abort("failed"),
   );
-  await routeEditor.getByRole("button", { name: "Create Route" }).click();
+  await routeEditor.getByRole("button", { name: "Create route" }).click();
   await expect(routeEditor).toBeVisible();
   await expect(routeEditor.getByLabel("Path prefix")).toHaveValue(
     "/retry-after-failure",

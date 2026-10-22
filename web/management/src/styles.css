@@ -143,14 +143,6 @@ samp {
   backdrop-filter: blur(18px);
 }
 
-.app-header__inner,
-.app-header__nav-wrap,
-.app-main {
-  width: min(100%, 100rem);
-  margin-inline: auto;
-  padding-inline: 1rem;
-}
-
 .app-header__bar {
   display: flex;
   min-height: 4rem;
@@ -270,10 +262,6 @@ samp {
 .app-nav__link--active {
   background: var(--app-accent-soft);
   color: var(--app-accent);
-}
-
-.app-main {
-  padding-block: 2rem;
 }
 
 .auth-panel {
@@ -1321,10 +1309,6 @@ samp {
   letter-spacing: 0.08em;
 }
 
-.label-case {
-  text-transform: uppercase;
-}
-
 .deemphasized {
   opacity: 0.8;
 }
@@ -1445,12 +1429,6 @@ samp {
   .app-brand__divider,
   .app-user {
     display: flex;
-  }
-
-  .app-header__inner,
-  .app-header__nav-wrap,
-  .app-main {
-    padding-inline: 1.5rem;
   }
 
   .form-grid--two,
@@ -1589,12 +1567,6 @@ samp {
 }
 
 @media (min-width: 1024px) {
-  .app-header__inner,
-  .app-header__nav-wrap,
-  .app-main {
-    padding-inline: 2rem;
-  }
-
   .list-row--actions {
     grid-template-columns: minmax(0, 1fr) auto;
   }
@@ -1989,6 +1961,7 @@ samp {
   display: none;
 }
 
+/* Content stops growing at 88rem and stays centered on wide screens. */
 .app-main {
   width: 100%;
   max-width: 88rem;
@@ -2431,6 +2404,11 @@ body:has(.app-sidebar--mobile-open) {
     padding-inline: 0.625rem;
   }
 
+  /* The brand row is flex; with the close button hidden, center the mark in the rail. */
+  .app-sidebar__brand-row {
+    justify-content: center;
+  }
+
   .app-sidebar__brand,
   .app-sidebar__link,
   .app-sidebar__collapse,
@@ -2490,6 +2468,7 @@ body:has(.app-sidebar--mobile-open) {
   }
 
   .app-sidebar__brand-row {
+    justify-content: space-between;
     justify-items: initial;
     padding-inline: 0.75rem;
   }
@@ -2535,6 +2514,10 @@ body:has(.app-sidebar--mobile-open) {
   .app-sidebar--collapsed .app-sidebar__footer {
     justify-items: center;
     padding-inline: 0.625rem;
+  }
+
+  .app-sidebar--collapsed .app-sidebar__brand-row {
+    justify-content: center;
   }
 
   .app-sidebar--collapsed .app-sidebar__brand,

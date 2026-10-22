@@ -119,12 +119,12 @@ ACME renewal logs use `component=public_acme`. Filter those entries and inspect 
 
 | Check | Fix |
 | --- | --- |
-| Listener | The route's owning Site must have a Serve assignment on the incoming listener. |
-| Site state | Publish the Site and enable it. Drafts never receive traffic; disabled published Sites keep their claims and return `404`. |
-| Hostname | Check the Site's exact or one-label wildcard hostname. Exact Sites take precedence over wildcard Sites; otherwise the listener's Default Site is selected. |
+| Listener | The route's owning site must have a Serve assignment on the incoming listener. |
+| Site state | Publish the site and enable it. Drafts never receive traffic; disabled published sites keep their claims and return `404`. |
+| Hostname | Check the site's exact or one-label wildcard hostname. Exact sites take precedence over wildcard sites; otherwise the listener's default site is selected. |
 | Path prefix | Prefix must start with `/`. |
 | Priority | Lower numbers win. Put specific routes first. |
-| Default route | If no path route matches, the selected Site's default route handles the request. A missing path never falls through to another Site. |
+| Default route | If no path route matches, the selected site's default route handles the request. A missing path never falls through to another site. |
 
 ## Target Returns Bad Gateway
 
@@ -187,7 +187,7 @@ The target response-header timeout limits only the wait for first upstream heade
 
 | Cause | Fix |
 | --- | --- |
-| p2pstream sees one proxy IP | Under **Traffic Policy → WAF → Visitor identity & GeoIP**, enable only the actual CDN preset or configure the proxy's peer CIDRs and overwritten client-IP header. Otherwise keep using peer identity or non-forwarding application keys. |
+| p2pstream sees one proxy IP | Under **Traffic policy → WAF → Visitor identity & GeoIP**, enable only the actual CDN preset or configure the proxy's peer CIDRs and overwritten client-IP header. Otherwise keep using peer identity or non-forwarding application keys. |
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 

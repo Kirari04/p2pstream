@@ -43,7 +43,7 @@ const issuedToken = ref("");
 const isIssuedTokenModalOpen = ref(false);
 const isIssuedTokenVisible = ref(false);
 const issuedTokenWasCopied = ref(false);
-const tokenCopyLabel = ref("Copy Token");
+const tokenCopyLabel = ref("Copy token");
 const operationError = ref("");
 const issuedTokenVisiblePrefix = computed(() => issuedToken.value.slice(0, Math.min(10, issuedToken.value.length)));
 const issuedTokenBlurredRemainder = computed(() => issuedToken.value.slice(issuedTokenVisiblePrefix.value.length));
@@ -82,7 +82,7 @@ const tokenColumns = computed<DataTableColumns<ManagementAccessToken>>(() => [
     render: (token) => h("span", { class: "mono-text copy-xs" }, formatDate(token.expiresAtUnixMillis)),
   },
   {
-    title: "Last Used",
+    title: "Last used",
     key: "lastUsed",
     width: 190,
     render: (token) => h("span", { class: "mono-text copy-xs" }, formatDate(token.lastUsedAtUnixMillis)),
@@ -199,7 +199,7 @@ async function createToken() {
     issuedToken.value = resp.token;
     isIssuedTokenVisible.value = false;
     issuedTokenWasCopied.value = false;
-    tokenCopyLabel.value = "Copy Token";
+    tokenCopyLabel.value = "Copy token";
     isCreateTokenDrawerOpen.value = false;
     isIssuedTokenModalOpen.value = true;
     tokenForm.name = "";
@@ -217,7 +217,7 @@ async function copyIssuedToken() {
     tokenCopyLabel.value = "Copied";
   } catch (err) {
     operationError.value = messageFromError(err);
-    tokenCopyLabel.value = "Copy Failed";
+    tokenCopyLabel.value = "Copy failed";
   }
 }
 
@@ -225,7 +225,7 @@ function clearIssuedToken() {
   issuedToken.value = "";
   isIssuedTokenModalOpen.value = false;
   isIssuedTokenVisible.value = false;
-  tokenCopyLabel.value = "Copy Token";
+  tokenCopyLabel.value = "Copy token";
   issuedTokenWasCopied.value = false;
 }
 
@@ -244,9 +244,9 @@ function focusCreateTokenName() {
 async function requestClearIssuedToken() {
   if (issuedToken.value && !issuedTokenWasCopied.value) {
     const confirmed = await discardIssuedTokenDialog.confirm(
-      "Close Without Copying?",
+      "Close without copying?",
       "This token is shown only once. Closing now will permanently discard it.",
-      "Discard Token",
+      "Discard token",
     );
     if (!confirmed) return;
   }
@@ -255,7 +255,7 @@ async function requestClearIssuedToken() {
 
 async function deleteToken(token: ManagementAccessToken) {
   const confirmed = await revokeTokenDialog.confirm(
-    "Revoke API Token",
+    "Revoke API token",
     `Revoke "${diagnosticInspectionText(token.name)}"? Integrations using it will immediately lose access.`,
     "Revoke",
   );
@@ -323,7 +323,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
 
 <template>
   <div class="stack-xl">
-    <PageHeader title="API Tokens" :level="2" hide-title>
+    <PageHeader title="API tokens">
       <template #description>Admin API credentials for <bdi dir="ltr">{{ diagnosticInspectionText(selectedEnvironmentLabel) }}</bdi>.</template>
       <template #actions>
         <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
@@ -342,7 +342,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
         <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
           <NButton type="primary" size="small" :disabled="Boolean(actionDisabledReason)" @click="openCreateTokenDrawer">
             <template #icon><PlusIcon class="icon-sm" /></template>
-            Create Token
+            Create token
           </NButton>
         </DisabledHint>
       </template>
@@ -374,7 +374,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
         v-else
         title="No API tokens"
         description="Create a scoped management credential when an integration needs API access. The secret is shown only once."
-        action-label="Create Token"
+        action-label="Create token"
         @action="openCreateTokenDrawer"
       />
     </SectionCard>
@@ -383,11 +383,11 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       v-model:show="isCreateTokenDrawerOpen"
       placement="right"
       :width="editorDrawerWidth('32rem')"
-      aria-label="Create API Token"
+      aria-label="Create API token"
       class="editor-drawer"
       @after-enter="focusCreateTokenName"
     >
-      <NDrawerContent title="Create API Token" closable>
+      <NDrawerContent title="Create API token" closable>
         <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="createToken">
           <p class="copy-sm muted-text">The secret is revealed once after creation. Store it before closing the confirmation.</p>
           <div class="layout-grid space-xs">
@@ -420,7 +420,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
             <NButton secondary attr-type="button" @click="isCreateTokenDrawerOpen = false">Cancel</NButton>
             <DisabledHint :disabled="Boolean(actionDisabledReason)" :reason="actionDisabledReason">
               <NButton type="primary" attr-type="submit" :disabled="Boolean(actionDisabledReason)" :loading="isLoading">
-                Create Token
+                Create token
               </NButton>
             </DisabledHint>
           </div>
@@ -431,7 +431,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
     <NModal
       :show="isIssuedTokenModalOpen"
       preset="card"
-      title="API Token Created"
+      title="API token created"
       :style="modalCardStyle('38rem')"
       :content-style="modalScrollableContentStyle()"
       :bordered="false"
@@ -442,7 +442,7 @@ function handleIssuedTokenModalUpdate(show: boolean) {
       <div class="stack-md">
         <div class="round-md framed frame-standard muted-bg pad-lg">
           <div class="margin-bottom-sm">
-            <p class="copy-xs weight-medium label-case letter-wide muted-text">One-Time Token</p>
+            <p class="copy-xs weight-medium label-case letter-wide muted-text">One-time token</p>
           </div>
           <code
             class="flow-box min-code-height wrap-anywhere round-md framed frame-standard panel-bg pad-md mono-text copy-xs line-relaxed base-text"

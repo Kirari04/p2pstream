@@ -461,8 +461,8 @@ function renderAgentDetails(agent: Agent) {
   const labels = agentUserLabels(agent);
   return h("details", { class: "agent-exact-details" }, [
     h("summary", {
-      "aria-label": agentActionLabel("Show exact identity and selectors for", agent),
-    }, `Identity & selectors · ${labels.length} label${labels.length === 1 ? "" : "s"}`),
+      "aria-label": agentActionLabel("Show details for", agent),
+    }, `Details · ${labels.length} label${labels.length === 1 ? "" : "s"}`),
     h("div", { class: "agent-exact-details__body" }, [
       h("div", { class: "agent-exact-field" }, [
         h("span", "Agent ID"),
@@ -910,7 +910,7 @@ function agentLifecycleOptions(agent: Agent): Array<DropdownOption | DropdownDiv
     },
     {
       key: "reinstall",
-      label: "Reinstall / Repair",
+      label: "Reinstall / repair",
       icon: () => h(RefreshIcon, { class: "icon-sm" }),
       disabled: busy,
       props: { "aria-label": agentActionLabel("Reinstall or repair", agent) },
@@ -1055,7 +1055,7 @@ async function deleteAgent(agent: Agent) {
   const name = diagnosticInspectionText(agent.name);
   const publicID = diagnosticInspectionText(agent.publicId);
   if (!await lifecycleDialog.confirm(
-    "Delete Agent",
+    "Delete agent",
     `Agent \u2068${name}\u2069 (\u2068${publicID}\u2069) and its agent-selected target matches will be permanently removed.`,
   )) return;
   await run(async () => {
@@ -1103,7 +1103,7 @@ async function copyUninstallSnippet() {
         <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
           <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openAddAgentModal">
             <template #icon><PlusIcon class="icon-sm" /></template>
-            Add Agent
+            Add agent
           </NButton>
         </DisabledHint>
       </template>
@@ -1242,7 +1242,7 @@ async function copyUninstallSnippet() {
         v-else
         title="No agents registered"
         description="Agents forward traffic to services behind NAT or firewalls by connecting outbound to this proxy."
-        action-label="Add Agent"
+        action-label="Add agent"
         @action="openAddAgentModal"
       />
     </SectionCard>
@@ -1311,7 +1311,7 @@ async function copyUninstallSnippet() {
     <NModal
       :show="Boolean(rotateAgentToConfirm)"
       preset="card"
-      title="Rotate Agent Token"
+      title="Rotate agent token"
       :style="modalCardStyle('34rem')"
       :content-style="modalScrollableContentStyle()"
       :bordered="false"
@@ -1333,7 +1333,7 @@ async function copyUninstallSnippet() {
             <NButton secondary attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="closeRotateAgentModal">Cancel</NButton>
           </DisabledHint>
           <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-            <NButton type="error" attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken">Rotate Token</NButton>
+            <NButton type="error" attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="confirmRotateAgentToken">Rotate token</NButton>
           </DisabledHint>
         </div>
       </div>
@@ -1342,7 +1342,7 @@ async function copyUninstallSnippet() {
     <NModal
       :show="Boolean(uninstallAgent)"
       preset="card"
-      title="Agent Uninstall"
+      title="Agent uninstall"
       :style="modalCardStyle('46rem')"
       :content-style="modalScrollableContentStyle()"
       :bordered="false"
@@ -1370,7 +1370,7 @@ async function copyUninstallSnippet() {
         </NAlert>
 
         <label class="agent-modal__field">
-          <span class="agent-modal__label">GitHub Repository</span>
+          <span class="agent-modal__label">GitHub repository</span>
           <NInput v-model:value="uninstallReleaseRepository" size="small" placeholder="Kirari04/p2pstream" required />
         </label>
 

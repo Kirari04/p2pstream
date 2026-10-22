@@ -13,8 +13,10 @@ Overview, Monitor → Traffic and Monitor → Diagnostics.
 - **One title per thing.** A page has one `PageHeader`. A section has one
   heading. Don't repeat the page title as a card title, and don't stack an
   eyebrow, a heading, a card title and a table caption for the same table.
-- **Sentence case.** No uppercase eyebrows or labels. Write "Fleet uptime",
-  not `FLEET UPTIME`. Use small all-caps text only for real acronyms.
+- **Sentence case.** Every label, button, tab, title, menu item and column
+  header: "Save changes", "Add rate-limit rule", "API tokens". Only the first
+  word, proper nouns and acronyms (WAF, TLS, API, DNS, ACME…) are capitalized.
+  No uppercase eyebrows. "Management TLS" keeps its name.
 - **One accent.** Blue (`--app-accent`) is for the primary action, links,
   focus and the current selection. Status colors (`--app-success`,
   `--app-warning`, `--app-error`) only ever mean status.
@@ -48,7 +50,6 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
 | Role | Size / weight |
 | --- | --- |
 | Page title (`PageHeader`) | 1.375rem / 600 |
-| Sub-page title (`PageHeader level=2`) | 1.0625rem / 600 |
 | Section title (`SectionCard`) | 0.9375rem / 600 |
 | Body | 0.875rem |
 | Secondary / descriptions | 0.8125rem, muted |
@@ -57,9 +58,11 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
 
 ## Building blocks (`src/components/ui`)
 
-- **`PageHeader`** (`title`, `description`, `level`; slots `badge`,
-  `actions`): the top of every routed page. Primary action goes rightmost.
-  Settings sub-pages use `level=2` because `Settings` owns the `h1`.
+- **`PageHeader`** (`title`, `description`; slots `badge`, `description`,
+  `actions`): the `h1` of every routed page. The page's primary action goes
+  rightmost in `actions`. On pages with tabs, the primary action follows the
+  active tab (Traffic policy → "Add rate-limit rule", "Add WAF rule", …);
+  list toolbars only hold filters.
 - **`SectionCard`** (`title`, `description`, `flush`, `headingId`,
   `variant="card"|"plain"`; slots `badge`, `actions`, `footer`): every
   content section. Use `flush` for edge-to-edge tables. Use
@@ -78,6 +81,15 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
   for example table columns.
 - `EmptyState`, `DisabledHint`, `AccessibleSelect`: unchanged.
 
+## Layout
+
+- The main column is capped at 88rem and centered; it doesn't grow on
+  ultrawide screens.
+- **Tabs vs. sidebar:** use page tabs only when the tabs share one page
+  header (Proxy, Agents, Traffic policy, Diagnostics). Pages with their own
+  header (Settings pages, Monitor → Traffic flow / Diagnostics) are reached
+  from the sidebar and breadcrumbs, with no tab bar repeating the sidebar.
+
 ## Patterns
 
 - **Tables:** `NDataTable size="small"` inside a flush `SectionCard`
@@ -88,8 +100,11 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
   the actions column with `fixed: "right"`, and shorten long IDs with
   `clip-text` plus a `title` attribute.
 - **Row actions:** at most one inline action that needs attention, then
-  secondary buttons. Put everything else in a "More" menu. Destructive actions
-  use `type="error" secondary` with a text label.
+  Edit. Put everything else, including Delete, in a "More" menu
+  (`aria-label="More actions for …"`). Destructive buttons outside menus use
+  `type="error" secondary` with a text label.
+- **Field-row remove buttons** inside editors show the icon plus a visible
+  "Remove" label, with a specific `aria-label` ("Remove response header").
 - **Editors:** a right-hand `NDrawer` with `editor-drawer` and
   `editorDrawerWidth()`, sticky `editor-drawer-actions` (Cancel, then
   primary).
@@ -97,6 +112,8 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
   `modalCardStyle()` plus `modalScrollableContentStyle()`.
 - **Status:** `NTag size="small" :bordered="false"` with a semantic type, or
   `MetricCard dot` for headline status.
+- **Diagrams:** show what a node is with a neutral muted icon, never a color.
+  Color on a node means live status only (cache hit, agent offline).
 
 ## Accessibility and test contracts
 

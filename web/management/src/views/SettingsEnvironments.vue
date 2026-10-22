@@ -371,7 +371,7 @@ async function submitEnvironment() {
 
 async function deleteEnvironment(environment: Environment) {
   const confirmed = await confirmDialog.confirm(
-    "Delete Environment",
+    "Delete environment",
     `Delete "${diagnosticInspectionText(environment.name)}"? This removes the saved endpoint and access token from this instance.`,
     "Delete",
   );
@@ -624,12 +624,12 @@ function handleTrustModalUpdate(show: boolean) {
 
 <template>
   <div class="stack-xl">
-    <PageHeader title="Environments" :level="2" hide-title description="Remote management endpoints, routing, and certificate trust.">
+    <PageHeader title="Environments" description="Remote management endpoints, routing, and certificate trust.">
       <template #actions>
         <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
           <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
             <template #icon><PlusIcon class="icon-sm" /></template>
-            Add Environment
+            Add environment
           </NButton>
         </DisabledHint>
       </template>
@@ -657,7 +657,7 @@ function handleTrustModalUpdate(show: boolean) {
         v-else
         title="No remote environments"
         description="Add an environment to operate another p2pstream instance from this management panel."
-        action-label="Add Environment"
+        action-label="Add environment"
         @action="openCreateEnvironment"
       />
     </SectionCard>
@@ -666,10 +666,10 @@ function handleTrustModalUpdate(show: boolean) {
       v-model:show="isEnvironmentModalOpen"
       placement="right"
       :width="editorDrawerWidth('42rem')"
-      :aria-label="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
+      :aria-label="environmentForm.id ? 'Edit environment' : 'Add environment'"
       class="editor-drawer"
     >
-      <NDrawerContent :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'" closable>
+      <NDrawerContent :title="environmentForm.id ? 'Edit environment' : 'Add environment'" closable>
       <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitEnvironment">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
@@ -699,11 +699,11 @@ function handleTrustModalUpdate(show: boolean) {
           </span>
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Local Agent
+          Local agent
           <AccessibleSelect v-model:value="environmentForm.agentId" accessible-label="Local agent" size="small" :options="localAgentOptions" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Access Token
+          Access token
           <NInput
             v-model:value="environmentForm.accessToken"
             type="password"
@@ -715,7 +715,7 @@ function handleTrustModalUpdate(show: boolean) {
           />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Response Header Timeout
+          Response header timeout
           <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" placeholder="10000" required>
             <template #suffix>ms</template>
           </NInputNumber>
@@ -730,7 +730,7 @@ function handleTrustModalUpdate(show: boolean) {
         <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
           <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
-            {{ environmentForm.id ? 'Save Changes' : 'Create Environment' }}
+            {{ environmentForm.id ? 'Save changes' : 'Create environment' }}
           </NButton>
         </div>
       </form>
@@ -739,7 +739,7 @@ function handleTrustModalUpdate(show: boolean) {
     <NModal
       :show="Boolean(certificateTrustEnvironment)"
       preset="card"
-      title="Trust Certificate"
+      title="Trust certificate"
       :style="modalCardStyle('34rem')"
       :content-style="modalScrollableContentStyle()"
       :bordered="false"
@@ -755,7 +755,7 @@ function handleTrustModalUpdate(show: boolean) {
               </p>
             </div>
             <div class="layout-grid space-2xs">
-              <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 Fingerprint</p>
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 fingerprint</p>
               <code
                 class="flow-box max-full wrap-anywhere round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs line-relaxed label-case letter-wide base-text"
                 :title="certificateTrustFingerprint"
@@ -790,7 +790,7 @@ function handleTrustModalUpdate(show: boolean) {
               </div>
             </div>
             <div class="layout-grid space-2xs">
-              <p class="copy-xs weight-medium label-case letter-wide muted-text">Valid Until</p>
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Valid until</p>
               <p class="mono-text copy-xs base-text">
                 {{ formatDate(certificateTrustCertificate?.notAfterUnixMillis) }}
               </p>
@@ -805,7 +805,7 @@ function handleTrustModalUpdate(show: boolean) {
             :disabled="Boolean(busyDisabledReason) || !certificateTrustFingerprint"
             @click="confirmTrustCertificate"
           >
-            Trust Certificate
+            Trust certificate
           </NButton>
         </div>
       </div>

@@ -140,7 +140,7 @@ const httpsListenerOptions = computed(() =>
     })),
 );
 const behaviorOptions = [
-  { label: "Serve Site", value: PublicSiteListenerBehavior.SERVE },
+  { label: "Serve site", value: PublicSiteListenerBehavior.SERVE },
   {
     label: "Redirect to HTTPS",
     value: PublicSiteListenerBehavior.REDIRECT_HTTPS,
@@ -182,7 +182,7 @@ const blockerCount = computed(
 );
 const publishDisabledReason = computed(() => {
   if (!editing.value || currentSite.value?.published) return "";
-  if (dirty.value) return "Save Site settings before publishing.";
+  if (dirty.value) return "Save site settings before publishing.";
   if (isBusy.value) return BUSY_REASON;
   return (
     currentSite.value?.readiness.find(
@@ -304,8 +304,8 @@ async function close() {
   if (
     dirty.value &&
     !(await confirm(
-      "Discard Site changes?",
-      "This Site has unsaved settings. Its persisted routes are unaffected.",
+      "Discard site changes?",
+      "This site has unsaved settings. Its persisted routes are unaffected.",
       "Discard changes",
     ))
   )
@@ -464,7 +464,7 @@ function moveRoute(route: PublicRoute, direction: -1 | 1) {
 }
 function handleRouteSaved() {
   routeSaveNotice.value =
-    "Route saved. Your unsaved Site settings are still here.";
+    "Route saved. Your unsaved site settings are still here.";
   emit("saved");
 }
 function readinessTagType(severity: PublicSiteReadinessSeverity) {
@@ -591,7 +591,7 @@ defineExpose({ openCreate, openEdit, close });
     to="body"
     placement="right"
     :width="editorDrawerWidth('76rem')"
-    :aria-label="editing ? 'Site workspace' : 'Create Site workspace'"
+    :aria-label="editing ? 'Site workspace' : 'Create site workspace'"
     class="editor-drawer site-workspace"
     @update:show="handleDrawerVisibility"
   >
@@ -600,7 +600,7 @@ defineExpose({ openCreate, openEdit, close });
         ><div class="site-workspace__header min-width-zero">
           <div class="min-width-zero">
             <h2 class="site-workspace__title">
-              {{ editing ? form.name || "Untitled Site" : "Create a Site" }}
+              {{ editing ? form.name || "Untitled site" : "Create a site" }}
             </h2>
           </div>
           <NTag
@@ -628,7 +628,7 @@ defineExpose({ openCreate, openEdit, close });
               Identity &amp; hostname mode
             </h3>
             <p class="margin-top-xs copy-xs line-normal muted-text">
-              Draft Sites are persisted but do not claim hostnames or receive
+              Draft sites are persisted but do not claim hostnames or receive
               traffic until you publish.
             </p>
           </div>
@@ -645,7 +645,7 @@ defineExpose({ openCreate, openEdit, close });
                 :disabled="Boolean(publishDisabledReason)"
                 @click="publishSite"
                 ><template #icon><ArrowIcon class="icon-sm" /></template>Publish
-                Site</NButton
+                site</NButton
               ></DisabledHint
             ><span class="copy-xs muted-text align-right-text"
               >Publication revalidates every listener and hostname.</span
@@ -678,7 +678,7 @@ defineExpose({ openCreate, openEdit, close });
               @update:model-value="setHostnameMode"
             />
             <span class="copy-xs line-normal muted-text"
-              >A Default Site handles hostnames that no published named Site
+              >A default site handles hostnames that no published named site
               claims on the listener.</span
             >
           </div>
@@ -699,7 +699,7 @@ defineExpose({ openCreate, openEdit, close });
                 Hostnames
               </h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                Exact and one-label wildcard hostnames share this Site’s routes.
+                Exact and one-label wildcard hostnames share this site’s routes.
               </p>
             </div>
             <NButton
@@ -741,7 +741,7 @@ defineExpose({ openCreate, openEdit, close });
                 :aria-label="`Remove hostname ${index + 1}`"
                 @click="removeHostname(index)"
                 ><template #icon><TrashIcon class="icon-sm" /></template
-              ></NButton>
+              >Remove</NButton>
             </div>
           </div>
           <button
@@ -768,7 +768,7 @@ defineExpose({ openCreate, openEdit, close });
               placeholder="app.example.com"
             /><span class="weight-normal"
               >An exact preferred hostname for redirects and links.
-              Wildcard-only Sites can leave this empty.</span
+              Wildcard-only sites can leave this empty.</span
             ></label
           >
         </section>
@@ -786,7 +786,7 @@ defineExpose({ openCreate, openEdit, close });
                 Listener assignments
               </h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                Attach any number of listeners. An unassigned Site remains
+                Attach any number of listeners. An unassigned site remains
                 available but serves no traffic.
               </p>
             </div>
@@ -859,17 +859,17 @@ defineExpose({ openCreate, openEdit, close });
                 :aria-label="`Remove listener assignment ${index + 1}`"
                 @click="removeBinding(index)"
                 ><template #icon><TrashIcon class="icon-sm" /></template
-              ></NButton>
+              >Remove</NButton>
               <p class="site-binding-row__note copy-xs line-normal muted-text">
                 Removing this assignment releases hostname ownership on that
-                listener after save; the Site and its routes remain intact.
+                listener after save; the site and its routes remain intact.
               </p>
             </div>
           </div>
           <div v-else class="site-empty-note">
             <strong>Not attached</strong
             ><span
-              >This Site is retained as inactive configuration and can be
+              >This site is retained as inactive configuration and can be
               attached later.</span
             >
           </div>
@@ -982,8 +982,8 @@ defineExpose({ openCreate, openEdit, close });
                 Routes
               </h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                Paths stay inside this Site. A missing path never falls through
-                to another Site.
+                Paths stay inside this site. A missing path never falls through
+                to another site.
               </p>
             </div>
             <NButton
@@ -996,7 +996,7 @@ defineExpose({ openCreate, openEdit, close });
             >
           </div>
           <p v-if="dirty" class="copy-xs line-normal warning-text">
-            Routes use this Site’s saved bindings. Your unsaved Site settings
+            Routes use this site’s saved bindings. Your unsaved site settings
             remain in the workspace when a route is saved.
           </p>
           <p v-if="routeSaveNotice" class="copy-xs success-text" role="status">
@@ -1114,7 +1114,7 @@ defineExpose({ openCreate, openEdit, close });
               ><strong>Add the first route</strong
               ><small
                 >Configure a path, action, and full target pool without leaving
-                this Site.</small
+                this site.</small
               ></span
             >
           </button>
@@ -1128,7 +1128,7 @@ defineExpose({ openCreate, openEdit, close });
           <span class="copy-xs muted-text">{{
             editing
               ? dirty
-                ? "Unsaved Site settings"
+                ? "Unsaved site settings"
                 : "Site settings saved"
               : "Create the draft to start adding routes"
           }}</span>
@@ -1142,7 +1142,7 @@ defineExpose({ openCreate, openEdit, close });
                 attr-type="submit"
                 :disabled="Boolean(submitDisabledReason)"
                 >{{
-                  editing ? "Save Site settings" : "Create draft Site"
+                  editing ? "Save site settings" : "Create draft site"
                 }}</NButton
               ></DisabledHint
             >
@@ -1252,8 +1252,6 @@ defineExpose({ openCreate, openEdit, close });
 .site-readiness__item + .site-readiness__item {
   border-top: 1px solid var(--app-border-subtle);
 }
-.site-host-row > :deep(.n-button),
-.site-binding-row > :deep(.n-button),
 .site-route-row__actions :deep(.n-button) {
   width: 2.125rem;
   min-width: 2.125rem;

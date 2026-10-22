@@ -9,10 +9,10 @@ test("shares editable remote setup across install, repair, and updates", async (
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/p2pstream.v1.AgentManagementService/**", (route) => { errors.push("Unexpected live management request"); return route.abort(); });
   await page.goto("/e2e/fixtures/agent-setup.html#/agent");
-  await page.getByRole("button", { name: "Add Agent", exact: true }).click();
+  await page.getByRole("button", { name: "Add agent", exact: true }).click();
   await page.getByTestId("agent-editor-form").locator("input").first().fill("Fixture Agent");
-  await page.getByRole("button", { name: "Create Agent", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Create agent", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Install agent", exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Management URL", exact: true })).toHaveValue("https://remote.example.test:8443");
   let command = await page.locator(".agent-setup-command code").innerText();
   expect(command).toContain("AGENT_TOKEN='fixture-agent-token'");
@@ -21,11 +21,11 @@ test("shares editable remote setup across install, repair, and updates", async (
   await page.getByRole("button", { name: "Copy install command", exact: true }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(command);
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Install agent", exact: true })).toBeHidden();
 
   await page.getByRole("button", { name: /More actions for agent/ }).click();
   await page.getByRole("menuitem", { name: /Reinstall or repair/ }).click();
-  await expect(page.getByRole("heading", { name: "Reinstall / Repair Agent", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reinstall / repair agent", exact: true })).toBeVisible();
   const address = page.getByRole("textbox", { name: "Management URL", exact: true });
   await expect(address).toBeEnabled();
   await expect(address).toHaveValue("https://remote.example.test:8443");
@@ -41,8 +41,8 @@ test("shares editable remote setup across install, repair, and updates", async (
 
   await page.getByRole("button", { name: /More actions for agent/ }).click();
   await page.getByRole("menuitem", { name: /Rotate token/ }).click();
-  await page.getByRole("button", { name: "Rotate Token", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Apply Rotated Token", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Rotate token", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Apply rotated token", exact: true })).toBeVisible();
   command = await page.locator(".agent-setup-command code").innerText();
   expect(command).toContain("AGENT_TOKEN='fixture-rotated-token'");
   expect(command).toContain("systemctl restart p2pstream-agent");
@@ -53,7 +53,7 @@ test("shares editable remote setup across install, repair, and updates", async (
 
   await page.goto("/e2e/fixtures/agent-setup.html#/agent/updates");
   await page.getByRole("button", { name: "Enable managed updates", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Enable Managed Updates", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enable managed updates", exact: true })).toBeVisible();
   await expect(address).toBeEnabled();
   await expect(address).toHaveValue("https://remote.example.test:8443");
   await address.fill("https://agents.example.test:9443");
@@ -77,6 +77,6 @@ test("shares editable remote setup across install, repair, and updates", async (
   await expect(address).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("shared-agent-setup-mobile.png") });
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Enable Managed Updates", exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Enable managed updates", exact: true })).toBeHidden();
   expect(errors).toEqual([]);
 });

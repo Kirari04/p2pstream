@@ -295,12 +295,12 @@ defineExpose({ openFor, close });
     to="body"
     placement="right"
     :width="editorDrawerWidth('38rem')"
-    :aria-label="form.id ? 'Edit TLS for Site' : 'Configure TLS for Site'"
+    :aria-label="form.id ? 'Edit TLS for site' : 'Configure TLS for site'"
     class="editor-drawer"
     @update:show="handleDrawerVisibility"
   >
     <NDrawerContent
-      :title="form.id ? 'Edit TLS for Site' : 'Configure TLS for Site'"
+      :title="form.id ? 'Edit TLS for site' : 'Configure TLS for site'"
       closable
     >
       <form
@@ -310,8 +310,8 @@ defineExpose({ openFor, close });
         <p class="copy-sm muted-text">
           {{
             form.id
-              ? "Repair this certificate mapping without leaving the Site workspace."
-              : "Create a certificate mapping without leaving the Site workspace."
+              ? "Repair this certificate mapping without leaving the site workspace."
+              : "Create a certificate mapping without leaving the site workspace."
           }}
           Readiness refreshes after it is saved.
         </p>
@@ -455,7 +455,7 @@ defineExpose({ openFor, close });
               attr-type="submit"
               :disabled="Boolean(submitDisabledReason)"
             >
-              {{ form.id ? "Save TLS Mapping" : "Create TLS Mapping" }}
+              {{ form.id ? "Save TLS mapping" : "Create TLS mapping" }}
             </NButton>
           </DisabledHint>
         </div>

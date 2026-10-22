@@ -511,10 +511,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('64rem')"
-    :aria-label="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'"
+    :aria-label="form.id ? 'Edit WAF rule' : 'Add WAF rule'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'" closable>
+    <NDrawerContent :title="form.id ? 'Edit WAF rule' : 'Add WAF rule'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
@@ -747,7 +747,7 @@ defineExpose({ openCreate, openEdit, close });
         <div class="layout-grid space-sm">
           <div class="layout-row align-center spread-items space-md">
             <span class="copy-xs weight-medium muted-text">Headers</span>
-            <NButton secondary size="small" attr-type="button" @click="addBlockHeader">Add Header</NButton>
+            <NButton secondary size="small" attr-type="button" @click="addBlockHeader">Add header</NButton>
           </div>
           <p v-if="!form.blockResponseHeaders.length" class="copy-xs muted-text">No extra response headers.</p>
           <div v-for="(header, index) in form.blockResponseHeaders" :key="index" class="layout-grid space-sm mq-sm-two-auto">
@@ -764,6 +764,7 @@ defineExpose({ openCreate, openEdit, close });
               @click="removeBlockHeader(index)"
             >
               <template #icon><TrashIcon class="icon-sm" /></template>
+              Remove
             </NButton>
           </div>
         </div>
@@ -773,7 +774,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-            {{ form.id ? 'Save Changes' : 'Create Rule' }}
+            {{ form.id ? 'Save changes' : 'Create rule' }}
           </NButton>
         </DisabledHint>
       </div>
@@ -795,12 +796,6 @@ label.layout-grid {
 
 :deep(.disabled-hint-full > .n-input-number) {
   flex: 1 1 auto;
-}
-
-.row-remove-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0 !important;
 }
 
 .waf-flow-steps {

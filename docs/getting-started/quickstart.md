@@ -74,18 +74,18 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Optional server updates
 
-After first login, **System → Server Updates** offers a release-based setup command for this server. New releases provide a `curl … | sudo sh` one-liner; older releases retain their full setup block. Installing the dedicated Docker-authorized updater is optional and restarts the server once. The page reconnects and confirms its availability. Setup preserves editable Compose copies beside the original entry points. Edit those saved inputs and `.env`, then run `sudo /etc/p2pstream-server-updater/manage apply`; use the UI for operator-triggered software updates. Ordinary recreation retains the applied deployment after new enrollment or migration. Server updates leave the host updater pinned; it does not self-update. Read [server update operations](../operations/server-updates) before enrollment.
+After first login, **System → Server updates** offers a release-based setup command for this server. New releases provide a `curl … | sudo sh` one-liner; older releases retain their full setup block. Installing the dedicated Docker-authorized updater is optional and restarts the server once. The page reconnects and confirms its availability. Setup preserves editable Compose copies beside the original entry points. Edit those saved inputs and `.env`, then run `sudo /etc/p2pstream-server-updater/manage apply`; use the UI for operator-triggered software updates. Ordinary recreation retains the applied deployment after new enrollment or migration. Server updates leave the host updater pinned; it does not self-update. Read [server update operations](../operations/server-updates) before enrollment.
 
 ## Verification
 
-The first browser visit should show **Setup Admin**. After setup, **Overview** should load. **Proxy -> Listeners** shows the seeded `public-http` and `public-https` listeners. Open their shared published Default Site under **Proxy -> Sites** to inspect its welcome route and static target. Create a separate draft Site for your application's hostnames, configure its routes inside the Site workspace, review readiness, and publish when ready.
+The first browser visit should show **Setup admin**. After setup, **Overview** should load. **Proxy -> Listeners** shows the seeded `public-http` and `public-https` listeners. Open their shared published default site under **Proxy -> Sites** to inspect its welcome route and static target. Create a separate draft site for your application's hostnames, configure its routes inside the site workspace, review readiness, and publish when ready.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">
   <figcaption>The first-run setup screen appears only before the initial admin user exists. Use the setup token from the configured environment or server startup log.</figcaption>
 </figure>
 
-Default Sites handle hostnames that no named Site owns. A published named Site keeps its own routing boundary, including when a path has no matching route. See [Sites](../reference/sites) for listener assignments, publication, and migration of older routing configurations.
+Default sites handle hostnames that no named site owns. A published named site keeps its own routing boundary, including when a path has no matching route. See [Sites](../reference/sites) for listener assignments, publication, and migration of older routing configurations.
 
 On a new database, p2pstream seeds:
 

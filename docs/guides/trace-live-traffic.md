@@ -38,8 +38,8 @@ Use tracing while diagnosing why a request did not match a route, hit a target, 
 5. Select the request in **Recent traces** to open the **Trace details** drawer and inspect its outcome, resolved flow, lifecycle, and policy decisions. You can also select an active request token in the flow diagram.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic Flow page with Detailed tracing enabled and request paths rendered across policy, routing, agents, and upstreams">
-  <figcaption>With Tracing enabled, Monitor's Traffic Flow view renders sampled requests across policy, routing, target selection, cache decisions, agents, upstreams, and responses.</figcaption>
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic flow page with Detailed tracing enabled and request paths rendered across policy, routing, agents, and upstreams">
+  <figcaption>With Tracing enabled, Monitor's Traffic flow view renders sampled requests across policy, routing, target selection, cache decisions, agents, upstreams, and responses.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
@@ -55,7 +55,7 @@ Common stages include received, WAF evaluated, rate limited, route resolved, tar
 
 ## Verification
 
-A matching request should appear in **Recent traces** shortly after you reproduce it, while its activity is reflected in **Traffic Flow**. Cache is shown as a decision gateway after target selection: hits exit to response, while misses and bypasses continue to the direct upstream or selected agent. Agent failover emits an **Upstream retry** stage and the trace details show the retry rule, attempt count, and final outcome.
+A matching request should appear in **Recent traces** shortly after you reproduce it, while its activity is reflected in **Traffic flow**. Cache is shown as a decision gateway after target selection: hits exit to response, while misses and bypasses continue to the direct upstream or selected agent. Agent failover emits an **Upstream retry** stage and the trace details show the retry rule, attempt count, and final outcome.
 
 ## Troubleshooting
 

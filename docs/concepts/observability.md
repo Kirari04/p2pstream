@@ -22,7 +22,7 @@ Proxy request events include status code, duration, error kind, listener ID, rou
 
 Agents report memory, CPU percentage, goroutine count, active requests, request outcome counters, bytes received, and bytes sent.
 
-Traffic tracing levels (tracing records every matching request; the Traffic Flow visualization may display a sampled subset of recorded paths so busy systems remain readable):
+Traffic tracing levels (tracing records every matching request; the Traffic flow visualization may display a sampled subset of recorded paths so busy systems remain readable):
 
 | Level | Includes |
 | --- | --- |

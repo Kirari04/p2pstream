@@ -6,7 +6,7 @@ test("renders the traffic flow diagram through the management page", async ({ pa
   await authenticate(page, baseURL);
 
   await page.goto("/#/monitor/traffic");
-  await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Traffic flow", exact: true })).toBeVisible();
 
   const diagram = page.locator(".traffic-flow-shell");
   await expect(diagram).toBeVisible();
@@ -65,10 +65,10 @@ test("routes monitor traffic and diagnostics subpages", async ({ page }, testInf
   await expect(page).toHaveURL(/#\/monitor\/traffic$/);
   const monitorNav = page.getByLabel("Management navigation").getByRole("link", { name: "Monitor" });
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
-  await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Traffic flow", exact: true })).toBeVisible();
   await expect(page.locator(".traffic-flow-shell")).toBeVisible();
 
-  await page.locator(".monitor-tabs").getByText("Diagnostics", { exact: true }).click();
+  await page.getByLabel("Management navigation").getByRole("link", { name: "Diagnostics", exact: true }).click();
   await expect(page).toHaveURL(/#\/monitor\/diagnostics\/overview$/);
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
   await expect(page.getByRole("heading", { name: "Diagnostics", exact: true })).toBeVisible();
@@ -83,7 +83,7 @@ test("removed legacy traffic and diagnostics URLs show not found", async ({ page
 
   await page.goto(legacyHashPath("traffic"));
   await expect(page.getByText("Page not found", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Traffic flow", exact: true })).toBeHidden();
 
   await page.goto(legacyHashPath("diagnostics"));
   await expect(page.getByText("Page not found", { exact: true })).toBeVisible();

@@ -59,7 +59,7 @@ async function submitCustom() {
         <ArrowLeftIcon class="icon-sm" />
         Management TLS
       </RouterLink>
-      <PageHeader title="Certificate rotation" :level="2" description="Stage a new certificate, distribute trust to agents, then activate it and retire the old CA.">
+      <PageHeader title="Certificate rotation" description="Stage a new certificate, distribute trust to agents, then activate it and retire the old CA.">
         <template #actions>
           <NButton secondary size="small" :loading="loading && !operation" aria-label="Refresh rotation status" @click="refresh()">
             <template #icon><RefreshIcon class="icon-sm" /></template>

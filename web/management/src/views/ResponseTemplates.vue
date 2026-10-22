@@ -41,10 +41,10 @@ const summaryCards = computed(() => [
   { label: "Sign-in", value: templates.value.filter((template) => template.kind === PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE).length.toString(), detail: "Local access pages" },
 ]);
 const presetActions = [
-  { label: "New Generic Body", kind: PublicResponseTemplateKind.GENERIC_BODY },
-  { label: "New Captcha Page", kind: PublicResponseTemplateKind.WAF_CAPTCHA_PAGE },
-  { label: "New Waiting Room", kind: PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE },
-  { label: "New Sign-in Page", kind: PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE },
+  { label: "New generic body", kind: PublicResponseTemplateKind.GENERIC_BODY },
+  { label: "New captcha page", kind: PublicResponseTemplateKind.WAF_CAPTCHA_PAGE },
+  { label: "New waiting room", kind: PublicResponseTemplateKind.WAF_WAITING_ROOM_PAGE },
+  { label: "New sign-in page", kind: PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE },
 ];
 const deleteBlockedReason = "Remove all references before deleting this template.";
 const templateUsageCounts = computed(() => {
@@ -242,7 +242,7 @@ function openEdit(template: PublicResponseTemplate) {
 async function deleteTemplate(template: PublicResponseTemplate) {
   const uses = usageCount(template);
   if (uses > 0) return;
-  if (!await confirm("Delete Response Template", `Delete ${template.name}? This cannot be undone.`)) return;
+  if (!await confirm("Delete response template", `Delete ${template.name}? This cannot be undone.`)) return;
   if (!runManagementAction) return;
   await runManagementAction(async () => {
     await managementClient.deletePublicResponseTemplate({ id: template.id });
@@ -253,11 +253,11 @@ async function deleteTemplate(template: PublicResponseTemplate) {
 
 <template>
   <div class="stack-xl">
-    <PageHeader title="Response Templates" description="Reusable response bodies, security pages, and local-access sign-in forms.">
+    <PageHeader title="Response templates" description="Reusable response bodies, security pages, and local-access sign-in forms.">
       <template #actions>
         <NButton type="primary" size="small" @click="openCreate()">
           <template #icon><PlusIcon class="icon-sm" /></template>
-          Add Template
+          Add template
         </NButton>
       </template>
     </PageHeader>
@@ -286,7 +286,7 @@ async function deleteTemplate(template: PublicResponseTemplate) {
         v-else
         title="No response templates"
         description="Create reusable bodies for static targets, rate limits, WAF pages, and local-access sign-in forms."
-        action-label="Add Template"
+        action-label="Add template"
         @action="openCreate()"
       />
       <template #footer>

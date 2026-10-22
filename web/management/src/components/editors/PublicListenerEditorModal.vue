@@ -179,11 +179,11 @@ defineExpose({ openCreate, openEdit, close });
     @update:show="handleDrawerVisibility"
     placement="right"
     :width="editorDrawerWidth('36rem')"
-    :aria-label="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+    :aria-label="listenerForm.id ? 'Edit listener' : 'Add listener'"
     class="editor-drawer"
   >
     <NDrawerContent
-      :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+      :title="listenerForm.id ? 'Edit listener' : 'Add listener'"
       closable
     >
       <form
@@ -258,7 +258,7 @@ defineExpose({ openCreate, openEdit, close });
               attr-type="submit"
               :disabled="Boolean(listenerSubmitDisabledReason)"
             >
-              {{ listenerForm.id ? "Save Changes" : "Create Listener" }}
+              {{ listenerForm.id ? "Save changes" : "Create listener" }}
             </NButton>
           </DisabledHint>
         </div>

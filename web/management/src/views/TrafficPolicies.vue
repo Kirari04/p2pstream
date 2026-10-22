@@ -154,12 +154,12 @@ const policyAttention = computed(() => trafficPolicyAttentionWarnings({
 }));
 const globalPolicyAttention = computed(() => policyAttention.value.filter((item) => item.ruleId === undefined && !item.ruleIds?.length));
 const executionStages = computed(() => [
-  { key: "precheck", label: "Path Checks", description: "reserved endpoints + route security", icon: "listener" as const },
+  { key: "precheck", label: "Path checks", description: "reserved endpoints + route security", icon: "listener" as const },
   { key: "waf", label: "WAF", description: "first matching enforceable rule", icon: "waf" as const, tags: countTags(enabledWafRules.value) },
-  { key: "rate-limit", label: "Rate Limits", description: "all matching request budgets", icon: "rate-limit" as const, tags: countTags(enabledRateLimitRules.value) },
+  { key: "rate-limit", label: "Rate limits", description: "all matching request budgets", icon: "rate-limit" as const, tags: countTags(enabledRateLimitRules.value) },
   { key: "access", label: "Access", description: "route identity and group check", icon: "route" as const, tags: countTags(enabledAccessPolicies.value) },
-  { key: "traffic-shaper", label: "Traffic Shaper", description: "first matching bandwidth budget", icon: "traffic-shaper" as const, tags: countTags(enabledTrafficShapers.value) },
-  { key: "route", label: "Route / Target", description: "selected before cache", icon: "route" as const },
+  { key: "traffic-shaper", label: "Traffic shaper", description: "first matching bandwidth budget", icon: "traffic-shaper" as const, tags: countTags(enabledTrafficShapers.value) },
+  { key: "route", label: "Route / target", description: "selected before cache", icon: "route" as const },
   { key: "cache", label: "Cache", description: "first matching cacheable request", icon: "cache" as const, tags: countTags(enabledCacheRules.value) },
   { key: "retry", label: "Retries", description: "transport failures + selected statuses", icon: "retry" as const, tags: countTags(enabledRetryRules.value) },
   { key: "response", label: "Response", description: "upstream, cached, or terminal", icon: "response" as const },
@@ -217,7 +217,7 @@ let cacheSettingsSyncing = false;
 const policySections: readonly PolicySectionMeta[] = [
   {
     key: "rate-limits",
-    label: "Rate Limits",
+    label: "Rate limits",
     description: "Throttle traffic based on request rate per client or route.",
   },
   {
@@ -242,11 +242,19 @@ const policySections: readonly PolicySectionMeta[] = [
   },
   {
     key: "traffic-shaper",
-    label: "Traffic Shaper",
+    label: "Traffic shaper",
     description: "Limit bandwidth consumption per request or client.",
   },
 ];
 const activePolicySection = computed<PolicySectionKey>(() => normalizePolicySection(route.params.section));
+const policyPrimaryActions: Partial<Record<PolicySectionKey, { label: string; run: () => void }>> = {
+  "rate-limits": { label: "Add rate-limit rule", run: openAddRateLimitRuleModal },
+  waf: { label: "Add WAF rule", run: openAddWafRuleModal },
+  cache: { label: "Add cache rule", run: openAddCacheRuleModal },
+  retries: { label: "Add retry rule", run: openAddRetryRuleModal },
+  "traffic-shaper": { label: "Add traffic shaper", run: openAddTrafficShaperRuleModal },
+};
+const activePolicyPrimaryAction = computed(() => policyPrimaryActions[activePolicySection.value]);
 const activePolicyMeta = computed(() => (
   policySections.find((section) => section.key === activePolicySection.value) ?? policySections[0]
 ));
@@ -677,35 +685,35 @@ function editTrafficShaperRule(id: bigint) {
 }
 
 async function deleteRateLimitRule(id: bigint) {
-  if (!await confirm("Delete Rate Limit Rule", "This rate-limit rule will be permanently removed.")) return;
+  if (!await confirm("Delete rate limit rule", "This rate-limit rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicRateLimitRule({ id });
   });
 }
 
 async function deleteWafRule(id: bigint) {
-  if (!await confirm("Delete WAF Rule", "This WAF rule will be permanently removed.")) return;
+  if (!await confirm("Delete WAF rule", "This WAF rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicWafRule({ id });
   });
 }
 
 async function deleteWafCaptchaProvider(id: bigint) {
-  if (!await confirm("Delete Captcha Provider", "This captcha provider will be permanently removed. Captcha rules using it must be updated first.")) return;
+  if (!await confirm("Delete captcha provider", "This captcha provider will be permanently removed. Captcha rules using it must be updated first.")) return;
   await run(async () => {
     await managementClient.deletePublicWafCaptchaProvider({ id });
   });
 }
 
 async function deleteCacheRule(id: bigint) {
-  if (!await confirm("Delete Cache Rule", "This cache rule will be permanently removed. Existing cached objects for the rule may be purged separately.")) return;
+  if (!await confirm("Delete cache rule", "This cache rule will be permanently removed. Existing cached objects for the rule may be purged separately.")) return;
   await run(async () => {
     await managementClient.deletePublicCacheRule({ id });
   });
 }
 
 async function deleteRetryRule(id: bigint) {
-  if (!await confirm("Delete Request Retry Rule", "This request retry rule will be permanently removed.")) return;
+  if (!await confirm("Delete request retry rule", "This request retry rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicRetryRule({ id });
   });
@@ -738,7 +746,7 @@ async function saveCacheSettings() {
 }
 
 async function deleteTrafficShaperRule(id: bigint) {
-  if (!await confirm("Delete Traffic Shaper Rule", "This traffic-shaper rule will be permanently removed.")) return;
+  if (!await confirm("Delete traffic shaper rule", "This traffic-shaper rule will be permanently removed.")) return;
   await run(async () => {
     await managementClient.deletePublicTrafficShaperRule({ id });
   });
@@ -747,14 +755,18 @@ async function deleteTrafficShaperRule(id: bigint) {
 
 <template>
   <div v-if="dashboard" class="stack-lg">
-    <PageHeader title="Traffic Policy">
+    <PageHeader title="Traffic policy">
       <template #description>
         <span id="traffic-policy-page-description">{{ activePolicyMeta.description }}</span>
       </template>
       <template #actions>
         <NButton secondary size="small" @click="isPreviewOpen = true">
           <template #icon><SearchIcon class="icon-sm" /></template>
-          Request Tester
+          Request tester
+        </NButton>
+        <NButton v-if="activePolicyPrimaryAction" type="primary" size="small" @click="activePolicyPrimaryAction.run">
+          <template #icon><PlusIcon class="icon-sm" /></template>
+          {{ activePolicyPrimaryAction.label }}
         </NButton>
       </template>
     </PageHeader>
@@ -786,8 +798,8 @@ async function deleteTrafficShaperRule(id: bigint) {
         name="rate-limits"
         role="tabpanel"
         aria-labelledby="traffic-policy-tab-rate-limits"
-        :tab="`Rate Limits · ${enabledRateLimitRules}/${rateLimitRules.length}`"
-        :tab-props="policyTabProps('rate-limits', `Rate Limits, ${enabledCountLabel(enabledRateLimitRules, rateLimitRules.length)}`)"
+        :tab="`Rate limits · ${enabledRateLimitRules}/${rateLimitRules.length}`"
+        :tab-props="policyTabProps('rate-limits', `Rate limits, ${enabledCountLabel(enabledRateLimitRules, rateLimitRules.length)}`)"
       >
         <SectionCard flush>
           <div class="policy-list-toolbar">
@@ -820,10 +832,6 @@ async function deleteTrafficShaperRule(id: bigint) {
                 {{ policyFilterResultLabel('rate-limits', filteredRateLimitRules.length, rateLimitRules.length) }}
               </p>
             </div>
-            <NButton type="primary" size="small" @click="openAddRateLimitRuleModal">
-              <template #icon><PlusIcon class="icon-sm" /></template>
-              Add Rate-Limit Rule
-            </NButton>
           </div>
           <div v-if="filteredRateLimitRules.length" class="policy-data-table" role="table" aria-label="Rate-limit rules">
             <div role="rowgroup">
@@ -909,7 +917,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             v-if="!rateLimitRules.length"
             title="No rate-limit rules configured"
             description="Rate limits protect your route targets from excessive traffic by throttling requests per client or route."
-            action-label="Add Rate-Limit Rule"
+            action-label="Add rate-limit rule"
             @action="openAddRateLimitRuleModal"
           />
         </SectionCard>
@@ -950,10 +958,6 @@ async function deleteTrafficShaperRule(id: bigint) {
                   {{ policyFilterResultLabel('waf', filteredWafRules.length, wafRules.length) }}
                 </p>
               </div>
-              <NButton type="primary" size="small" @click="openAddWafRuleModal">
-                <template #icon><PlusIcon class="icon-sm" /></template>
-                Add WAF Rule
-              </NButton>
             </div>
             <div v-if="filteredWafRules.length" class="policy-data-table" role="table" aria-label="WAF rules">
               <div role="rowgroup">
@@ -1041,7 +1045,7 @@ async function deleteTrafficShaperRule(id: bigint) {
               v-if="!wafRules.length"
               title="No WAF rules configured"
               description="WAF rules can block, challenge, or queue selected traffic before rate limits, shapers, routes, and targets."
-              action-label="Add WAF Rule"
+              action-label="Add WAF rule"
               @action="openAddWafRuleModal"
             />
           </SectionCard>
@@ -1053,7 +1057,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             <template #actions>
               <NButton secondary size="small" @click="openAddWafCaptchaProviderModal">
                 <template #icon><PlusIcon class="icon-sm" /></template>
-                Add Captcha Provider
+                Add captcha provider
               </NButton>
             </template>
             <div v-if="wafCaptchaProviders.length" class="policy-data-table" role="table" aria-label="Captcha providers">
@@ -1167,10 +1171,6 @@ async function deleteTrafficShaperRule(id: bigint) {
                   {{ policyFilterResultLabel('cache', filteredCacheRules.length, cacheRules.length) }}
                 </p>
               </div>
-              <NButton type="primary" size="small" @click="openAddCacheRuleModal">
-                <template #icon><PlusIcon class="icon-sm" /></template>
-                Add Cache Rule
-              </NButton>
             </div>
             <div v-if="filteredCacheRules.length" class="policy-data-table" role="table" aria-label="Cache rules">
               <div role="rowgroup">
@@ -1258,7 +1258,7 @@ async function deleteTrafficShaperRule(id: bigint) {
               v-if="!cacheRules.length"
               title="No cache rules configured"
               description="Cache rules store public GET assets such as CSS, JavaScript, images, and fonts on the proxy. Authorization and Cookie requests always bypass shared cache."
-              action-label="Add Cache Rule"
+              action-label="Add cache rule"
               @action="openAddCacheRuleModal"
             />
           </SectionCard>
@@ -1430,10 +1430,6 @@ async function deleteTrafficShaperRule(id: bigint) {
                   {{ policyFilterResultLabel('retries', filteredRetryRules.length, retryRules.length) }}
                 </p>
               </div>
-              <NButton type="primary" size="small" @click="openAddRetryRuleModal">
-                <template #icon><PlusIcon class="icon-sm" /></template>
-                Add Retry Rule
-              </NButton>
             </div>
 
             <div v-if="filteredRetryRules.length" class="policy-data-table" role="table" aria-label="Request retry rules">
@@ -1529,7 +1525,7 @@ async function deleteTrafficShaperRule(id: bigint) {
               v-if="!retryRules.length"
               title="No request retries configured"
               description="Add an opt-in rule to retry selected requests through a different agent when an agent tunnel or VPN connection fails. GET and HEAD with one connection-only retry is the safest starting point."
-              action-label="Add Retry Rule"
+              action-label="Add retry rule"
               @action="openAddRetryRuleModal"
             />
           </SectionCard>
@@ -1541,8 +1537,8 @@ async function deleteTrafficShaperRule(id: bigint) {
         name="traffic-shaper"
         role="tabpanel"
         aria-labelledby="traffic-policy-tab-traffic-shaper"
-        :tab="`Traffic Shaper · ${enabledTrafficShapers}/${trafficShaperRules.length}`"
-        :tab-props="policyTabProps('traffic-shaper', `Traffic Shaper, ${enabledCountLabel(enabledTrafficShapers, trafficShaperRules.length)}`)"
+        :tab="`Traffic shaper · ${enabledTrafficShapers}/${trafficShaperRules.length}`"
+        :tab-props="policyTabProps('traffic-shaper', `Traffic shaper, ${enabledCountLabel(enabledTrafficShapers, trafficShaperRules.length)}`)"
       >
         <SectionCard flush>
           <div class="policy-list-toolbar">
@@ -1575,10 +1571,6 @@ async function deleteTrafficShaperRule(id: bigint) {
                 {{ policyFilterResultLabel('traffic-shaper', filteredTrafficShaperRules.length, trafficShaperRules.length) }}
               </p>
             </div>
-            <NButton type="primary" size="small" @click="openAddTrafficShaperRuleModal">
-              <template #icon><PlusIcon class="icon-sm" /></template>
-              Add Traffic Shaper
-            </NButton>
           </div>
           <div v-if="filteredTrafficShaperRules.length" class="policy-data-table" role="table" aria-label="Traffic-shaper rules">
             <div role="rowgroup">
@@ -1668,7 +1660,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             v-if="!trafficShaperRules.length"
             title="No traffic-shaper rules configured"
             description="Traffic shapers limit bandwidth consumption per request or client to prevent saturation."
-            action-label="Add Traffic Shaper"
+            action-label="Add traffic shaper"
             @action="openAddTrafficShaperRuleModal"
           />
         </SectionCard>
@@ -1681,10 +1673,10 @@ async function deleteTrafficShaperRule(id: bigint) {
       v-model:show="isPreviewOpen"
       placement="right"
       :width="editorDrawerWidth('76rem')"
-      aria-label="Request Tester"
+      aria-label="Request tester"
       class="editor-drawer"
     >
-      <NDrawerContent title="Request Tester" closable>
+      <NDrawerContent title="Request tester" closable>
         <TrafficPolicyRequestPlayground
           :model-value="previewForm"
           :stages="playgroundStages"
@@ -1760,7 +1752,7 @@ async function deleteTrafficShaperRule(id: bigint) {
   margin-bottom: 1rem;
 }
 
-/* List toolbar: filters on the left, the tab's primary action on the right. */
+/* List toolbar: the tab's filters. Its primary action lives in the page header. */
 .policy-list-toolbar {
   display: grid;
   gap: 0.75rem;
@@ -2075,11 +2067,6 @@ async function deleteTrafficShaperRule(id: bigint) {
 }
 
 @media (min-width: 640px) {
-  .policy-list-toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-  }
-
   .policy-local-filter {
     grid-template-columns: minmax(12rem, 22rem) minmax(9rem, 11rem) auto auto;
     align-items: center;
@@ -2094,10 +2081,6 @@ async function deleteTrafficShaperRule(id: bigint) {
 
   .policy-list-toolbar {
     padding-inline: 1rem;
-  }
-
-  .policy-list-toolbar > :deep(.n-button) {
-    width: 100%;
   }
 
   .policy-inline-row,

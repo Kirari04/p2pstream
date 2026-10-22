@@ -2,7 +2,7 @@
 
 Public TLS is configured per HTTPS listener with certificate mappings.
 
-In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add Certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
+In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
 
 ## Exact Fields And Defaults
 

@@ -1,11 +1,42 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type Component } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
-import type { TrafficNodeData } from "@/lib/trafficFlowModel";
+import {
+  Box,
+  CornerUpRight,
+  Crosshair,
+  Database,
+  Gauge,
+  Globe,
+  Plug,
+  Reply,
+  Server,
+  Shield,
+  Signpost,
+  Waves,
+} from "@lucide/vue";
+import type { TrafficNodeData, TrafficNodeKind } from "@/lib/trafficFlowModel";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 
 const props = defineProps<NodeProps<TrafficNodeData>>();
+
+// Neutral kind markers: the icon says what a node is, color stays reserved for live status.
+const kindIcons: Record<TrafficNodeKind, Component> = {
+  ingress: Globe,
+  listener: Plug,
+  waf: Shield,
+  "rate-limit": Gauge,
+  "traffic-shaper": Waves,
+  cache: Database,
+  route: Signpost,
+  target: Crosshair,
+  redirect: CornerUpRight,
+  agent: Server,
+  upstream: Box,
+  response: Reply,
+};
+const kindIcon = computed(() => kindIcons[props.data.kind]);
 
 const labelText = computed(() => diagnosticExcerpt(props.data.label || "—", 34).text);
 const labelExact = computed(() => diagnosticInspectionText(props.data.label || "—"));
@@ -27,7 +58,10 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
     ]"
   >
     <Handle type="target" :position="Position.Left" class="traffic-handle" />
-    <bdi class="node-label" dir="ltr" :title="labelExact">{{ labelText }}</bdi>
+    <div class="node-title">
+      <component :is="kindIcon" class="node-kind-icon" :size="12" aria-hidden="true" />
+      <bdi class="node-label" dir="ltr" :title="labelExact">{{ labelText }}</bdi>
+    </div>
     <span
       v-if="data.kind === 'cache' && data.cacheStatus"
       class="node-cache-badge"
@@ -108,13 +142,25 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   unicode-bidi: isolate;
 }
 
+.node-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.node-kind-icon {
+  flex: 0 0 auto;
+  color: var(--app-text-muted);
+}
+
 .node-label {
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.25;
 }
 
-.traffic-flow-node-cache .node-label {
+.traffic-flow-node-cache .node-title {
   padding-right: 56px;
 }
 

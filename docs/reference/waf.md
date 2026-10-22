@@ -2,7 +2,7 @@
 
 WAF rules are global public proxy rules evaluated before rate limits, traffic shapers, route resolution, and target forwarding.
 
-In the management UI, choose **Traffic Policy -> WAF**. The WAF tab contains separate dense tables for WAF rules and captcha providers, a text and enabled-state filter for rules, and the **Visitor identity & GeoIP** settings below them. The shared **Request Tester** can supply a synthetic country result to preview geographic targeting without sending a request through a public listener.
+In the management UI, choose **Traffic policy -> WAF**. The WAF tab contains separate dense tables for WAF rules and captcha providers, a text and enabled-state filter for rules, and the **Visitor identity & GeoIP** settings below them. The shared **Request tester** can supply a synthetic country result to preview geographic targeting without sending a request through a public listener.
 
 ## Exact Fields And Defaults
 
@@ -64,7 +64,7 @@ Automatic activation defaults:
 
 ## Validation Rules
 
-Choose **Add Captcha Provider** under **Traffic Policy -> WAF** to configure Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and represented only as saved/not-saved state after creation; they are not sent back to the UI. Captcha rules require an enabled provider.
+Choose **Add captcha provider** under **Traffic policy -> WAF** to configure Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and represented only as saved/not-saved state after creation; they are not sent back to the UI. Captcha rules require an enabled provider.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider drawer showing provider type, site key, secret key saved state, and enabled state">
@@ -72,7 +72,7 @@ Choose **Add Captcha Provider** under **Traffic Policy -> WAF** to configure Clo
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF tab showing a filterable WAF rule table, captcha providers, policy counts, execution order, Request Tester, and Visitor identity and GeoIP settings">
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF tab showing a filterable WAF rule table, captcha providers, policy counts, execution order, Request tester, and Visitor identity and GeoIP settings">
   <figcaption>The dedicated WAF tab keeps rules and captcha providers in separate compact tables. Policy counts and the execution-order strip show where WAF acts relative to the other policy tabs.</figcaption>
 </figure>
 
@@ -109,7 +109,7 @@ Automatic trigger thresholds accept `0` to disable individual signals. CPU perce
 
 ## Country Restrictions
 
-Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic Policy -> WAF**, in **Visitor identity & GeoIP**. Database credentials are stored server-side and the license key is never returned by the management API.
+Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic policy -> WAF**, in **Visitor identity & GeoIP**. Database credentials are stored server-side and the license key is never returned by the management API.
 
 ### Set Up GeoLite2 Country
 

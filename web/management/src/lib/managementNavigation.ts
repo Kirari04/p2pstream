@@ -73,16 +73,16 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
       },
       {
         key: "traffic-policy",
-        label: "Traffic Policy",
+        label: "Traffic policy",
         path: "/policies/rate-limits",
         activePrefix: "/policies",
         children: [
-          { key: "policy-rate-limits", label: "Rate Limits", path: "/policies/rate-limits" },
+          { key: "policy-rate-limits", label: "Rate limits", path: "/policies/rate-limits" },
           { key: "policy-waf", label: "WAF", path: "/policies/waf" },
           { key: "policy-access", label: "Access", path: "/policies/access" },
           { key: "policy-cache", label: "Cache", path: "/policies/cache" },
           { key: "policy-retries", label: "Retries", path: "/policies/retries" },
-          { key: "policy-traffic-shaper", label: "Traffic Shaper", path: "/policies/traffic-shaper" },
+          { key: "policy-traffic-shaper", label: "Traffic shaper", path: "/policies/traffic-shaper" },
         ],
       },
       { key: "templates", label: "Templates", path: "/templates" },
@@ -94,9 +94,9 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
     label: "System",
     items: [
       { key: "environments", label: "Environments", path: "/settings/environments" },
-      { key: "api-tokens", label: "API Tokens", path: "/settings/api-tokens" },
+      { key: "api-tokens", label: "API tokens", path: "/settings/api-tokens" },
       { key: "management-tls", label: "Management TLS", path: "/settings/management-tls", activePrefix: "/settings/management-tls" },
-      { key: "server-updates", label: "Server Updates", path: "/settings/updates" },
+      { key: "server-updates", label: "Server updates", path: "/settings/updates" },
     ],
   },
 ] as const;

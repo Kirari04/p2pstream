@@ -149,7 +149,7 @@ async function applyMigration() {
   if (
     !(await confirm(
       "Apply route migration?",
-      `Create ${preview.value.groups.length} published Sites from ${selectedRouteCount.value} standalone routes on ${previewListenerIds.value.length} selected listeners? The reviewed route copies will become independently editable.`,
+      `Create ${preview.value.groups.length} published sites from ${selectedRouteCount.value} standalone routes on ${previewListenerIds.value.length} selected listeners? The reviewed route copies will become independently editable.`,
       "Apply migration",
     ))
   )
@@ -232,10 +232,10 @@ function listenerLabel(id: bigint) {
           class="migration-panel__title"
         >
           {{ legacyRoutes.length }} standalone
-          {{ legacyRoutes.length === 1 ? "route needs" : "routes need" }} a Site
+          {{ legacyRoutes.length === 1 ? "route needs" : "routes need" }} a site
         </h2>
         <p class="margin-top-xs copy-xs line-normal muted-text">
-          Review how the current routes will become Sites. The preview expires
+          Review how the current routes will become sites. The preview expires
           when its configuration changes.
         </p>
       </div>
@@ -277,7 +277,7 @@ function listenerLabel(id: bigint) {
             Migration preview
           </p>
           <p class="margin-top-xs copy-xs muted-text">
-            {{ preview.groups.length }} proposed Sites on
+            {{ preview.groups.length }} proposed sites on
             {{ previewListenerIds.length }} selected listeners
           </p>
         </div>
@@ -350,7 +350,7 @@ function listenerLabel(id: bigint) {
         <p class="copy-xs line-normal muted-text">
           {{ acceptedWarningCount }} of {{ requiredWarningCodes.length }}
           acknowledged. These changes preserve valid routes while tightening
-          authority handling for Sites.
+          authority handling for sites.
         </p>
         <NCheckbox
           v-for="issue in acknowledgementIssues"
@@ -467,10 +467,10 @@ function listenerLabel(id: bigint) {
       <details class="migration-panel__proposal">
         <summary class="copy-sm weight-semibold base-text">
           Review {{ preview.groups.length }} proposed
-          {{ preview.groups.length === 1 ? "Site" : "Sites" }}
+          {{ preview.groups.length === 1 ? "site" : "sites" }}
         </summary>
         <p class="margin-top-xs copy-xs line-normal muted-text">
-          Expand to inspect generated Site names, retained routes, and copied
+          Expand to inspect generated site names, retained routes, and copied
           fallbacks before applying.
         </p>
         <div class="migration-panel__groups margin-top-sm">
@@ -527,7 +527,7 @@ function listenerLabel(id: bigint) {
                   </p>
                   <p class="margin-top-xs copy-xs muted-text">
                     {{ copy.reason }}. The copy can be edited independently in
-                    this Site.
+                    this site.
                   </p>
                 </div>
               </li>
@@ -538,7 +538,7 @@ function listenerLabel(id: bigint) {
       </details>
       <div class="migration-panel__actions">
         <p class="copy-xs line-normal muted-text">
-          Applying creates published Sites, preserves or maps route identity as
+          Applying creates published sites, preserves or maps route identity as
           shown, and removes standalone eligibility in one operation.
         </p>
         <DisabledHint

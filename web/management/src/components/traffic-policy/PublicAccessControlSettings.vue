@@ -500,7 +500,7 @@ async function saveUser() {
 }
 
 async function deleteUser(user: PublicAccessUser) {
-  if (!await confirm("Delete Local User", `${user.username} will lose access immediately and all sessions will be deleted.`)) return;
+  if (!await confirm("Delete local user", `${user.username} will lose access immediately and all sessions will be deleted.`)) return;
   await run(async () => {
     await managementClient.deletePublicAccessUser({ id: user.id });
   }, "Local user deleted");
@@ -528,7 +528,7 @@ async function savePolicy() {
 async function deleteProvider(provider: PublicAccessProvider) {
   const usedBy = policies.value.filter((policy) => policy.providerId === provider.id).length;
   if (!await confirm(
-    "Delete Identity Provider",
+    "Delete identity provider",
     usedBy
       ? `${provider.name} is used by ${usedBy.toString()} access ${usedBy === 1 ? "policy" : "policies"}. Reassign or delete those policies first.`
       : `${provider.name} will no longer be available for access checks.`,
@@ -541,7 +541,7 @@ async function deleteProvider(provider: PublicAccessProvider) {
 async function deletePolicy(policy: PublicAccessPolicy) {
   const usedBy = routeCountForPolicy(policy.id);
   if (!await confirm(
-    "Delete Access Policy",
+    "Delete access policy",
     usedBy
       ? `${policy.name} protects ${usedBy.toString()} ${usedBy === 1 ? "route" : "routes"}. Remove those route assignments first.`
       : `${policy.name} will be permanently removed.`,
@@ -738,8 +738,8 @@ function groupSummary(policy: PublicAccessPolicy): string {
     </SectionCard>
   </div>
 
-  <NDrawer v-model:show="providerEditorOpen" placement="right" :width="editorDrawerWidth('46rem')" class="editor-drawer" :aria-label="providerForm.id ? 'Edit Identity Provider' : 'Add Identity Provider'">
-    <NDrawerContent :title="providerForm.id ? 'Edit Identity Provider' : 'Add Identity Provider'" closable>
+  <NDrawer v-model:show="providerEditorOpen" placement="right" :width="editorDrawerWidth('46rem')" class="editor-drawer" :aria-label="providerForm.id ? 'Edit identity provider' : 'Add identity provider'">
+    <NDrawerContent :title="providerForm.id ? 'Edit identity provider' : 'Add identity provider'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="saveProvider">
         <NAlert v-if="providerForm.providerType === PublicAccessProviderType.FORWARD_AUTH" type="info" :show-icon="false">
           The proxy sends a bodyless GET with the browser Authorization and Cookie headers plus trustworthy X-Forwarded-* request context. Redirect responses are returned to the browser; only 2xx responses grant access.
@@ -993,8 +993,8 @@ function groupSummary(policy: PublicAccessPolicy): string {
     </NDrawerContent>
   </NDrawer>
 
-  <NDrawer v-model:show="userEditorOpen" placement="right" :width="editorDrawerWidth('38rem')" class="editor-drawer" :aria-label="userForm.id ? 'Edit Local User' : 'Add Local User'">
-    <NDrawerContent :title="userForm.id ? 'Edit Local User' : 'Add Local User'" closable>
+  <NDrawer v-model:show="userEditorOpen" placement="right" :width="editorDrawerWidth('38rem')" class="editor-drawer" :aria-label="userForm.id ? 'Edit local user' : 'Add local user'">
+    <NDrawerContent :title="userForm.id ? 'Edit local user' : 'Add local user'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="saveUser">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Username
@@ -1034,8 +1034,8 @@ function groupSummary(policy: PublicAccessPolicy): string {
     </NDrawerContent>
   </NDrawer>
 
-  <NDrawer v-model:show="policyEditorOpen" placement="right" :width="editorDrawerWidth('40rem')" class="editor-drawer" :aria-label="policyForm.id ? 'Edit Access Policy' : 'Add Access Policy'">
-    <NDrawerContent :title="policyForm.id ? 'Edit Access Policy' : 'Add Access Policy'" closable>
+  <NDrawer v-model:show="policyEditorOpen" placement="right" :width="editorDrawerWidth('40rem')" class="editor-drawer" :aria-label="policyForm.id ? 'Edit access policy' : 'Add access policy'">
+    <NDrawerContent :title="policyForm.id ? 'Edit access policy' : 'Add access policy'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="savePolicy">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Name

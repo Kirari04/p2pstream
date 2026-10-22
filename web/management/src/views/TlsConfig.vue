@@ -680,7 +680,7 @@ async function renewTlsCertificate(id: bigint) {
 }
 
 async function deleteTlsCertificate(id: bigint) {
-  if (!await confirm("Delete TLS Certificate", "This certificate will be permanently removed. HTTPS connections using it will fall back to the default self-signed certificate.")) return;
+  if (!await confirm("Delete TLS certificate", "This certificate will be permanently removed. HTTPS connections using it will fall back to the default self-signed certificate.")) return;
   await run(async () => {
     await managementClient.deletePublicTlsCertificate({ id });
   });
@@ -711,7 +711,7 @@ async function submitTlsCredential() {
 }
 
 async function deleteTlsCredential(id: bigint) {
-  if (!await confirm("Delete DNS Credential", "This credential will be permanently removed. Certificates using it will no longer be able to renew.")) return;
+  if (!await confirm("Delete DNS credential", "This credential will be permanently removed. Certificates using it will no longer be able to renew.")) return;
   await run(async () => {
     await managementClient.deletePublicTlsDnsCredential({ id });
   });
@@ -736,11 +736,11 @@ watch(tlsDnsCredentials, () => {
       <template #actions>
         <NButton secondary size="small" @click="openAddTlsCredentialModal">
           <template #icon><PlusIcon class="icon-sm" /></template>
-          Add DNS Credential
+          Add DNS credential
         </NButton>
         <NButton type="primary" size="small" @click="openAddTlsModal">
           <template #icon><PlusIcon class="icon-sm" /></template>
-          Add Certificate
+          Add certificate
         </NButton>
       </template>
     </PageHeader>
@@ -815,7 +815,7 @@ watch(tlsDnsCredentials, () => {
         v-else
         title="No DNS credentials configured"
         description="Add a Cloudflare DNS credential when you need DNS-01 validation or wildcard certificates."
-        action-label="Add DNS Credential"
+        action-label="Add DNS credential"
         @action="openAddTlsCredentialModal"
       />
     </SectionCard>
@@ -824,10 +824,10 @@ watch(tlsDnsCredentials, () => {
       v-model:show="isTlsModalOpen"
       placement="right"
       :width="editorDrawerWidth('36rem')"
-      :aria-label="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'"
+      :aria-label="tlsForm.id ? 'Edit TLS mapping' : 'Add TLS mapping'"
       class="editor-drawer"
     >
-      <NDrawerContent :title="tlsForm.id ? 'Edit TLS Mapping' : 'Add TLS Mapping'" closable>
+      <NDrawerContent :title="tlsForm.id ? 'Edit TLS mapping' : 'Add TLS mapping'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitTlsCertificate">
         <section class="tls-editor-group" aria-labelledby="tls-editor-mapping-heading">
           <h3 id="tls-editor-mapping-heading" class="tls-editor-group__title">Mapping</h3>
@@ -922,7 +922,7 @@ watch(tlsDnsCredentials, () => {
           <NButton secondary attr-type="button" @click="isTlsModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsSubmitDisabledReason)" :reason="tlsSubmitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="tlsSubmitDisabled">
-              {{ tlsForm.id ? 'Save Changes' : 'Create TLS Mapping' }}
+              {{ tlsForm.id ? 'Save changes' : 'Create TLS mapping' }}
             </NButton>
           </DisabledHint>
         </div>
@@ -934,10 +934,10 @@ watch(tlsDnsCredentials, () => {
       v-model:show="isTlsCredentialModalOpen"
       placement="right"
       :width="editorDrawerWidth('32rem')"
-      :aria-label="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'"
+      :aria-label="tlsCredentialForm.id ? 'Edit DNS credential' : 'Add DNS credential'"
       class="editor-drawer"
     >
-      <NDrawerContent :title="tlsCredentialForm.id ? 'Edit DNS Credential' : 'Add DNS Credential'" closable>
+      <NDrawerContent :title="tlsCredentialForm.id ? 'Edit DNS credential' : 'Add DNS credential'" closable>
       <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitTlsCredential">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Name
@@ -967,7 +967,7 @@ watch(tlsDnsCredentials, () => {
           <NButton secondary attr-type="button" @click="isTlsCredentialModalOpen = false">Cancel</NButton>
           <DisabledHint :disabled="Boolean(tlsCredentialSubmitDisabledReason)" :reason="tlsCredentialSubmitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="Boolean(tlsCredentialSubmitDisabledReason)">
-              {{ tlsCredentialForm.id ? 'Save Credential' : 'Create Credential' }}
+              {{ tlsCredentialForm.id ? 'Save credential' : 'Create credential' }}
             </NButton>
           </DisabledHint>
         </div>

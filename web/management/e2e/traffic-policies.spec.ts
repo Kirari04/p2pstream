@@ -6,8 +6,8 @@ test("keeps policy rules close to navigation and scopes filters to each policy",
   await authenticate(page, baseURL);
   await page.goto("/#/policies/rate-limits");
 
-  await expect(page.getByRole("heading", { name: "Traffic Policy", exact: true })).toBeVisible();
-  await expect(page.getByRole("tab", { name: /Rate Limits, \d+ of \d+ enabled/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Traffic policy", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Rate limits, \d+ of \d+ enabled/ })).toBeVisible();
   await expect(page.locator('.policy-local-filter[aria-label="Filter rate-limit rules"]')).toBeVisible();
 
   const executionOrder = page.locator(".policy-execution-disclosure");

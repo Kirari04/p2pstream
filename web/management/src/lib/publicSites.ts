@@ -45,7 +45,7 @@ export function publicRouteSiteSelectionState(
 export function publicRouteDefaultScopeLabel(
   state: PublicRouteSiteSelectionState,
 ): string {
-  if (state === "site") return "One default per Site.";
+  if (state === "site") return "One default per site.";
   if (state === "legacy")
     return "One default per listener for listener-wide routes.";
   return "Choose an available scope before saving a default route.";
@@ -187,7 +187,7 @@ export function publicSiteValidationReason(input: {
       binding.behavior !== PublicSiteListenerBehavior.SERVE &&
       binding.behavior !== PublicSiteListenerBehavior.REDIRECT_HTTPS
     ) {
-      return `Listener assignment ${index + 1}: choose Serve Site or Redirect to HTTPS.`;
+      return `Listener assignment ${index + 1}: choose Serve site or Redirect to HTTPS.`;
     }
     if (binding.behavior === PublicSiteListenerBehavior.REDIRECT_HTTPS) {
       if (

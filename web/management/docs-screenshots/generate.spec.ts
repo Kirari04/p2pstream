@@ -72,7 +72,7 @@ test.describe("docs screenshots", () => {
       upstream = await startFixtureUpstream();
 
       await page.goto(`/?setup_token=${encodeURIComponent(setupToken)}`);
-      await expect(page.getByRole("heading", { name: "Setup Admin", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Setup admin", exact: true })).toBeVisible();
       await capture(page, "first_login_setup_admin.png");
 
       await authenticate(page, appBaseURL, {
@@ -109,10 +109,10 @@ test.describe("docs screenshots", () => {
       });
 
       await page.waitForTimeout(6_000);
-      await gotoApp(page, "/#/overview", "Proxy Overview");
+      await gotoApp(page, "/#/overview", "Proxy overview");
       await capture(page, "dashboard_overview.png");
 
-      await gotoApp(page, "/#/monitor/traffic", "Traffic Flow");
+      await gotoApp(page, "/#/monitor/traffic", "Traffic flow");
       await sendPublicProxyTraffic(page.request, httpPort);
       await expect(page.getByText("app.example.test").first()).toBeVisible({ timeout: 20_000 });
       await capture(page, "live_traffic_diagram_tracing.png");
@@ -123,7 +123,7 @@ test.describe("docs screenshots", () => {
       await gotoApp(page, "/#/proxy/listeners", "Proxy");
       await expect(page.getByRole("button", { name: /^Edit / }).first()).toBeVisible();
       await capture(page, "proxy_listeners.png");
-      await openFirstButton(page, /^Edit /, "Edit Listener");
+      await openFirstButton(page, /^Edit /, "Edit listener");
       await capture(page, "proxy_edit_interface_listener_modal.png");
       await closeModal(page);
 
@@ -154,38 +154,38 @@ test.describe("docs screenshots", () => {
 
       await gotoApp(page, "/#/agent", "Agents");
       await capture(page, "agents_page.png");
-      await openFirstButton(page, "Edit agent", "Edit Agent");
+      await openFirstButton(page, "Edit agent", "Edit agent");
       await capture(page, "agent_edit_labels_modal.png");
       await closeModal(page);
       await createAgentSetupScreenshot(page);
 
-      await gotoApp(page, "/#/policies/rate-limits", "Traffic Policy");
-      await openFirstButton(page, "Edit rate-limit rule", "Edit Rate Limit");
+      await gotoApp(page, "/#/policies/rate-limits", "Traffic policy");
+      await openFirstButton(page, "Edit rate-limit rule", "Edit rate limit");
       await capture(page, "edit_ratelimit_modal.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/policies/waf", "Traffic Policy");
+      await gotoApp(page, "/#/policies/waf", "Traffic policy");
       await capture(page, "traffic_policies_waf_and_ratelimits.png");
-      await openFirstButton(page, "Edit captcha provider", "Edit Captcha Provider");
+      await openFirstButton(page, "Edit captcha provider", "Edit captcha provider");
       await capture(page, "waf_captcha_provider_modal.png");
       await closeModal(page);
-      await openFirstButton(page, "Edit WAF rule", "Edit WAF Rule");
+      await openFirstButton(page, "Edit WAF rule", "Edit WAF rule");
       await capture(page, "edit_waf_modal.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/policies/cache", "Traffic Policy");
+      await gotoApp(page, "/#/policies/cache", "Traffic policy");
       await capture(page, "cache_settings_section.png");
-      await openFirstButton(page, "Edit cache rule", "Edit Cache Rule");
+      await openFirstButton(page, "Edit cache rule", "Edit cache rule");
       await capture(page, "edit_cache_modal.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/policies/traffic-shaper", "Traffic Policy");
+      await gotoApp(page, "/#/policies/traffic-shaper", "Traffic policy");
       await capture(page, "traffic_policies_cache_and_trafficshaper.png");
-      await openFirstButton(page, "Edit traffic-shaper rule", "Edit Traffic Shaper");
+      await openFirstButton(page, "Edit traffic-shaper rule", "Edit traffic shaper");
       await capture(page, "edit_traffic_shaper.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/templates", "Response Templates");
+      await gotoApp(page, "/#/templates", "Response templates");
       await capture(page, "response_template_page.png");
       await openTemplate(page, "docs-maintenance-page");
       await capture(page, "edit_template_modal.png");
@@ -196,7 +196,7 @@ test.describe("docs screenshots", () => {
 
       await gotoApp(page, "/#/tls", "TLS");
       await capture(page, "tls_page.png");
-      await openFirstButton(page, "Edit DNS credential", "Edit DNS Credential");
+      await openFirstButton(page, "Edit DNS credential", "Edit DNS credential");
       await capture(page, "tls_dns_credential_modal.png");
       await closeModal(page);
       await openTlsMapping(page, "app.example.test");
@@ -206,7 +206,7 @@ test.describe("docs screenshots", () => {
       await capture(page, "tls_dnschallenge_cloudflare_modal.png");
       await closeModal(page);
 
-      await gotoApp(page, "/#/settings/api-tokens", "API Tokens");
+      await gotoApp(page, "/#/settings/api-tokens", "API tokens");
       await capture(page, "settings_api_tokens.png");
 
       await gotoApp(page, "/#/settings/environments", "Environments");
@@ -285,7 +285,7 @@ async function openFirstButton(page: Page, buttonName: string | RegExp, modalTit
 async function openFirstEnvironmentEditor(page: Page) {
   await page.getByRole("button", { name: /^More actions for / }).first().click();
   await page.getByRole("menuitem", { name: "Edit environment", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Edit Environment", exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Edit environment", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 
@@ -301,7 +301,7 @@ async function openRoute(page: Page, routeText: string) {
   await siteRow.getByRole("button", { name: /^Edit site / }).click();
   await expect(workspace).toBeVisible();
   await workspace.getByRole("list", { name: "Site routes" }).getByRole("button", { name: "Edit route", exact: true }).first().click();
-  await expect(page.getByRole("dialog", { name: "Edit Route", exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("dialog", { name: "Edit route", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 
@@ -312,7 +312,7 @@ async function openTemplate(page: Page, templateName: string) {
     has: page.getByRole("button", { name: "Edit template" }),
   }).first();
   await templateRow.getByRole("button", { name: "Edit template" }).click();
-  await expect(page.getByRole("heading", { name: "Edit Response Template", exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Edit response template", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 
@@ -323,7 +323,7 @@ async function openTlsMapping(page: Page, hostname: string) {
     has: page.getByRole("button", { name: "Edit TLS mapping" }),
   }).first();
   await tlsRow.getByRole("button", { name: "Edit TLS mapping" }).click();
-  await expect(page.getByText("Edit TLS Mapping")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Edit TLS mapping")).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }
 
@@ -339,15 +339,15 @@ async function openTraceDetails(page: Page) {
 }
 
 async function createAgentSetupScreenshot(page: Page) {
-  await page.getByRole("button", { name: "Add Agent" }).click();
-  await expect(page.getByRole("heading", { name: "Add Agent", exact: true })).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Add agent" }).click();
+  await expect(page.getByRole("heading", { name: "Add agent", exact: true })).toBeVisible({ timeout: 10_000 });
   await page.getByLabel("Name").fill("Docs Install Agent");
-  await page.getByRole("button", { name: "Create Agent" }).click();
-  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Create agent" }).click();
+  await expect(page.getByRole("heading", { name: "Install agent", exact: true })).toBeVisible({ timeout: 10_000 });
   await capture(page, "new_agent_modal_setup.png");
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Discard Token", exact: true }).click();
+  await expect(page.getByText("Close without copying?", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Discard credentials", exact: true }).click();
 }
 
 async function openTrustCertificate(page: Page) {
@@ -358,6 +358,6 @@ async function openTrustCertificate(page: Page) {
     await expect(trustButton).toBeEnabled({ timeout: 15_000 });
   }
   await trustButton.click();
-  await expect(page.getByRole("heading", { name: "Trust Certificate", exact: true })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Trust certificate", exact: true })).toBeVisible({ timeout: 10_000 });
   await waitForSettled(page);
 }

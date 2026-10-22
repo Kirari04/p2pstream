@@ -61,7 +61,7 @@ test("reviews explicit route copies and migrates only selected listeners", async
   });
 
   await page.goto("/#/proxy/sites");
-  const panel = page.locator("section").filter({ has: page.getByRole("heading", { name: "3 standalone routes need a Site", exact: true }) });
+  const panel = page.locator("section").filter({ has: page.getByRole("heading", { name: "3 standalone routes need a site", exact: true }) });
   await panel.getByRole("button", { name: "Preview migration", exact: true }).click();
   await expect(panel.getByText("Blocked", { exact: true })).toBeVisible();
   await expect(panel.getByRole("alert")).toContainText("1 blocker must be resolved");
@@ -78,7 +78,7 @@ test("reviews explicit route copies and migrates only selected listeners", async
   await expect(panel.getByText("Review required", { exact: true })).toBeVisible();
   await expect(panel.getByRole("alert")).toContainText("1 behavior acknowledgement required");
   await expect(panel.getByText("0 of 1 acknowledged", { exact: false })).toBeVisible();
-  await panel.getByText("Review 1 proposed Site", { exact: true }).click();
+  await panel.getByText("Review 1 proposed site", { exact: true }).click();
   await panel.getByText("Review routes and copies", { exact: true }).click();
   await expect(panel.getByText("Keep route #97011 · /app", { exact: true })).toBeVisible();
   await expect(panel.getByText("Copy route #97012 · Default path", { exact: true })).toBeVisible();

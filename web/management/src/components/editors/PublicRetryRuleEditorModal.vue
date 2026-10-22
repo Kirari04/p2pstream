@@ -430,10 +430,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('64rem')"
-    :aria-label="form.id ? 'Edit Request Retry Rule' : 'Add Request Retry Rule'"
+    :aria-label="form.id ? 'Edit request retry rule' : 'Add request retry rule'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Request Retry Rule' : 'Add Request Retry Rule'" closable>
+    <NDrawerContent :title="form.id ? 'Edit request retry rule' : 'Add request retry rule'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
         <section class="layout-grid space-lg mq-sm-cols-four">
           <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
@@ -673,7 +673,7 @@ defineExpose({ openCreate, openEdit, close });
           <NButton secondary attr-type="button" @click="close">Cancel</NButton>
           <DisabledHint :disabled="submitDisabled" :reason="submitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-              {{ form.id ? 'Save Changes' : 'Create Retry Rule' }}
+              {{ form.id ? 'Save changes' : 'Create retry rule' }}
             </NButton>
           </DisabledHint>
         </div>

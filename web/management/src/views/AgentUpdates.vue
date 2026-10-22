@@ -517,7 +517,7 @@ onUnmounted(() => {
           :tone="unsupportedAgents ? 'warning' : 'default'"
           detail="One-time host enrollment; no token rotation"
         />
-        <MetricCard label="Unavailable budget" :value="String(activeCampaigns.length)" detail="Running or paused campaigns" />
+        <MetricCard label="Active campaigns" :value="String(activeCampaigns.length)" detail="Running or paused" />
       </MetricStrip>
 
       <SectionCard title="Management release" class="agent-release">
@@ -665,7 +665,7 @@ onUnmounted(() => {
       </SectionCard>
     </NSpin>
 
-    <NModal v-model:show="planOpen" preset="card" title="Plan Agent Rollout" class="agent-update-modal"
+    <NModal v-model:show="planOpen" preset="card" title="Plan agent rollout" class="agent-update-modal"
       :style="modalCardStyle('760px')" :content-style="modalScrollableContentStyle()" :bordered="false"
       :closable="!planBusy" :mask-closable="false" :close-on-esc="!planBusy">
       <div class="agent-update-modal__body">

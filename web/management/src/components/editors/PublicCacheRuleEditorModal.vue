@@ -436,10 +436,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('64rem')"
-    :aria-label="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'"
+    :aria-label="form.id ? 'Edit cache rule' : 'Add cache rule'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'" closable>
+    <NDrawerContent :title="form.id ? 'Edit cache rule' : 'Add cache rule'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
@@ -623,7 +623,7 @@ defineExpose({ openCreate, openEdit, close });
       <div class="editor-drawer-actions layout-row align-end-row space-md">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
-          {{ form.id ? 'Save Rule' : 'Create Rule' }}
+          {{ form.id ? 'Save rule' : 'Create rule' }}
         </NButton>
       </div>
     </form>

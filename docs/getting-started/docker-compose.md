@@ -81,7 +81,7 @@ sudo /etc/p2pstream-server-updater/manage apply
 sudo /etc/p2pstream-server-updater/manage status
 ```
 
-The controller validates the running deployment, refuses hooks/builds, data-layout changes and changes to other services/resources, preserves the **current** software digest and private connection, restarts the server once, and verifies health. It restores the exact pre-apply configuration on failure where possible. `P2PSTREAM_IMAGE` in the original input is deliberately ignored during enrolled configuration application; choose software updates in **System → Server Updates**. Use a separate Compose project for services you want to manage independently.
+The controller validates the running deployment, refuses hooks/builds, data-layout changes and changes to other services/resources, preserves the **current** software digest and private connection, restarts the server once, and verifies health. It restores the exact pre-apply configuration on failure where possible. `P2PSTREAM_IMAGE` in the original input is deliberately ignored during enrolled configuration application; choose software updates in **System → Server updates**. Use a separate Compose project for services you want to manage independently.
 
 Read-only inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `manage logs`. After new enrollment or explicit migration, ordinary `docker compose up -d --force-recreate` retains the current image and updater connection. It recreates already-applied settings; edits still use `manage apply`. Older enrollments need the [deployment migration](../operations/server-updates#migrate-an-existing-enrollment) before ordinary recreation is supported.
 

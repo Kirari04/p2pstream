@@ -23,14 +23,14 @@ Example:
 
 ## Steps
 
-1. Open **Agents -> Fleet** and select **Add Agent**. Enter the agent in the **Add Agent** drawer, then select **Create Agent**.
+1. Open **Agents -> Fleet** and select **Add agent**. Enter the agent in the **Add agent** drawer, then select **Create agent**.
 
    | Field | Value |
    | --- | --- |
    | Name | `home-lab` |
    | Enabled | On |
 
-   After creation, the **Install Agent** modal shows the generated `AGENT_ID` and one-time `AGENT_TOKEN`.
+   After creation, the **Install agent** modal shows the generated `AGENT_ID` and one-time `AGENT_TOKEN`.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/new_agent_modal_setup.png" alt="p2pstream Agent Setup modal showing generated agent identity, a one-time token, advanced options, and Linux, Docker Compose, and CLI tabs">
@@ -39,7 +39,7 @@ Example:
 
 2. Select **Linux install**, copy the generated command, and paste it into a terminal on the agent host. The command already includes the agent token and, when enabled, the updater enrollment token. It downloads the installer and binary for the selected release and host architecture, then verifies their SHA-256 checksums before installation. No local file paths or separate token entry are required.
 
-   The installer creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. For an existing host, use **More → Reinstall / Repair** to keep its token and enable managed updates. After explicit token rotation, run the separate token-change command. Independently verified local files can still be selected under **Advanced setup options**.
+   The installer creates `/usr/local/bin/p2pstream`, `/etc/p2pstream/agent.env`, and `p2pstream-agent.service`, then restarts the agent service. For an existing host, use **More → Reinstall / repair** to keep its token and enable managed updates. After explicit token rotation, run the separate token-change command. Independently verified local files can still be selected under **Advanced setup options**.
 
 3. Check the agent service:
 
@@ -48,7 +48,7 @@ Example:
    sudo journalctl -u p2pstream-agent -f
    ```
 
-4. Select **Edit** for the agent and add a label in the **Edit Agent** drawer, for example:
+4. Select **Edit** for the agent and add a label in the **Edit agent** drawer, for example:
 
    | Key | Value |
    | --- | --- |
@@ -61,7 +61,7 @@ Example:
      <figcaption>Agent labels are the bridge between connected workers and agent route targets. User labels are editable; system labels are read-only and can be copied for exact-agent targeting.</figcaption>
    </figure>
 
-5. Open **Proxy -> Sites** and create a draft Site for `ha.example.com`, assigned to `public-https`. Inside the open Site, select **Add first route** and add an agent proxy target in the nested route drawer:
+5. Open **Proxy -> Sites** and create a draft site for `ha.example.com`, assigned to `public-https`. Inside the open site, select **Add first route** and add an agent proxy target in the nested route drawer:
 
    :::warning Origin resolution
    The origin URL is resolved from the **agent host**, not from the p2pstream server. Set it to whatever the agent host can reach — `localhost`, a LAN hostname, or an internal IP are all valid here.
@@ -85,13 +85,13 @@ Example:
 
    New agent targets use round-robin selection among matching agents by default. The public configuration API supports additional agent-selection policies; the redesigned route drawer retains an existing policy but does not currently expose a control to change it.
 
-6. Configure the route's path match and save it to return to the Site. Hostnames and listeners come from the Site:
+6. Configure the route's path match and save it to return to the site. Hostnames and listeners come from the site:
 
    | Field | Value |
    | --- | --- |
    | Path prefix | `/` |
 
-7. Use the Site readiness summary, or **TLS -> Add Certificate**, to create an ACME certificate mapping for `ha.example.com` on `public-https`. Review readiness and select **Publish** in the Site workspace.
+7. Use the site readiness summary, or **TLS -> Add Certificate**, to create an ACME certificate mapping for `ha.example.com` on `public-https`. Review readiness and select **Publish** in the site workspace.
 
 ## Verification
 

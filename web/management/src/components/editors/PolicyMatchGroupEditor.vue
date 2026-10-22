@@ -142,6 +142,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
       </NButton>
       <NButton v-if="!root" type="error" secondary size="small" attr-type="button" aria-label="Remove group" title="Remove group" @click="emit('remove')">
         <template #icon><TrashIcon class="icon-sm" /></template>
+        Remove
       </NButton>
     </div>
 
@@ -184,6 +185,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
         </NCheckbox>
         <NButton type="error" secondary size="small" attr-type="button" class="condition-remove" aria-label="Remove condition" title="Remove condition" @click="removeCondition(group, index)">
           <template #icon><TrashIcon class="icon-sm" /></template>
+          Remove
         </NButton>
       </div>
     </div>
@@ -240,7 +242,7 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 
 .condition-row {
   display: grid;
-  grid-template-columns: minmax(7.5rem, 0.9fr) minmax(0, 1fr) minmax(7.5rem, 0.8fr) minmax(0, 1.35fr) auto 2.25rem;
+  grid-template-columns: minmax(7.5rem, 0.9fr) minmax(0, 1fr) minmax(7.5rem, 0.8fr) minmax(0, 1.35fr) auto auto;
   gap: 0.5rem;
   align-items: start;
   min-width: 0;
@@ -273,10 +275,6 @@ function valuePlaceholder(condition: PolicyMatchConditionForm): string {
 
 .negate-toggle.small {
   justify-self: center;
-}
-
-.condition-remove {
-  width: 2.25rem;
 }
 
 .empty-match {

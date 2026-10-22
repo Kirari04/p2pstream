@@ -436,7 +436,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="dashboard" class="traffic-page" :aria-busy="traceSettingsState === 'loading'">
-    <PageHeader title="Traffic Flow" description="Live request routing across listeners, routes, targets, agents, and upstreams.">
+    <PageHeader title="Traffic flow" description="Live request routing across listeners, routes, targets, agents, and upstreams.">
       <template #badge>
         <NTag size="small" :bordered="false" :type="streamStateTagType">{{ streamStateLabel() }}</NTag>
       </template>
@@ -631,9 +631,13 @@ onBeforeUnmount(() => {
 /* Radio semantics stay (specs use role=radio); the look matches SegmentedControl. */
 .traffic-level-group {
   display: inline-flex;
+  /* Naive fixes the group to the button height, which made the padded track overflow. */
+  height: auto;
   max-width: 100%;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.125rem;
+  line-height: 1;
   border-radius: 8px;
   background: var(--app-panel-muted);
   padding: 0.1875rem;
@@ -644,7 +648,9 @@ onBeforeUnmount(() => {
 }
 
 .traffic-level-group :deep(.n-radio-button) {
+  display: inline-flex;
   height: 1.75rem;
+  align-items: center;
   border: 0;
   border-radius: 6px;
   background: transparent;

@@ -86,7 +86,7 @@ configuration; enabling updates on the parent does not configure the remote.
 ## Enroll hosts once
 
 Open **Agents → Updates**. An unenrolled host has an **Enable managed updates** action. The UI
-uses the same setup dialog as **Install Agent** and **Reinstall / Repair**, with
+uses the same setup dialog as **Install agent** and **Reinstall / repair**, with
 an editable Management URL, release details, and optional local files.
 Enrollment preserves the host's existing management CA and agent configuration.
 A remote server advertising localhost defaults to its saved environment

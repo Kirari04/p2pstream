@@ -265,7 +265,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 
 <template>
   <div v-if="dashboardValue && status" class="overview-page">
-    <PageHeader title="Proxy Overview" description="Health, traffic, and configuration signals for the selected environment.">
+    <PageHeader title="Proxy overview" description="Health, traffic, and configuration signals for the selected environment.">
       <template #actions>
         <SegmentedControl v-model="selectedWindowLabel" :options="windowOptions" label="Dashboard window" />
       </template>

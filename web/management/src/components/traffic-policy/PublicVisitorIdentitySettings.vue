@@ -190,7 +190,7 @@ async function saveProxy() {
 
 async function deleteProxy(source: PublicTrustedProxySource) {
   if (!await confirm(
-    "Delete Trusted Proxy Source",
+    "Delete trusted proxy source",
     `${source.name} will no longer be allowed to supply visitor identity. Requests from its peers will use their network address instead.`,
   )) return;
   await run(async () => {
@@ -470,10 +470,10 @@ function sourceRangesStale(source: PublicTrustedProxySource): boolean {
     v-model:show="proxyEditorOpen"
     placement="right"
     :width="editorDrawerWidth('42rem')"
-    :aria-label="proxyForm.id ? 'Edit Trusted Proxy Source' : 'Add Trusted Proxy Source'"
+    :aria-label="proxyForm.id ? 'Edit trusted proxy source' : 'Add trusted proxy source'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="proxyForm.id ? 'Edit Trusted Proxy Source' : 'Add Trusted Proxy Source'" closable>
+    <NDrawerContent :title="proxyForm.id ? 'Edit trusted proxy source' : 'Add trusted proxy source'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="saveProxy">
         <NAlert type="warning" :show-icon="false">
           Trust only peers you administer. A matching peer can control the configured client-IP header and therefore the visitor identity used by security policy.

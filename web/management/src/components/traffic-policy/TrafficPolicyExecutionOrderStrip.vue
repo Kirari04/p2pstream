@@ -74,13 +74,13 @@ const defaultExecutionStages: readonly ExecutionStage[] = [
   },
   {
     key: "rate-limit",
-    label: "Rate Limits",
+    label: "Rate limits",
     description: "Request budgets",
     icon: "rate-limit",
   },
   {
     key: "traffic-shaper",
-    label: "Traffic Shaper",
+    label: "Traffic shaper",
     description: "Bandwidth budgets",
     icon: "traffic-shaper",
   },

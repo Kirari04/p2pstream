@@ -8,13 +8,10 @@ import { NButton } from "naive-ui";
     <div class="not-found-message">
       <p class="not-found-code">404</p>
       <h1 id="not-found-title" class="not-found-title">Page not found</h1>
-      <p class="not-found-description">This management page does not exist.</p>
+      <p class="not-found-description">This management page does not exist. Use the sidebar or go back to the overview.</p>
       <div class="not-found-actions">
         <RouterLink v-slot="{ href, navigate }" to="/overview" custom>
           <NButton tag="a" :href="href" type="primary" @click="navigate">Go to overview</NButton>
-        </RouterLink>
-        <RouterLink v-slot="{ href, navigate }" to="/monitor/traffic" custom>
-          <NButton tag="a" :href="href" quaternary @click="navigate">Open monitor</NButton>
         </RouterLink>
       </div>
     </div>

@@ -203,10 +203,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('60rem')"
-    :aria-label="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'"
+    :aria-label="form.id ? 'Edit traffic shaper' : 'Add traffic shaper'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'" closable>
+    <NDrawerContent :title="form.id ? 'Edit traffic shaper' : 'Add traffic shaper'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
@@ -274,7 +274,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="shaperSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-            {{ form.id ? 'Save Changes' : 'Create Shaper' }}
+            {{ form.id ? 'Save changes' : 'Create shaper' }}
           </NButton>
         </DisabledHint>
       </div>

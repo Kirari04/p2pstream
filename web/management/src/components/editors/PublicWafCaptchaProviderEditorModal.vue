@@ -132,10 +132,10 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('42rem')"
-    :aria-label="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'"
+    :aria-label="form.id ? 'Edit captcha provider' : 'Add captcha provider'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Captcha Provider' : 'Add Captcha Provider'" closable>
+    <NDrawerContent :title="form.id ? 'Edit captcha provider' : 'Add captcha provider'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitProvider">
       <section class="layout-grid space-lg mq-sm-cols-two">
         <label class="layout-grid space-xs copy-xs weight-medium muted-text">
@@ -176,7 +176,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(submitDisabledReason)" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-            {{ form.id ? 'Save Changes' : 'Create Provider' }}
+            {{ form.id ? 'Save changes' : 'Create provider' }}
           </NButton>
         </DisabledHint>
       </div>

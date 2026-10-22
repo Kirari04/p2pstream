@@ -15,21 +15,21 @@ describe("managementNavigation", () => {
     expect(MANAGEMENT_NAVIGATION[1]?.items.map((item) => item.label)).toEqual([
       "Proxy",
       "Agents",
-      "Traffic Policy",
+      "Traffic policy",
       "Templates",
       "TLS",
     ]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[0]?.children?.map((item) => item.label)).toEqual(["Sites", "Listeners"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[1]?.children?.map((item) => item.label)).toEqual(["Fleet", "Activity", "Updates"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[2]?.children?.map((item) => item.label)).toEqual([
-      "Rate Limits",
+      "Rate limits",
       "WAF",
       "Access",
       "Cache",
       "Retries",
-      "Traffic Shaper",
+      "Traffic shaper",
     ]);
-    expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API Tokens", "Management TLS", "Server Updates"]);
+    expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API tokens", "Management TLS", "Server updates"]);
   });
 
   test("normalizes route paths and hash-history hrefs", () => {
@@ -50,7 +50,7 @@ describe("managementNavigation", () => {
   test("creates group, parent, and leaf breadcrumbs", () => {
     expect(managementBreadcrumbsForPath("/policies/cache")).toEqual([
       { key: "configure", label: "Configure" },
-      { key: "traffic-policy", label: "Traffic Policy", path: "/policies/rate-limits" },
+      { key: "traffic-policy", label: "Traffic policy", path: "/policies/rate-limits" },
       { key: "policy-cache", label: "Cache", path: "/policies/cache" },
     ]);
     expect(managementBreadcrumbsForPath("/agent/activity")).toEqual([
@@ -82,7 +82,7 @@ describe("managementNavigation", () => {
   test("returns the deepest route label with a safe fallback", () => {
     expect(managementRouteLabel("/proxy/sites")).toBe("Sites");
     expect(managementRouteLabel("/proxy/listeners")).toBe("Listeners");
-    expect(managementRouteLabel("/unknown", "Not Found")).toBe("Not Found");
+    expect(managementRouteLabel("/unknown", "Not found")).toBe("Not found");
     expect(managementBreadcrumbsForPath("/unknown")).toEqual([]);
   });
 });
