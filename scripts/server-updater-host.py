@@ -801,25 +801,27 @@ class Host:
             atomic(self.directory / CANCELLATION, receipt)
             return
         require((self.journal.get('installation'), self.config and self.config.get('repository'), self.config and self.config.get('channel')) == (args.expect_installation, args.repository, args.expect_channel), 'Saved enrollment differs from the selected installation, publisher or channel')
-        if receipt and not receipt['completed']:
-            # A retry must re-prove restoration, which uses two pinned Compose
-            # read-only helpers. Only their exact marked arguments may be settled;
-            # no interrupted enrollment, update or arbitrary Docker helper is
-            # admitted through this cancellation-only recovery path.
-            require(self.journal['phase'] == 'rolled_back' or self.journal['phase'] == 'recovery_required' and self.journal.get('recovery_phase') == 'rolled_back', 'Cancellation validation recovery belongs to another host operation')
-            require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update history or maintenance exists; enrollment cancellation is refused')
-            if os.path.lexists(self.directory / 'helper.json'):
-                pending = read_json(self.directory / 'helper.json')
-                require(pending.get('cancellation_validation') is True and pending.get('readonly') is True and pending.get('name') == self.helper_name() and pending.get('entrypoint') == '/usr/local/bin/docker' and pending.get('phase') == 'rolled_back' and isinstance(pending.get('cancellation_args'), list) and tuple(pending['cancellation_args']) in self.cancellation_helper_args(), 'Pending helper is not a recorded read-only cancellation validation')
-                try:
-                    self.settle_helper()
-                except UnsettledHelper as error:
-                    raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
-            if self.journal['phase'] == 'recovery_required':
-                self.journal.pop('recovery_phase', None)
-                self.phase('rolled_back', error='Original deployment restored; cancellation validation resumed')
-            self._cancellation_validation = True
-        self.validate_cancelled_original()
+        # Validation can be interrupted before any cancellation receipt exists,
+        # or while a completed receipt from an earlier enrollment is retained.
+        # Mark its two exact read-only helpers from the first attempt, and settle
+        # only those helpers before re-proving restoration on every retry.
+        require(self.journal['phase'] == 'rolled_back' or (self.journal['phase'] == 'recovery_required' and self.journal.get('recovery_phase') == 'rolled_back'), 'Cancellation validation recovery belongs to another host operation')
+        require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update history or maintenance exists; enrollment cancellation is refused')
+        if os.path.lexists(self.directory / 'helper.json'):
+            pending = read_json(self.directory / 'helper.json')
+            require(pending.get('cancellation_validation') is True and pending.get('readonly') is True and pending.get('name') == self.helper_name() and pending.get('entrypoint') == '/usr/local/bin/docker' and pending.get('phase') == 'rolled_back' and isinstance(pending.get('cancellation_args'), list) and tuple(pending['cancellation_args']) in self.cancellation_helper_args(), 'Pending helper is not a recorded read-only cancellation validation')
+            try:
+                self.settle_helper()
+            except UnsettledHelper as error:
+                raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
+        if self.journal['phase'] == 'recovery_required':
+            self.journal.pop('recovery_phase', None)
+            self.phase('rolled_back', error='Original deployment restored; cancellation validation resumed')
+        self._cancellation_validation = True
+        try:
+            self.validate_cancelled_original()
+        except UnsettledHelper as error:
+            raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
         floor = validate_floor(self.config['bootstrap_floor'])
         if receipt:
             require_floor(floor, receipt['floor'])
