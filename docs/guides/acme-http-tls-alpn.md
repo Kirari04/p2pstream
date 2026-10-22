@@ -22,7 +22,7 @@ The hostname must be a publicly resolvable fully-qualified domain name. `localho
 1. Open **Proxy -> Listeners**.
 2. For HTTP-01, ensure an HTTP listener is enabled and running on container port `80`; use **More -> Enable listener** and **Start** as needed.
 3. For TLS-ALPN-01, ensure an HTTPS listener is enabled and running on container port `443`; use **More -> Enable listener** and **Start** as needed.
-4. Open **TLS**, select **Add Certificate**, and create a certificate mapping:
+4. Open **TLS**, select **Add certificate**, and create a certificate mapping:
 
    | Field | Value |
    | --- | --- |

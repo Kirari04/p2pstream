@@ -43,3 +43,35 @@ export function managementCertificateExpiryWarning(notAfterUnixMillis: bigint, n
   if (days <= 30) return `The active management certificate expires in ${days} day${days === 1 ? "" : "s"}. Stage a replacement now.`;
   return "";
 }
+
+export interface ManagementCertificateExpiryStatus {
+  label: string;
+  type: "default" | "success" | "warning" | "error";
+}
+
+export function managementCertificateExpiryStatus(notAfterUnixMillis: bigint, nowUnixMillis = Date.now()): ManagementCertificateExpiryStatus {
+  if (notAfterUnixMillis === 0n) return { label: "Expiry unknown", type: "default" };
+  const days = Math.ceil((Number(notAfterUnixMillis) - nowUnixMillis) / 86_400_000);
+  if (days <= 0) return { label: "Expired", type: "error" };
+  const label = `${days.toLocaleString("en-US")} day${days === 1 ? "" : "s"} left`;
+  return { label, type: days <= 30 ? "warning" : "success" };
+}
+
+export const managementTlsRotationSteps = ["Stage", "Distribute trust", "Activate", "Retire old trust"] as const;
+
+/** Returns the 1-based current step for the forward rotation path, or 0 when no forward rotation is in progress. */
+export function managementTlsRotationStep(phase: ManagementTlsRotationPhase): number {
+  if (phase === ManagementTlsRotationPhase.DISTRIBUTING) return 2;
+  if (phase === ManagementTlsRotationPhase.ACTIVE) return 3;
+  if (phase === ManagementTlsRotationPhase.RETIRING) return 4;
+  return 0;
+}
+
+/** Human label for an in-progress rotation phase; empty when idle or unknown. */
+export function managementTlsPhaseLabel(phase: ManagementTlsRotationPhase, cleanupTitle: string): string {
+  if (phase === ManagementTlsRotationPhase.DISTRIBUTING) return "Distributing trust";
+  if (phase === ManagementTlsRotationPhase.ACTIVE) return "Certificate active";
+  if (phase === ManagementTlsRotationPhase.RETIRING) return "Retiring old trust";
+  if (phase === ManagementTlsRotationPhase.CLEANING_UP) return cleanupTitle;
+  return "";
+}

@@ -33,7 +33,7 @@ A visual reference for the current p2pstream management console. These images ar
 
 ## Proxy Configuration
 
-Configure hostnames, listener assignments, and routes in the [Site workspace](./sites). Route and target editors open inside their owning Site.
+Configure hostnames, listener assignments, and routes in the [Site workspace](./sites). Route and target editors open inside their owning site.
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
@@ -95,7 +95,7 @@ Configure hostnames, listener assignments, and routes in the [Site workspace](./
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF tab showing rule counts, execution order, Request Tester, filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
+    <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF tab showing rule counts, execution order, Request tester, filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
     <figcaption>WAF rules, captcha providers, and visitor identity</figcaption>
   </figure>
 
@@ -115,12 +115,12 @@ Configure hostnames, listener assignments, and routes in the [Site workspace](./
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper tab showing a filterable compact table with match and key, upload and download budget, scope, priority, state, and actions">
-    <figcaption>Traffic Shaper tab</figcaption>
+    <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic policy Traffic shaper tab showing a filterable compact table with match and key, upload and download budget, scope, priority, state, and actions">
+    <figcaption>Traffic shaper tab</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing filterable cache rules plus cache storage enabled, disk, memory, hot-object, entry, cleanup, save, and purge controls">
+    <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic policy Cache tab showing filterable cache rules plus cache storage enabled, disk, memory, hot-object, entry, cleanup, save, and purge controls">
     <figcaption>Cache rules and storage operations</figcaption>
   </figure>
 
@@ -139,7 +139,7 @@ Configure hostnames, listener assignments, and routes in the [Site workspace](./
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/response_template_page.png" alt="p2pstream Response Templates page showing kind summary cards and a compact table with description, kind, content type, usage count, required placeholders, updated time, and actions">
+    <img src="../assets/new/response_template_page.png" alt="p2pstream Response templates page showing kind summary cards and a compact table with description, kind, content type, usage count, required placeholders, updated time, and actions">
     <figcaption>Response template inventory</figcaption>
   </figure>
 
@@ -182,7 +182,7 @@ Configure hostnames, listener assignments, and routes in the [Site workspace](./
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/settings_api_tokens.png" alt="p2pstream API Tokens page under System showing the selected environment, issued-token table, expiry, last-used time, status, Create Token, refresh, and revoke actions">
+    <img src="../assets/new/settings_api_tokens.png" alt="p2pstream API tokens page under System showing the selected environment, issued-token table, expiry, last-used time, status, Create Token, refresh, and revoke actions">
     <figcaption>Selected-environment API tokens</figcaption>
   </figure>
 

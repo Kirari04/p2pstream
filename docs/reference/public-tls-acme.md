@@ -2,7 +2,7 @@
 
 Public TLS is configured per HTTPS listener with certificate mappings.
 
-In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add Certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
+In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
 
 ## Exact Fields And Defaults
 
@@ -45,11 +45,11 @@ Statuses:
 
 ## Runtime Effects
 
-Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after 1 hour.
+Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or when one third of their lifetime remains, capped at 30 days before expiry (a 90-day certificate renews 30 days before expiry, a 45-day certificate 15 days before, a 6-day certificate 2 days before). Failed renewals are retried after 1 hour.
 
 For ready ACME certificates, `next_renewal_at` is the next planned renewal time. For failed ACME certificates, `next_renewal_at` is the next automatic retry time. While a renewal is running, the next schedule is cleared until the attempt succeeds or fails.
 
-The certificate table uses **Mapping**, **Certificate**, **Status**, and **Lifecycle** columns. It shows validity when metadata is stored or the certificate file can be parsed. For ACME certificates it also shows the last attempt time, the next renewal or retry time, the DNS credential when applicable, and the last error. Row actions renew ACME certificates, edit mappings, or delete mappings. The separate DNS Credentials table shows provider, zone ID, enabled/disabled state, and whether the secret is saved.
+The certificate table uses **Hostname**, **Status**, **Expires**, and **Renewal** columns. Expand a row to see the served certificate's issuer, every DNS name and IP address, SHA-256 fingerprint, serial number, and validity; these are read from the certificate file and show a short reason when the file is missing, unreadable, or invalid. ACME certificates are flagged for attention when the last renewal failed, when a renewal is more than 24 hours overdue, or when less than one sixth of the lifetime (at most 14 days) remains. Manual certificates show an expiry warning when less than one third of the lifetime (at most 30 days) remains. Row actions renew ACME certificates, edit mappings, or delete mappings from the **More** menu. The separate DNS credentials table shows provider, zone ID, enabled/disabled state, and whether the secret is saved.
 
 Server logs for ACME use `component=public_acme`. Renewal entries include fields such as `cert_id`, `listener_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `expires_at`, `next_renewal_at`, and `retry_at`. Challenge tokens, DNS TXT values, DNS API tokens, and private key material are not logged.
 

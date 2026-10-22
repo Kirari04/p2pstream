@@ -86,7 +86,7 @@ configuration; enabling updates on the parent does not configure the remote.
 ## Enroll hosts once
 
 Open **Agents → Updates**. An unenrolled host has an **Enable managed updates** action. The UI
-uses the same setup dialog as **Install Agent** and **Reinstall / Repair**, with
+uses the same setup dialog as **Install agent** and **Reinstall / repair**, with
 an editable Management URL, release details, and optional local files.
 Enrollment preserves the host's existing management CA and agent configuration.
 A remote server advertising localhost defaults to its saved environment
@@ -143,6 +143,12 @@ work that has not activated and requests local rollback for activated
 assignments. Failed or blocked assignments can be retried with compare-and-swap
 campaign generations so stale browser actions cannot overwrite newer operator
 decisions.
+
+**Update campaigns** keeps running and paused campaigns pinned under **Active**,
+so **Pause**, **Resume**, and **Cancel** stay on screen. Finished campaigns are
+listed under **History**, ten per page, with campaigns that still need recovery
+first; search matches the campaign name, target version, or target commit, and
+the state filter narrows the list to completed or cancelled campaigns.
 
 ## Failure and recovery
 

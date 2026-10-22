@@ -18,22 +18,20 @@ test("shows IDN Site hostnames in Unicode while retaining ASCII DNS values", asy
   await authenticate(page, baseURL);
   await page.goto("/#/proxy/sites");
 
-  const surface = page
-    .locator("section.surface-card")
-    .filter({ has: page.getByRole("heading", { name: "Sites", exact: true }) });
-  await surface
-    .locator(".workbench-section-header")
-    .getByRole("button", { name: "Add Site", exact: true })
-    .click();
+  // "Add site" is the Proxy page header action while the Sites tab is active.
+  await expect(
+    page.getByRole("region", { name: "Sites", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Add site", exact: true }).click();
 
-  let workspace = page.getByRole("dialog", { name: "Create Site workspace" });
+  let workspace = page.getByRole("dialog", { name: "Create site workspace" });
   await workspace.getByLabel("Site name").fill("idn-site-e2e");
-  await workspace.getByRole("button", { name: "Create draft Site" }).click();
+  await workspace.getByRole("button", { name: "Create draft site" }).click();
   workspace = page.getByRole("dialog", { name: "Site workspace" });
   await workspace.getByRole("button", { name: "Add hostname" }).click();
   await workspace.getByRole("textbox", { name: /^Hostname 1\b/ }).fill("züribadi.example");
   await workspace.getByLabel("Canonical hostname").fill("züribadi.example");
-  await workspace.getByRole("button", { name: "Save Site settings" }).click();
+  await workspace.getByRole("button", { name: "Save site settings" }).click();
   await expect(workspace.getByText("Site settings saved")).toBeVisible();
 
   const config = await connectRPC<ProxyConfig>(

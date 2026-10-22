@@ -430,7 +430,7 @@ watch(() => route.fullPath, async () => {
 
       <div v-else-if="setupState?.setupRequired && setupState.setupAvailable" class="max-auth-width centered-block pad-y-4xl">
         <NCard :bordered="false" class="surface-shadow">
-          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup Admin</h1>
+          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup admin</h1>
           <p class="margin-bottom-xl copy-sm line-relaxed muted-text">Create the administrator account that will manage this p2pstream instance.</p>
           <NForm :model="setupForm" class="layout-grid space-lg" @submit.prevent="submitSetup">
               <NFormItem label="Username" path="username">

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { NButton, NButtonGroup, NInput } from "naive-ui";
+import { NInput } from "naive-ui";
 import PolicyMatchGroupEditor from "@/components/editors/PolicyMatchGroupEditor.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import {
   builderToCEL,
   policyMatchValidationReason,
@@ -21,6 +22,11 @@ const matchSummary = computed(() => {
   return builderToCEL(props.form.root) || "true";
 });
 
+const modeOptions = [
+  { label: "Builder", value: "builder" },
+  { label: "CEL", value: "expression" },
+] as const;
+
 function switchMode(mode: "builder" | "expression") {
   if (mode === props.form.mode) return;
   if (mode === "expression") {
@@ -37,13 +43,18 @@ defineExpose({ validationReason });
 </script>
 
 <template>
-  <section class="policy-match">
+  <section class="policy-match editor-group">
     <div class="match-head">
-      <h4>Match</h4>
-      <NButtonGroup size="small" role="group" aria-label="Match editor mode">
-        <NButton attr-type="button" :type="form.mode === 'builder' ? 'primary' : 'default'" :aria-pressed="form.mode === 'builder'" @click="switchMode('builder')">Builder</NButton>
-        <NButton attr-type="button" :type="form.mode === 'expression' ? 'primary' : 'default'" :aria-pressed="form.mode === 'expression'" @click="switchMode('expression')">CEL</NButton>
-      </NButtonGroup>
+      <div class="layout-grid space-2xs min-width-zero">
+        <h3 class="match-title">Match</h3>
+        <p class="copy-xs line-normal muted-text">Requests that match these conditions are handled by this rule. An empty match applies to every request.</p>
+      </div>
+      <SegmentedControl
+        :model-value="form.mode"
+        :options="modeOptions"
+        label="Match editor mode"
+        @update:model-value="switchMode"
+      />
     </div>
 
     <div v-if="form.mode === 'expression'" class="expression-panel">
@@ -69,24 +80,20 @@ defineExpose({ validationReason });
 .policy-match {
   display: grid;
   gap: 1rem;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 1rem;
 }
 
 .match-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.75rem 1rem;
   flex-wrap: wrap;
 }
 
-.match-head h4 {
+.match-title {
   color: var(--app-text);
-  font-size: 0.92rem;
-  font-weight: 650;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .builder-panel,
@@ -97,28 +104,24 @@ defineExpose({ validationReason });
 
 .expression-input {
   min-height: 9rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 0.82rem;
-  letter-spacing: 0;
-  text-transform: none;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
 }
 
 .field-error {
   color: var(--app-error);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
 }
 
 .match-expression-summary {
   max-height: 4.5rem;
   overflow: auto;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 5px;
-  background: var(--app-panel);
+  overflow-wrap: anywhere;
+  border-radius: 6px;
+  background: var(--app-panel-muted);
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.45;
   padding: 0.5rem 0.625rem;
-  text-transform: none;
-  letter-spacing: 0;
 }
 </style>

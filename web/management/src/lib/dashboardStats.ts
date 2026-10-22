@@ -76,7 +76,7 @@ export function statusTone(statusCode: bigint | number | null | undefined): "suc
 
 export function formatPathPrefix(pathPrefix: string | null | undefined): string {
   const value = pathPrefix?.trim() ?? "";
-  return value || "-";
+  return value || "—";
 }
 
 export function cacheLookupRequests(window: DashboardWindowSummary | null | undefined): bigint {
@@ -112,7 +112,7 @@ export function bytesPerSecond(
 }
 
 export function formatBytes(value: bigint | number | null | undefined): string {
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) return "—";
   const bytes = toSafeNumber(value);
   if (bytes < 1024) return `${Math.round(bytes).toString()} B`;
   const units = ["KiB", "MiB", "GiB", "TiB", "PiB"];
@@ -126,23 +126,23 @@ export function formatBytes(value: bigint | number | null | undefined): string {
 }
 
 export function formatByteRate(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return `${formatBytes(value)}/s`;
 }
 
 export function formatDuration(value: bigint | number | null | undefined): string {
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) return "—";
   const millis = toSafeNumber(value);
-  if (millis <= 0) return "-";
+  if (millis <= 0) return "—";
   if (millis < 1000) return `${Math.round(millis).toString()} ms`;
   if (millis < 60_000) return `${(millis / 1000).toFixed(1)} s`;
   return `${(millis / 60_000).toFixed(1)} min`;
 }
 
 export function formatLongDuration(value: bigint | number | null | undefined): string {
-  if (value === null || value === undefined) return "-";
+  if (value === null || value === undefined) return "—";
   const millis = toSafeNumber(value);
-  if (millis <= 0) return "-";
+  if (millis <= 0) return "—";
   const seconds = Math.floor(millis / 1000);
   if (seconds < 60) return `${seconds.toString()}s`;
   const minutes = Math.floor(seconds / 60);
@@ -158,7 +158,7 @@ export function formatLongDuration(value: bigint | number | null | undefined): s
 }
 
 export function formatPercent(value: number | null | undefined): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) return "-";
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
   return `${(value * 100).toFixed(value > 0 && value < 0.1 ? 1 : 0)}%`;
 }
 

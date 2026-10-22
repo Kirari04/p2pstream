@@ -71,9 +71,9 @@ test('a late preview cannot replace a newer preview after environment A to B to 
   await page.getByRole('button', {name:'Preview update', exact:true}).click();
   await expect.poll(() => page.evaluate(() => (window as any).__updateReview.previews.length)).toBe(1);
   await page.locator('#switch').click();
-  await expect(page.getByText('INSTALLED ON Local')).toBeVisible();
+  await expect(page.getByText('Installed on Local')).toBeVisible();
   await page.locator('#switch').click();
-  await expect(page.getByText('INSTALLED ON fireani.me')).toBeVisible();
+  await expect(page.getByText('Installed on fireani.me')).toBeVisible();
   await page.getByRole('button', {name:'Preview update', exact:true}).click();
   await expect.poll(() => page.evaluate(() => (window as any).__updateReview.previews.length)).toBe(2);
   await page.evaluate(() => (window as any).__updateReview.previews[1].resolve('v0.1.53-staging.93'));
@@ -142,7 +142,7 @@ test('a rejected old Start cannot dismiss a newer preview after A to B to A', as
   await page.getByRole('dialog').getByRole('button', {name:'Update fireani.me',exact:true}).click();
   await expect.poll(() => page.evaluate(() => (window as any).__updateReview.startReplies.length)).toBe(1);
   await page.locator('#switch').evaluate((button: HTMLElement) => button.click());
-  await expect(page.getByText('INSTALLED ON Local')).toBeVisible();
+  await expect(page.getByText('Installed on Local')).toBeVisible();
   await page.locator('#switch').click();
   await page.getByRole('button', {name:'Clear saved request'}).click();
   await page.getByRole('button', {name:'Preview update',exact:true}).click();
@@ -165,7 +165,7 @@ test('unmounted Start completion cannot rewrite the saved request of a replaceme
   await expect.poll(() => page.evaluate(() => (window as any).__updateReview.startReplies.length)).toBe(1);
   const record = await page.evaluate(() => sessionStorage.getItem('p2pstream:server-update:1'));
   await page.evaluate(() => (window as any).__updateReview.mount(false));
-  await expect(page.getByText('Keep your server current', {exact:true})).toBeHidden();
+  await expect(page.getByText(/^Verified releases for /)).toBeHidden();
   await page.evaluate(() => (window as any).__updateReview.mount(true));
   await expect(page.getByRole('button', {name:'Retry same request'})).toBeVisible();
   await page.evaluate(() => (window as any).__updateReview.startReplies[0].resolve());

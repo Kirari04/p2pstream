@@ -11,6 +11,7 @@ const ServerUpdates = () => import('./views/ServerUpdates.vue');
 const SettingsApiTokens = () => import('./views/SettingsApiTokens.vue');
 const SettingsEnvironments = () => import('./views/SettingsEnvironments.vue');
 const SettingsManagementTls = () => import('./views/SettingsManagementTls.vue');
+const SettingsManagementTlsRotation = () => import('./views/SettingsManagementTlsRotation.vue');
 const ProxyConfig = () => import('./views/ProxyConfig.vue');
 const TrafficPolicies = () => import('./views/TrafficPolicies.vue');
 const ResponseTemplates = () => import('./views/ResponseTemplates.vue');
@@ -45,6 +46,7 @@ const routes = [
       { path: 'environments', name: 'settings-environments', component: SettingsEnvironments },
       { path: 'api-tokens', name: 'settings-api-tokens', component: SettingsApiTokens },
       { path: 'management-tls', name: 'settings-management-tls', component: SettingsManagementTls },
+      { path: 'management-tls/rotation', name: 'settings-management-tls-rotation', component: SettingsManagementTlsRotation },
       { path: 'updates', name: 'settings-updates', component: ServerUpdates },
     ],
   },
@@ -53,7 +55,12 @@ const routes = [
   { path: '/proxy/:section(sites|listeners)', name: 'proxy', component: ProxyConfig },
   { path: '/proxy/:pathMatch(.*)*', redirect: '/proxy/sites' },
   { path: '/policies', redirect: '/policies/rate-limits' },
-  { path: '/policies/:section(rate-limits|waf|access|cache|retries|traffic-shaper)', name: 'policies', component: TrafficPolicies },
+  // WAF has route-backed sub-pages: /policies/waf (rules) and /policies/waf/captcha-providers.
+  {
+    path: '/policies/:section(rate-limits|waf|waf/captcha-providers|access|cache|retries|traffic-shaper|visitor-identity)',
+    name: 'policies',
+    component: TrafficPolicies,
+  },
   { path: '/policies/:pathMatch(.*)*', redirect: '/policies/rate-limits' },
   { path: '/templates', name: 'templates', component: ResponseTemplates },
   { path: '/tls', name: 'tls', component: TlsConfig },

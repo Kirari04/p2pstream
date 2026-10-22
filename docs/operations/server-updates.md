@@ -1,12 +1,12 @@
 # Management Server Updates
 
-**System → Server Updates** updates the server selected in the environment switcher. The installed version comes from that server. A local development UI can operate a remote environment using the same page and its saved, certificate-pinned management connection.
+**System → Server updates** updates the server selected in the environment switcher. The installed version comes from that server. A local development UI can operate a remote environment using the same page and its saved, certificate-pinned management connection.
 
 The first implementation supports operator-triggered updates for a single Linux Docker Compose server on amd64 or arm64, using the standard named `/data` volume. Unattended updates are off. Native/systemd, rootless Docker, Swarm, external databases, custom entrypoints, inherited container mounts, temporary mounts inside `/data`, volume subpaths, and file-backed Compose secrets/configs require a manual deployment.
 
 ## Install once on the selected Docker host
 
-Use **System → Server Updates** on the intended environment. The page gets its setup command from that management server's actual version, commit, channel, platform and persistent installation ID. Releases containing the bootstrap script provide a single-line `curl … | sudo sh` command. Older releases keep their original setup block; a newer browser UI cannot invent installation support for an older remote server. If the installed release lacks the Docker bundle/identity API, or its release metadata has expired, first manually deploy a current published release containing installation support. Published releases are never rewritten to add assets.
+Use **System → Server updates** on the intended environment. The page gets its setup command from that management server's actual version, commit, channel, platform and persistent installation ID. Releases containing the bootstrap script provide a single-line `curl … | sudo sh` command. Older releases keep their original setup block; a newer browser UI cannot invent installation support for an older remote server. If the installed release lacks the Docker bundle/identity API, or its release metadata has expired, first manually deploy a current published release containing installation support. Published releases are never rewritten to add assets.
 
 The ordinary Docker [quickstart](../getting-started/quickstart) downloads a small release deployment package, with editable `compose.yaml` and `.env`, and pins the image digest. A checkout is only needed for contributor/source builds.
 
@@ -53,7 +53,7 @@ The progress display works with existing executors. Backup I/O and cleanup impro
 
 ### Migrate an existing enrollment
 
-An existing enrollment keeps its original workflow until explicitly migrated. First update the server to a published release that supports coordinated deployment ownership, using its existing updater or the documented manual deployment procedure. Then open **System → Server Updates → Upgrade host updater** and copy the migration command. Older UI versions call this card **Upgrade deployment integration**. Run it with the recorded Compose context on the Docker host. It selects the matching published executor, checks both binaries' capabilities and preserves the current image, installation identity, credentials, data and release floors.
+An existing enrollment keeps its original workflow until explicitly migrated. First update the server to a published release that supports coordinated deployment ownership, using its existing updater or the documented manual deployment procedure. Then open **System → Server updates → Upgrade host updater** and copy the migration command. Older UI versions call this card **Upgrade deployment integration**. Run it with the recorded Compose context on the Docker host. It selects the matching published executor, checks both binaries' capabilities and preserves the current image, installation identity, credentials, data and release floors.
 
 Migration journals source-file changes before replacing them, keeps editable originals and resumes through `manage repair` after interruption. It refuses unrelated default Compose files or changed deployment inputs. If the legacy private binding needs repair first, the migration command performs that verified repair before proceeding; this can require two server restarts instead of one. A browser-only update cannot upgrade an older server or executor, and old published bundles do not acquire new repair behavior. Before migration, continue using `manage apply`; plain recreation on the older layout can still detach the private binding.
 
@@ -90,7 +90,7 @@ Removal strips updater credentials, control mount, executor service and managed 
 ## Preview and update
 
 1. Select the intended environment, such as `fireani.me`.
-2. Open **System → Server Updates**.
+2. Open **System → Server updates**.
 3. Preview the latest eligible release or enter an exact version in the installed stable/staging channel.
 4. Review the environment, previous and target versions, pinned image, and interruption notice.
 5. Start the update and leave the page open to follow its status.

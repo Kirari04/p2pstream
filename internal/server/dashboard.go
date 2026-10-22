@@ -101,6 +101,99 @@ func (a *App) GetAgentAvailability(
 	return connect.NewResponse(resp), nil
 }
 
+// agentAvailabilityFleetMaxIntervals bounds each agent's interval list in
+// ListAgentAvailability. A flapping agent can otherwise produce thousands of
+// merged intervals over 30 days, multiplied across the fleet.
+const agentAvailabilityFleetMaxIntervals = 1000
+
+func (a *App) ListAgentAvailability(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.ListAgentAvailabilityRequest],
+) (*connect.Response[p2pstreamv1.ListAgentAvailabilityResponse], error) {
+	if _, err := a.requireUser(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for agent availability"))
+	}
+	label, window, err := agentAvailabilityWindow(req.Msg.GetWindowLabel())
+	if err != nil {
+		return nil, err
+	}
+	resp, err := a.fleetAgentAvailability(ctx, label, window, time.Now().UTC())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// fleetAgentAvailability computes every agent's availability with two queries
+// (agents, connections) and the same per-agent computation as
+// GetAgentAvailability.
+func (a *App) fleetAgentAvailability(
+	ctx context.Context,
+	windowLabel string,
+	window time.Duration,
+	now time.Time,
+) (*p2pstreamv1.ListAgentAvailabilityResponse, error) {
+	now = now.UTC()
+	windowSince := a.agentAvailabilityWindowSince(window, now)
+	agents, err := a.DB.ListAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := &p2pstreamv1.ListAgentAvailabilityResponse{
+		WindowLabel:           windowLabel,
+		WindowSinceUnixMillis: windowSince.UnixMilli(),
+		WindowUntilUnixMillis: now.UnixMilli(),
+		Agents:                make([]*p2pstreamv1.AgentAvailabilitySummary, 0, len(agents)),
+	}
+	if len(agents) == 0 {
+		return resp, nil
+	}
+	// Every agent's observed window starts at or after windowSince, so one scan
+	// from windowSince covers all of them; the per-agent computation discards
+	// rows that end before that agent's own start.
+	connections, err := a.DB.ListAllAgentConnectionsSince(ctx, windowSince)
+	if err != nil {
+		return nil, err
+	}
+	rowsByAgent := make(map[int64][]db.ListAgentConnectionsSinceRow, len(agents))
+	for _, row := range connections {
+		rowsByAgent[row.AgentID] = append(rowsByAgent[row.AgentID], db.ListAgentConnectionsSinceRow{
+			ID:             row.ID,
+			ConnectedAt:    row.ConnectedAt,
+			DisconnectedAt: row.DisconnectedAt,
+		})
+	}
+	for _, agent := range agents {
+		observedSince := a.agentAvailabilityObservedSince(agent, window, now)
+		single := a.computeAgentAvailability(agent, observedSince, now, rowsByAgent[agent.ID])
+		intervals := single.GetIntervals()
+		truncated := false
+		if len(intervals) > agentAvailabilityFleetMaxIntervals {
+			intervals = intervals[len(intervals)-agentAvailabilityFleetMaxIntervals:]
+			truncated = true
+		}
+		resp.Agents = append(resp.Agents, &p2pstreamv1.AgentAvailabilitySummary{
+			AgentPublicId:           single.GetAgentPublicId(),
+			AgentName:               single.GetAgentName(),
+			ObservedSinceUnixMillis: single.GetObservedSinceUnixMillis(),
+			ObservedUntilUnixMillis: single.GetObservedUntilUnixMillis(),
+			UptimeMillis:            single.GetUptimeMillis(),
+			DowntimeMillis:          single.GetDowntimeMillis(),
+			UptimePercent:           single.GetUptimePercent(),
+			DisconnectCount:         single.GetDisconnectCount(),
+			LongestDowntimeMillis:   single.GetLongestDowntimeMillis(),
+			Connected:               single.GetConnected(),
+			Intervals:               intervals,
+			IntervalsTruncated:      truncated,
+			Enabled:                 agent.Enabled != 0,
+		})
+	}
+	return resp, nil
+}
+
 func agentAvailabilityWindow(label string) (string, time.Duration, error) {
 	label = strings.TrimSpace(label)
 	if label == "" {
@@ -1451,12 +1544,7 @@ func (a *App) agentAvailability(
 	now time.Time,
 ) (*p2pstreamv1.GetAgentAvailabilityResponse, error) {
 	now = now.UTC()
-	retentionSince := now.AddDate(0, 0, -a.observabilityRetentionDays()).UTC()
-	observedSince := maxTime(now.Add(-window), retentionSince)
-	observedSince = maxTime(observedSince, agent.CreatedAt.UTC())
-	if observedSince.After(now) {
-		observedSince = now
-	}
+	observedSince := a.agentAvailabilityObservedSince(agent, window, now)
 
 	rows, err := a.DB.ListAgentConnectionsSince(ctx, db.ListAgentConnectionsSinceParams{
 		AgentID: sql.NullInt64{Int64: agent.ID, Valid: true},
@@ -1465,6 +1553,46 @@ func (a *App) agentAvailability(
 	if err != nil {
 		return nil, err
 	}
+	resp := a.computeAgentAvailability(agent, observedSince, now, rows)
+	resp.WindowLabel = windowLabel
+	return resp, nil
+}
+
+// agentAvailabilityWindowSince is the fleet-wide start of an availability
+// window: the requested duration, clamped to observability retention.
+func (a *App) agentAvailabilityWindowSince(window time.Duration, now time.Time) time.Time {
+	now = now.UTC()
+	retentionSince := now.AddDate(0, 0, -a.observabilityRetentionDays()).UTC()
+	since := maxTime(now.Add(-window), retentionSince)
+	if since.After(now) {
+		since = now
+	}
+	return since
+}
+
+// agentAvailabilityObservedSince additionally clamps the window to the
+// agent's creation time.
+func (a *App) agentAvailabilityObservedSince(agent db.Agent, window time.Duration, now time.Time) time.Time {
+	now = now.UTC()
+	observedSince := a.agentAvailabilityWindowSince(window, now)
+	observedSince = maxTime(observedSince, agent.CreatedAt.UTC())
+	if observedSince.After(now) {
+		observedSince = now
+	}
+	return observedSince
+}
+
+// computeAgentAvailability derives one agent's availability from its
+// connection rows (ordered by connected_at) and the live hub state. Rows that
+// end before observedSince are ignored, so callers may pass rows fetched with
+// an earlier since bound. WindowLabel is left for the caller to fill in.
+func (a *App) computeAgentAvailability(
+	agent db.Agent,
+	observedSince time.Time,
+	now time.Time,
+	rows []db.ListAgentConnectionsSinceRow,
+) *p2pstreamv1.GetAgentAvailabilityResponse {
+	now = now.UTC()
 
 	connected := false
 	var activeConnection *AgentConn
@@ -1531,7 +1659,6 @@ func (a *App) agentAvailability(
 	return &p2pstreamv1.GetAgentAvailabilityResponse{
 		AgentPublicId:           agent.PublicID,
 		AgentName:               agent.Name,
-		WindowLabel:             windowLabel,
 		ObservedSinceUnixMillis: observedSince.UnixMilli(),
 		ObservedUntilUnixMillis: now.UnixMilli(),
 		UptimeMillis:            uptimeMillis,
@@ -1541,7 +1668,7 @@ func (a *App) agentAvailability(
 		LongestDowntimeMillis:   longestDashboardGapMillis(observedSince, now, merged),
 		Connected:               connected,
 		Intervals:               protoIntervals,
-	}, nil
+	}
 }
 
 func mergeDashboardTimeIntervals(intervals []dashboardTimeInterval) []dashboardTimeInterval {

@@ -127,7 +127,7 @@ function trapMobileFocus(event: KeyboardEvent) {
                 <router-link
                   :to="child.path"
                   class="app-sidebar__sublink"
-                  :class="{ 'app-sidebar__sublink--active': route.path === child.path }"
+                  :class="{ 'app-sidebar__sublink--active': isActive(child) }"
                   :aria-current="route.path === child.path ? 'page' : undefined"
                   @click="emit('close-mobile')"
                 >

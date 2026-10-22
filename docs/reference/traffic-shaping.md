@@ -2,7 +2,7 @@
 
 Traffic shaper rules limit upload and/or download throughput for matching requests.
 
-In the management UI, choose **Traffic Policy -> Traffic Shaper**. Traffic shapers have a dedicated tab with a rule count, text and enabled-state filters, and compact columns for the rule, match and key, budget and scope, priority and state, and actions. They are not combined with cache rules; use the adjacent **Cache** tab for cache eligibility and storage.
+In the management UI, choose **Traffic policy -> Traffic shaper**. Traffic shapers have a dedicated tab with a rule count, text and enabled-state filters, and compact columns for the rule, match and key, budget and scope, priority and state, and actions. They are not combined with cache rules; use the adjacent **Cache** tab for cache eligibility and storage.
 
 ## Exact Fields And Defaults
 
@@ -46,8 +46,8 @@ WHERE lower(key_parts_json) LIKE '%forwarded%'
 Byte rates and exempt bytes must be non-negative. Use realistic rates so operational debugging remains clear.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper tab showing a filterable rule table with match and key, upload and download budget, scope, priority, state, and actions">
-  <figcaption>The dedicated Traffic Shaper tab keeps bandwidth rules dense and scannable while the policy tabs and execution-order strip show their relationship to rate limits, routing, and cache.</figcaption>
+  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic policy Traffic shaper tab showing a filterable rule table with match and key, upload and download budget, scope, priority, state, and actions">
+  <figcaption>The dedicated Traffic shaper tab keeps bandwidth rules dense and scannable while the policy tabs and execution-order strip show their relationship to rate limits, routing, and cache.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">

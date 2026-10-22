@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
+import { TriangleAlert as TriangleAlertIcon } from "@lucide/vue";
 import {
   NAlert,
   NButton,
-  NButtonGroup,
   NCheckbox,
   NDrawer,
   NDrawerContent,
@@ -16,6 +16,7 @@ import {
 import type { TransferOption } from "naive-ui";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import { BUSY_REASON } from "@/lib/disabledReasons";
@@ -94,6 +95,23 @@ const form = reactive({
   match: defaultPolicyMatchForm() as PolicyMatchForm,
   duplicateRiskAcknowledged: false,
 });
+
+const methodPresetOptions: readonly { label: string; value: MethodPreset }[] = [
+  { label: "GET + HEAD", value: "safe" },
+  { label: "Idempotent", value: "idempotent" },
+  { label: "All methods", value: "all" },
+  { label: "Custom", value: "custom" },
+];
+const statusPresetOptions: readonly { label: string; value: StatusPreset }[] = [
+  { label: "Transport only", value: "none" },
+  { label: "Gateway failures", value: "gateway" },
+  { label: "Broad transient", value: "transient" },
+  { label: "Custom", value: "custom" },
+];
+const bodyModeOptions = [
+  { label: "Do not buffer", value: PublicRetryBodyMode.NEVER },
+  { label: "Buffer body", value: PublicRetryBodyMode.BUFFERED },
+];
 
 const failureModeOptions = [
   {
@@ -412,29 +430,26 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('64rem')"
-    :aria-label="form.id ? 'Edit Request Retry Rule' : 'Add Request Retry Rule'"
+    :aria-label="form.id ? 'Edit request retry rule' : 'Add request retry rule'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Request Retry Rule' : 'Add Request Retry Rule'" closable>
+    <NDrawerContent :title="form.id ? 'Edit request retry rule' : 'Add request retry rule'" closable>
       <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
         <section class="layout-grid space-lg mq-sm-cols-four">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
             Name
             <NInput v-model:value="form.name" size="small" required />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Priority
             <NInputNumber v-model:value="form.priority" :show-button="false" size="small" required />
           </label>
           <NCheckbox v-model:checked="form.enabled" class="self-align-end">Enabled</NCheckbox>
         </section>
 
-        <section class="retry-envelope">
+        <section class="retry-envelope layout-grid space-sm">
           <div class="retry-envelope-head">
-            <div>
-              <p class="panel-eyebrow">Attempt envelope</p>
-              <h4 class="copy-base weight-semibold base-text">Fail over inside the selected target</h4>
-            </div>
+            <h3 class="copy-sm weight-semibold base-text">Fail over inside the selected target</h3>
             <div class="retry-chip-row">
               <NTag size="small" type="info" :bordered="false">{{ attemptSummary }}</NTag>
               <NTag size="small" :bordered="false">Different agent</NTag>
@@ -446,114 +461,100 @@ defineExpose({ openCreate, openEdit, close });
           </p>
         </section>
 
-        <section class="layout-grid space-lg">
-          <div>
-            <h4 class="copy-sm weight-semibold base-text">Request eligibility</h4>
-            <p class="margin-top-xs copy-xs line-normal muted-text">Choose which HTTP methods can use this rule. CONNECT, TRACE, and protocol upgrades are always excluded.</p>
+        <section class="editor-group layout-grid space-lg">
+          <div class="layout-grid space-2xs">
+            <h3 class="copy-sm weight-semibold base-text">Request eligibility</h3>
+            <p class="copy-xs line-normal muted-text">Choose which HTTP methods can use this rule. CONNECT, TRACE, and protocol upgrades are always excluded.</p>
           </div>
-          <NButtonGroup class="method-presets" size="small" role="group" aria-label="Retry method preset">
-            <NButton attr-type="button" :type="form.methodPreset === 'safe' ? 'primary' : 'default'" @click="form.methodPreset = 'safe'">GET + HEAD</NButton>
-            <NButton attr-type="button" :type="form.methodPreset === 'idempotent' ? 'primary' : 'default'" @click="form.methodPreset = 'idempotent'">Idempotent</NButton>
-            <NButton attr-type="button" :type="form.methodPreset === 'all' ? 'primary' : 'default'" @click="form.methodPreset = 'all'">All methods</NButton>
-            <NButton attr-type="button" :type="form.methodPreset === 'custom' ? 'primary' : 'default'" @click="form.methodPreset = 'custom'">Custom</NButton>
-          </NButtonGroup>
+          <SegmentedControl v-model="form.methodPreset" :options="methodPresetOptions" label="Retry method preset" />
           <div v-if="form.methodPreset === 'custom'" class="layout-grid space-xs">
             <NDynamicTags :value="form.customMethods" @update:value="updateCustomMethods" />
             <p class="copy-xs muted-text">Enter HTTP method names; they are normalized to uppercase.</p>
           </div>
-          <div class="retry-summary-line">
-            <span class="panel-eyebrow">Effective methods</span>
+          <p class="retry-summary-line copy-xs">
+            <span class="muted-text">Effective methods</span>
             <code>{{ methodSummary }}</code>
-          </div>
+          </p>
         </section>
 
-        <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
-          <div>
-            <h4 class="copy-sm weight-semibold base-text">Failure boundary</h4>
-            <p class="margin-top-xs copy-xs line-normal muted-text">Transport retries stop once response headers arrive. Selected HTTP error responses can still fail over before any response is sent to the client.</p>
+        <section class="editor-group layout-grid space-xl">
+          <div class="layout-grid space-2xs">
+            <h3 class="copy-sm weight-semibold base-text">Failure boundary</h3>
+            <p class="copy-xs line-normal muted-text">Transport retries stop once response headers arrive. Selected HTTP error responses can still fail over before any response is sent to the client.</p>
           </div>
-          <div class="failure-mode-grid" role="radiogroup" aria-label="Retry failure boundary">
+          <div class="option-grid" role="radiogroup" aria-label="Retry failure boundary">
             <button
               v-for="option in failureModeOptions"
               :key="option.value"
               type="button"
               role="radio"
-              class="failure-mode-option"
-              :class="{ 'failure-mode-option--active': form.failureMode === option.value }"
+              class="option-card"
+              :class="{ 'option-card--active': form.failureMode === option.value }"
               :aria-checked="form.failureMode === option.value"
               @click="form.failureMode = option.value"
             >
-              <span class="layout-grid space-2xs text-left">
-                <span class="weight-medium base-text">{{ option.label }}</span>
-                <span class="copy-xs line-normal muted-text">{{ option.detail }}</span>
-              </span>
+              <span class="weight-medium base-text">{{ option.label }}</span>
+              <span class="copy-xs line-normal muted-text">{{ option.detail }}</span>
             </button>
           </div>
-          <div class="status-retry-panel">
-            <div class="layout-grid space-xs">
-              <div class="status-retry-heading">
-                <div>
-                  <p class="panel-eyebrow">HTTP response failover</p>
-                  <h5 class="copy-sm weight-semibold base-text">Retry selected error statuses on another agent</h5>
-                </div>
-                <NTag size="small" :type="normalizedStatusCodes.length ? 'warning' : 'default'" :bordered="false">{{ statusSummary }}</NTag>
+
+          <div class="retry-subgroup layout-grid space-md">
+            <div class="retry-subgroup-head">
+              <div class="layout-grid space-2xs min-width-zero">
+                <h4 class="copy-sm weight-semibold base-text">Retry selected error statuses on another agent</h4>
+                <p class="copy-xs line-normal muted-text">The first response body is discarded and the same request is replayed through a different healthy agent. A final matching status is returned unchanged after attempts are exhausted.</p>
               </div>
-              <p class="copy-xs line-normal muted-text">The first response body is discarded and the same request is replayed through a different healthy agent. A final matching status is returned unchanged after attempts are exhausted.</p>
+              <NTag size="small" :type="normalizedStatusCodes.length ? 'warning' : 'default'" :bordered="false">{{ statusSummary }}</NTag>
             </div>
-            <NButtonGroup class="status-preset-grid" size="small" role="group" aria-label="Retryable HTTP status preset">
-              <NButton attr-type="button" :type="form.statusPreset === 'none' ? 'primary' : 'default'" @click="form.statusPreset = 'none'">Transport only</NButton>
-              <NButton attr-type="button" :type="form.statusPreset === 'gateway' ? 'primary' : 'default'" @click="form.statusPreset = 'gateway'">Gateway failures</NButton>
-              <NButton attr-type="button" :type="form.statusPreset === 'transient' ? 'primary' : 'default'" @click="form.statusPreset = 'transient'">Broad transient</NButton>
-              <NButton attr-type="button" :type="form.statusPreset === 'custom' ? 'primary' : 'default'" @click="form.statusPreset = 'custom'">Custom</NButton>
-            </NButtonGroup>
+            <SegmentedControl v-model="form.statusPreset" :options="statusPresetOptions" label="Retryable HTTP status preset" />
             <div v-if="form.statusPreset === 'custom'" class="layout-grid space-xs">
               <NDynamicTags :value="form.customStatusCodes" @update:value="updateCustomStatusCodes" />
               <p class="copy-xs muted-text">Add exact HTTP error statuses from 400 through 599.</p>
             </div>
             <div class="status-preset-notes copy-xs muted-text">
-              <span><strong>Gateway:</strong> 502, 503, 504</span>
-              <span><strong>Broad:</strong> 408, 425, 429, 500, 502, 503, 504</span>
+              <span><span class="base-text weight-medium">Gateway:</span> 502, 503, 504</span>
+              <span><span class="base-text weight-medium">Broad:</span> 408, 425, 429, 500, 502, 503, 504</span>
             </div>
           </div>
-          <div class="layout-grid space-lg mq-sm-cols-two">
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-              Retry attempts
-              <NInputNumber v-model:value="form.maxRetries" :show-button="false" size="small" :min="1" :max="3" />
-              <span class="copy-xs weight-normal normal-text letter-normal muted-text">One retry means at most two total upstream attempts.</span>
+
+          <div class="retry-subgroup layout-grid space-lg">
+            <div class="layout-grid space-lg mq-sm-cols-two">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+                Retry attempts
+                <NInputNumber v-model:value="form.maxRetries" :show-button="false" size="small" :min="1" :max="3" />
+                <span class="weight-normal muted-text">One retry means at most two total upstream attempts.</span>
+              </label>
+              <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+                Request body replay
+                <SegmentedControl v-model="form.bodyMode" :options="bodyModeOptions" label="Request body replay" />
+                <span class="weight-normal muted-text">Unbuffered bodies retry only if the failed attempt consumed zero body bytes.</span>
+              </div>
+            </div>
+            <label v-if="form.bodyMode === PublicRetryBodyMode.BUFFERED" class="layout-grid space-xs copy-xs weight-medium muted-text replay-limit-field">
+              Maximum replay body KiB
+              <NInputNumber v-model:value="form.maxReplayBodyKiB" :show-button="false" size="small" :min="1" :max="4096" />
+              <span class="weight-normal muted-text">Bodies above this limit stream normally and are not retried after consumption. The server also enforces a 64 MiB global replay-memory budget.</span>
             </label>
-            <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-              Request body replay
-              <NButtonGroup class="cols-two" size="small">
-                <NButton attr-type="button" :type="form.bodyMode === PublicRetryBodyMode.NEVER ? 'primary' : 'default'" @click="form.bodyMode = PublicRetryBodyMode.NEVER">Do not buffer</NButton>
-                <NButton attr-type="button" :type="form.bodyMode === PublicRetryBodyMode.BUFFERED ? 'primary' : 'default'" @click="form.bodyMode = PublicRetryBodyMode.BUFFERED">Buffer body</NButton>
-              </NButtonGroup>
-              <span class="copy-xs weight-normal normal-text letter-normal muted-text">Unbuffered bodies retry only if the failed attempt consumed zero body bytes.</span>
-            </div>
           </div>
-          <label v-if="form.bodyMode === PublicRetryBodyMode.BUFFERED" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
-            Maximum replay body KiB
-            <NInputNumber v-model:value="form.maxReplayBodyKiB" :show-button="false" size="small" :min="1" :max="4096" />
-            <span class="copy-xs weight-normal normal-text letter-normal muted-text">Bodies above this limit stream normally and are not retried after consumption. The server also enforces a 64 MiB global replay-memory budget.</span>
-          </label>
-          <div class="response-completion-panel">
-            <div class="status-retry-heading">
-              <div>
-                <p class="panel-eyebrow">Response completion</p>
-                <h5 class="copy-sm weight-semibold base-text">Protect bounded responses from mid-transfer agent loss</h5>
+
+          <div class="retry-subgroup layout-grid space-md">
+            <div class="retry-subgroup-head">
+              <div class="layout-grid space-2xs min-width-zero">
+                <h4 class="copy-sm weight-semibold base-text">Protect bounded responses from mid-transfer agent loss</h4>
+                <p class="copy-xs line-normal muted-text">
+                  Protected responses are read completely before headers are sent to the client. If the agent disappears mid-body, the request can fail over without exposing partial content. Encoded bytes are preserved exactly—there is no decompression or recompression.
+                </p>
               </div>
               <NTag size="small" :type="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED ? 'info' : 'default'" :bordered="false">
                 {{ responseDeliverySummary }}
               </NTag>
             </div>
-            <p class="copy-xs line-normal muted-text">
-              Protected responses are read completely before headers are sent to the client. If the agent disappears mid-body, the request can fail over without exposing partial content. Encoded bytes are preserved exactly—there is no decompression or recompression.
-            </p>
-            <div class="response-mode-grid" role="radiogroup" aria-label="Response completion mode">
+            <div class="option-grid" role="radiogroup" aria-label="Response completion mode">
               <button
                 type="button"
                 role="radio"
-                class="response-mode-option"
-                :class="{ 'response-mode-option--active': form.responseBodyMode === PublicRetryResponseBodyMode.STREAM }"
+                class="option-card"
+                :class="{ 'option-card--active': form.responseBodyMode === PublicRetryResponseBodyMode.STREAM }"
                 :aria-checked="form.responseBodyMode === PublicRetryResponseBodyMode.STREAM"
                 @click="form.responseBodyMode = PublicRetryResponseBodyMode.STREAM"
               >
@@ -563,8 +564,8 @@ defineExpose({ openCreate, openEdit, close });
               <button
                 type="button"
                 role="radio"
-                class="response-mode-option"
-                :class="{ 'response-mode-option--active': form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED }"
+                class="option-card"
+                :class="{ 'option-card--active': form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED }"
                 :aria-checked="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED"
                 @click="form.responseBodyMode = PublicRetryResponseBodyMode.BUFFERED"
               >
@@ -573,17 +574,17 @@ defineExpose({ openCreate, openEdit, close });
               </button>
             </div>
             <div v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="layout-grid space-lg mq-sm-cols-two">
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text replay-limit-field">
                 Maximum protected response KiB
                 <NInputNumber v-model:value="form.maxBufferedResponseBodyKiB" :show-button="false" size="small" :min="1" :max="65536" />
-                <span class="copy-xs weight-normal normal-text letter-normal muted-text">
+                <span class="weight-normal muted-text">
                   Larger responses fall back to streaming without dropping the request.
                 </span>
               </label>
-              <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text replay-limit-field">
+              <label class="layout-grid space-xs copy-xs weight-medium muted-text replay-limit-field">
                 Maximum completion wait seconds
                 <NInputNumber v-model:value="form.maxBufferedResponseWaitSeconds" :show-button="false" size="small" :min="1" :max="300" />
-                <span class="copy-xs weight-normal normal-text letter-normal muted-text">
+                <span class="weight-normal muted-text">
                   Slow or long-lived responses switch cleanly to streaming after this wait.
                 </span>
               </label>
@@ -591,43 +592,47 @@ defineExpose({ openCreate, openEdit, close });
             <p v-if="form.responseBodyMode === PublicRetryResponseBodyMode.BUFFERED" class="copy-xs line-normal muted-text">
               Protection is best effort. Request and response buffers share the server's 64 MiB replay-memory budget; budget-constrained responses stream normally and the skip reason is recorded in traffic traces.
             </p>
-            <div class="response-exclusions copy-xs line-normal muted-text">
-              <strong>Always streamed:</strong>
+            <p class="copy-xs line-normal muted-text">
+              <span class="base-text weight-medium">Always streamed:</span>
               WebSocket/upgrades, HEAD and bodyless responses, ranges and 206 responses, server-sent events, gRPC, multipart streams, and responses with <code>X-Accel-Buffering: no</code>.
-            </div>
+            </p>
           </div>
         </section>
 
-        <section v-if="requiresRiskAcknowledgement" class="risk-panel">
-          <div class="risk-marker" aria-hidden="true">!</div>
-          <div class="layout-grid space-sm min-width-zero">
-            <div>
-              <h4 class="copy-sm weight-semibold base-text">Duplicate request risk</h4>
-              <p class="margin-top-xs copy-xs line-normal muted-text">
+        <section v-if="requiresRiskAcknowledgement" class="risk-panel layout-grid space-sm">
+          <div class="layout-row align-start space-sm">
+            <TriangleAlertIcon class="icon-sm warning-text no-shrink risk-icon" aria-hidden="true" />
+            <div class="layout-grid space-2xs min-width-zero">
+              <h3 class="copy-sm weight-semibold base-text">Duplicate request risk</h3>
+              <p class="copy-xs line-normal muted-text">
                 The first agent can fail after the upstream has accepted the request, return a configured retryable status, or lose its response body mid-transfer. Retrying may repeat writes, payments, uploads, or other side effects even when the client sees only one response.
               </p>
             </div>
-            <NCheckbox v-model:checked="form.duplicateRiskAcknowledged">
-              I understand this rule can cause duplicate upstream requests
-            </NCheckbox>
           </div>
+          <NCheckbox v-model:checked="form.duplicateRiskAcknowledged">
+            I understand this rule can cause duplicate upstream requests
+          </NCheckbox>
         </section>
 
-        <section class="layout-grid space-lg">
-          <div>
-            <h4 class="copy-sm weight-semibold base-text">Route and target scope</h4>
-            <p class="margin-top-xs copy-xs line-normal muted-text">Empty filters match every agent-backed proxy target. Direct and static targets are not eligible.</p>
+        <section class="editor-group layout-grid space-lg">
+          <div class="layout-grid space-2xs">
+            <h3 class="copy-sm weight-semibold base-text">Route and target scope</h3>
+            <p class="copy-xs line-normal muted-text">Empty filters match every agent-backed proxy target. Direct and static targets are not eligible.</p>
           </div>
           <NAlert
             v-if="unavailableRouteIds.length || unavailableTargetIds.length"
             type="warning"
+            :bordered="false"
             title="Saved scope contains unavailable entries"
           >
             One or more routes or targets were removed after this rule was saved. Remove the entries marked unavailable below before saving.
           </NAlert>
           <div class="target-grid">
-            <div class="target-panel">
-              <div class="target-panel-head"><div><p class="panel-eyebrow">Routes</p><h5 class="panel-heading">{{ routeSummary }}</h5></div></div>
+            <div class="target-field">
+              <div class="target-field-head">
+                <span class="copy-xs weight-medium muted-text">Routes</span>
+                <span class="copy-xs muted-text">{{ routeSummary }}</span>
+              </div>
               <NTransfer
                 :value="form.routeIds"
                 :options="routeTransferOptions"
@@ -641,8 +646,11 @@ defineExpose({ openCreate, openEdit, close });
                 @update:value="updateRouteIds"
               />
             </div>
-            <div class="target-panel">
-              <div class="target-panel-head"><div><p class="panel-eyebrow">Agent targets</p><h5 class="panel-heading">{{ targetSummary }}</h5></div></div>
+            <div class="target-field">
+              <div class="target-field-head">
+                <span class="copy-xs weight-medium muted-text">Agent targets</span>
+                <span class="copy-xs muted-text">{{ targetSummary }}</span>
+              </div>
               <NTransfer
                 :value="form.targetIds"
                 :options="targetTransferOptions"
@@ -662,10 +670,10 @@ defineExpose({ openCreate, openEdit, close });
         <PublicPolicyMatchEditor :form="form.match" />
 
         <div class="editor-drawer-actions margin-top-sm layout-row align-end-row space-md">
-          <NButton secondary @click="close">Cancel</NButton>
+          <NButton secondary attr-type="button" @click="close">Cancel</NButton>
           <DisabledHint :disabled="submitDisabled" :reason="submitDisabledReason">
             <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-              {{ form.id ? 'Save Changes' : 'Create Retry Rule' }}
+              {{ form.id ? 'Save changes' : 'Create retry rule' }}
             </NButton>
           </DisabledHint>
         </div>
@@ -675,95 +683,108 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
+}
+
 .retry-envelope {
-  display: grid;
-  gap: 0.75rem;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 28%, var(--app-border));
-  border-left: 3px solid var(--app-accent);
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--app-accent) 6%, var(--app-panel));
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: var(--app-panel-muted);
 }
 
 .retry-envelope-head,
 .retry-chip-row,
-.retry-summary-line,
-.target-panel-head {
+.retry-subgroup-head,
+.target-field-head,
+.status-preset-notes {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   flex-wrap: wrap;
 }
 
-.method-presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.retry-subgroup-head {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+}
+
+.target-field-head {
+  align-items: baseline;
+}
+
+.retry-chip-row {
+  gap: 0.375rem;
 }
 
 .retry-summary-line {
-  justify-content: flex-start;
-  padding: 0.65rem 0.8rem;
-  border: 1px solid var(--app-border);
-  border-radius: 0.5rem;
-  background: var(--app-panel-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
 }
 
-.failure-mode-grid {
+.retry-summary-line code {
+  border-radius: 6px;
+  padding: 0.125rem 0.375rem;
+  background: var(--app-panel-muted);
+  color: var(--app-text);
+}
+
+.retry-subgroup + .retry-subgroup {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+.option-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
-.failure-mode-option {
-  min-height: 5rem;
-  padding: 0.8rem;
-  border: 1px solid var(--app-border);
-  border-radius: 0.45rem;
+/* Option cards are radio controls, so they keep an input-like hairline; selection uses the accent. */
+.option-card {
+  display: grid;
+  align-content: start;
+  gap: 0.25rem;
+  min-height: 4.5rem;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 8px;
+  padding: 0.75rem 0.875rem;
+  background: transparent;
   color: inherit;
-  background: var(--app-panel);
   cursor: pointer;
   font: inherit;
   text-align: left;
+  transition: border-color 140ms ease, background-color 140ms ease;
 }
 
-.failure-mode-option:hover {
-  border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-border));
-  background: color-mix(in srgb, var(--app-accent) 4%, var(--app-panel));
+.option-card:hover {
+  border-color: var(--app-border);
+  background: var(--app-hover);
 }
 
-.failure-mode-option--active {
+.option-card--active,
+.option-card--active:hover {
   border-color: var(--app-accent);
-  box-shadow: inset 3px 0 0 var(--app-accent);
-  background: color-mix(in srgb, var(--app-accent) 8%, var(--app-panel));
+  background: var(--app-accent-soft);
 }
 
-.failure-mode-option:focus-visible {
+.option-card:focus-visible {
   outline: 2px solid var(--app-focus);
   outline-offset: 2px;
-}
-
-.status-retry-panel {
-  display: grid;
-  gap: 0.8rem;
-  padding: 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--app-warning) 24%, var(--app-border));
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--app-warning) 4%, var(--app-panel));
-}
-
-.status-retry-heading,
-.status-preset-notes {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.status-preset-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .status-preset-notes {
@@ -771,124 +792,40 @@ defineExpose({ openCreate, openEdit, close });
   column-gap: 1.25rem;
 }
 
-.status-preset-notes strong {
-  color: var(--text-color-2);
-  font-weight: 650;
-}
-
 .replay-limit-field {
   max-width: 28rem;
 }
 
-.response-completion-panel {
-  display: grid;
-  gap: 0.8rem;
-  padding: 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 24%, var(--app-border));
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--app-accent) 4%, var(--app-panel));
-}
-
-.response-mode-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.response-mode-option {
-  display: grid;
-  gap: 0.3rem;
-  padding: 0.8rem;
-  border: 1px solid var(--app-border);
-  border-radius: 0.45rem;
-  color: inherit;
-  background: var(--app-panel);
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.response-mode-option:hover {
-  border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-border));
-}
-
-.response-mode-option--active {
-  border-color: var(--app-accent);
-  box-shadow: inset 3px 0 0 var(--app-accent);
-  background: color-mix(in srgb, var(--app-accent) 8%, var(--app-panel));
-}
-
-.response-mode-option:focus-visible {
-  outline: 2px solid var(--app-focus);
-  outline-offset: 2px;
-}
-
-.response-exclusions {
-  padding-top: 0.7rem;
-  border-top: 1px solid var(--app-border);
-}
-
-.response-exclusions strong {
-  color: var(--text-color-2);
-  font-weight: 650;
-}
-
 .risk-panel {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.9rem;
-  padding: 1rem;
-  border: 1px solid color-mix(in srgb, var(--app-warning) 45%, var(--app-border));
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--app-warning) 8%, var(--app-panel));
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: color-mix(in srgb, var(--app-warning) 9%, var(--app-panel));
 }
 
-.risk-marker {
-  display: grid;
-  place-items: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  border-radius: 50%;
-  color: var(--app-panel);
-  background: var(--app-warning);
-  font-weight: 800;
+.risk-icon {
+  margin-top: 0.125rem;
 }
 
 .target-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
-.target-panel {
+.target-field {
+  display: grid;
   min-width: 0;
-  padding: 0.9rem;
-  border: 1px solid var(--app-border);
-  border-radius: 0.5rem;
-  background: var(--app-panel);
-}
-
-.panel-eyebrow {
-  color: var(--text-color-3);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.panel-heading {
-  margin-top: 0.15rem;
-  font-size: 0.83rem;
-  font-weight: 600;
+  gap: 0.5rem;
 }
 
 @media (max-width: 760px) {
-  .method-presets,
-  .failure-mode-grid,
-  .status-preset-grid,
-  .response-mode-grid,
+  .option-grid,
   .target-grid {
     grid-template-columns: 1fr;
+  }
+
+  .retry-subgroup-head {
+    flex-wrap: wrap;
   }
 }
 </style>

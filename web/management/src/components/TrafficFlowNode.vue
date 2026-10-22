@@ -1,20 +1,53 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type Component } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import type { NodeProps } from "@vue-flow/core";
-import type { TrafficNodeData } from "@/lib/trafficFlowModel";
+import {
+  AppWindow,
+  Box,
+  CornerUpRight,
+  Crosshair,
+  Database,
+  Gauge,
+  Globe,
+  Plug,
+  Reply,
+  Server,
+  Shield,
+  Signpost,
+  Waves,
+} from "@lucide/vue";
+import type { TrafficNodeData, TrafficNodeKind } from "@/lib/trafficFlowModel";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
 
 const props = defineProps<NodeProps<TrafficNodeData>>();
 
-const labelText = computed(() => diagnosticExcerpt(props.data.label || "-", 34).text);
-const labelExact = computed(() => diagnosticInspectionText(props.data.label || "-"));
-const subLabelText = computed(() => diagnosticExcerpt(props.data.subLabel || "-", 38).text);
-const subLabelExact = computed(() => diagnosticInspectionText(props.data.subLabel || "-"));
-const cacheStatusText = computed(() => diagnosticExcerpt(props.data.cacheStatus?.label || "-", 14).text);
-const agentStatusText = computed(() => diagnosticExcerpt(props.data.agentStatus?.label || "-", 18).text);
-const cacheStatusExact = computed(() => diagnosticInspectionText(props.data.cacheStatus?.label || "-"));
-const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agentStatus?.label || "-"));
+// Neutral kind markers: the icon says what a node is, color stays reserved for live status.
+const kindIcons: Record<TrafficNodeKind, Component> = {
+  ingress: Globe,
+  listener: Plug,
+  waf: Shield,
+  "rate-limit": Gauge,
+  "traffic-shaper": Waves,
+  cache: Database,
+  route: Signpost,
+  site: AppWindow,
+  target: Crosshair,
+  redirect: CornerUpRight,
+  agent: Server,
+  upstream: Box,
+  response: Reply,
+};
+const kindIcon = computed(() => kindIcons[props.data.kind]);
+
+const labelText = computed(() => diagnosticExcerpt(props.data.label || "—", 34).text);
+const labelExact = computed(() => diagnosticInspectionText(props.data.label || "—"));
+const subLabelText = computed(() => diagnosticExcerpt(props.data.subLabel || "—", 38).text);
+const subLabelExact = computed(() => diagnosticInspectionText(props.data.subLabel || "—"));
+const cacheStatusText = computed(() => diagnosticExcerpt(props.data.cacheStatus?.label || "—", 14).text);
+const agentStatusText = computed(() => diagnosticExcerpt(props.data.agentStatus?.label || "—", 18).text);
+const cacheStatusExact = computed(() => diagnosticInspectionText(props.data.cacheStatus?.label || "—"));
+const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agentStatus?.label || "—"));
 </script>
 
 <template>
@@ -27,7 +60,10 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
     ]"
   >
     <Handle type="target" :position="Position.Left" class="traffic-handle" />
-    <bdi class="node-label" dir="ltr" :title="labelExact">{{ labelText }}</bdi>
+    <div class="node-title">
+      <component :is="kindIcon" class="node-kind-icon" :size="12" aria-hidden="true" />
+      <bdi class="node-label" dir="ltr" :title="labelExact">{{ labelText }}</bdi>
+    </div>
     <span
       v-if="data.kind === 'cache' && data.cacheStatus"
       class="node-cache-badge"
@@ -58,11 +94,11 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   width: 152px;
   height: 58px;
   border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
+  border-radius: 8px;
+  background: var(--app-panel);
   padding: 9px 12px;
   color: var(--app-text);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 26%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
 
@@ -71,70 +107,31 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
 }
 
 .traffic-flow-node-clickable:hover {
-  border-color: var(--app-border);
+  border-color: var(--app-accent);
   background: var(--app-panel);
-  box-shadow: 0 10px 26px rgb(0 0 0 / 34%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-accent) 20%, transparent);
 }
 
+/* Entry and exit points are quiet; status colors are reserved for live cache and agent state. */
 .traffic-flow-node-ingress,
 .traffic-flow-node-response {
-  border-color: var(--app-border);
-}
-
-.traffic-flow-node-agent {
-  border-color: var(--app-accent);
-}
-
-.traffic-flow-node-upstream {
-  border-color: var(--app-success);
-}
-
-.traffic-flow-node-route {
-  border-color: var(--app-border);
-}
-
-.traffic-flow-node-rate-limit {
-  border-color: var(--app-warning);
-}
-
-.traffic-flow-node-waf {
-  border-color: var(--app-error);
-}
-
-.traffic-flow-node-traffic-shaper {
-  border-color: var(--app-accent);
-}
-
-.traffic-flow-node-cache {
-  border-color: var(--app-accent);
-  background:
-    linear-gradient(135deg, rgb(45 212 191 / 8%), transparent 42%),
-    var(--app-panel-muted);
+  background: var(--app-panel-muted);
 }
 
 .traffic-flow-node-cache-hit,
 .traffic-flow-node-cache-stored {
   border-color: var(--app-success);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 26%), 0 0 20px rgb(52 211 153 / 13%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-success) 14%, transparent);
 }
 
 .traffic-flow-node-cache-miss,
 .traffic-flow-node-cache-lookup {
   border-color: var(--app-accent);
-  box-shadow: 0 8px 22px rgb(0 0 0 / 26%), 0 0 20px rgb(56 189 248 / 12%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 14%, transparent);
 }
 
 .traffic-flow-node-cache-bypass {
   border-color: var(--app-text-muted);
-  background: var(--app-panel-muted);
-}
-
-.traffic-flow-node-target {
-  border-color: var(--app-text-muted);
-}
-
-.traffic-flow-node-redirect {
-  border-color: var(--app-success);
 }
 
 .node-label,
@@ -147,13 +144,25 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   unicode-bidi: isolate;
 }
 
+.node-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.node-kind-icon {
+  flex: 0 0 auto;
+  color: var(--app-text-muted);
+}
+
 .node-label {
-  font-size: 0.76rem;
-  font-weight: 650;
+  font-size: 0.75rem;
+  font-weight: 600;
   line-height: 1.25;
 }
 
-.traffic-flow-node-cache .node-label {
+.traffic-flow-node-cache .node-title {
   padding-right: 56px;
 }
 
@@ -169,7 +178,7 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   flex: 1 1 auto;
   color: var(--app-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.6875rem;
   line-height: 1.2;
 }
 
@@ -180,12 +189,11 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   align-items: center;
   gap: 4px;
   overflow: hidden;
-  border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 1px 5px;
-  background: rgb(255 255 255 / 3%);
-  font-size: 0.58rem;
-  font-weight: 650;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.625rem;
+  font-weight: 500;
   line-height: 1.2;
 }
 
@@ -195,7 +203,6 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   flex: 0 0 auto;
   border-radius: 999px;
   background: currentColor;
-  box-shadow: 0 0 8px currentColor;
 }
 
 .node-status-label {
@@ -229,13 +236,12 @@ const agentStatusExact = computed(() => diagnosticInspectionText(props.data.agen
   right: 8px;
   max-width: 54px;
   overflow: hidden;
-  border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 1px 5px;
-  background: color-mix(in srgb, var(--app-panel) 88%, transparent);
+  background: color-mix(in srgb, currentColor 12%, transparent);
   font-family: var(--font-mono);
-  font-size: 0.54rem;
-  font-weight: 750;
+  font-size: 0.5625rem;
+  font-weight: 600;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;

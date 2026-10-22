@@ -14,7 +14,7 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 
 ## Steps
 
-The commands below use the default, unenrolled Compose context. If server updates are enabled, finish any update or paused recovery, then run `sudo /etc/p2pstream-server-updater/manage remove` before this offline procedure. Removal preserves the current release/settings and prints the exact project/file command for `/etc/p2pstream-server-updater/detached-compose.json`; use that context for every Compose command below. Substitute your actual data-volume name. After restoration is verified, copy a fresh setup command from **System → Server Updates** to enroll again using the exported model. See [server update operations](./server-updates).
+The commands below use the default, unenrolled Compose context. If server updates are enabled, finish any update or paused recovery, then run `sudo /etc/p2pstream-server-updater/manage remove` before this offline procedure. Removal preserves the current release/settings and prints the exact project/file command for `/etc/p2pstream-server-updater/detached-compose.json`; use that context for every Compose command below. Substitute your actual data-volume name. After restoration is verified, copy a fresh setup command from **System → Server updates** to enroll again using the exported model. See [server update operations](./server-updates).
 
 1. Include at least:
 

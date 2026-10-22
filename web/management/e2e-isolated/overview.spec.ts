@@ -45,11 +45,11 @@ for (const { width, theme } of [{ width: 1280, theme: 'light' }, { width: 390, t
     });
     await page.goto(url + `?theme=${theme}`);
     await expect(page.locator('html')).toHaveCSS('color-scheme', theme);
-    await expect(page.getByRole('heading', { name: 'Proxy Overview', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Proxy overview', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Waiting for dashboard metrics' })).toBeVisible();
     await expect(page.getByRole('alert')).toContainText('temporarily unavailable');
-    await expect(page.locator('.status-summary')).toHaveCount(0);
-    await expect(page.locator('.attention-panel')).toHaveCount(0);
+    await expect(page.locator('.overview-health')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Needs attention', exact: true })).toHaveCount(0);
     await expect(page.getByText('No proxy requests recorded yet.', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Open diagnostics', exact: true })).toHaveAttribute('href', '#/monitor/diagnostics/overview');
     await page.screenshot({ path: testInfo.outputPath('unavailable.png'), fullPage: true });
@@ -58,8 +58,8 @@ for (const { width, theme } of [{ width: 1280, theme: 'light' }, { width: 390, t
     mode = 'empty';
     await page.getByRole('button', { name: 'Refresh fixture' }).click();
     await expect(page.getByRole('heading', { name: 'Waiting for dashboard metrics' })).toHaveCount(0);
-    await expect(page.locator('.status-summary')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'No proxy requests recorded yet.' })).toBeVisible();
+    await expect(page.locator('.overview-health')).toBeVisible();
+    await expect(page.getByText('No proxy requests recorded yet.', { exact: true })).toBeVisible();
     await expect(page.locator('.trend-bars')).toHaveCount(0);
     await expect(page.getByRole('alert')).toHaveCount(0);
 
@@ -67,7 +67,7 @@ for (const { width, theme } of [{ width: 1280, theme: 'light' }, { width: 390, t
     await page.getByRole('button', { name: 'Refresh fixture' }).click();
     await expect(page.locator('.trend-bars')).toBeVisible();
     await expect(page.getByLabel('Traffic trend values')).toContainText('7 requests');
-    await expect(page.getByRole('heading', { name: 'No proxy requests recorded yet.' })).toHaveCount(0);
+    await expect(page.getByText('No proxy requests recorded yet.', { exact: true })).toHaveCount(0);
 
     mode = 'unavailable';
     await page.getByRole('button', { name: 'Refresh fixture' }).click();

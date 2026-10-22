@@ -395,7 +395,7 @@ export function createTraceRequestView(request: TraceRequest): TraceRequestView 
   return {
     requestId: request.requestId,
     version: request.version,
-    methodLabel: request.method || "-",
+    methodLabel: request.method || "—",
     pathLabel: request.path || "/",
     requestIdLabel: request.requestId,
     flowLabel: traceFlowLabel(request),
@@ -481,7 +481,7 @@ export function traceFlowLabel(request: TraceRequest): string {
 }
 
 export function formatDuration(value: bigint | undefined): string {
-  if (value === undefined || value === 0n) return "-";
+  if (value === undefined || value === 0n) return "—";
   const millis = Number(value);
   if (millis < 1000) return `${millis} ms`;
   return `${(millis / 1000).toFixed(1)} s`;
