@@ -1512,6 +1512,12 @@ class CancellationLifecycle(unittest.TestCase):
         copy2 = host.shutil.copy2
         def interrupted(source, target, **kwargs):
             if Path(source).name == 'host.json':
+                # Exercise a partial copy containing the read-only token even
+                # when filesystem iteration happens to visit host.json first.
+                token = Path(target).parent / 'control' / 'token'
+                if not token.exists():
+                    token.parent.mkdir(exist_ok=True)
+                    copy2(self.state / 'control' / 'token', token)
                 raise KeyboardInterrupt()
             return copy2(source, target, **kwargs)
         with patch.object(host.shutil, 'copy2', side_effect=interrupted):
@@ -1522,9 +1528,20 @@ class CancellationLifecycle(unittest.TestCase):
         self.assertEqual(host.read_json(self.state / host.CANCELLATION)['floor'], self.floor)
         with self.assertRaisesRegex(host.Failure, 'cancellation is incomplete'):
             self.install()
+        token = self.state / 'control' / 'token'
+        archived_token = self.state / 'history' / host.read_json(self.state / 'archive.json')['id'] / 'control' / 'token'
+        token_bytes = token.read_bytes()
+        self.assertEqual(stat.S_IMODE(token.stat().st_mode), 0o444)
+        self.assertEqual(stat.S_IMODE(archived_token.stat().st_mode), 0o444)
+        # The production controller runs as root and can overwrite this 0444
+        # copy. Model that privilege only on the fixture's existing destination
+        # so unprivileged CI can retry; the source token remains read-only.
+        archived_token.chmod(0o600)
         self.cancel()
         self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
         self.assertFalse((self.state / 'host.json').exists())
+        self.assertEqual(archived_token.read_bytes(), token_bytes)
+        self.assertEqual(stat.S_IMODE(archived_token.stat().st_mode), 0o444)
 
     def test_pending_cancellation_blocks_repair_and_helper_backed_inspection(self):
         with patch.object(host.Host, 'archive_state', side_effect=KeyboardInterrupt()):
