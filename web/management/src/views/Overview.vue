@@ -264,12 +264,22 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
 </script>
 
 <template>
-  <div v-if="dashboardValue && status" class="overview-page">
+  <div class="overview-page">
     <PageHeader title="Proxy overview" description="Health, traffic, and configuration signals for the selected environment.">
-      <template #actions>
+      <template v-if="dashboardValue && status" #actions>
         <SegmentedControl v-model="selectedWindowLabel" :options="windowOptions" label="Dashboard window" />
       </template>
     </PageHeader>
+
+    <SectionCard v-if="!dashboardValue || !status" class="overview-waiting" role="status" aria-live="polite">
+      <div class="overview-waiting__body">
+        <h2>Waiting for dashboard metrics</h2>
+        <p>No dashboard snapshot is available yet. This page retries automatically.</p>
+        <router-link to="/monitor/diagnostics/overview" class="overview-link">Open diagnostics</router-link>
+      </div>
+    </SectionCard>
+
+    <template v-else>
 
     <MetricStrip variant="tiles" label="Proxy health" class="overview-health">
       <MetricCard label="Proxy health" :value="proxyStateLabel(proxyState)" :tone="proxyStateTone(proxyState)" dot text-value :detail="`${runningListeners}/${enabledListeners} listeners running`" wrap-detail />
@@ -410,6 +420,7 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
         <MetricCard v-for="item in configSnapshot" :key="item.label" :label="item.label" :value="String(item.value)" :detail="item.detail" />
       </MetricStrip>
     </SectionCard>
+    </template>
   </div>
 </template>
 
@@ -418,6 +429,23 @@ function hotspotRowKey(row: DashboardProxyDimensionSummary): string {
   display: grid;
   min-width: 0;
   gap: 1.25rem;
+}
+
+.overview-waiting__body {
+  display: grid;
+  justify-items: start;
+  gap: 0.375rem;
+}
+
+.overview-waiting__body h2 {
+  color: var(--app-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.overview-waiting__body p {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
 }
 
 .overview-health {
