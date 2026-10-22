@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { useNarrowScreen } from "@/composables/useMediaQuery";
-import { computed, h, inject, nextTick, ref, watch } from "vue";
+import { computed, h, inject, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { NAlert, NButton, NDataTable, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
+import { NAlert, NButton, NDataTable, NDrawer, NDrawerContent, NDropdown, NInput, NModal, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns, DropdownDividerOption, DropdownOption } from "naive-ui";
 import { Ban as BanIcon } from "@lucide/vue";
 import { Check as CheckIcon } from "@lucide/vue";
+import { Copy as CopyIcon } from "@lucide/vue";
 import { Ellipsis as EllipsisIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
@@ -42,12 +43,13 @@ import { sessionForAvailabilitySegment } from "@/lib/agentAvailability";
 import type { AvailabilitySegment, AvailabilityWindow } from "@/lib/agentAvailability";
 import { agentBuildStatus, shortBuildCommit, type AgentBuildState } from "@/lib/agentVersion";
 import { summarizeAgentCapacity } from "@/lib/agentCapacity";
-import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
+import { editorDrawerWidth, modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import type {
   Agent,
   AgentConnectionSession,
   AgentUptimeSummary,
   GetAgentAvailabilityResponse,
+  ListAgentAvailabilityResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { CreatedAgentSetup } from "@/types/agentSetup";
 
@@ -204,6 +206,7 @@ const activityAgentOptions = computed(() => agents.value.map((agent) => ({
 })));
 const availabilityWindow = ref<AvailabilityWindow>("24h");
 const availability = ref<GetAgentAvailabilityResponse | null>(null);
+const fleetAvailability = ref<ListAgentAvailabilityResponse | null>(null);
 const availabilityLoading = ref(false);
 const availabilityError = ref("");
 const availabilityRetry = ref(0);
@@ -220,6 +223,16 @@ const uninstallAgent = ref<Agent | null>(null);
 const uninstallReleaseRepository = ref(defaultReleaseRepository());
 const uninstallCopyLabel = ref("Copy");
 let uninstallCopyReset: number | undefined;
+/** Details drawer target. Looked up by ID so the drawer follows label edits and closes if the agent is deleted. */
+const detailsAgentId = ref("");
+const detailsAgent = computed(() => detailsAgentId.value
+  ? agents.value.find((agent) => agent.id.toString() === detailsAgentId.value) ?? null
+  : null);
+const detailsAgentLabels = computed(() => detailsAgent.value ? agentUserLabels(detailsAgent.value) : []);
+const detailsRuntime = computed(() => detailsAgent.value ? agentRuntimeDetails(detailsAgent.value) : []);
+type DetailsCopyField = "id" | "selector";
+const detailsCopy = ref<{ field: DetailsCopyField; state: "copied" | "failed" } | null>(null);
+let detailsCopyReset: number | undefined;
 
 /** Sums to the table's scroll width, which must stay inside the card at a 1280px viewport. */
 const AGENT_COLUMN_WIDTHS = { agent: 210, status: 160, capacity: 170, version: 140, actions: 256 } as const;
@@ -340,6 +353,10 @@ watch(
 
 watch([investigatedAgentPublicId, availabilityWindow], clearInspectedAvailabilitySegment);
 
+watch(detailsAgent, (agent) => {
+  if (!agent && detailsAgentId.value) closeAgentDetails();
+});
+
 watch(filteredAgentConnections, (sessions) => {
   const maxPage = Math.max(1, Math.ceil(sessions.length / 12));
   if (sessionPage.value > maxPage) sessionPage.value = maxPage;
@@ -459,44 +476,45 @@ function renderAgentIdentity(agent: Agent, compact = false) {
 
 function renderAgentDetails(agent: Agent) {
   const labels = agentUserLabels(agent);
-  return h("details", { class: "agent-exact-details" }, [
-    h("summary", {
-      "aria-label": agentActionLabel("Show details for", agent),
-    }, `Details · ${labels.length} label${labels.length === 1 ? "" : "s"}`),
-    h("div", { class: "agent-exact-details__body" }, [
-      h("div", { class: "agent-exact-field" }, [
-        h("span", "Agent ID"),
-        h("code", { class: "mono-text" }, [h("bdi", { dir: "ltr" }, diagnosticInspectionText(agent.publicId))]),
-      ]),
-      h("div", { class: "agent-exact-field" }, [
-        h("span", "Exact selector"),
-        h("code", { class: "mono-text" }, [
-          h("bdi", { dir: "ltr" }, diagnosticInspectionText(AGENT_ID_SYSTEM_LABEL_KEY)),
-          "=",
-          h("bdi", { dir: "ltr" }, diagnosticInspectionText(exactAgentSelectorValue(agent))),
-        ]),
-      ]),
-      h("div", { class: "agent-exact-field" }, [
-        h("span", "User labels"),
-        labels.length
-          ? h("ul", { class: "agent-exact-labels" }, labels.map((label) => h("li", { key: label.id }, [
-              h("code", { class: "mono-text" }, [
-                h("bdi", { dir: "ltr" }, diagnosticInspectionText(label.key)),
-                "=",
-                h("bdi", { dir: "ltr" }, diagnosticInspectionText(label.value)),
-              ]),
-            ])))
-          : h("p", { class: "agent-meta" }, "No user labels"),
-      ]),
-      h("dl", { class: "agent-runtime-details", "aria-label": "Runtime details" },
-        agentRuntimeDetails(agent).map((item) => h("div", { key: item.label, class: "agent-runtime-details__item" }, [
-          h("dt", item.label),
-          h("dd", { class: item.tone ? `${item.tone}-text` : undefined }, [h("bdi", { dir: "ltr" }, item.value)]),
-        ])),
-      ),
-    ]),
-  ]);
+  return h("button", {
+    type: "button",
+    class: "agent-details-trigger",
+    "aria-label": agentActionLabel("Show details for", agent),
+    "aria-haspopup": "dialog",
+    onClick: () => openAgentDetails(agent),
+  }, `Details · ${labels.length} label${labels.length === 1 ? "" : "s"}`);
 }
+
+function openAgentDetails(agent: Agent) {
+  detailsCopy.value = null;
+  detailsAgentId.value = agent.id.toString();
+}
+
+function closeAgentDetails() {
+  detailsAgentId.value = "";
+  detailsCopy.value = null;
+}
+
+function handleDetailsDrawerUpdate(show: boolean) {
+  if (!show) closeAgentDetails();
+}
+
+function editAgentFromDetails() {
+  if (detailsAgent.value) editAgent(detailsAgent.value);
+}
+
+async function copyAgentDetail(field: DetailsCopyField, value: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    detailsCopy.value = { field, state: "copied" };
+  } catch {
+    detailsCopy.value = { field, state: "failed" };
+  }
+  window.clearTimeout(detailsCopyReset);
+  detailsCopyReset = window.setTimeout(() => { detailsCopy.value = null; }, 1800);
+}
+
+onBeforeUnmount(() => window.clearTimeout(detailsCopyReset));
 
 interface AgentRuntimeDetail {
   label: string;
@@ -793,17 +811,25 @@ async function clearInvestigatedAgent() {
 
 async function selectActivityAgent(agentPublicId: string) {
   if (agentPublicId === investigatedAgentPublicId.value) return;
-  await router.replace({ path: "/agent/activity", query: { agent: agentPublicId } });
+  await router.replace(agentPublicId
+    ? { path: "/agent/activity", query: { agent: agentPublicId } }
+    : { path: "/agent/activity" });
 }
 
+/** Loads the single-agent timeline, or every agent's lanes when no agent is selected. Both refresh with the dashboard. */
 async function loadAgentAvailability() {
   const requestSequence = ++availabilityRequestSequence;
   const agentPublicId = investigatedAgentPublicId.value;
   const windowLabel = availabilityWindow.value;
-  if (activeAgentSection.value !== "activity" || !agentPublicId) {
+  if (activeAgentSection.value !== "activity") {
     availability.value = null;
+    fleetAvailability.value = null;
     availabilityError.value = "";
     availabilityLoading.value = false;
+    return;
+  }
+  if (!agentPublicId) {
+    await loadFleetAvailability(requestSequence, windowLabel);
     return;
   }
 
@@ -819,6 +845,23 @@ async function loadAgentAvailability() {
     });
     if (requestSequence !== availabilityRequestSequence) return;
     availability.value = response;
+  } catch (error) {
+    if (requestSequence !== availabilityRequestSequence) return;
+    availabilityError.value = messageFromError(error);
+  } finally {
+    if (requestSequence === availabilityRequestSequence) availabilityLoading.value = false;
+  }
+}
+
+async function loadFleetAvailability(requestSequence: number, windowLabel: AvailabilityWindow) {
+  availability.value = null;
+  if (fleetAvailability.value?.windowLabel !== windowLabel) fleetAvailability.value = null;
+  availabilityLoading.value = true;
+  availabilityError.value = "";
+  try {
+    const response = await managementClient.listAgentAvailability({ windowLabel });
+    if (requestSequence !== availabilityRequestSequence) return;
+    fleetAvailability.value = response;
   } catch (error) {
     if (requestSequence !== availabilityRequestSequence) return;
     availabilityError.value = messageFromError(error);
@@ -1160,6 +1203,7 @@ async function copyUninstallSnippet() {
     <AgentAvailabilityChart
       v-if="activeAgentSection === 'activity'"
       :availability="availability"
+      :fleet-availability="fleetAvailability"
       :selected-agent-id="investigatedAgentPublicId"
       :agent-options="activityAgentOptions"
       :window="availabilityWindow"
@@ -1194,7 +1238,7 @@ async function copyUninstallSnippet() {
     <SectionCard
       v-if="activeAgentSection === 'fleet'"
       title="Registered agents"
-      description="Offline enabled agents first. Expand identity details for exact selectors and runtime data."
+      description="Offline enabled agents first. Open an agent's details for its exact selector, labels and runtime data."
       flush
       class="agent-table-card"
     >
@@ -1300,6 +1344,101 @@ async function copyUninstallSnippet() {
         description="Agent connection sessions will appear after registered agents connect to management."
       />
     </SectionCard>
+
+    <NDrawer
+      :show="Boolean(detailsAgent)"
+      placement="right"
+      :width="editorDrawerWidth('34rem')"
+      aria-label="Agent details"
+      class="editor-drawer agent-details-drawer"
+      @update:show="handleDetailsDrawerUpdate"
+    >
+      <NDrawerContent closable>
+        <template #header>
+          <div class="agent-details-drawer__header">
+            <span>Agent details</span>
+            <bdi
+              v-if="detailsAgent"
+              dir="ltr"
+              class="agent-details-drawer__subtitle"
+              :title="diagnosticInspectionText(detailsAgent.name)"
+            >{{ diagnosticExcerpt(detailsAgent.name, 72).text }}</bdi>
+          </div>
+        </template>
+        <div v-if="detailsAgent" class="agent-details">
+          <section class="agent-details__group" aria-labelledby="agent-details-identity">
+            <h3 id="agent-details-identity" class="agent-details__heading">Identity</h3>
+            <dl class="agent-details__fields">
+              <div class="agent-details__field">
+                <dt>Agent ID</dt>
+                <dd class="agent-details__copy-row">
+                  <code class="agent-details__value mono-text"><bdi dir="ltr">{{ diagnosticInspectionText(detailsAgent.publicId) }}</bdi></code>
+                  <NButton
+                    text
+                    size="tiny"
+                    aria-label="Copy agent ID"
+                    title="Copy agent ID"
+                    @click="copyAgentDetail('id', detailsAgent.publicId)"
+                  >
+                    <template #icon><CopyIcon class="icon-sm" /></template>
+                  </NButton>
+                </dd>
+                <dd v-if="detailsCopy?.field === 'id'" :class="['agent-details__copy-status', detailsCopy.state === 'copied' ? 'success-text' : 'warning-text']" role="status">
+                  {{ detailsCopy.state === 'copied' ? 'Copied' : 'Copy failed; select the text instead' }}
+                </dd>
+              </div>
+              <div class="agent-details__field">
+                <dt>Exact selector</dt>
+                <dd class="agent-details__copy-row">
+                  <code class="agent-details__value mono-text"><bdi dir="ltr">{{ diagnosticInspectionText(AGENT_ID_SYSTEM_LABEL_KEY) }}</bdi>=<bdi dir="ltr">{{ diagnosticInspectionText(exactAgentSelectorValue(detailsAgent)) }}</bdi></code>
+                  <NButton
+                    text
+                    size="tiny"
+                    aria-label="Copy exact selector"
+                    title="Copy exact selector"
+                    @click="copyAgentDetail('selector', exactAgentSelector(detailsAgent))"
+                  >
+                    <template #icon><CopyIcon class="icon-sm" /></template>
+                  </NButton>
+                </dd>
+                <dd v-if="detailsCopy?.field === 'selector'" :class="['agent-details__copy-status', detailsCopy.state === 'copied' ? 'success-text' : 'warning-text']" role="status">
+                  {{ detailsCopy.state === 'copied' ? 'Copied' : 'Copy failed; select the text instead' }}
+                </dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="agent-details__group editor-group" aria-labelledby="agent-details-labels">
+            <h3 id="agent-details-labels" class="agent-details__heading">Labels</h3>
+            <ul v-if="detailsAgentLabels.length" class="agent-details__labels">
+              <li v-for="label in detailsAgentLabels" :key="label.id">
+                <NTag size="small" :bordered="false" class="agent-details__label mono-text">
+                  <bdi dir="ltr">{{ diagnosticInspectionText(label.key) }}</bdi>=<bdi dir="ltr">{{ diagnosticInspectionText(label.value) }}</bdi>
+                </NTag>
+              </li>
+            </ul>
+            <p v-else class="agent-details__empty">No user labels</p>
+          </section>
+
+          <section class="agent-details__group editor-group" aria-labelledby="agent-details-runtime">
+            <h3 id="agent-details-runtime" class="agent-details__heading">Runtime</h3>
+            <dl class="agent-details__runtime">
+              <div v-for="item in detailsRuntime" :key="item.label" class="agent-details__runtime-item">
+                <dt>{{ item.label }}</dt>
+                <dd :class="item.tone ? `${item.tone}-text` : undefined"><bdi dir="ltr">{{ item.value }}</bdi></dd>
+              </div>
+            </dl>
+          </section>
+
+          <div class="editor-drawer-actions agent-details__actions">
+            <NButton secondary attr-type="button" @click="closeAgentDetails">Close</NButton>
+            <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+              <NButton type="primary" attr-type="button" :disabled="Boolean(busyDisabledReason)" @click="editAgentFromDetails">Edit agent</NButton>
+            </DisabledHint>
+          </div>
+        </div>
+      </NDrawerContent>
+    </NDrawer>
 
     <AgentEditorModal
       ref="agentEditor"
@@ -1539,101 +1678,30 @@ async function copyUninstallSnippet() {
   margin-top: 0.5rem;
 }
 
-.agent-table-card :deep(.agent-exact-details) {
-  min-width: 0;
-  margin-top: 0.25rem;
-}
-
-.agent-table-card :deep(.agent-exact-details summary) {
+.agent-table-card :deep(.agent-details-trigger) {
   width: fit-content;
   max-width: 100%;
+  margin: 0.125rem 0 0 -0.25rem;
+  border: 0;
   border-radius: 4px;
+  background: transparent;
+  padding: 0.125rem 0.25rem;
   color: var(--app-text-muted);
   cursor: pointer;
+  font: inherit;
   font-size: 0.75rem;
   line-height: 1.5;
+  text-align: left;
 }
 
-.agent-table-card :deep(.agent-exact-details summary:hover),
-.agent-table-card :deep(.agent-exact-details[open] summary) {
+.agent-table-card :deep(.agent-details-trigger:hover) {
+  background: var(--app-hover);
   color: var(--app-text);
 }
 
-.agent-table-card :deep(.agent-exact-details summary:focus-visible) {
+.agent-table-card :deep(.agent-details-trigger:focus-visible) {
   outline: 2px solid var(--app-focus);
   outline-offset: 1px;
-}
-
-.agent-table-card :deep(.agent-exact-details__body) {
-  display: grid;
-  max-width: 100%;
-  max-height: 24rem;
-  gap: 0.625rem;
-  overflow: auto;
-  margin-top: 0.5rem;
-  border-radius: 8px;
-  background: var(--app-panel-muted);
-  padding: 0.625rem 0.75rem;
-}
-
-.agent-table-card :deep(.agent-exact-field) {
-  display: grid;
-  min-width: 0;
-  gap: 0.125rem;
-}
-
-.agent-table-card :deep(.agent-exact-field > span),
-.agent-table-card :deep(.agent-runtime-details dt) {
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-}
-
-.agent-table-card :deep(.agent-exact-field code) {
-  display: block;
-  max-width: 100%;
-  color: var(--app-text);
-  font-size: 0.75rem;
-  overflow-wrap: anywhere;
-  unicode-bidi: isolate;
-}
-
-.agent-table-card :deep(.agent-exact-labels) {
-  display: grid;
-  min-width: 0;
-  gap: 0.125rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.agent-table-card :deep(.agent-runtime-details) {
-  display: grid;
-  gap: 0.25rem;
-  margin: 0;
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 0.625rem;
-}
-
-.agent-table-card :deep(.agent-runtime-details__item) {
-  display: flex;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0 0.75rem;
-}
-
-.agent-table-card :deep(.agent-runtime-details dd) {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-  text-align: right;
-}
-
-.agent-table-card :deep(.agent-runtime-details dd.warning-text) {
-  color: var(--app-warning);
 }
 
 /* Status, capacity and version cells */
@@ -1831,6 +1899,166 @@ code.agent-modal-value {
 }
 
 
+/* Agent details drawer (teleported; slot content keeps this component's scope) */
+.agent-details-drawer__header {
+  display: grid;
+  min-width: 0;
+  gap: 0.125rem;
+}
+
+.agent-details-drawer__subtitle {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.agent-details {
+  display: grid;
+  min-width: 0;
+  gap: 1.25rem;
+}
+
+.agent-details__group {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.agent-details__heading {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.agent-details__fields {
+  display: grid;
+  gap: 0.875rem;
+  margin: 0;
+}
+
+.agent-details__field {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.agent-details__field dt,
+.agent-details__runtime dt {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.agent-details__field dd {
+  margin: 0;
+}
+
+.agent-details__copy-row {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.5rem 0.625rem;
+}
+
+.agent-details__copy-row .n-button {
+  flex: 0 0 auto;
+  margin-top: 0.0625rem;
+}
+
+.agent-details__value {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  /* IDs and selectors break at punctuation first; mid-token only when nothing else fits. */
+  overflow-wrap: anywhere;
+  word-break: normal;
+  unicode-bidi: isolate;
+}
+
+.agent-details__copy-status {
+  font-size: 0.75rem;
+}
+
+.agent-details__labels {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-details__labels li {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agent-details__label {
+  max-width: 100%;
+  font-size: 0.75rem;
+}
+
+.agent-details__label :deep(.n-tag__content) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-details__empty {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+}
+
+.agent-details__runtime {
+  display: grid;
+  margin: 0;
+}
+
+.agent-details__runtime-item {
+  display: grid;
+  grid-template-columns: minmax(8rem, 2fr) minmax(0, 3fr);
+  align-items: baseline;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.4375rem 0;
+}
+
+.agent-details__runtime-item:last-child {
+  border-bottom: 0;
+}
+
+.agent-details__runtime dd {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.agent-details__runtime dd.warning-text {
+  color: var(--app-warning);
+}
+
+.agent-details__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .agent-modal__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1871,13 +2099,8 @@ code.agent-modal-value {
 
 @media (pointer: coarse) {
   .agent-table-card :deep(.agent-row-actions .n-button),
-  .agent-table-card :deep(.agent-exact-details summary) {
+  .agent-table-card :deep(.agent-details-trigger) {
     min-height: 2.75rem;
-  }
-
-  .agent-table-card :deep(.agent-exact-details summary) {
-    display: flex;
-    align-items: center;
   }
 }
 

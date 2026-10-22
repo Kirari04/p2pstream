@@ -55,8 +55,11 @@ test("configures agent labels and an agent-selected route target", async ({ page
   await expect(page.getByRole("menuitem", { name: /Disable agent/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await agentRow.getByText(/^Details · \d+ label/).click();
-  await expect(agentRow.getByText(`p2pstream.io/agent-id=${agentPublicID}`, { exact: true })).toBeVisible();
-  await agentRow.getByRole("button", { name: /Edit agent/ }).click();
+  const detailsDrawer = page.getByRole("dialog", { name: "Agent details", exact: true });
+  await expect(detailsDrawer).toBeVisible();
+  await expect(detailsDrawer.getByText(`p2pstream.io/agent-id=${agentPublicID}`, { exact: true })).toBeVisible();
+  await expect(detailsDrawer.getByText("No user labels", { exact: true })).toBeVisible();
+  await detailsDrawer.getByRole("button", { name: "Edit agent", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Edit agent", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Add label" }).click();
   await page.getByTestId("agent-label-row").nth(0).getByTestId("agent-label-key").fill("site");
@@ -70,8 +73,10 @@ test("configures agent labels and an agent-selected route target", async ({ page
     page.getByRole("button", { name: "Save changes" }).click(),
   ]);
 
-  await expect(page.getByText("site=loopback", { exact: true })).toBeVisible();
-  await expect(page.getByText("role=app", { exact: true })).toBeVisible();
+  await expect(detailsDrawer.getByText("site=loopback", { exact: true })).toBeVisible();
+  await expect(detailsDrawer.getByText("role=app", { exact: true })).toBeVisible();
+  await detailsDrawer.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(detailsDrawer).toBeHidden();
   cfg = await connectRPC<GetPublicProxyConfigResponse>(page.request, baseURL, "GetPublicProxyConfig", {});
   const labelledAgent = cfg.agents.find((item) => item.publicId === agentPublicID);
   expect(labelledAgent?.labels.site).toBe("loopback");
