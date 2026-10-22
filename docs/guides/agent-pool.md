@@ -14,7 +14,7 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
 
 ## Steps
 
-1. Open **Agents -> Fleet**, select **Add Agent**, and create one agent per host.
+1. Open **Agents -> Fleet**, select **Add agent**, and create one agent per host.
 
    | Agent | Suggested label |
    | --- | --- |
@@ -29,14 +29,14 @@ Use an agent-selected target when multiple hosts can reach the same upstream, or
      <figcaption>The Fleet page is the pool inventory. Check connection state, uptime, active requests, and selectors here; use the Activity tab for runtime pressure and recent connection sessions.</figcaption>
    </figure>
 
-3. Select **Edit** for each agent and add user labels in the **Edit Agent** drawer. Labels under `p2pstream.io/` are reserved for p2pstream and are shown read-only, but labels such as `site=home-lab`, `region=eu`, or `capacity=large` are operator-owned. Empty label values are allowed, but they should be intentional because they only match empty selector values.
+3. Select **Edit** for each agent and add user labels in the **Edit agent** drawer. Labels under `p2pstream.io/` are reserved for p2pstream and are shown read-only, but labels such as `site=home-lab`, `region=eu`, or `capacity=large` are operator-owned. Empty label values are allowed, but they should be intentional because they only match empty selector values.
 
    <figure class="doc-screenshot">
      <img src="../assets/new/agent_edit_labels_modal.png" alt="p2pstream Edit Agent drawer showing editable user labels and a read-only exact-agent system label">
      <figcaption>Use shared labels for pools and the reserved exact-agent label only when a route must pin traffic to one specific registered agent.</figcaption>
    </figure>
 
-4. Open the relevant Site under **Proxy -> Sites**, select **Add route** or a route's **Edit** action, then add an agent proxy target in the nested route drawer:
+4. Open the relevant site under **Proxy -> Sites**, select **Add route** or a route's **Edit** action, then add an agent proxy target in the nested route drawer:
 
    | Field | Value |
    | --- | --- |
@@ -75,7 +75,7 @@ If health checks are enabled, checks run through each matching connected agent. 
 
 Agent targets enforce the response-header timeout in the server-side transport. The default is `60000` ms.
 
-For flaky VPN paths, add an opt-in rule under **Traffic Policy → Retries**. Start with `GET` and `HEAD`, one retry, and **Connection establishment only**. A retry stays on this target, excludes the failed agent, and uses the target's agent load-balancing policy to choose a replacement. At least two matching connected agents are required. See [Request Retries](../concepts/request-retries) before enabling broader failures, request-body replay, or methods with side effects.
+For flaky VPN paths, add an opt-in rule under **Traffic policy → Retries**. Start with `GET` and `HEAD`, one retry, and **Connection establishment only**. A retry stays on this target, excludes the failed agent, and uses the target's agent load-balancing policy to choose a replacement. At least two matching connected agents are required. See [Request Retries](../concepts/request-retries) before enabling broader failures, request-body replay, or methods with side effects.
 
 Agent tunnels use Yamux keepalives over an HTTP/1.1 upgraded management connection. When management is behind another reverse proxy, allow upgrade streaming for `p2pstream-yamux` on `/agent/tunnel` and configure that proxy's idle timeout high enough for long-lived agent sessions.
 
@@ -86,7 +86,7 @@ Old WebSocket agents are incompatible with Yamux-tunnel servers. Upgrade agents 
 Send repeated requests and inspect **Overview -> Hotspots -> Agents** or **Monitor -> Traffic** tracing to confirm traffic moves across the expected agents. Use **Agents -> Fleet** to check labels, current uptime, offline duration, and connection counts; use **Agents -> Activity** for recent connection sessions.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic Flow page showing traced requests across listeners, policy, routes, targets, an agent, and upstreams">
+  <img src="../assets/new/live_traffic_diagram_tracing.png" alt="p2pstream Monitor Traffic flow page showing traced requests across listeners, policy, routes, targets, an agent, and upstreams">
   <figcaption>Monitor traffic tracing shows the route target and agent selected for a request, which is the fastest way to verify that the pool selector and failover groups behave as intended.</figcaption>
 </figure>
 

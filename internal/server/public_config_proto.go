@@ -455,7 +455,7 @@ func publicRoutesToProto(routes []db.PublicRoute, targets []db.PublicRouteTarget
 }
 
 func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.PublicTlsCertificate {
-	return &p2pstreamv1.PublicTlsCertificate{
+	resp := &p2pstreamv1.PublicTlsCertificate{
 		Id:                             cert.ID,
 		ListenerId:                     cert.ListenerID,
 		HostnamePattern:                cert.HostnamePattern,
@@ -473,9 +473,11 @@ func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.Publ
 		LastError:                      cert.LastError,
 		IssuedAtUnixMillis:             nullTimeUnixMillis(cert.IssuedAt),
 		ExpiresAtUnixMillis:            nullTimeUnixMillis(cert.ExpiresAt),
-		NextRenewalAtUnixMillis:        nullTimeUnixMillis(cert.NextRenewalAt),
+		NextRenewalAtUnixMillis:        nullTimeUnixMillis(publicACMEEffectiveNextRenewalAt(cert)),
 		LastRenewalAttemptAtUnixMillis: nullTimeUnixMillis(cert.LastRenewalAttemptAt),
 	}
+	publicTLSLeafFactsForPath(cert.CertPath).applyTo(resp)
+	return resp
 }
 
 func publicTLSCertificatesToProto(certs []db.PublicTlsCertificate) []*p2pstreamv1.PublicTlsCertificate {

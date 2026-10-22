@@ -2,7 +2,7 @@
 import { computed, inject, reactive, ref } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NCheckbox, NDrawer, NDrawerContent, NEmpty, NInput, NTag } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NTag } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -14,6 +14,7 @@ import {
   type AgentLabelPair,
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { diagnosticInspectionText } from "@/lib/diagnosticText";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 import type { GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { CreatedAgentSetup } from "@/types/agentSetup";
@@ -160,54 +161,55 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('44rem')"
-    :aria-label="agentForm.id ? 'Edit Agent' : 'Add Agent'"
+    :aria-label="agentForm.id ? 'Edit agent' : 'Add agent'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="agentForm.id ? 'Edit Agent' : 'Add Agent'" closable>
-    <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="editor-drawer-form layout-grid space-xl">
-      <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-        Name
+    <NDrawerContent :title="agentForm.id ? 'Edit agent' : 'Add agent'" closable>
+    <form data-testid="agent-editor-form" @submit.prevent="submitAgent" class="editor-drawer-form agent-editor">
+      <label class="agent-editor__field">
+        <span class="agent-editor__label">Name</span>
         <NInput v-model:value="agentForm.name" size="small" required />
       </label>
       <NCheckbox v-model:checked="agentForm.enabled">
         Enabled
       </NCheckbox>
-      <section data-testid="agent-user-labels" class="layout-grid space-md round-lg framed frame-standard muted-bg pad-lg">
-        <div class="layout-row align-center spread-items space-md">
+      <section data-testid="agent-user-labels" class="agent-editor__section">
+        <div class="agent-editor__section-header">
           <div>
-            <h4 class="copy-sm weight-semibold base-text">User Labels</h4>
-            <p class="margin-top-xs copy-xs line-normal muted-text">Use labels such as site=home-lab or role=app to select agents from route targets.</p>
+            <h4 class="agent-editor__heading">User labels</h4>
+            <p class="agent-editor__description">Use labels such as site=home-lab or role=app to select agents from route targets.</p>
           </div>
           <NButton secondary size="small" @click="addLabel">
-            <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
-            Add Label
+            <template #icon><PlusIcon class="icon-sm" /></template>
+            Add label
           </NButton>
         </div>
-        <div v-if="agentForm.labels.length" class="layout-grid space-sm">
-          <div v-for="(label, index) in agentForm.labels" :key="label.id" data-testid="agent-label-row" class="layout-grid space-md round-md framed frame-subtle panel-bg pad-md mq-sm-two-auto mq-sm-align-end">
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-              Key
+        <div v-if="agentForm.labels.length" class="agent-editor__label-rows">
+          <div v-for="(label, index) in agentForm.labels" :key="label.id" data-testid="agent-label-row" class="agent-editor__label-row">
+            <label class="agent-editor__field">
+              <span class="agent-editor__label">Key</span>
               <NInput v-model:value="label.key" data-testid="agent-label-key" size="small" placeholder="site" required />
             </label>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-              Value
+            <label class="agent-editor__field">
+              <span class="agent-editor__label">Value</span>
               <NInput v-model:value="label.value" data-testid="agent-label-value" size="small" placeholder="home-lab" />
             </label>
-            <NButton type="error" secondary size="small" aria-label="Remove label" title="Remove label" class="self-align-end" @click="removeLabel(index)">
-              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+            <NButton type="error" secondary size="small" aria-label="Remove label" title="Remove label" class="agent-editor__remove" @click="removeLabel(index)">
+              <template #icon><TrashIcon class="icon-sm" /></template>
+              Remove
             </NButton>
           </div>
         </div>
-        <NEmpty v-else size="small" description="No user labels configured" class="round-md framed dashed-border frame-standard panel-bg pad-x-md pad-y-md" />
+        <p v-else class="agent-editor__empty">No user labels configured</p>
       </section>
-      <section v-if="agentForm.systemLabels.length" data-testid="agent-system-labels" class="layout-grid space-md round-lg framed frame-standard muted-bg pad-lg">
+      <section v-if="agentForm.systemLabels.length" data-testid="agent-system-labels" class="agent-editor__section">
         <div>
-          <h4 class="copy-sm weight-semibold base-text">System Labels</h4>
-          <p class="margin-top-xs copy-xs line-normal muted-text">System labels are read-only and can be used for exact-agent target selectors.</p>
+          <h4 class="agent-editor__heading">System labels</h4>
+          <p class="agent-editor__description">System labels are read-only and can be used for exact-agent target selectors.</p>
         </div>
-        <div class="layout-row wrap-items space-sm">
-          <NTag v-for="label in agentForm.systemLabels" :key="label.id" data-testid="agent-system-label" size="small" :bordered="true" class="mono-text">
-            {{ label.key }}={{ label.value }}
+        <div class="agent-editor__tags">
+          <NTag v-for="label in agentForm.systemLabels" :key="label.id" data-testid="agent-system-label" size="small" :bordered="false" class="agent-editor__tag mono-text">
+            <bdi dir="ltr">{{ diagnosticInspectionText(label.key) }}</bdi>=<bdi dir="ltr">{{ diagnosticInspectionText(label.value) }}</bdi>
           </NTag>
         </div>
       </section>
@@ -215,7 +217,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(agentSubmitDisabledReason)" :reason="agentSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(agentSubmitDisabledReason)">
-            {{ agentForm.id ? 'Save Changes' : 'Create Agent' }}
+            {{ agentForm.id ? 'Save changes' : 'Create agent' }}
           </NButton>
         </DisabledHint>
       </div>
@@ -223,3 +225,113 @@ defineExpose({ openCreate, openEdit, close });
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style scoped>
+.agent-editor {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.agent-editor__field {
+  display: grid;
+  min-width: 0;
+  gap: 0.375rem;
+}
+
+.agent-editor__label {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.agent-editor__section {
+  display: grid;
+  gap: 0.875rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+.agent-editor__section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.agent-editor__heading {
+  color: var(--app-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.agent-editor__description {
+  margin-top: 0.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.agent-editor__label-rows {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.agent-editor__label-row {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.agent-editor__remove {
+  justify-self: end;
+}
+
+.agent-editor__empty {
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  padding: 0.875rem 1rem;
+  text-align: center;
+}
+
+.agent-editor__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.agent-editor__tag {
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 640px) {
+  .agent-editor__label-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .agent-editor__label-row + .agent-editor__label-row .agent-editor__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 639px) {
+  .agent-editor__section-header {
+    flex-direction: column;
+  }
+
+  .agent-editor__label-row + .agent-editor__label-row {
+    border-top: 1px solid var(--app-border-subtle);
+    padding-top: 0.75rem;
+  }
+}
+</style>

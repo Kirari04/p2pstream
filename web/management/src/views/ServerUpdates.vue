@@ -10,6 +10,8 @@ import { messageFromError } from "@/lib/errors";
 import { parsePendingServerUpdate, serverUpdateDuration, serverUpdateTerminal, type PendingServerUpdate } from "@/lib/serverUpdates";
 import ServerUpdateProgress from "@/components/updates/ServerUpdateProgress.vue";
 import type { GetServerUpdateOverviewResponse, PreviewServerUpdateResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 
 const client = useManagementClient();
 const environmentId = inject(selectedEnvironmentIdKey, computed(() => "0"));
@@ -157,14 +159,12 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
 <template>
   <div class="server-updates">
-    <div class="update-heading">
-      <div>
-        <div class="update-eyebrow">SERVER SOFTWARE · {{ environmentLabel }}</div>
-        <h2>Keep your server current</h2>
-        <p>Verified releases, a data backup, and recovery to the previous version.</p>
-      </div>
-      <NButton :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="16" /></template>Refresh status</NButton>
-    </div>
+    <PageHeader title="Server updates">
+      <template #description>Verified releases for <bdi dir="ltr">{{ environmentLabel }}</bdi>, with a data backup and recovery to the previous version.</template>
+      <template #actions>
+        <NButton secondary size="small" :loading="loading" :disabled="busy || Boolean(blocked)" @click="polling.refresh()"><template #icon><RefreshCw :size="14" /></template>Refresh status</NButton>
+      </template>
+    </PageHeader>
 
     <NAlert v-if="blocked" type="warning">{{ blocked }}</NAlert>
     <NAlert v-if="error" :type="running || pending ? 'info' : 'error'" :title="pending ? 'Update request needs confirmation' : 'Request could not complete'">{{ error }}</NAlert>
@@ -180,7 +180,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
     <div class="update-summary">
       <div class="update-version">
-        <span class="update-eyebrow">INSTALLED ON {{ environmentLabel }}</span>
+        <span class="update-eyebrow">Installed on {{ environmentLabel }}</span>
         <strong>{{ overview?.version || 'Checking…' }}</strong>
         <div class="update-meta"><NTag size="small" :bordered="false">{{ overview?.channel || 'Unknown channel' }}</NTag><span>{{ overview?.commit.slice(0, 12) }}</span></div>
       </div>
@@ -208,7 +208,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
           <label>Project directory override<NInput v-model:value="composeDirectory" aria-label="Compose project directory" placeholder="Leave blank to use the deployment directory" /></label>
         </details>
         <div class="update-command" :class="{ 'update-command--multiline': !singleLineSetup }">
-          <div class="update-command-toolbar"><span>{{ singleLineSetup ? 'ONE-LINE COMMAND' : 'COMPLETE SETUP BLOCK' }}</span><NButton size="small" :disabled="busy" :aria-label="copied ? 'Command copied' : deploymentMigration ? 'Copy migration command' : 'Copy setup command'" @click="copySetup"><template #icon><Check v-if="copied" :size="14" /><Copy v-else :size="14" /></template>{{ copied ? 'Copied' : 'Copy command' }}</NButton></div>
+          <div class="update-command-toolbar"><span>{{ singleLineSetup ? 'One-line command' : 'Complete setup block' }}</span><NButton size="small" :disabled="busy" :aria-label="copied ? 'Command copied' : deploymentMigration ? 'Copy migration command' : 'Copy setup command'" @click="copySetup"><template #icon><Check v-if="copied" :size="14" /><Copy v-else :size="14" /></template>{{ copied ? 'Copied' : 'Copy command' }}</NButton></div>
           <pre tabindex="0" aria-label="Host updater command"><code>{{ setupCommand }}</code></pre>
         </div>
         <p class="muted-text">Release {{ overview.version }} · Linux {{ overview.architecture }} · Installation {{ overview.installationId.slice(0, 8) }}. Requires Bash, curl, Python 3.9+, sudo, and local rootful Docker with Compose. GitHub and the publisher are the download trust source; checksums bind the downloaded content.</p>
@@ -245,7 +245,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <p class="muted-text">The preview checks this server, release compatibility, and the saved deployment. Updating this server also restarts its public proxy and agent tunnels.</p>
     </NCard>
 
-    <NModal :show="Boolean(plan)" preset="card" title="Update the selected server" :style="{ width: 'min(560px, calc(100vw - 32px))' }" :mask-closable="!busy" @update:show="(show) => { if (!show && !busy) plan = null; }">
+    <NModal :show="Boolean(plan)" preset="card" title="Update the selected server" :style="modalCardStyle('35rem')" :content-style="modalScrollableContentStyle()" :mask-closable="!busy" @update:show="(show) => { if (!show && !busy) plan = null; }">
       <template v-if="plan">
         <p><strong>{{ environmentLabel }}</strong> will update from <strong>{{ plan.currentVersion }}</strong> to <strong>{{ plan.target?.version }}</strong>.</p>
         <p>The updater will download the verified image, stop the server, back up its data, and check the replacement. If validation fails, it will restore the previous version and backup.</p>
@@ -260,15 +260,15 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
 <style scoped>
 .server-updates{display:grid;gap:1.25rem;max-width:1040px}
-.update-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:1.5rem}.update-heading h2{font-size:1.5rem;margin:.35rem 0}.update-heading p{margin:0;color:var(--app-text-muted)}
-.update-eyebrow{font-size:.68rem;letter-spacing:.09em;font-weight:600;color:var(--app-text-muted)}
-.update-summary{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--app-border);border-radius:8px;overflow:hidden}.update-version{padding:1.5rem;display:grid;gap:.65rem;min-width:0}.update-version>strong{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;overflow-wrap:anywhere}.update-meta{display:flex;gap:.8rem;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:.75rem}
-.update-policy{padding:1.5rem;display:flex;gap:.8rem;align-items:flex-start;background:var(--app-panel-muted);border-left:1px solid var(--app-border)}.update-policy>svg{flex-shrink:0;color:var(--app-accent)}.update-policy p{font-size:.82rem;margin:.4rem 0 0;color:var(--app-text-muted)}
-.update-connection{padding:.8rem 1rem;border:1px solid var(--app-border);border-radius:6px;background:var(--app-panel-muted)}.update-connection>div{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.75rem}.update-connection svg{color:var(--app-success);flex-shrink:0}.update-connection strong{font-weight:500}.update-connection span{color:var(--app-text-muted);font-family:var(--font-mono);font-size:.65rem;margin-left:auto}.update-connection p{color:var(--app-text-muted);font-size:.72rem;line-height:1.6;margin:.4rem 0 0;overflow-wrap:anywhere}.update-connection--waiting svg{color:var(--app-warning)}
-.update-migration{border-top:3px solid var(--app-accent)}.update-migration-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:1rem 0;border:1px solid var(--app-border);border-radius:6px;background:var(--app-panel-muted)}.update-migration-facts>div{display:grid;gap:.3rem;padding:.8rem 1rem}.update-migration-facts>div+div{border-left:1px solid var(--app-border)}.update-migration-facts span{font-size:.7rem;color:var(--app-text-muted)}.update-migration-facts strong{font-family:var(--font-mono);font-size:.75rem;font-weight:500}.update-migration-copy{font-size:.82rem;line-height:1.65}.update-migration-settings{padding:.8rem 1rem;border-left:2px solid var(--app-accent);background:var(--app-panel-muted);margin:1rem 0}.update-migration-settings>strong{font-size:.8rem}.update-migration-settings p{font-size:.78rem;line-height:1.7;margin:.4rem 0 0}.update-migration-settings code{overflow-wrap:anywhere}
+.server-updates :deep(.n-card-content){display:grid;gap:.75rem}.server-updates :deep(.n-card-content)>.update-command,.server-updates :deep(.n-card-content)>.update-context,.server-updates :deep(.n-card-content)>.update-migration-facts,.server-updates :deep(.n-card-content)>.update-migration-settings,.server-updates :deep(.n-card-content)>.update-blocker{margin:0}.update-context[open]>p{margin:.6rem 0 0}
+.update-eyebrow{font-size:.8125rem;font-weight:500;color:var(--app-text-muted)}
+.update-summary{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--app-border-subtle);border-radius:10px;overflow:hidden}.update-version{padding:1.5rem;display:grid;gap:.65rem;min-width:0}.update-version>strong{font-family:'IBM Plex Mono',monospace;font-size:1.5rem;overflow-wrap:anywhere}.update-meta{display:flex;gap:.8rem;align-items:center;font-family:'IBM Plex Mono',monospace;font-size:.75rem}
+.update-policy{padding:1.5rem;display:flex;gap:.8rem;align-items:flex-start;background:var(--app-panel-muted);border-left:1px solid var(--app-border-subtle)}.update-policy>svg{flex-shrink:0;color:var(--app-accent)}.update-policy p{font-size:.82rem;margin:.4rem 0 0;color:var(--app-text-muted)}
+.update-connection{padding:.8rem 1rem;border:1px solid var(--app-border-subtle);border-radius:6px;background:var(--app-panel-muted)}.update-connection>div{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.75rem}.update-connection svg{color:var(--app-success);flex-shrink:0}.update-connection strong{font-weight:500}.update-connection span{color:var(--app-text-muted);font-family:var(--font-mono);font-size:.65rem;margin-left:auto}.update-connection p{color:var(--app-text-muted);font-size:.72rem;line-height:1.6;margin:.4rem 0 0;overflow-wrap:anywhere}.update-connection--waiting svg{color:var(--app-warning)}
+.update-migration{border-top:3px solid var(--app-accent)}.update-migration-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:1rem 0;border:1px solid var(--app-border-subtle);border-radius:6px;background:var(--app-panel-muted)}.update-migration-facts>div{display:grid;gap:.3rem;padding:.8rem 1rem}.update-migration-facts>div+div{border-left:1px solid var(--app-border-subtle)}.update-migration-facts span{font-size:.7rem;color:var(--app-text-muted)}.update-migration-facts strong{font-family:var(--font-mono);font-size:.75rem;font-weight:500}.update-migration-copy{font-size:.82rem;line-height:1.65}.update-migration-settings{padding:.8rem 1rem;border-left:2px solid var(--app-accent);background:var(--app-panel-muted);margin:1rem 0}.update-migration-settings>strong{font-size:.8rem}.update-migration-settings p{font-size:.78rem;line-height:1.7;margin:.4rem 0 0}.update-migration-settings code{overflow-wrap:anywhere}
 .update-actions,.update-operation{display:flex;align-items:center;gap:.75rem}.update-context{margin:1rem 0}.update-context label{display:grid;gap:.4rem;margin:.8rem 0}
-.update-command{margin:1rem 0;border:1px solid var(--app-border);border-radius:6px;overflow:hidden;background:var(--app-panel-muted);min-width:0}.update-command-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem .75rem;border-bottom:1px solid var(--app-border)}.update-command-toolbar>span{font-family:var(--font-mono);font-size:.6rem;font-weight:500;letter-spacing:.08em;color:var(--app-text-muted)}.update-command pre{margin:0;padding:1rem;max-height:14rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--font-mono);font-size:.72rem;line-height:1.85;tab-size:2}.update-command pre:focus-visible{outline:2px solid var(--app-accent);outline-offset:-2px}.update-command code{font:inherit}.update-command--multiline pre{max-height:18rem}.update-host-policy{font-size:.76rem;line-height:1.7;margin:.75rem 0 0;padding-top:.75rem;border-top:1px solid var(--app-border)}
+.update-command{margin:1rem 0;border:1px solid var(--app-border-subtle);border-radius:6px;overflow:hidden;background:var(--app-panel-muted);min-width:0}.update-command-toolbar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.5rem .75rem;border-bottom:1px solid var(--app-border-subtle)}.update-command-toolbar>span{font-size:.75rem;font-weight:500;color:var(--app-text-muted)}.update-command pre{margin:0;padding:1rem;max-height:14rem;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--font-mono);font-size:.72rem;line-height:1.85;tab-size:2}.update-command pre:focus-visible{outline:2px solid var(--app-accent);outline-offset:-2px}.update-command code{font:inherit}.update-command--multiline pre{max-height:18rem}.update-host-policy{font-size:.76rem;line-height:1.7;margin:.75rem 0 0;padding-top:.75rem;border-top:1px solid var(--app-border-subtle)}
 .update-actions .n-input{max-width:380px}.update-operation{flex-wrap:wrap;margin-bottom:.75rem}.update-blocker{margin-bottom:.75rem}.update-details{margin:1rem 0}.update-details code{display:block;overflow-wrap:anywhere;font-size:.7rem;margin-top:.75rem}.update-modal-actions{display:flex;justify-content:flex-end;gap:.75rem;margin-top:1.25rem}.muted-text{font-size:.8rem}
-@media(max-width:640px){.update-heading{flex-direction:column}.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command pre{padding:.8rem;font-size:.68rem}.update-command-toolbar{padding:.5rem .65rem}.update-command-toolbar>span{font-size:.56rem}}
-@media(max-width:420px){.update-migration-facts{grid-template-columns:1fr}.update-migration-facts>div{display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem}.update-migration-facts>div+div{border-left:0;border-top:1px solid var(--app-border)}}
+@media(max-width:640px){.update-summary{grid-template-columns:1fr}.update-policy{border-left:0;border-top:1px solid var(--app-border-subtle)}.update-actions{align-items:stretch;flex-direction:column}.update-actions .n-input{max-width:none}.update-command pre{padding:.8rem;font-size:.68rem}.update-command-toolbar{padding:.5rem .65rem}}
+@media(max-width:420px){.update-migration-facts{grid-template-columns:1fr}.update-migration-facts>div{display:flex;justify-content:space-between;align-items:center;padding:.6rem .8rem}.update-migration-facts>div+div{border-left:0;border-top:1px solid var(--app-border-subtle)}}
 </style>

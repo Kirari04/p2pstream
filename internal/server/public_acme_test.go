@@ -114,8 +114,8 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 	if updated.Status != publicTLSCertificateStatusReady || updated.CertPath == "" || updated.KeyPath == "" || !updated.ExpiresAt.Valid {
 		t.Fatalf("unexpected issued cert row: %+v", updated)
 	}
-	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMERenewBefore)) {
-		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMERenewBefore))
+	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMEMaxRenewBefore)) {
+		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMEMaxRenewBefore))
 	}
 	assertServerFileBytes(t, updated.CertPath, certPEM)
 	assertServerFileBytes(t, updated.KeyPath, keyPEM)

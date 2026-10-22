@@ -4,7 +4,7 @@ Run the p2pstream release binary as a Linux systemd service, or operate an agent
 
 ## Use This When
 
-Use systemd when you install the release binary directly on a host, or when managing an agent installed from the **Install Agent** modal opened from **Agents**.
+Use systemd when you install the release binary directly on a host, or when managing an agent installed from the **Install agent** modal opened from **Agents**.
 
 ## Prerequisites
 
@@ -93,7 +93,7 @@ sudo systemctl restart p2pstream-agent
 sudo journalctl -u p2pstream-agent -f
 ```
 
-Use **Agents → More → Reinstall / Repair** for an existing Linux host. This shares the install/enrollment dialog, including the Management URL, TLS, release, and optional local-file fields. When the selected remote server advertises localhost, the saved environment address supplies the default; edit it if hosts use another address.
+Use **Agents → More → Reinstall / repair** for an existing Linux host. This shares the install/enrollment dialog, including the Management URL, TLS, release, and optional local-file fields. When the selected remote server advertises localhost, the saved environment address supplies the default; edit it if hosts use another address.
 
 Reinstall reads the existing host credential through systemd's `EnvironmentFile` parser, checks that its agent ID matches the selected agent, and runs the verified installer with that token. It does not rotate the token on the server. It refreshes configuration and restarts the agent, and includes managed-update enrollment when authority and a trusted release are available. An active update campaign blocks preparation. Existing destination and capacity settings are preserved unless explicitly replaced.
 

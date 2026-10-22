@@ -14,10 +14,12 @@ import {
 import { NButton } from "naive-ui";
 import TrafficFlowEdge from "@/components/TrafficFlowEdge.vue";
 import TrafficFlowNode from "@/components/TrafficFlowNode.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import {
   CACHE_KEY,
   TrafficRequestPathCache,
   createTrafficFlowConfigIndex,
+  type TrafficFlowDetail,
   type TrafficRequestPathCacheEntry,
 } from "@/lib/trafficFlowLayout";
 import {
@@ -93,7 +95,14 @@ const edgeTypes: EdgeTypesObject = {
   trafficBypass: markRaw(TrafficFlowEdge),
 };
 
+const detailStorageKey = "p2pstream:traffic-flow-detail";
+const detailOptions: { value: TrafficFlowDetail; label: string }[] = [
+  { value: "sites", label: "Sites" },
+  { value: "routes", label: "Routes" },
+];
+
 const { fitView, viewport } = useVueFlow(FLOW_ID);
+const detail = ref<TrafficFlowDetail>(loadDetailPreference());
 const configIndex = computed(() => createTrafficFlowConfigIndex(props.config));
 const requestPathCache = new TrafficRequestPathCache();
 const tokenMotionPlanCache = new Map<string, MotionPlan>();
@@ -116,6 +125,7 @@ const layout = computed(() => buildTrafficFlowGraph({
   requests: props.requests,
   configIndex: configIndex.value,
   requestPath: cachedRequestPath,
+  detail: detail.value,
 }));
 
 const activeCacheStatus = computed<CacheNodeStatus | undefined>(() => {
@@ -195,8 +205,8 @@ const flowEdges = computed<Edge[]>(() =>
 const accessibleFlowNodes = computed(() => layout.value.nodes.map((node) => ({
   key: node.key,
   kind: node.kind.replaceAll("-", " "),
-  label: diagnosticInspectionText(node.label || "-"),
-  subLabel: diagnosticInspectionText(node.subLabel || "-"),
+  label: diagnosticInspectionText(node.label || "—"),
+  subLabel: diagnosticInspectionText(node.subLabel || "—"),
   status: diagnosticInspectionText(node.cacheStatus?.label || node.agentStatus?.label || ""),
   editTargets: node.editTargets,
 })));
@@ -328,6 +338,12 @@ watch(
   },
   { flush: "post" },
 );
+
+watch(detail, (value) => {
+  saveDetailPreference(value);
+  // Vue Flow syncs the new node set after this render; fit once it has.
+  scheduleDiagramFit();
+}, { flush: "post" });
 
 watch(
   motionLayoutSignature,
@@ -526,7 +542,23 @@ function tokenPoint(token: VisualToken): Point | null {
 }
 
 function cachedRequestPath(request: TraceRequest) {
-  return requestPathCache.get(request, configIndex.value);
+  return requestPathCache.get(request, configIndex.value, detail.value);
+}
+
+function loadDetailPreference(): TrafficFlowDetail {
+  try {
+    return window.localStorage.getItem(detailStorageKey) === "routes" ? "routes" : "sites";
+  } catch {
+    return "sites";
+  }
+}
+
+function saveDetailPreference(value: TrafficFlowDetail) {
+  try {
+    window.localStorage.setItem(detailStorageKey, value);
+  } catch {
+    // Storage can be unavailable (private mode, quota); the choice then lasts for this page only.
+  }
 }
 
 function motionPlanForCachedPath(requestId: string, cached: TrafficRequestPathCacheEntry): MotionPlan {
@@ -651,6 +683,7 @@ function clamp(value: number, min: number, max: number): number {
       <div class="flow-status">
         <span>{{ visualTokens.length }} rendered</span>
         <span v-if="skippedVisualizations" class="flow-overflow">+{{ skippedVisualizations }} not rendered</span>
+        <SegmentedControl v-model="detail" class="flow-detail" label="Diagram detail" :options="detailOptions" />
         <NButton size="small" secondary attr-type="button" aria-label="Fit traffic flow to view" @click="fitDiagram()">Fit</NButton>
       </div>
 
@@ -737,24 +770,26 @@ function clamp(value: number, min: number, max: number): number {
 </template>
 
 <style scoped>
+/* One bordered surface: the canvas and its keyboard node list share a frame. */
+.traffic-flow-region {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 10px;
+  background: var(--app-panel);
+}
+
 .traffic-flow-shell {
   position: relative;
   height: min(58vh, 540px);
   min-height: 360px;
   contain: layout paint style;
   overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
   background:
-    linear-gradient(var(--app-border-subtle) 1px, transparent 1px),
-    linear-gradient(90deg, var(--app-border-subtle) 1px, transparent 1px),
+    radial-gradient(circle, var(--app-border) 1px, transparent 1.25px),
     var(--app-panel-muted);
-  background-size: 32px 32px;
-}
-
-.traffic-flow-region {
-  display: grid;
-  gap: 0.5rem;
+  background-size: 24px 24px;
 }
 
 .traffic-vue-flow {
@@ -772,36 +807,30 @@ function clamp(value: number, min: number, max: number): number {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-panel) 88%, transparent);
-  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-panel) 90%, transparent);
+  padding: 4px 4px 4px 10px;
   color: var(--app-text-muted);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   backdrop-filter: blur(8px);
 }
 
+.flow-status :deep(.n-button),
+.flow-detail {
+  font-family: var(--font-body);
+}
+
+/* Sits inside the toolbar's own surface, so the track blends into it. */
+.flow-detail {
+  padding: 0.125rem;
+}
+
 .flow-overflow {
   color: var(--app-warning);
-}
-
-.flow-fit-button {
-  height: 24px;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-panel-muted);
-  padding: 0 9px;
-  color: var(--app-text);
-  font-size: 0.72rem;
-  font-weight: 600;
-  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
-}
-
-.flow-fit-button:hover {
-  border-color: var(--app-border);
-  background: var(--app-panel-muted);
-  color: var(--app-text);
 }
 
 .traffic-token-layer {
@@ -827,9 +856,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 .traffic-node-index {
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
+  border-top: 1px solid var(--app-border-subtle);
 }
 
 .traffic-node-index summary {
@@ -840,10 +867,10 @@ function clamp(value: number, min: number, max: number): number {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.625rem 0.75rem;
+  padding: 0.75rem 1.25rem;
   color: var(--app-text);
   font-size: 0.8125rem;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .traffic-node-index summary span,
@@ -855,8 +882,7 @@ function clamp(value: number, min: number, max: number): number {
 
 .traffic-node-index > p {
   margin: 0;
-  border-top: 1px solid var(--app-border-subtle);
-  padding: 0.625rem 0.75rem;
+  padding: 0 1.25rem 0.5rem;
 }
 
 .traffic-node-index ul {
@@ -864,7 +890,7 @@ function clamp(value: number, min: number, max: number): number {
   max-height: 18rem;
   overflow: auto;
   margin: 0;
-  padding: 0 0.75rem 0.75rem;
+  padding: 0 1.25rem 0.75rem;
   list-style: none;
 }
 
@@ -916,9 +942,12 @@ function clamp(value: number, min: number, max: number): number {
 
 .traffic-node-index__kind {
   color: var(--app-text-muted);
-  font-size: 0.7rem;
-  font-weight: 650;
-  text-transform: capitalize;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.traffic-node-index__kind::first-letter {
+  text-transform: uppercase;
 }
 
 .traffic-node-index__action {
@@ -926,7 +955,7 @@ function clamp(value: number, min: number, max: number): number {
   grid-row: 1 / span 2;
   color: var(--app-accent);
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .traffic-token-dot,
@@ -1005,10 +1034,10 @@ function clamp(value: number, min: number, max: number): number {
   left: 0;
   width: 74px;
   height: 74px;
-  border: 1px solid rgb(52 211 153 / 85%);
+  border: 1px solid color-mix(in srgb, var(--app-success) 85%, transparent);
   border-radius: 999px;
-  background: radial-gradient(circle, rgb(52 211 153 / 24%) 0%, rgb(52 211 153 / 8%) 44%, transparent 68%);
-  box-shadow: 0 0 28px rgb(52 211 153 / 22%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--app-success) 24%, transparent) 0%, color-mix(in srgb, var(--app-success) 8%, transparent) 44%, transparent 68%);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--app-success) 22%, transparent);
   pointer-events: none;
   animation: cache-store-pulse 900ms ease-out both;
   will-change: transform, opacity;
@@ -1039,6 +1068,7 @@ function clamp(value: number, min: number, max: number): number {
 
 :deep(.vue-flow__edge-path) {
   stroke: var(--app-border);
+  stroke-width: 1.25;
 }
 
 :deep(.vue-flow__edge.animated .vue-flow__edge-path) {
@@ -1071,12 +1101,12 @@ function clamp(value: number, min: number, max: number): number {
   0% {
     width: 30px;
     height: 30px;
-    border-color: rgb(52 211 153 / 100%);
+    border-color: var(--app-success);
   }
   100% {
     width: 78px;
     height: 78px;
-    border-color: rgb(52 211 153 / 0%);
+    border-color: transparent;
   }
 }
 
@@ -1088,6 +1118,12 @@ function clamp(value: number, min: number, max: number): number {
   .flow-status {
     left: 12px;
     right: auto;
+  }
+
+  .traffic-node-index summary,
+  .traffic-node-index > p,
+  .traffic-node-index ul {
+    padding-inline: 1rem;
   }
 
   .traffic-node-index li > div,

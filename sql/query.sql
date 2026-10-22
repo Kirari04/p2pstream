@@ -694,6 +694,19 @@ WHERE agent_id = sqlc.arg(agent_id)
   )
 ORDER BY connected_at ASC, id ASC;
 
+-- name: ListAllAgentConnectionsSince :many
+-- Fleet variant of ListAgentConnectionsSince: one scan for every agent,
+-- grouped by agent so callers can split rows without re-sorting.
+SELECT id, CAST(agent_id AS INTEGER) AS agent_id, connected_at, disconnected_at
+FROM connections
+WHERE agent_id IS NOT NULL
+  AND (
+    connected_at >= sqlc.arg(since)
+    OR disconnected_at IS NULL
+    OR disconnected_at >= sqlc.arg(since)
+  )
+ORDER BY agent_id ASC, connected_at ASC, id ASC;
+
 -- name: ListRecentConnections :many
 SELECT
     c.id,
@@ -2376,3 +2389,43 @@ DELETE FROM public_cache_entries
 WHERE (? = '' OR host = ?)
   AND (? = '' OR path LIKE ? || '%')
 RETURNING key_digest, body_path, size_bytes;
+
+-- name: ListAgentUpdateCampaignsFiltered :many
+-- Campaigns needing operator attention (running/paused, or still owning an
+-- unfinished, cordoned, or rollback-failed assignment) sort first so recovery
+-- controls stay reachable; everything else is newest first. states_csv is a
+-- comma-separated list of validated state names. query is matched as a literal,
+-- ASCII case-insensitive substring; an empty query disables the text filter.
+SELECT c.id, c.name, c.state, c.generation, c.target_version, c.target_commit, c.manifest_sha256, c.release_sequence, c.security_epoch, c.minimum_updater_version, c.minimum_tunnel_protocol, c.maximum_tunnel_protocol, c.artifacts_json, c.max_unavailable, c.minimum_eligible_agents_per_route, c.canary_count, c.wave_size, c.healthy_dwell_millis, c.created_by_user_id, c.created_at, c.updated_at, c.completed_at
+FROM agent_update_campaigns c
+WHERE instr(',' || CAST(sqlc.arg(states_csv) AS TEXT) || ',', ',' || c.state || ',') > 0
+  AND (
+    CAST(sqlc.arg(query) AS TEXT) = ''
+    OR instr(lower(c.name), lower(sqlc.arg(query))) > 0
+    OR instr(lower(c.target_version), lower(sqlc.arg(query))) > 0
+    OR instr(lower(c.target_commit), lower(sqlc.arg(query))) > 0
+  )
+ORDER BY (
+    c.state IN ('running', 'paused')
+    OR EXISTS (
+      SELECT 1 FROM agent_update_assignments x
+      WHERE x.campaign_id = c.id
+        AND (
+          x.cordoned = 1
+          OR x.state NOT IN ('succeeded', 'failed', 'cancelled')
+          OR (x.state = 'failed' AND x.desired_action = 'rollback')
+        )
+    )
+  ) DESC, c.id DESC
+LIMIT sqlc.arg(row_limit) OFFSET sqlc.arg(row_offset);
+
+-- name: CountAgentUpdateCampaignsFiltered :one
+SELECT COUNT(*)
+FROM agent_update_campaigns c
+WHERE instr(',' || CAST(sqlc.arg(states_csv) AS TEXT) || ',', ',' || c.state || ',') > 0
+  AND (
+    CAST(sqlc.arg(query) AS TEXT) = ''
+    OR instr(lower(c.name), lower(sqlc.arg(query))) > 0
+    OR instr(lower(c.target_version), lower(sqlc.arg(query))) > 0
+    OR instr(lower(c.target_commit), lower(sqlc.arg(query))) > 0
+  );

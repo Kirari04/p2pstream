@@ -4,7 +4,7 @@ A listener is the public TCP bind and protocol where user traffic enters p2pstre
 
 ## What It Is
 
-Listeners belong to the public proxy runtime, not the management server. Each listener has a protocol, bind address, port, and enabled flag. Assign Sites to a listener to serve their hostnames and shared routes. An optional Default Site handles unmatched hostnames.
+Listeners belong to the public proxy runtime, not the management server. Each listener has a protocol, bind address, port, and enabled flag. Assign sites to a listener to serve their hostnames and shared routes. An optional default site handles unmatched hostnames.
 
 | Protocol | Behavior |
 | --- | --- |
@@ -36,9 +36,9 @@ On an empty database, p2pstream creates:
 | `public-http` | HTTP | `80` |
 | `public-https` | HTTPS | `443` |
 
-Both serve one shared, published Default Site with a default route and static welcome target. Edit its routes under **Proxy → Sites**, or create a named Site for your application.
+Both serve one shared, published default site with a default route and static welcome target. Edit its routes under **Proxy → Sites**, or create a named site for your application.
 
-Deleting a stopped listener removes its Site assignments while preserving the Sites and their routes. A Site with no remaining assignments serves no traffic until it is assigned again. Change any Site redirects that use this listener as their HTTPS destination before deleting it.
+Deleting a stopped listener removes its site assignments while preserving the sites and their routes. A Site with no remaining assignments serves no traffic until it is assigned again. Change any site redirects that use this listener as their HTTPS destination before deleting it.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy Listeners table showing searchable HTTP and HTTPS listeners with bind addresses, route counts, runtime state, and row actions">
@@ -47,7 +47,7 @@ Deleting a stopped listener removes its Site assignments while preserving the Si
 
 <figure class="doc-screenshot">
   <img src="../assets/new/proxy_edit_interface_listener_modal.png" alt="p2pstream Edit Listener drawer showing protocol, bind address, port, and enabled state">
-  <figcaption>The listener drawer controls the public bind. Assign a Default Site for unmatched hostnames; container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
+  <figcaption>The listener drawer controls the public bind. Assign a default site for unmatched hostnames; container port publishing and host firewall rules still need to expose the same port outside p2pstream.</figcaption>
 </figure>
 
 ## Common Mistakes

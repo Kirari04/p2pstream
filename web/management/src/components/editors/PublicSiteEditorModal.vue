@@ -27,6 +27,7 @@ import PublicRouteEditorModal from "@/components/editors/PublicRouteEditorModal.
 import PublicListenerEditorModal from "@/components/editors/PublicListenerEditorModal.vue";
 import PublicTlsCertificateEditorModal from "@/components/editors/PublicTlsCertificateEditorModal.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import {
   isBusyKey,
   runManagementActionKey,
@@ -84,6 +85,17 @@ const hostnamesSection = ref<HTMLElement | null>(null);
 const initialSnapshot = ref("");
 const routeSaveNotice = ref("");
 const readinessExpanded = ref(false);
+type HostnameMode = "specific" | "default";
+const hostnameModeOptions: readonly { value: HostnameMode; label: string }[] = [
+  { value: "specific", label: "Specific hostnames" },
+  { value: "default", label: "Any unmatched hostname" },
+];
+const hostnameMode = computed<HostnameMode>(() =>
+  form.defaultSite ? "default" : "specific",
+);
+function setHostnameMode(mode: HostnameMode) {
+  form.defaultSite = mode === "default";
+}
 let returnFocusElement: HTMLElement | null = null;
 let nextRowID = 1;
 
@@ -128,7 +140,7 @@ const httpsListenerOptions = computed(() =>
     })),
 );
 const behaviorOptions = [
-  { label: "Serve Site", value: PublicSiteListenerBehavior.SERVE },
+  { label: "Serve site", value: PublicSiteListenerBehavior.SERVE },
   {
     label: "Redirect to HTTPS",
     value: PublicSiteListenerBehavior.REDIRECT_HTTPS,
@@ -170,7 +182,7 @@ const blockerCount = computed(
 );
 const publishDisabledReason = computed(() => {
   if (!editing.value || currentSite.value?.published) return "";
-  if (dirty.value) return "Save Site settings before publishing.";
+  if (dirty.value) return "Save site settings before publishing.";
   if (isBusy.value) return BUSY_REASON;
   return (
     currentSite.value?.readiness.find(
@@ -292,8 +304,8 @@ async function close() {
   if (
     dirty.value &&
     !(await confirm(
-      "Discard Site changes?",
-      "This Site has unsaved settings. Its persisted routes are unaffected.",
+      "Discard site changes?",
+      "This site has unsaved settings. Its persisted routes are unaffected.",
       "Discard changes",
     ))
   )
@@ -452,7 +464,7 @@ function moveRoute(route: PublicRoute, direction: -1 | 1) {
 }
 function handleRouteSaved() {
   routeSaveNotice.value =
-    "Route saved. Your unsaved Site settings are still here.";
+    "Route saved. Your unsaved site settings are still here.";
   emit("saved");
 }
 function readinessTagType(severity: PublicSiteReadinessSeverity) {
@@ -579,24 +591,16 @@ defineExpose({ openCreate, openEdit, close });
     to="body"
     placement="right"
     :width="editorDrawerWidth('76rem')"
-    :aria-label="editing ? 'Site workspace' : 'Create Site workspace'"
+    :aria-label="editing ? 'Site workspace' : 'Create site workspace'"
     class="editor-drawer site-workspace"
     @update:show="handleDrawerVisibility"
   >
     <NDrawerContent closable>
       <template #header
         ><div class="site-workspace__header min-width-zero">
-          <div class="site-workspace__mark" aria-hidden="true">
-            <GlobeIcon class="icon-md" />
-          </div>
           <div class="min-width-zero">
-            <p
-              class="copy-xs weight-semibold label-case letter-wide muted-text"
-            >
-              Site workspace
-            </p>
-            <h2 class="copy-lg weight-semibold clip-text">
-              {{ editing ? form.name || "Untitled Site" : "Create a Site" }}
+            <h2 class="site-workspace__title">
+              {{ editing ? form.name || "Untitled site" : "Create a site" }}
             </h2>
           </div>
           <NTag
@@ -620,11 +624,11 @@ defineExpose({ openCreate, openEdit, close });
       >
         <section class="site-workspace__intro">
           <div>
-            <h3 class="copy-base weight-semibold base-text">
+            <h3 class="copy-sm weight-semibold base-text">
               Identity &amp; hostname mode
             </h3>
             <p class="margin-top-xs copy-xs line-normal muted-text">
-              Draft Sites are persisted but do not claim hostnames or receive
+              Draft sites are persisted but do not claim hostnames or receive
               traffic until you publish.
             </p>
           </div>
@@ -641,7 +645,7 @@ defineExpose({ openCreate, openEdit, close });
                 :disabled="Boolean(publishDisabledReason)"
                 @click="publishSite"
                 ><template #icon><ArrowIcon class="icon-sm" /></template>Publish
-                Site</NButton
+                site</NButton
               ></DisabledHint
             ><span class="copy-xs muted-text align-right-text"
               >Publication revalidates every listener and hostname.</span
@@ -650,43 +654,31 @@ defineExpose({ openCreate, openEdit, close });
         </section>
         <section class="layout-grid space-lg mq-sm-cols-two">
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
             >Site name<NInput
               v-model:value="form.name"
               size="small"
               maxlength="64"
               placeholder="customer-portal"
               required
-            /><span class="normal-text letter-normal"
+            /><span class="weight-normal"
               >An operator label; it is never sent to visitors.</span
             ></label
           >
           <div class="layout-grid space-xs">
             <span
-              class="copy-xs weight-medium label-case letter-wide muted-text"
+              class="copy-xs weight-medium muted-text"
               >Hostname mode</span
             >
-            <div
+            <SegmentedControl
               class="site-mode-switch"
-              role="group"
-              aria-label="Hostname mode"
-            >
-              <button
-                type="button"
-                :class="{ 'is-active': !form.defaultSite }"
-                @click="form.defaultSite = false"
-              >
-                Specific hostnames</button
-              ><button
-                type="button"
-                :class="{ 'is-active': form.defaultSite }"
-                @click="form.defaultSite = true"
-              >
-                Any unmatched hostname
-              </button>
-            </div>
+              :model-value="hostnameMode"
+              :options="hostnameModeOptions"
+              label="Hostname mode"
+              @update:model-value="setHostnameMode"
+            />
             <span class="copy-xs line-normal muted-text"
-              >A Default Site handles hostnames that no published named Site
+              >A default site handles hostnames that no published named site
               claims on the listener.</span
             >
           </div>
@@ -707,7 +699,7 @@ defineExpose({ openCreate, openEdit, close });
                 Hostnames
               </h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                Exact and one-label wildcard hostnames share this Site’s routes.
+                Exact and one-label wildcard hostnames share this site’s routes.
               </p>
             </div>
             <NButton
@@ -727,7 +719,7 @@ defineExpose({ openCreate, openEdit, close });
               class="site-host-row"
             >
               <label
-                class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >Hostname {{ index + 1
                 }}<NInput
                   v-model:value="host.hostnamePattern"
@@ -735,7 +727,7 @@ defineExpose({ openCreate, openEdit, close });
                   placeholder="app.example.com or *.example.com"
                   required /></label
               ><label
-                class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >Behavior<AccessibleSelect
                   v-model:value="host.behavior"
                   :accessible-label="`Hostname ${index + 1} behavior`"
@@ -743,12 +735,13 @@ defineExpose({ openCreate, openEdit, close });
                   :options="hostnameBehaviorOptions" /></label
               ><NButton
                 type="error"
+                secondary
                 size="small"
                 attr-type="button"
                 :aria-label="`Remove hostname ${index + 1}`"
                 @click="removeHostname(index)"
                 ><template #icon><TrashIcon class="icon-sm" /></template
-              ></NButton>
+              >Remove</NButton>
             </div>
           </div>
           <button
@@ -766,16 +759,16 @@ defineExpose({ openCreate, openEdit, close });
             >
           </button>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
             >Canonical hostname
-            <span class="normal-text letter-normal">Optional</span
+            <span class="weight-normal">Optional</span
             ><NInput
               v-model:value="form.canonicalHostname"
               size="small"
               placeholder="app.example.com"
-            /><span class="normal-text letter-normal"
+            /><span class="weight-normal"
               >An exact preferred hostname for redirects and links.
-              Wildcard-only Sites can leave this empty.</span
+              Wildcard-only sites can leave this empty.</span
             ></label
           >
         </section>
@@ -793,7 +786,7 @@ defineExpose({ openCreate, openEdit, close });
                 Listener assignments
               </h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                Attach any number of listeners. An unassigned Site remains
+                Attach any number of listeners. An unassigned site remains
                 available but serves no traffic.
               </p>
             </div>
@@ -825,7 +818,7 @@ defineExpose({ openCreate, openEdit, close });
               :data-binding-index="index"
             >
               <label
-                class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >Listener<AccessibleSelect
                   v-model:value="binding.listenerId"
                   :accessible-label="`Listener assignment ${index + 1}`"
@@ -833,7 +826,7 @@ defineExpose({ openCreate, openEdit, close });
                   :options="listenerOptions"
                   required /></label
               ><label
-                class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >Behavior<AccessibleSelect
                   v-model:value="binding.behavior"
                   :accessible-label="`Listener assignment ${index + 1} behavior`"
@@ -844,7 +837,7 @@ defineExpose({ openCreate, openEdit, close });
                   binding.behavior === PublicSiteListenerBehavior.REDIRECT_HTTPS
                 "
                 ><label
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                   >HTTPS destination<AccessibleSelect
                     v-model:value="binding.redirectListenerId"
                     :accessible-label="`Listener assignment ${index + 1} HTTPS destination`"
@@ -852,7 +845,7 @@ defineExpose({ openCreate, openEdit, close });
                     :options="httpsListenerOptions"
                     required /></label
                 ><label
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                   >Redirect hostname {{ form.defaultSite ? "" : "· optional"
                   }}<NInput
                     v-model:value="binding.redirectHostname"
@@ -860,22 +853,23 @@ defineExpose({ openCreate, openEdit, close });
                     placeholder="secure.example.com" /></label></template
               ><NButton
                 type="error"
+                secondary
                 size="small"
                 attr-type="button"
                 :aria-label="`Remove listener assignment ${index + 1}`"
                 @click="removeBinding(index)"
                 ><template #icon><TrashIcon class="icon-sm" /></template
-              ></NButton>
+              >Remove</NButton>
               <p class="site-binding-row__note copy-xs line-normal muted-text">
                 Removing this assignment releases hostname ownership on that
-                listener after save; the Site and its routes remain intact.
+                listener after save; the site and its routes remain intact.
               </p>
             </div>
           </div>
           <div v-else class="site-empty-note">
             <strong>Not attached</strong
             ><span
-              >This Site is retained as inactive configuration and can be
+              >This site is retained as inactive configuration and can be
               attached later.</span
             >
           </div>
@@ -988,8 +982,8 @@ defineExpose({ openCreate, openEdit, close });
                 Routes
               </h3>
               <p class="margin-top-xs copy-xs line-normal muted-text">
-                Paths stay inside this Site. A missing path never falls through
-                to another Site.
+                Paths stay inside this site. A missing path never falls through
+                to another site.
               </p>
             </div>
             <NButton
@@ -1002,7 +996,7 @@ defineExpose({ openCreate, openEdit, close });
             >
           </div>
           <p v-if="dirty" class="copy-xs line-normal warning-text">
-            Routes use this Site’s saved bindings. Your unsaved Site settings
+            Routes use this site’s saved bindings. Your unsaved site settings
             remain in the workspace when a route is saved.
           </p>
           <p v-if="routeSaveNotice" class="copy-xs success-text" role="status">
@@ -1100,6 +1094,7 @@ defineExpose({ openCreate, openEdit, close });
                     ><CopyIcon class="icon-sm" /></template></NButton
                 ><NButton
                   type="error"
+                  secondary
                   size="small"
                   attr-type="button"
                   aria-label="Delete route"
@@ -1119,7 +1114,7 @@ defineExpose({ openCreate, openEdit, close });
               ><strong>Add the first route</strong
               ><small
                 >Configure a path, action, and full target pool without leaving
-                this Site.</small
+                this site.</small
               ></span
             >
           </button>
@@ -1133,7 +1128,7 @@ defineExpose({ openCreate, openEdit, close });
           <span class="copy-xs muted-text">{{
             editing
               ? dirty
-                ? "Unsaved Site settings"
+                ? "Unsaved site settings"
                 : "Site settings saved"
               : "Create the draft to start adding routes"
           }}</span>
@@ -1147,7 +1142,7 @@ defineExpose({ openCreate, openEdit, close });
                 attr-type="submit"
                 :disabled="Boolean(submitDisabledReason)"
                 >{{
-                  editing ? "Save Site settings" : "Create draft Site"
+                  editing ? "Save site settings" : "Create draft site"
                 }}</NButton
               ></DisabledHint
             >
@@ -1174,6 +1169,9 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
+.editor-drawer-form label.layout-grid {
+  align-content: start;
+}
 .site-workspace__header,
 .site-workspace__intro,
 .site-workspace__section-heading,
@@ -1189,15 +1187,19 @@ defineExpose({ openCreate, openEdit, close });
   max-width: 100%;
   overflow: hidden;
 }
-.site-workspace__header > div:nth-child(2) {
+.site-workspace__header > div:first-child {
   min-width: 0;
   flex: 1 1 0;
   overflow: hidden;
 }
-.site-workspace__header h2 {
+.site-workspace__title {
   display: block;
   max-width: 100%;
   overflow: hidden;
+  color: var(--app-text);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1207,16 +1209,6 @@ defineExpose({ openCreate, openEdit, close });
 .site-workspace__intro > div:first-child,
 .site-workspace__section-heading > div:first-child {
   flex: 1;
-}
-.site-workspace__mark {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: none;
-  place-items: center;
-  border-radius: 0.5rem;
-  background: var(--app-accent-soft);
-  color: var(--app-accent);
 }
 :global(.site-workspace .n-drawer-header__main) {
   min-width: 0;
@@ -1230,51 +1222,29 @@ defineExpose({ openCreate, openEdit, close });
   justify-content: space-between;
   align-items: flex-start;
 }
+/* Headed groups separated by hairlines; the drawer is the only surface. */
 .site-workspace__section {
   scroll-margin-top: 1rem;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 0.625rem;
-  padding: 1rem;
-  background: var(--app-panel);
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
 }
 .site-mode-switch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 0.1875rem;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 0.5rem;
-  background: var(--app-panel-muted);
-}
-.site-mode-switch button {
-  border: 0;
-  border-radius: 0.375rem;
-  padding: 0.5rem 0.75rem;
-  background: transparent;
-  color: var(--app-text-muted);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-.site-mode-switch button.is-active {
-  background: var(--app-panel);
-  color: var(--app-text);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 12%);
+  justify-self: start;
 }
 .site-host-list,
 .site-binding-list,
-.site-route-list,
-.site-readiness__items {
-  overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 0.5rem;
+.site-route-list {
+  border-block: 1px solid var(--app-border-subtle);
 }
-.site-host-row {
+.site-host-row,
+.site-binding-row {
   display: grid;
-  grid-template-columns: 1fr auto;
   gap: 0.75rem;
   align-items: end;
-  padding: 0.75rem;
+  padding: 0.75rem 0;
+}
+.site-host-row {
+  grid-template-columns: minmax(12rem, 1.4fr) minmax(12rem, 1fr) auto;
 }
 .site-host-row + .site-host-row,
 .site-binding-row + .site-binding-row,
@@ -1282,21 +1252,15 @@ defineExpose({ openCreate, openEdit, close });
 .site-readiness__item + .site-readiness__item {
   border-top: 1px solid var(--app-border-subtle);
 }
-.site-host-row > :deep(.n-button),
-.site-binding-row > :deep(.n-button),
 .site-route-row__actions :deep(.n-button) {
   width: 2.125rem;
   min-width: 2.125rem;
   padding-inline: 0;
 }
 .site-binding-row {
-  display: grid;
   grid-template-columns:
     minmax(10rem, 1fr) minmax(10rem, 0.8fr) minmax(10rem, 1fr)
     minmax(10rem, 1fr) auto;
-  gap: 0.75rem;
-  align-items: end;
-  padding: 0.875rem;
 }
 .site-binding-row__note {
   grid-column: 1/-1;
@@ -1304,7 +1268,7 @@ defineExpose({ openCreate, openEdit, close });
 .site-empty-note {
   display: grid;
   gap: 0.25rem;
-  border-left: 3px solid var(--app-border);
+  border-radius: 8px;
   padding: 0.75rem 1rem;
   background: var(--app-panel-muted);
   font-size: 0.75rem;
@@ -1317,17 +1281,22 @@ defineExpose({ openCreate, openEdit, close });
   width: 100%;
   align-items: center;
   gap: 0.875rem;
-  border: 1px dashed var(--app-border);
-  border-radius: 0.5rem;
+  border: 0;
+  border-radius: 8px;
   padding: 1rem;
   background: var(--app-panel-muted);
   color: var(--app-accent);
+  font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color 140ms ease-out;
 }
-.site-empty-action:hover {
-  border-color: var(--app-accent);
-  background: var(--app-accent-soft);
+.site-empty-action:hover:not(:disabled) {
+  background: var(--app-hover);
+}
+.site-empty-action:focus-visible {
+  outline: 3px solid var(--app-focus);
+  outline-offset: 1px;
 }
 .site-empty-action span {
   display: grid;
@@ -1336,6 +1305,7 @@ defineExpose({ openCreate, openEdit, close });
 .site-empty-action strong {
   color: var(--app-text);
   font-size: 0.8125rem;
+  font-weight: 600;
 }
 .site-empty-action small {
   color: var(--app-text-muted);
@@ -1343,8 +1313,7 @@ defineExpose({ openCreate, openEdit, close });
 }
 .site-readiness {
   overflow: hidden;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 0.625rem;
+  border-radius: 8px;
   background: var(--app-panel-muted);
 }
 .site-readiness__summary {
@@ -1353,8 +1322,13 @@ defineExpose({ openCreate, openEdit, close });
   padding: 0.875rem 1rem;
   background: transparent;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
+}
+.site-readiness__summary:focus-visible {
+  outline: 3px solid var(--app-focus);
+  outline-offset: -3px;
 }
 .site-readiness__copy {
   display: grid;
@@ -1369,6 +1343,7 @@ defineExpose({ openCreate, openEdit, close });
 }
 .site-readiness__chevron {
   flex: none;
+  color: var(--app-text-muted);
   transition: transform 0.18s ease;
 }
 .site-readiness__chevron.is-open {
@@ -1376,22 +1351,19 @@ defineExpose({ openCreate, openEdit, close });
 }
 .site-readiness__icon {
   display: grid;
-  width: 2rem;
-  height: 2rem;
   flex: none;
   place-items: center;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--app-success) 12%, var(--app-panel));
   color: var(--app-success);
 }
 .site-readiness__icon.has-blocker {
-  background: color-mix(in srgb, var(--app-error) 12%, var(--app-panel));
   color: var(--app-error);
+}
+.site-readiness__items {
+  border-top: 1px solid var(--app-border-subtle);
 }
 .site-readiness__item {
   align-items: flex-start;
   padding: 0.75rem 1rem;
-  background: var(--app-panel);
 }
 .site-readiness__empty {
   border-top: 1px solid var(--app-border-subtle);
@@ -1402,7 +1374,7 @@ defineExpose({ openCreate, openEdit, close });
   grid-template-columns: minmax(10rem, 0.8fr) minmax(14rem, 1.4fr) auto auto;
   gap: 1rem;
   align-items: center;
-  padding: 0.75rem;
+  padding: 0.75rem 0;
 }
 .site-route-row__match,
 .site-route-row__destination {
@@ -1415,13 +1387,21 @@ defineExpose({ openCreate, openEdit, close });
   align-items: center;
   gap: 0.375rem;
   border: 0;
-  padding: 0.25rem;
+  border-radius: 6px;
+  padding: 0.25rem 0.375rem;
   background: transparent;
   color: var(--app-success);
   font: inherit;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+}
+.site-route-row__state:hover {
+  background: var(--app-hover);
+}
+.site-route-row__state:focus-visible {
+  outline: 3px solid var(--app-focus);
+  outline-offset: 1px;
 }
 .site-route-row__state i {
   width: 0.4375rem;
@@ -1436,19 +1416,6 @@ defineExpose({ openCreate, openEdit, close });
   display: flex;
   gap: 0.375rem;
   justify-content: flex-end;
-}
-.site-workspace__actions {
-  position: sticky;
-  z-index: 2;
-  bottom: 0;
-  margin-inline: -1rem;
-  border-top: 1px solid var(--app-border-subtle);
-  padding: 0.875rem 1rem;
-  background: color-mix(in srgb, var(--app-panel) 94%, transparent);
-  backdrop-filter: blur(10px);
-}
-.site-host-row {
-  grid-template-columns: minmax(12rem, 1.4fr) minmax(12rem, 1fr) auto;
 }
 @media (max-width: 880px) {
   .site-binding-row {
@@ -1478,6 +1445,7 @@ defineExpose({ openCreate, openEdit, close });
   .site-route-row {
     grid-template-columns: minmax(0, 1fr);
   }
+  .site-host-row > :deep(.n-button),
   .site-binding-row > :deep(.n-button) {
     width: 100%;
   }

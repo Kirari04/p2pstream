@@ -3,18 +3,20 @@ import { Check as CheckIcon } from "@lucide/vue";
 import { MoreHorizontal as MoreIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { RefreshCw as RefreshIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NDataTable, NDrawer, NDrawerContent, NDropdown, NInput, NInputNumber, NModal, NTag, useNotification } from "naive-ui";
+import { NAlert, NButton, NButtonGroup, NCheckbox, NDataTable, NDrawer, NDrawerContent, NDropdown, NInput, NInputNumber, NModal, NTag, useNotification } from "naive-ui";
 import type { DataTableColumns, DropdownOption } from "naive-ui";
 import { computed, h, inject, onMounted, reactive, ref } from "vue";
 import { localManagementClient } from "@/api/managementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import EmptyState from "@/components/EmptyState.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import { environmentsKey, isBusyKey, reloadEnvironmentsKey } from "@/composables/managementContextKeys";
 import { useConfirmDialog } from "@/composables/useConfirmDialog";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { diagnosticExcerpt, diagnosticInspectionText } from "@/lib/diagnosticText";
-import { editorDrawerWidth, modalCardStyle, naiveTagType } from "@/lib/naiveUi";
+import { editorDrawerWidth, modalCardStyle, modalScrollableContentStyle, naiveTagType } from "@/lib/naiveUi";
 import type {
   Agent,
   Environment,
@@ -80,7 +82,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Environment",
     key: "environment",
-    minWidth: 300,
+    minWidth: 220,
     render: (environment) => h("div", { class: "layout-grid space-xs min-width-zero" }, [
       h("bdi", {
         class: "clip-text weight-medium base-text",
@@ -113,7 +115,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Trust & certificate",
     key: "trust",
-    minWidth: 320,
+    minWidth: 220,
     render: (environment) => h("div", { class: "layout-grid min-width-zero space-xs" }, [
       h(NTag, { size: "small", bordered: false, type: naiveTagType(trustSeverity(environment.trustState)), class: "fit-width" }, {
         default: () => trustLabel(environment.trustState),
@@ -135,7 +137,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Reachability",
     key: "testResult",
-    minWidth: 230,
+    minWidth: 190,
     render: (environment) => h("div", { class: "layout-grid min-width-zero space-xs", "aria-live": "polite" }, [
       h(
         NTag,
@@ -143,7 +145,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
         { default: () => testResultLabel(environment) },
       ),
       testResultCheckedAt(environment)
-        ? h("p", { class: "mono-text copy-xs base-text" }, formatDate(testResultCheckedAt(environment)))
+        ? h("p", { class: "copy-xs muted-text" }, `Checked ${formatDate(testResultCheckedAt(environment))}`)
         : null,
       testResultMessage(environment)
         ? h(
@@ -161,10 +163,11 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
   {
     title: "Actions",
     key: "actions",
-    width: 290,
+    width: 170,
     align: "right",
-    render: (environment) => h("div", { class: "layout-row align-center align-end-row space-sm" }, [
-      h(NButton, {
+    fixed: "right",
+    render: (environment) => h("div", { class: "layout-row wrap-items align-center align-end-row space-sm" }, [
+      environmentNeedsCertificateAction(environment) ? h(NButton, {
         secondary: true,
         size: "small",
         "aria-label": `${environmentCertificateActionLabel(environment)} for ${safeEnvironmentName(environment)}`,
@@ -175,7 +178,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
           ? h(CheckIcon, { class: "icon-sm" })
           : h(RefreshIcon, { class: "icon-sm" }),
         default: () => environmentCertificateActionLabel(environment),
-      }),
+      }) : null,
       h(
         DisabledHint,
         { disabled: Boolean(testEnvironmentDisabledReason(environment)), reason: testEnvironmentDisabledReason(environment) },
@@ -192,7 +195,7 @@ const environmentColumns = computed<DataTableColumns<Environment>>(() => [
       ),
       h(NDropdown, {
         trigger: "click",
-        options: environmentMenuOptions(),
+        options: environmentMenuOptions(environment),
         show: activeEnvironmentMenuId.value === environmentKey(environment),
         menuProps: () => ({
           id: environmentMenuId(environment),
@@ -304,22 +307,22 @@ function runEnvironmentCertificateAction(environment: Environment) {
   void discoverCertificate(environment);
 }
 
-function environmentMenuOptions(): DropdownOption[] {
+function environmentNeedsCertificateAction(environment: Environment): boolean {
+  return environmentCertificateAction(environment) === "trust" || !certificateForEnvironment(environment);
+}
+
+function environmentMenuOptions(environment: Environment): DropdownOption[] {
   const disabled = Boolean(busyDisabledReason.value);
-  return [
-    {
-      label: "Edit environment",
-      key: "edit",
-      disabled,
-      props: { role: "menuitem", "aria-disabled": disabled ? "true" : "false" },
-    },
-    {
-      label: "Delete environment",
-      key: "delete",
-      disabled,
-      props: { role: "menuitem", "aria-disabled": disabled ? "true" : "false" },
-    },
-  ];
+  const props = { role: "menuitem", "aria-disabled": disabled ? "true" : "false" } as const;
+  const options: DropdownOption[] = [];
+  if (!environmentNeedsCertificateAction(environment)) {
+    options.push({ label: environmentCertificateActionLabel(environment), key: "certificate", disabled, props });
+  }
+  options.push(
+    { label: "Edit environment", key: "edit", disabled, props },
+    { label: "Delete environment", key: "delete", disabled, props },
+  );
+  return options;
 }
 
 function environmentMenuId(environment: Environment): string {
@@ -327,6 +330,10 @@ function environmentMenuId(environment: Environment): string {
 }
 
 function handleEnvironmentMenuSelect(environment: Environment, key: string) {
+  if (key === "certificate") {
+    runEnvironmentCertificateAction(environment);
+    return;
+  }
   if (key === "edit") {
     openEditEnvironment(environment);
     return;
@@ -364,7 +371,7 @@ async function submitEnvironment() {
 
 async function deleteEnvironment(environment: Environment) {
   const confirmed = await confirmDialog.confirm(
-    "Delete Environment",
+    "Delete environment",
     `Delete "${diagnosticInspectionText(environment.name)}"? This removes the saved endpoint and access token from this instance.`,
     "Delete",
   );
@@ -582,25 +589,21 @@ function certificateSubject(cert: EnvironmentCertificate | undefined): string {
   return diagnosticInspectionText(cert.subject || cert.dnsNames[0] || cert.ipAddresses[0] || "Unknown subject");
 }
 
-function certificateSanSummary(cert: EnvironmentCertificate | undefined): string {
-  if (!cert) return "";
-  const names = [...cert.dnsNames, ...cert.ipAddresses];
-  if (!names.length) return "";
-  const safeNames = names.map(diagnosticInspectionText);
-  if (safeNames.length <= 2) return safeNames.join(", ");
-  return `${safeNames.slice(0, 2).join(", ")} +${safeNames.length - 2}`;
+function certificateSanNames(cert: EnvironmentCertificate | undefined): string[] {
+  if (!cert) return [];
+  return [...cert.dnsNames, ...cert.ipAddresses].map(diagnosticInspectionText);
 }
 
 function formatFingerprint(value: string): string {
   const normalized = value.replaceAll(":", "").trim().toUpperCase();
-  if (!normalized) return "-";
+  if (!normalized) return "—";
   if (normalized.length <= 28) return normalized;
   return `${normalized.slice(0, 12)}...${normalized.slice(-12)}`;
 }
 
 function formatFullFingerprint(value: string): string {
   const normalized = value.replaceAll(":", "").trim().toUpperCase();
-  if (!normalized) return "-";
+  if (!normalized) return "—";
   return normalized.match(/.{1,2}/g)?.join(":") ?? normalized;
 }
 
@@ -621,31 +624,23 @@ function handleTrustModalUpdate(show: boolean) {
 
 <template>
   <div class="stack-xl">
-    <div class="layout-row layout-column space-lg mq-md-row mq-md-align-end mq-md-spread">
-      <div>
-        <h4 class="margin-bottom-sm copy-lg weight-semibold base-text">Environments</h4>
-        <p class="copy-sm muted-text">Remote management endpoints, routing, and certificate trust.</p>
-      </div>
-      <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
-        <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
-          <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
-          Add Environment
-        </NButton>
-      </DisabledHint>
-    </div>
+    <PageHeader title="Environments" description="Remote management endpoints, routing, and certificate trust.">
+      <template #actions>
+        <DisabledHint :disabled="Boolean(busyDisabledReason)" :reason="busyDisabledReason">
+          <NButton type="primary" size="small" :disabled="Boolean(busyDisabledReason)" @click="openCreateEnvironment">
+            <template #icon><PlusIcon class="icon-sm" /></template>
+            Add environment
+          </NButton>
+        </DisabledHint>
+      </template>
+    </PageHeader>
 
-    <div v-if="operationError" class="round-md framed error-border panel-bg pad-lg copy-sm error-text">
+    <NAlert v-if="operationError" type="error" :bordered="false">
       <bdi dir="ltr">{{ diagnosticInspectionText(operationError) }}</bdi>
-    </div>
+    </NAlert>
 
-    <section class="surface-card hide-overflow">
-      <div class="divider-bottom frame-standard pad-x-xl pad-y-lg layout-row align-center spread-items space-md">
-        <div>
-          <h5 class="copy-sm weight-semibold base-text">Registered environments</h5>
-          <p class="margin-top-xs copy-xs muted-text">Trust and reachability are checked independently for every endpoint.</p>
-        </div>
-        <NTag size="small" :bordered="false">{{ environments.length }} total</NTag>
-      </div>
+    <SectionCard title="Registered environments" description="Trust and reachability are checked independently for every endpoint." flush>
+      <template #badge><NTag size="small" :bordered="false">{{ environments.length }}</NTag></template>
       <NDataTable
         v-if="environments.length || isLoading"
         :columns="environmentColumns"
@@ -653,8 +648,8 @@ function handleTrustModalUpdate(show: boolean) {
         :row-key="environmentRowKey"
         :pagination="false"
         :bordered="false"
-        :single-line="false"
-        :scroll-x="1140"
+       
+        :scroll-x="800"
         :loading="isLoading"
         size="small"
       />
@@ -662,23 +657,23 @@ function handleTrustModalUpdate(show: boolean) {
         v-else
         title="No remote environments"
         description="Add an environment to operate another p2pstream instance from this management panel."
-        action-label="Add Environment"
+        action-label="Add environment"
         @action="openCreateEnvironment"
       />
-    </section>
+    </SectionCard>
 
     <NDrawer
       v-model:show="isEnvironmentModalOpen"
       placement="right"
       :width="editorDrawerWidth('42rem')"
-      :aria-label="environmentForm.id ? 'Edit Environment' : 'Add Environment'"
+      :aria-label="environmentForm.id ? 'Edit environment' : 'Add environment'"
       class="editor-drawer"
     >
-      <NDrawerContent :title="environmentForm.id ? 'Edit Environment' : 'Add Environment'" closable>
+      <NDrawerContent :title="environmentForm.id ? 'Edit environment' : 'Add environment'" closable>
       <form class="editor-drawer-form layout-grid space-lg" @submit.prevent="submitEnvironment">
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Name
-          <NInput v-model:value="environmentForm.name" size="small" required />
+          <NInput v-model:value="environmentForm.name" size="small" placeholder="Production" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
           Management URL
@@ -697,31 +692,45 @@ function handleTrustModalUpdate(show: boolean) {
               {{ option.label }}
             </NButton>
           </NButtonGroup>
+          <span class="copy-xs weight-normal muted-text">
+            {{ environmentForm.transport === EnvironmentTransport.AGENT
+              ? "Requests are relayed through a connected local agent."
+              : "This instance connects to the management URL directly." }}
+          </span>
         </div>
         <label v-if="environmentForm.transport === EnvironmentTransport.AGENT" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Local Agent
+          Local agent
           <AccessibleSelect v-model:value="environmentForm.agentId" accessible-label="Local agent" size="small" :options="localAgentOptions" required />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Access Token
+          Access token
           <NInput
             v-model:value="environmentForm.accessToken"
+            type="password"
+            show-password-on="click"
             size="small"
+            autocomplete="off"
             :placeholder="environmentForm.id ? 'Leave blank to keep existing token' : 'p2pat_...'"
             :required="!environmentForm.id"
           />
         </label>
         <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Response Header Timeout
-          <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" required />
+          Response header timeout
+          <NInputNumber :show-button="false" v-model:value="environmentForm.responseHeaderTimeoutMillis" size="small" :min="1000" :max="300000" placeholder="10000" required>
+            <template #suffix>ms</template>
+          </NInputNumber>
+          <span class="copy-xs weight-normal muted-text">Between 1,000 and 300,000 ms.</span>
         </label>
-        <NCheckbox v-model:checked="environmentForm.enabled">
-          Enabled
-        </NCheckbox>
+        <div class="layout-grid space-2xs">
+          <NCheckbox v-model:checked="environmentForm.enabled">
+            Enabled
+          </NCheckbox>
+          <span class="copy-xs muted-text">Disabled environments stay registered but cannot be selected or proxied.</span>
+        </div>
         <div class="editor-drawer-actions margin-top-lg layout-row align-end-row space-md">
           <NButton secondary attr-type="button" @click="isEnvironmentModalOpen = false">Cancel</NButton>
           <NButton type="primary" attr-type="submit" :disabled="Boolean(busyDisabledReason)">
-            {{ environmentForm.id ? 'Save Changes' : 'Create Environment' }}
+            {{ environmentForm.id ? 'Save changes' : 'Create environment' }}
           </NButton>
         </div>
       </form>
@@ -730,8 +739,9 @@ function handleTrustModalUpdate(show: boolean) {
     <NModal
       :show="Boolean(certificateTrustEnvironment)"
       preset="card"
-      title="Trust Certificate"
+      title="Trust certificate"
       :style="modalCardStyle('34rem')"
+      :content-style="modalScrollableContentStyle()"
       :bordered="false"
       @update:show="handleTrustModalUpdate"
     >
@@ -745,7 +755,7 @@ function handleTrustModalUpdate(show: boolean) {
               </p>
             </div>
             <div class="layout-grid space-2xs">
-              <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 Fingerprint</p>
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">SHA-256 fingerprint</p>
               <code
                 class="flow-box max-full wrap-anywhere round-md framed frame-standard panel-bg pad-x-md pad-y-sm mono-text copy-xs line-relaxed label-case letter-wide base-text"
                 :title="certificateTrustFingerprint"
@@ -765,14 +775,22 @@ function handleTrustModalUpdate(show: boolean) {
                 {{ diagnosticInspectionText(certificateTrustCertificate.issuer) }}
               </p>
             </div>
-            <div v-if="certificateSanSummary(certificateTrustCertificate)" class="layout-grid space-2xs">
+            <div v-if="certificateSanNames(certificateTrustCertificate).length" class="layout-grid space-xs">
               <p class="copy-xs weight-medium label-case letter-wide muted-text">Names</p>
-              <p class="clip-text copy-sm base-text" :title="certificateSanSummary(certificateTrustCertificate)">
-                {{ certificateSanSummary(certificateTrustCertificate) }}
-              </p>
+              <div class="layout-row wrap-items space-xs">
+                <NTag
+                  v-for="name in certificateSanNames(certificateTrustCertificate)"
+                  :key="name"
+                  size="small"
+                  :bordered="false"
+                  class="tag-wrap max-full mono-text"
+                >
+                  {{ name }}
+                </NTag>
+              </div>
             </div>
             <div class="layout-grid space-2xs">
-              <p class="copy-xs weight-medium label-case letter-wide muted-text">Valid Until</p>
+              <p class="copy-xs weight-medium label-case letter-wide muted-text">Valid until</p>
               <p class="mono-text copy-xs base-text">
                 {{ formatDate(certificateTrustCertificate?.notAfterUnixMillis) }}
               </p>
@@ -787,7 +805,7 @@ function handleTrustModalUpdate(show: boolean) {
             :disabled="Boolean(busyDisabledReason) || !certificateTrustFingerprint"
             @click="confirmTrustCertificate"
           >
-            Trust Certificate
+            Trust certificate
           </NButton>
         </div>
       </div>

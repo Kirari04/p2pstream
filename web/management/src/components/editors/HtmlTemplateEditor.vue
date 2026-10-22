@@ -161,7 +161,7 @@ function editorExtensions(): Extension[] {
       ".cm-gutters": {
         backgroundColor: "var(--app-panel-muted)",
         color: "var(--app-text-muted)",
-        borderRight: "1px solid var(--app-border)",
+        borderRight: "1px solid var(--app-border-subtle)",
       },
       ".cm-activeLine": {
         backgroundColor: "var(--app-panel)",
@@ -181,12 +181,13 @@ function editorExtensions(): Extension[] {
         outlineOffset: "-3px",
       },
       ".cm-tooltip": {
-        backgroundColor: "var(--app-panel-muted)",
-        border: "1px solid var(--app-border)",
+        backgroundColor: "var(--app-panel)",
+        border: "1px solid var(--app-border-subtle)",
+        borderRadius: "8px",
         color: "var(--app-text)",
       },
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
-        backgroundColor: "var(--app-panel)",
+        backgroundColor: "var(--app-hover)",
         color: "var(--app-text)",
       },
     }),
@@ -278,7 +279,8 @@ onBeforeUnmount(() => {
 <template>
   <div class="template-editor-shell">
     <div class="template-editor-toolbar">
-      <div class="placeholder-list">
+      <span class="template-editor-toolbar__label">{{ kind === PublicResponseTemplateKind.GENERIC_BODY ? "Raw body template" : "Placeholders" }}</span>
+      <div v-if="availablePlaceholders.length" class="placeholder-list">
         <span
           v-for="placeholder in availablePlaceholders"
           :key="placeholder.name"
@@ -287,9 +289,6 @@ onBeforeUnmount(() => {
           :title="placeholder.description"
         >
           {{ placeholder.label }}
-        </span>
-        <span v-if="kind === PublicResponseTemplateKind.GENERIC_BODY" class="placeholder-muted">
-          Raw body template
         </span>
       </div>
     </div>
@@ -310,11 +309,11 @@ onBeforeUnmount(() => {
     <div v-if="missingRequiredPlaceholders.length || unknownPlaceholders.length" class="validation-strip">
       <span v-if="missingRequiredPlaceholders.length">
         Missing required:
-        {{ missingRequiredPlaceholders.map((placeholder) => placeholder.label).join(", ") }}
+        <code>{{ missingRequiredPlaceholders.map((placeholder) => placeholder.label).join(", ") }}</code>
       </span>
       <span v-if="unknownPlaceholders.length">
         Unknown:
-        {{ unknownPlaceholderLabels }}
+        <code>{{ unknownPlaceholderLabels }}</code>
       </span>
     </div>
   </div>
@@ -323,61 +322,65 @@ onBeforeUnmount(() => {
 <style scoped>
 .template-editor-shell {
   display: grid;
-  gap: 0.75rem;
   min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-border-subtle);
+  border-radius: 8px;
+  background: var(--app-panel);
 }
 
 .template-editor-toolbar {
   display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.5rem 0.75rem;
+  background: var(--app-panel-muted);
+}
+
+.template-editor-toolbar__label {
+  flex: 0 0 auto;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .placeholder-list {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.25rem;
 }
 
-.placeholder-chip,
-.placeholder-muted {
-  border: 1px solid var(--app-border);
-  border-radius: 5px;
-  padding: 0.25rem 0.45rem;
+.placeholder-chip {
+  border-radius: 6px;
+  padding: 0.1875rem 0.4375rem;
+  background: var(--app-panel);
   color: var(--app-text-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 
 .placeholder-chip.required {
-  border-color: var(--app-border);
   color: var(--app-text);
-}
-
-.placeholder-muted {
-  font-family: var(--font-body);
+  font-weight: 500;
 }
 
 .template-editor-grid {
   display: grid;
-  gap: 0.75rem;
-}
-
-@media (min-width: 1024px) {
-  .template-editor-grid {
-    grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
-  }
+  min-width: 0;
 }
 
 .editor-pane,
 .preview-pane {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
+}
+
+.editor-pane {
   background: var(--app-panel-muted);
 }
 
@@ -388,18 +391,29 @@ onBeforeUnmount(() => {
 .preview-pane {
   display: grid;
   grid-template-rows: auto minmax(22rem, 1fr);
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+@media (min-width: 1024px) {
+  .template-editor-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
+  }
+
+  .preview-pane {
+    border-top: 0;
+    border-left: 1px solid var(--app-border-subtle);
+  }
 }
 
 .preview-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--app-border);
-  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.5rem 0.75rem;
   color: var(--app-text-muted);
   font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0;
+  font-weight: 500;
 }
 
 .template-preview-frame {
@@ -411,13 +425,18 @@ onBeforeUnmount(() => {
 
 .validation-strip {
   display: grid;
-  gap: 0.35rem;
-  border: 1px solid color-mix(in srgb, var(--app-warning) 36%, var(--app-border));
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--app-warning) 9%, var(--app-panel));
-  padding: 0.6rem 0.75rem;
+  gap: 0.25rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 0.625rem 0.75rem;
+  background: color-mix(in srgb, var(--app-warning) 8%, var(--app-panel));
   color: var(--app-warning);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
   line-height: 1.45;
+}
+
+.validation-strip code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
 }
 </style>

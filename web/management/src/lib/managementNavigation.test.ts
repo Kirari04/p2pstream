@@ -15,21 +15,22 @@ describe("managementNavigation", () => {
     expect(MANAGEMENT_NAVIGATION[1]?.items.map((item) => item.label)).toEqual([
       "Proxy",
       "Agents",
-      "Traffic Policy",
+      "Traffic policy",
       "Templates",
       "TLS",
     ]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[0]?.children?.map((item) => item.label)).toEqual(["Sites", "Listeners"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[1]?.children?.map((item) => item.label)).toEqual(["Fleet", "Activity", "Updates"]);
     expect(MANAGEMENT_NAVIGATION[1]?.items[2]?.children?.map((item) => item.label)).toEqual([
-      "Rate Limits",
+      "Rate limits",
       "WAF",
       "Access",
       "Cache",
       "Retries",
-      "Traffic Shaper",
+      "Traffic shaper",
+      "Visitor identity",
     ]);
-    expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API Tokens", "Management TLS", "Server Updates"]);
+    expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API tokens", "Management TLS", "Server updates"]);
   });
 
   test("normalizes route paths and hash-history hrefs", () => {
@@ -50,7 +51,7 @@ describe("managementNavigation", () => {
   test("creates group, parent, and leaf breadcrumbs", () => {
     expect(managementBreadcrumbsForPath("/policies/cache")).toEqual([
       { key: "configure", label: "Configure" },
-      { key: "traffic-policy", label: "Traffic Policy", path: "/policies/rate-limits" },
+      { key: "traffic-policy", label: "Traffic policy", path: "/policies/rate-limits" },
       { key: "policy-cache", label: "Cache", path: "/policies/cache" },
     ]);
     expect(managementBreadcrumbsForPath("/agent/activity")).toEqual([
@@ -70,10 +71,45 @@ describe("managementNavigation", () => {
     ]);
   });
 
+  test("keeps Management TLS active and labeled on its rotation subpage", () => {
+    const system = MANAGEMENT_NAVIGATION.find((group) => group.key === "system");
+    const managementTls = system?.items.find((item) => item.key === "management-tls");
+    expect(managementTls).toBeDefined();
+    expect(isManagementNavigationItemActive(managementTls!, "/settings/management-tls/rotation")).toBe(true);
+    expect(managementBreadcrumbsForPath("/settings/management-tls/rotation").map((crumb) => crumb.label)).toEqual(["System", "Management TLS"]);
+    expect(isManagementNavigationItemActive(managementTls!, "/settings/management-tls-other")).toBe(false);
+  });
+
+  test("keeps WAF active and adds a breadcrumb on its captcha providers sub-page", () => {
+    const trafficPolicy = MANAGEMENT_NAVIGATION[1]?.items[2];
+    const waf = trafficPolicy?.children?.find((item) => item.key === "policy-waf");
+    const rateLimits = trafficPolicy?.children?.find((item) => item.key === "policy-rate-limits");
+    expect(waf).toBeDefined();
+    expect(waf?.children).toBeUndefined();
+    expect(isManagementNavigationItemActive(waf!, "/policies/waf")).toBe(true);
+    expect(isManagementNavigationItemActive(waf!, "/policies/waf/captcha-providers")).toBe(true);
+    expect(isManagementNavigationItemActive(waf!, "/policies/waffle")).toBe(false);
+    expect(rateLimits && isManagementNavigationItemActive(rateLimits, "/policies/waf/captcha-providers")).toBe(false);
+    expect(trafficPolicy && isManagementNavigationItemActive(trafficPolicy, "/policies/waf/captcha-providers")).toBe(true);
+    expect(managementBreadcrumbsForPath("/policies/waf")).toEqual([
+      { key: "configure", label: "Configure" },
+      { key: "traffic-policy", label: "Traffic policy", path: "/policies/rate-limits" },
+      { key: "policy-waf", label: "WAF", path: "/policies/waf" },
+    ]);
+    expect(managementBreadcrumbsForPath("/policies/waf/captcha-providers")).toEqual([
+      { key: "configure", label: "Configure" },
+      { key: "traffic-policy", label: "Traffic policy", path: "/policies/rate-limits" },
+      { key: "policy-waf", label: "WAF", path: "/policies/waf" },
+      { key: "policy-waf-captcha-providers", label: "Captcha providers", path: "/policies/waf/captcha-providers" },
+    ]);
+    expect(managementRouteLabel("/policies/waf/captcha-providers")).toBe("Captcha providers");
+    expect(managementRouteLabel("/policies/visitor-identity")).toBe("Visitor identity");
+  });
+
   test("returns the deepest route label with a safe fallback", () => {
     expect(managementRouteLabel("/proxy/sites")).toBe("Sites");
     expect(managementRouteLabel("/proxy/listeners")).toBe("Listeners");
-    expect(managementRouteLabel("/unknown", "Not Found")).toBe("Not Found");
+    expect(managementRouteLabel("/unknown", "Not found")).toBe("Not found");
     expect(managementBreadcrumbsForPath("/unknown")).toEqual([]);
   });
 });

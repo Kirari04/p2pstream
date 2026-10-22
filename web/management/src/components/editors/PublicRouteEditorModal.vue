@@ -4,6 +4,7 @@ import type { InputHTMLAttributes } from "vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import {
+  NAlert,
   NButton,
   NCheckbox,
   NDrawer,
@@ -27,6 +28,7 @@ import {
   type SelectorLabelRow,
 } from "@/lib/agentLabels";
 import { BUSY_REASON } from "@/lib/disabledReasons";
+import { diagnosticInspectionText } from "@/lib/diagnosticText";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
   publicRouteDefaultScopeLabel,
@@ -263,7 +265,7 @@ const routeForm = reactive({
 let nextSelectorRowID = 1;
 
 const routeScopeOptions = computed(() => [
-  { label: "Listener-wide (no Site)", value: "0" },
+  { label: "Listener-wide (no site)", value: "0" },
   ...sites.value
     .filter((site) => site.listenerId.toString() === routeForm.listenerId)
     .map((site) => ({
@@ -278,7 +280,7 @@ const routeScopeOptions = computed(() => [
   )
     ? [
         {
-          label: `Unavailable Site #${routeForm.siteId} · choose another scope`,
+          label: `Unavailable site #${routeForm.siteId} · choose another scope`,
           value: routeForm.siteId,
           disabled: true,
         },
@@ -330,24 +332,24 @@ const routeIsRedirect = computed(
 );
 const modalTitle = computed(() =>
   routeFormMode.value === "edit"
-    ? "Edit Route"
+    ? "Edit route"
     : routeFormMode.value === "clone"
-      ? "Clone Route"
-      : "Add Route",
+      ? "Clone route"
+      : "Add route",
 );
 const submitLabel = computed(() =>
   routeFormMode.value === "edit"
-    ? "Save Changes"
+    ? "Save changes"
     : routeFormMode.value === "clone"
-      ? "Create Clone"
-      : "Create Route",
+      ? "Create clone"
+      : "Create route",
 );
 const routeSubmitDisabledReason = computed(() => {
   if (isBusy?.value) return BUSY_REASON;
   if (!isWorkspaceRoute.value && !listeners.value.length)
     return "Create a listener before creating a route.";
   if (routeSiteSelectionState.value === "unavailable")
-    return "Choose a Site on this listener or select Listener-wide (no Site).";
+    return "Choose a site on this listener or select Listener-wide (no site).";
   if (routeIsRedirect.value && routeForm.redirectTarget.trim() === "")
     return "Enter a redirect target.";
   if (!routeIsRedirect.value && !routeForm.targets.length)
@@ -687,7 +689,7 @@ async function close() {
     isDirty.value &&
     !(await confirm(
       "Discard route changes?",
-      "This route has unsaved changes. Discard them and return to the Site workspace?",
+      "This route has unsaved changes. Discard them and return to the site workspace?",
       "Discard changes",
     ))
   )
@@ -1031,34 +1033,28 @@ defineExpose({
       >
         <section
           v-if="isWorkspaceRoute && selectedSite"
-          class="route-site-context round-md framed frame-standard pad-md"
+          class="route-site-context"
           role="note"
         >
-          <p class="copy-xs weight-semibold label-case letter-wide base-text">
-            Site route
-          </p>
-          <p class="margin-top-xs copy-sm base-text">{{ selectedSite.name }}</p>
+          <p class="copy-xs muted-text">Site route</p>
+          <p class="margin-top-xs copy-sm weight-semibold base-text">{{ selectedSite.name }}</p>
           <p class="margin-top-xs copy-xs base-text">
             {{ selectedSiteListenerNames }}
           </p>
           <p class="margin-top-xs copy-xs line-normal muted-text">
-            This route is locked to its Site. Saving it updates the persisted
-            route only; unsaved Site settings remain unchanged.
+            This route is locked to its site. Saving it updates the persisted
+            route only; unsaved site settings remain unchanged.
           </p>
         </section>
-        <p
-          v-if="cloneSecretWarning"
-          class="round-md framed warning-border warning-surface pad-md copy-xs line-normal warning-text"
-          role="alert"
-        >
+        <NAlert v-if="cloneSecretWarning" type="warning" :bordered="false">
           Secret values cannot be copied. Re-enter every marked sensitive header
           and upstream basic-auth password before creating this clone. The clone
           is also created as a non-default route.
-        </p>
+        </NAlert>
         <section class="layout-grid space-lg mq-sm-cols-four">
           <label
             v-if="!isWorkspaceRoute"
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Listener
             <AccessibleSelect
@@ -1070,7 +1066,7 @@ defineExpose({
             />
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Action
             <AccessibleSelect
@@ -1081,7 +1077,7 @@ defineExpose({
             />
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Priority
             <NInputNumber
@@ -1096,34 +1092,34 @@ defineExpose({
           </NCheckbox>
           <label
             v-if="!isWorkspaceRoute"
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two"
+            class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two"
           >
             Routing scope
             <AccessibleSelect
               v-model:value="routeForm.siteId"
-              accessible-label="Route Site or listener-wide scope"
+              accessible-label="Route site or listener-wide scope"
               size="small"
               :options="routeScopeOptions"
             />
-            <span v-if="selectedSite" class="normal-text letter-normal"
-              >Hostnames come from Site “{{ selectedSite.name }}”. Requests for
-              claimed hosts stay within that Site.</span
+            <span v-if="selectedSite" class="weight-normal muted-text"
+              >Hostnames come from site “{{ selectedSite.name }}”. Requests for
+              claimed hosts stay within that site.</span
             >
             <span
               v-else-if="routeSiteSelectionState === 'unavailable'"
-              class="normal-text letter-normal warning-text"
-              >The saved Site is unavailable on this listener. Choose another
-              Site or Listener-wide (no Site); nothing is detached
+              class="weight-normal warning-text"
+              >The saved site is unavailable on this listener. Choose another
+              site or Listener-wide (no site); nothing is detached
               automatically.</span
             >
-            <span v-else class="normal-text letter-normal"
+            <span v-else class="weight-normal muted-text"
               >Listener-wide routes are retained for configurations that have
-              not been moved into a Site.</span
+              not been moved into a site.</span
             >
           </label>
           <label
             v-if="!isWorkspaceRoute && routeSiteSelectionState === 'legacy'"
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Listener-wide host pattern
             <NInput
@@ -1137,7 +1133,7 @@ defineExpose({
             class="layout-grid space-xs min-width-zero"
           >
             <span
-              class="copy-xs weight-medium label-case letter-wide muted-text"
+              class="copy-xs weight-medium muted-text"
               >Site hostnames</span
             >
             <span
@@ -1156,7 +1152,7 @@ defineExpose({
             </span>
           </div>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Path prefix
             <NInput
@@ -1166,7 +1162,7 @@ defineExpose({
             />
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Path security
             <AccessibleSelect
@@ -1175,13 +1171,13 @@ defineExpose({
               size="small"
               :options="pathSecurityModeOptions"
             />
-            <span class="normal-text letter-normal"
+            <span class="weight-normal muted-text"
               >Compatibility mode is for upstreams that require encoded / or \
               path identifiers.</span
             >
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Access policy
             <AccessibleSelect
@@ -1190,13 +1186,13 @@ defineExpose({
               size="small"
               :options="accessPolicyOptions"
             />
-            <span class="normal-text letter-normal"
+            <span class="weight-normal muted-text"
               >Protected routes fail closed and bypass shared response
               caching.</span
             >
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Target balancing
             <AccessibleSelect
@@ -1219,10 +1215,15 @@ defineExpose({
 
         <section
           v-if="routeIsRedirect"
-          class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg mq-sm-cols-four"
+          class="route-group"
+          aria-labelledby="route-redirect-heading"
         >
+          <div class="route-group__header">
+            <h3 id="route-redirect-heading" class="copy-sm weight-semibold base-text">Redirect</h3>
+          </div>
+          <div class="layout-grid space-lg mq-sm-cols-four">
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Mode
             <AccessibleSelect
@@ -1233,7 +1234,7 @@ defineExpose({
             />
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two"
+            class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two"
           >
             Target
             <NInput
@@ -1246,7 +1247,7 @@ defineExpose({
             />
           </label>
           <label
-            class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+            class="layout-grid space-xs copy-xs weight-medium muted-text"
           >
             Status
             <NInputNumber
@@ -1263,11 +1264,12 @@ defineExpose({
           <NCheckbox v-model:checked="routeForm.redirectPreserveQuery">
             Preserve query
           </NCheckbox>
+          </div>
         </section>
 
-        <section v-else class="layout-grid space-lg">
-          <div class="layout-row align-center spread-items space-md">
-            <h4 class="copy-sm weight-semibold base-text">Targets</h4>
+        <section v-else class="route-group" aria-labelledby="route-targets-heading">
+          <div class="route-group__header">
+            <h3 id="route-targets-heading" class="copy-sm weight-semibold base-text">Targets</h3>
             <NButton
               secondary
               size="small"
@@ -1275,7 +1277,7 @@ defineExpose({
               @click="addTarget"
             >
               <template #icon><PlusIcon class="icon-sm icon-sm" /></template>
-              Add Target
+              Add target
             </NButton>
           </div>
 
@@ -1283,18 +1285,32 @@ defineExpose({
             v-for="(target, index) in routeForm.targets"
             :key="`${target.id || 'new'}-${index}`"
             data-testid="route-target-row"
-            class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg"
+            class="route-target"
           >
-            <div class="layout-row align-start spread-items space-md">
-              <div class="layout-grid grow-fill space-lg mq-sm-cols-four">
+            <div class="route-target__header">
+              <span class="copy-xs weight-semibold base-text">Target {{ index + 1 }}</span>
+              <NButton
+                type="error"
+                secondary
+                size="small"
+                aria-label="Remove target"
+                title="Remove target"
+                attr-type="button"
+                @click="removeTarget(index)"
+              >
+                <template #icon><TrashIcon class="icon-sm" /></template>
+                Remove
+              </NButton>
+            </div>
+            <div class="layout-grid space-lg mq-sm-cols-four">
                 <label
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Name
                   <NInput v-model:value="target.name" size="small" required />
                 </label>
                 <label
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Type
                   <AccessibleSelect
@@ -1305,7 +1321,7 @@ defineExpose({
                   />
                 </label>
                 <label
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Priority group
                   <NInputNumber
@@ -1316,7 +1332,7 @@ defineExpose({
                   />
                 </label>
                 <label
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Weight
                   <NInputNumber
@@ -1328,7 +1344,7 @@ defineExpose({
                 </label>
                 <label
                   v-if="target.targetType === PublicRouteTargetType.PROXY"
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two"
                 >
                   URL
                   <NInput
@@ -1340,7 +1356,7 @@ defineExpose({
                 </label>
                 <label
                   v-if="target.targetType === PublicRouteTargetType.PROXY"
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Transport
                   <AccessibleSelect
@@ -1352,7 +1368,7 @@ defineExpose({
                 </label>
                 <label
                   v-if="target.targetType === PublicRouteTargetType.PROXY"
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Header timeout ms
                   <NInputNumber
@@ -1367,14 +1383,14 @@ defineExpose({
                     target.targetType === PublicRouteTargetType.PROXY &&
                     target.transport === PublicRouteTargetTransport.AGENT
                   "
-                  class="layout-grid space-md round-md framed frame-standard muted-bg pad-md mq-sm-span-four"
+                  class="route-subgroup layout-grid space-md mq-sm-span-four"
                 >
                   <div
                     class="layout-row wrap-items align-start spread-items space-md"
                   >
                     <div>
                       <p
-                        class="copy-xs weight-medium label-case letter-wide muted-text"
+                        class="copy-xs weight-medium muted-text"
                       >
                         Agent selector
                       </p>
@@ -1384,7 +1400,7 @@ defineExpose({
                     </div>
                     <div class="layout-grid space-xs">
                       <span
-                        class="copy-xs weight-medium label-case letter-wide muted-text"
+                        class="copy-xs weight-medium muted-text"
                         >Match exact agent</span
                       >
                       <AccessibleSelect
@@ -1408,7 +1424,7 @@ defineExpose({
                       class="layout-grid space-sm mq-sm-two-auto"
                     >
                       <label
-                        class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                        class="layout-grid space-xs copy-xs weight-medium muted-text"
                       >
                         Selector key
                         <NInput
@@ -1420,7 +1436,7 @@ defineExpose({
                         />
                       </label>
                       <label
-                        class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                        class="layout-grid space-xs copy-xs weight-medium muted-text"
                       >
                         Selector value
                         <NInput
@@ -1432,6 +1448,7 @@ defineExpose({
                       </label>
                       <NButton
                         type="error"
+                        secondary
                         size="small"
                         aria-label="Remove selector label"
                         title="Remove selector label"
@@ -1442,6 +1459,7 @@ defineExpose({
                         <template #icon
                           ><TrashIcon class="icon-sm icon-sm"
                         /></template>
+                        Remove
                       </NButton>
                     </div>
                   </div>
@@ -1457,7 +1475,7 @@ defineExpose({
                       <template #icon
                         ><PlusIcon class="icon-sm icon-sm"
                       /></template>
-                      Add Selector
+                      Add selector
                     </NButton>
                     <div
                       data-testid="selector-match-preview"
@@ -1502,7 +1520,7 @@ defineExpose({
                 </NCheckbox>
                 <label
                   v-if="target.targetType === PublicRouteTargetType.STATIC"
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text"
                 >
                   Status
                   <NInputNumber
@@ -1519,7 +1537,7 @@ defineExpose({
                     target.staticResponseBodyMode !==
                       PublicResponseBodyMode.TEMPLATE
                   "
-                  class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-three"
+                  class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-three"
                 >
                   Body
                   <NInput
@@ -1532,15 +1550,13 @@ defineExpose({
                 <NCheckbox v-model:checked="target.enabled">
                   Enabled
                 </NCheckbox>
-                <details
-                  class="target-advanced mq-sm-span-four round-md framed frame-standard"
-                >
+                <details class="target-advanced mq-sm-span-four">
                   <summary class="copy-xs weight-semibold base-text">
                     Advanced target settings
                   </summary>
                   <div
                     v-if="target.targetType === PublicRouteTargetType.PROXY"
-                    class="layout-grid space-xl pad-lg"
+                    class="target-advanced__body layout-grid space-xl"
                   >
                     <section class="layout-grid space-md">
                       <div
@@ -1548,7 +1564,7 @@ defineExpose({
                       >
                         <div>
                           <h5
-                            class="copy-xs weight-semibold label-case letter-wide base-text"
+                            class="copy-xs weight-semibold base-text"
                           >
                             Request headers
                           </h5>
@@ -1574,7 +1590,7 @@ defineExpose({
                         class="advanced-header-row"
                       >
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Name<NInput
                             v-model:value="header.name"
                             size="small"
@@ -1582,7 +1598,7 @@ defineExpose({
                             required
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Value<NInput
                             v-model:value="header.value"
                             :type="header.sensitive ? 'password' : 'text'"
@@ -1600,6 +1616,7 @@ defineExpose({
                         >
                         <NButton
                           type="error"
+                          secondary
                           size="small"
                           attr-type="button"
                           aria-label="Remove upstream header"
@@ -1607,7 +1624,7 @@ defineExpose({
                           @click="removeUpstreamHeader(target, headerIndex)"
                           ><template #icon
                             ><TrashIcon class="icon-sm" /></template
-                        ></NButton>
+                        >Remove</NButton>
                       </div>
                     </section>
                     <section
@@ -1622,14 +1639,14 @@ defineExpose({
                         class="layout-grid space-md mq-sm-cols-two"
                       >
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Username<NInput
                             v-model:value="target.upstreamBasicAuth.username"
                             size="small"
                             autocomplete="off"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Password<NInput
                             v-model:value="target.upstreamBasicAuth.password"
                             type="password"
@@ -1654,20 +1671,20 @@ defineExpose({
                         class="layout-grid space-md mq-sm-cols-four"
                       >
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Method<NInput
                             v-model:value="target.healthCheck.method"
                             size="small"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Path<NInput
                             v-model:value="target.healthCheck.path"
                             size="small"
                             placeholder="/health"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Interval ms<NInputNumber
                             v-model:value="target.healthCheck.intervalMillis"
                             :show-button="false"
@@ -1675,7 +1692,7 @@ defineExpose({
                             :min="1"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Timeout ms<NInputNumber
                             v-model:value="target.healthCheck.timeoutMillis"
                             :show-button="false"
@@ -1683,7 +1700,7 @@ defineExpose({
                             :min="1"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Healthy threshold<NInputNumber
                             v-model:value="target.healthCheck.healthyThreshold"
                             :show-button="false"
@@ -1691,7 +1708,7 @@ defineExpose({
                             :min="1"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Unhealthy threshold<NInputNumber
                             v-model:value="
                               target.healthCheck.unhealthyThreshold
@@ -1701,7 +1718,7 @@ defineExpose({
                             :min="1"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Status from<NInputNumber
                             v-model:value="target.healthCheck.expectedStatusMin"
                             :show-button="false"
@@ -1710,7 +1727,7 @@ defineExpose({
                             :max="599"
                         /></label>
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Status through<NInputNumber
                             v-model:value="target.healthCheck.expectedStatusMax"
                             :show-button="false"
@@ -1721,10 +1738,10 @@ defineExpose({
                       </div>
                     </section>
                   </div>
-                  <div v-else class="layout-grid space-xl pad-lg">
+                  <div v-else class="target-advanced__body layout-grid space-xl">
                     <section class="layout-grid space-md mq-sm-cols-two">
                       <label
-                        class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                        class="layout-grid space-xs copy-xs weight-medium muted-text"
                         >Response body source<AccessibleSelect
                           v-model:value="target.staticResponseBodyMode"
                           :accessible-label="`Target ${index + 1} response body source`"
@@ -1736,7 +1753,7 @@ defineExpose({
                           target.staticResponseBodyMode ===
                           PublicResponseBodyMode.TEMPLATE
                         "
-                        class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                        class="layout-grid space-xs copy-xs weight-medium muted-text"
                         >Response template<AccessibleSelect
                           v-model:value="target.staticResponseTemplateId"
                           :accessible-label="`Target ${index + 1} response template`"
@@ -1751,7 +1768,7 @@ defineExpose({
                         class="layout-row align-center spread-items space-md"
                       >
                         <h5
-                          class="copy-xs weight-semibold label-case letter-wide base-text"
+                          class="copy-xs weight-semibold base-text"
                         >
                           Response headers
                         </h5>
@@ -1773,18 +1790,19 @@ defineExpose({
                         class="advanced-header-row advanced-header-row--response"
                       >
                         <label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Name<NInput
                             v-model:value="header.name"
                             size="small"
                             required /></label
                         ><label
-                          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+                          class="layout-grid space-xs copy-xs weight-medium muted-text"
                           >Value<NInput
                             v-model:value="header.value"
                             size="small" /></label
                         ><NButton
                           type="error"
+                          secondary
                           size="small"
                           attr-type="button"
                           aria-label="Remove response header"
@@ -1792,33 +1810,18 @@ defineExpose({
                           @click="removeResponseHeader(target, headerIndex)"
                           ><template #icon
                             ><TrashIcon class="icon-sm" /></template
-                        ></NButton>
+                        >Remove</NButton>
                       </div>
                     </section>
                   </div>
                 </details>
-              </div>
-              <NButton
-                type="error"
-                size="small"
-                aria-label="Remove target"
-                title="Remove target"
-                attr-type="button"
-                @click="removeTarget(index)"
-              >
-                <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
-              </NButton>
             </div>
           </div>
         </section>
 
-        <p
-          v-if="routeSubmitError"
-          class="round-md framed error-border error-surface pad-md copy-xs line-normal error-text"
-          role="alert"
-        >
-          {{ routeSubmitError }}
-        </p>
+        <NAlert v-if="routeSubmitError" type="error" :bordered="false" class="route-submit-error">
+          <bdi dir="ltr">{{ diagnosticInspectionText(routeSubmitError) }}</bdi>
+        </NAlert>
         <div
           class="editor-drawer-actions margin-top-sm layout-row align-end-row space-md"
         >
@@ -1842,24 +1845,65 @@ defineExpose({
 </template>
 
 <style scoped>
+/* Keep inputs under their labels when a sibling field has helper text. */
+.editor-drawer-form label.layout-grid {
+  align-content: start;
+}
+
 .route-site-context {
-  border-left: 3px solid var(--app-accent);
-  background: var(--app-accent-soft);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  background: var(--app-panel-muted);
+}
+
+.route-group {
+  display: grid;
+  gap: 1rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+.route-group__header,
+.route-target__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.route-target {
+  display: grid;
+  gap: 1rem;
+}
+
+.route-target + .route-target {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1rem;
+}
+
+.route-subgroup {
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  background: var(--app-panel-muted);
 }
 
 .target-advanced {
-  overflow: hidden;
-  background: var(--app-panel);
+  min-width: 0;
+  border-block: 1px solid var(--app-border-subtle);
 }
 
 .target-advanced > summary {
-  padding: 0.75rem 1rem;
+  padding: 0.625rem 0;
   cursor: pointer;
   list-style-position: inside;
 }
 
-.target-advanced[open] > summary {
-  border-bottom: 1px solid var(--app-border-subtle);
+.target-advanced__body {
+  padding: 0.5rem 0 1rem;
+}
+
+.route-submit-error {
+  overflow-wrap: anywhere;
 }
 
 .advanced-header-row {

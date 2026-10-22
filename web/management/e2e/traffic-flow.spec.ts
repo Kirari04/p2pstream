@@ -6,7 +6,7 @@ test("renders the traffic flow diagram through the management page", async ({ pa
   await authenticate(page, baseURL);
 
   await page.goto("/#/monitor/traffic");
-  await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Traffic flow", exact: true })).toBeVisible();
 
   const diagram = page.locator(".traffic-flow-shell");
   await expect(diagram).toBeVisible();
@@ -14,6 +14,31 @@ test("renders the traffic flow diagram through the management page", async ({ pa
   await expect(diagram.locator(".traffic-flow-node-response")).toBeVisible();
   expect(await diagram.locator(".traffic-flow-node").count()).toBeGreaterThanOrEqual(2);
   await expect(page.getByText(/Keyboard node list/)).toBeVisible();
+});
+
+test("switches the diagram between sites and routes and remembers the choice", async ({ page }, testInfo) => {
+  const baseURL = testInfo.project.use.baseURL as string;
+  await authenticate(page, baseURL);
+
+  await page.goto("/#/monitor/traffic");
+  const detail = page.getByRole("group", { name: "Diagram detail" });
+  const sites = detail.getByRole("button", { name: "Sites", exact: true });
+  const routes = detail.getByRole("button", { name: "Routes", exact: true });
+  await expect(sites).toHaveAttribute("aria-pressed", "true");
+  await expect(routes).toHaveAttribute("aria-pressed", "false");
+
+  const diagram = page.locator(".traffic-flow-shell");
+  await routes.click();
+  await expect(routes).toHaveAttribute("aria-pressed", "true");
+  await expect(diagram.locator(".traffic-flow-node-site")).toHaveCount(0);
+  await expect(diagram.locator(".traffic-flow-node-ingress")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("group", { name: "Diagram detail" }).getByRole("button", { name: "Routes", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("group", { name: "Diagram detail" }).getByRole("button", { name: "Sites", exact: true }).click();
+  await expect(diagram.locator(".traffic-flow-node-target")).toHaveCount(0);
+  await expect(diagram.locator(".traffic-flow-node-response")).toBeVisible();
 });
 
 test("waits for authoritative trace settings before enabling controls", async ({ page }, testInfo) => {
@@ -65,14 +90,14 @@ test("routes monitor traffic and diagnostics subpages", async ({ page }, testInf
   await expect(page).toHaveURL(/#\/monitor\/traffic$/);
   const monitorNav = page.getByLabel("Management navigation").getByRole("link", { name: "Monitor" });
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
-  await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Traffic flow", exact: true })).toBeVisible();
   await expect(page.locator(".traffic-flow-shell")).toBeVisible();
 
-  await page.locator(".monitor-tabs").getByText("Diagnostics", { exact: true }).click();
+  await page.getByLabel("Management navigation").getByRole("link", { name: "Diagnostics", exact: true }).click();
   await expect(page).toHaveURL(/#\/monitor\/diagnostics\/overview$/);
   await expect(monitorNav).toHaveClass(/app-nav__link--active/);
   await expect(page.getByRole("heading", { name: "Diagnostics", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Status Codes", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Status codes", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Choose an investigation lane", exact: true })).toBeVisible();
 });
 
@@ -83,7 +108,7 @@ test("removed legacy traffic and diagnostics URLs show not found", async ({ page
 
   await page.goto(legacyHashPath("traffic"));
   await expect(page.getByText("Page not found", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Traffic Flow", exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Traffic flow", exact: true })).toBeHidden();
 
   await page.goto(legacyHashPath("diagnostics"));
   await expect(page.getByText("Page not found", { exact: true })).toBeVisible();

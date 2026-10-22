@@ -6,6 +6,7 @@ import {
   PublicRouteTargetHealthTraceSource,
   PublicAcmeChallengeType,
   PublicAcmeCa,
+  PublicTlsCertificateLeafState,
   PublicTlsCertificateSource,
   PublicTlsCertificateStatus,
   type Agent,
@@ -131,6 +132,12 @@ function tlsCertificate(overrides: Partial<PublicTlsCertificate> = {}): PublicTl
     expiresAtUnixMillis: 0n,
     nextRenewalAtUnixMillis: 0n,
     lastRenewalAttemptAtUnixMillis: 0n,
+    leafState: PublicTlsCertificateLeafState.UNSPECIFIED,
+    leafIssuer: "",
+    leafDnsNames: [],
+    leafIpAddresses: [],
+    leafSha256: "",
+    leafSerialNumber: "",
     ...overrides,
   };
 }
