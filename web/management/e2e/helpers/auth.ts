@@ -51,6 +51,9 @@ export async function authenticate(page: Page, appBaseURL: string, options: Auth
     sameSite: "Lax",
   }]);
   await page.goto("/");
+  // "/" redirects to the overview asynchronously; let it settle so a following
+  // page.goto() to another hash route isn't overwritten by the late redirect.
+  await expect(page).toHaveURL(/#\/overview$/);
   if (options.waitForEnvironmentSelect !== false) {
     await expect(page.getByTestId("environment-select")).toBeVisible();
   }
