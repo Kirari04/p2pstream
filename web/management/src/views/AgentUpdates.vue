@@ -2,16 +2,21 @@
 import { useNarrowScreen } from "@/composables/useMediaQuery";
 import { computed, h, inject, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { NAlert, NButton, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NSpin, NTab, NTabs, NTag } from "naive-ui";
-import type { DataTableColumns } from "naive-ui";
+import { NAlert, NButton, NCheckbox, NDataTable, NInput, NInputNumber, NModal, NPagination, NSpin, NTab, NTabs, NTag } from "naive-ui";
+import type { DataTableColumns, PaginationInfo, PaginationRenderLabel } from "naive-ui";
 import {
   CheckCircle2 as CheckIcon,
+  ChevronLeft as PreviousIcon,
+  ChevronRight as NextIcon,
   CirclePause as PauseIcon,
   CirclePlay as PlayIcon,
   RefreshCw as RefreshIcon,
   RotateCcw as RetryIcon,
+  Search as SearchIcon,
   TriangleAlert as WarningIcon,
+  X as XIcon,
 } from "@lucide/vue";
+import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import MetricCard from "@/components/ui/MetricCard.vue";
 import MetricStrip from "@/components/ui/MetricStrip.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
@@ -22,6 +27,21 @@ import { useManagementClient } from "@/composables/useManagementClient";
 import { messageFromError } from "@/lib/errors";
 import { agentIsAlreadyOnUpdateTarget, agentRolloutStatus, agentUpdatePreviewBlockerLabel, canResumeUpdateCampaign, recoverableUpdateAssignments, retryableStageAssignments, updateRecoveryMessage } from "@/lib/agentUpdateRecovery";
 import { createAgentUpdatePolling } from "@/lib/agentUpdatePolling";
+import {
+  CAMPAIGN_HISTORY_PAGE_SIZE,
+  CAMPAIGN_QUERY_MAX_LENGTH,
+  activeCampaignsRequest,
+  campaignHistoryFilterActive,
+  campaignHistoryResultLabel,
+  campaignHistoryStateOptions,
+  campaignListPage,
+  campaignPageCount,
+  clampCampaignPage,
+  finishedCampaignCountRequest,
+  historyCampaignsRequest,
+  normalizeCampaignQuery,
+  type CampaignHistoryStateFilter,
+} from "@/lib/agentUpdateCampaignList";
 import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import AgentSetupModal from "@/components/AgentSetupModal.vue";
 import {
@@ -50,7 +70,21 @@ const sections = [
 ] as const;
 
 const overview = ref<GetAgentUpdateOverviewResponse | null>(null);
-const campaigns = ref<AgentUpdateCampaign[]>([]);
+const activeCampaigns = ref<AgentUpdateCampaign[]>([]);
+const activeCampaignTotal = ref(0);
+const historyCampaigns = ref<AgentUpdateCampaign[]>([]);
+const historyTotal = ref(0);
+const finishedCampaignTotal = ref(0);
+const historyLoaded = ref(false);
+/** Raw search box text; the debounced, normalized value is `historyQuery`. */
+const historySearch = ref("");
+const historyQuery = ref("");
+const historyState = ref<CampaignHistoryStateFilter>("finished");
+const historyPage = ref(1);
+/** A filter or page change is waiting for its first response; the previous page stays visible. */
+const historyPending = ref(false);
+const HISTORY_SEARCH_DEBOUNCE_MS = 250;
+let historySearchTimer: ReturnType<typeof setTimeout> | undefined;
 const loading = ref(false);
 const operationError = ref("");
 const campaignErrors = ref<Record<string, string>>({});
@@ -81,7 +115,17 @@ const serverVersion = computed(() => dashboard?.value?.status?.version || "unrep
 const unsupportedAgents = computed(() => agents.value.filter((agent) => !agent.updaterEnrolled).length);
 const enrolledAgents = computed(() => agents.value.filter((agent) => agent.updaterEnrolled));
 const onlineManagedAgents = computed(() => enrolledAgents.value.filter((agent) => agent.connected && updaterIsFresh(agent)).length);
-const activeCampaigns = computed(() => campaigns.value.filter((campaign) => campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED));
+/** Campaigns currently loaded in either group; the plan modal uses them to explain existing assignments. */
+const campaigns = computed(() => [...activeCampaigns.value, ...historyCampaigns.value]);
+const campaignTotal = computed(() => activeCampaignTotal.value + finishedCampaignTotal.value);
+const historyFiltered = computed(() => campaignHistoryFilterActive({ query: historyQuery.value, state: historyState.value }));
+const historyFilterControlsActive = computed(() => Boolean(historySearch.value.trim()) || historyState.value !== "finished");
+const historyPageCount = computed(() => campaignPageCount(historyTotal.value));
+const historyResultLabel = computed(() => campaignHistoryResultLabel(historyPage.value, historyCampaigns.value.length, historyTotal.value, historyFiltered.value));
+const campaignGroups = computed(() => [
+  { key: "active", title: "Active", campaigns: activeCampaigns.value },
+  { key: "history", title: "History", campaigns: historyCampaigns.value },
+] as const);
 const readinessPercent = computed(() => agents.value.length ? Math.round((enrolledAgents.value.length / agents.value.length) * 100) : 0);
 const selectedTargetDigest = computed(() => trustedTarget.value?.manifestSha256 ?? "");
 const previewBlocked = computed(() => preview.value.filter((agent) => !agent.eligible));
@@ -116,16 +160,43 @@ const polling = createAgentUpdatePolling({
   load: async (signal) => {
     if (selectedEnvironmentBlocked.value) throw new Error(selectedEnvironmentBlocked.value);
     const options = { signal, timeoutMs: 15000 };
-    const [nextOverview, campaignList] = await Promise.all([
+    // Active campaigns ignore search and paging so their controls are always on screen.
+    const historyFilter = { page: historyPage.value, query: historyQuery.value, state: historyState.value };
+    const activeRequest = activeCampaignsRequest();
+    const historyRequest = historyCampaignsRequest(historyFilter);
+    const countRequest = campaignHistoryFilterActive(historyFilter) ? finishedCampaignCountRequest() : null;
+    const [nextOverview, activeList, historyList, finishedList] = await Promise.all([
       managementClient.getAgentUpdateOverview({}, options),
-      managementClient.listAgentUpdateCampaigns({ limit: 50n }, options),
+      managementClient.listAgentUpdateCampaigns(activeRequest, options),
+      managementClient.listAgentUpdateCampaigns(historyRequest, options),
+      countRequest ? managementClient.listAgentUpdateCampaigns(countRequest, options) : Promise.resolve(null),
     ]);
-    return { nextOverview, campaignList };
+    const history = campaignListPage(historyList, historyRequest);
+    return {
+      nextOverview,
+      active: campaignListPage(activeList, activeRequest),
+      history,
+      finishedTotal: countRequest && finishedList ? campaignListPage(finishedList, countRequest).totalCount : history.totalCount,
+      page: historyFilter.page,
+    };
   },
-  apply: ({ nextOverview, campaignList }) => {
+  apply: ({ nextOverview, active, history, finishedTotal, page }) => {
     overview.value = nextOverview;
-    campaigns.value = campaignList.campaigns;
+    activeCampaigns.value = active.campaigns;
+    activeCampaignTotal.value = active.totalCount;
+    historyTotal.value = history.totalCount;
+    finishedCampaignTotal.value = finishedTotal;
     operationError.value = "";
+    const lastPage = clampCampaignPage(page, history.totalCount);
+    if (lastPage !== page) {
+      // The history shrank under the current page: keep the old rows until the last page loads.
+      historyPage.value = lastPage;
+      reloadHistory();
+      return;
+    }
+    historyCampaigns.value = history.campaigns;
+    historyLoaded.value = true;
+    historyPending.value = false;
   },
   error: (error) => { operationError.value = messageFromError(error); },
   loading: (value) => { loading.value = value; },
@@ -134,6 +205,79 @@ const polling = createAgentUpdatePolling({
 function refresh() {
   return polling.refresh();
 }
+
+/** Discards any in-flight read for the old filters and loads the new history page now. */
+function reloadHistory() {
+  historyPending.value = true;
+  void polling.scopeChanged();
+}
+
+function clearHistorySearchTimer() {
+  if (historySearchTimer !== undefined) clearTimeout(historySearchTimer);
+  historySearchTimer = undefined;
+}
+
+function applyHistorySearch() {
+  clearHistorySearchTimer();
+  const query = normalizeCampaignQuery(historySearch.value);
+  if (query === historyQuery.value) return;
+  historyQuery.value = query;
+  historyPage.value = 1;
+  reloadHistory();
+}
+
+function changeHistoryState(value: CampaignHistoryStateFilter) {
+  if (value === historyState.value) return;
+  historyState.value = value;
+  historyPage.value = 1;
+  reloadHistory();
+}
+
+function changeHistoryPage(page: number) {
+  const next = clampCampaignPage(page, historyTotal.value);
+  if (next === historyPage.value) return;
+  historyPage.value = next;
+  reloadHistory();
+}
+
+function clearHistoryFilters() {
+  clearHistorySearchTimer();
+  const changed = historyFiltered.value || historyPage.value !== 1;
+  historySearch.value = "";
+  historyQuery.value = "";
+  historyState.value = "finished";
+  historyPage.value = 1;
+  if (changed) reloadHistory();
+}
+
+watch(historySearch, () => {
+  clearHistorySearchTimer();
+  historySearchTimer = setTimeout(applyHistorySearch, HISTORY_SEARCH_DEBOUNCE_MS);
+});
+
+function renderPaginationPrevious(info: PaginationInfo) {
+  return h("button", { type: "button", class: "campaign-page-button", "aria-label": "Previous page", disabled: info.page <= 1 }, [h(PreviousIcon, { "aria-hidden": "true" })]);
+}
+
+function renderPaginationNext(info: PaginationInfo) {
+  return h("button", { type: "button", class: "campaign-page-button", "aria-label": "Next page", disabled: info.page >= info.pageCount }, [h(NextIcon, { "aria-hidden": "true" })]);
+}
+
+const renderPaginationLabel: PaginationRenderLabel = (info) => {
+  if (info.type === "page") {
+    return h("button", {
+      type: "button",
+      class: "campaign-page-button",
+      "aria-label": `Page ${info.node}`,
+      "aria-current": info.active ? "page" : undefined,
+    }, String(info.node));
+  }
+  return h("button", {
+    type: "button",
+    class: "campaign-page-button",
+    "aria-label": info.type === "fast-forward" ? "Jump forward several pages" : "Jump back several pages",
+  }, [info.node]);
+};
 
 function openPlan() {
   planError.value = "";
@@ -463,7 +607,14 @@ function updaterLastSeenLabel(agent: AgentUpdateOverviewAgent): string {
 
 watch([selectedEnvironmentId, selectedEnvironmentBlocked], () => {
   overview.value = null;
-  campaigns.value = [];
+  activeCampaigns.value = [];
+  activeCampaignTotal.value = 0;
+  historyCampaigns.value = [];
+  historyTotal.value = 0;
+  finishedCampaignTotal.value = 0;
+  historyLoaded.value = false;
+  historyPending.value = false;
+  historyPage.value = 1;
   campaignErrors.value = {};
   planOpen.value = false;
   preview.value = [];
@@ -474,6 +625,7 @@ onMounted(() => {
   void polling.start();
 });
 onUnmounted(() => {
+  clearHistorySearchTimer();
   polling.stop();
 });
 </script>
@@ -614,54 +766,119 @@ onUnmounted(() => {
         <p v-else class="agent-update-empty">No agents are registered.</p>
       </SectionCard>
 
-      <SectionCard title="Update campaigns" description="Execution history · refreshes every 5 seconds." flush class="agent-update-campaigns">
-        <template v-if="campaigns.length" #badge><NTag size="small" :bordered="false">{{ campaigns.length }}</NTag></template>
-        <div v-if="campaigns.length" class="agent-update-campaigns__rows">
-          <article v-for="campaign in campaigns" :key="campaign.id.toString()" class="agent-update-campaign">
-            <div class="agent-update-campaign__summary">
-              <div class="agent-update-campaign__identity">
-                <NTag size="small" :bordered="false" :type="campaignTag(campaign.state)">{{ sentenceCase(campaignLabel(campaign.state)) }}</NTag>
-                <bdi dir="ltr" class="agent-update-campaign__name" :title="diagnosticInspectionText(campaign.name)">{{ diagnosticExcerpt(campaign.name, 96).text }}</bdi>
-                <small><bdi dir="ltr">{{ diagnosticExcerpt(campaign.target?.version ?? "", 48).text }}</bdi> · generation {{ campaign.generation }}</small>
-              </div>
-              <div class="agent-update-campaign__metric agent-update-campaign__healthy"><span>Proven healthy</span><strong>{{ assignmentProgress(campaign) }}</strong></div>
-              <div class="agent-update-campaign__metric agent-update-campaign__wave"><span>Wave / unavailable</span><strong>{{ campaign.policy?.waveSize || 0n }} / {{ campaign.policy?.maxUnavailable || 0n }}</strong></div>
-              <div class="agent-update-campaign__actions">
-                <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING" secondary size="tiny" :disabled="campaignBusy" @click="changeCampaign(campaign, 'pause')"><template #icon><PauseIcon /></template>Pause</NButton>
-                <NButton v-if="campaign.state === AgentUpdateCampaignState.PAUSED" secondary size="tiny" :disabled="campaignBusy || !canResumeUpdateCampaign(campaign)" :title="canResumeUpdateCampaign(campaign) ? undefined : 'Recover reserved hosts or retry failed assignments before resuming.'" @click="changeCampaign(campaign, 'resume')"><template #icon><PlayIcon /></template>Resume</NButton>
-                <NButton v-if="recoverableUpdateAssignments(campaign).length" secondary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, true)"><template #icon><RetryIcon /></template>Recover agents</NButton>
-                <NButton v-if="retryableStageAssignments(campaign).length" secondary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, false)"><template #icon><RetryIcon /></template>Retry failed</NButton>
-                <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED" secondary size="tiny" type="error" :disabled="campaignBusy" @click="changeCampaign(campaign, 'cancel')">Cancel</NButton>
-              </div>
+      <SectionCard title="Update campaigns" description="Running and paused campaigns stay pinned above the history · refreshes every 5 seconds." flush class="agent-update-campaigns">
+        <template v-if="campaignTotal" #badge><NTag size="small" :bordered="false">{{ campaignTotal }}</NTag></template>
+        <SectionCard
+          v-for="group in campaignGroups"
+          :key="group.key"
+          :title="group.title"
+          :heading-level="3"
+          :heading-id="`agent-update-campaigns-${group.key}`"
+          variant="plain"
+          class="agent-update-campaign-group"
+        >
+          <template v-if="group.key === 'active' && activeCampaigns.length" #badge>
+            <NTag size="small" :bordered="false" type="info">{{ activeCampaignTotal }}</NTag>
+          </template>
+          <div v-if="group.key === 'history' && (finishedCampaignTotal > 0 || historyFilterControlsActive)" class="campaign-list-toolbar">
+            <div class="campaign-list-filter" role="group" aria-label="Filter campaign history">
+              <NInput
+                v-model:value="historySearch"
+                size="small"
+                clearable
+                placeholder="Search campaigns"
+                :maxlength="CAMPAIGN_QUERY_MAX_LENGTH"
+                :input-props="{ 'aria-label': 'Search campaigns by name, target version, or commit' }"
+                @keydown.enter="applyHistorySearch"
+              >
+                <template #prefix><SearchIcon class="icon-sm" /></template>
+              </NInput>
+              <AccessibleSelect
+                :value="historyState"
+                accessible-label="Filter campaign history by state"
+                size="small"
+                :options="campaignHistoryStateOptions"
+                @update:value="changeHistoryState"
+              />
+              <NButton v-if="historyFilterControlsActive" quaternary size="small" @click="clearHistoryFilters">
+                <template #icon><XIcon class="icon-sm" /></template>
+                Clear filters
+              </NButton>
+              <p class="campaign-filter-result" aria-live="polite">{{ historyLoaded ? historyResultLabel : "" }}</p>
             </div>
-            <NAlert v-if="campaignErrors[campaign.id.toString()]" type="error" :bordered="false" class="agent-update-campaign__error" closable @close="delete campaignErrors[campaign.id.toString()]">
-              <bdi dir="ltr">{{ diagnosticInspectionText(campaignErrors[campaign.id.toString()]) }}</bdi>
-            </NAlert>
-            <p v-if="updateRecoveryMessage(campaign)" class="agent-update-campaign__recovery" role="status">{{ updateRecoveryMessage(campaign) }}</p>
-            <details class="agent-update-campaign__details">
-              <summary>Inspect {{ campaign.assignments.length }} agent assignment{{ campaign.assignments.length === 1 ? "" : "s" }}</summary>
-              <div class="agent-update-assignment-list">
-                <div v-for="assignment in campaign.assignments" :key="assignment.id.toString()" class="agent-update-assignment">
-                  <div class="agent-update-assignment__identity">
-                    <span class="update-state-dot" :class="{ 'update-state-dot--online': assignment.state === AgentUpdateAssignmentState.SUCCEEDED }" aria-hidden="true" />
-                    <div>
-                      <bdi dir="ltr" class="agent-update-assignment__name" :title="diagnosticInspectionText(assignment.agentName || assignment.agentPublicId)">{{ diagnosticExcerpt(assignment.agentName || assignment.agentPublicId, 64).text }}</bdi>
-                      <small class="mono-text" :title="diagnosticInspectionText(assignment.agentPublicId)"><bdi dir="ltr">{{ diagnosticInspectionText(assignment.agentPublicId) }}</bdi></small>
-                    </div>
-                  </div>
-                  <div class="agent-update-assignment__state">
-                    <span>State</span>
-                    <NTag size="small" :bordered="false" :type="assignment.desiredAction === AgentUpdateDesiredAction.ROLLBACK ? 'warning' : assignmentTag(assignment.state)">{{ sentenceCase(assignmentStateLabel(assignment)) }}</NTag>
-                  </div>
-                  <div class="agent-update-assignment__action"><span>Desired action</span><strong>{{ sentenceCase(assignmentActionLabel(assignment.desiredAction)) }}</strong></div>
-                  <div class="agent-update-assignment__evidence"><span>Evidence</span><strong><bdi dir="ltr" :title="diagnosticInspectionText(assignmentEvidence(assignment))">{{ diagnosticExcerpt(assignmentEvidence(assignment), 160).text }}</bdi></strong></div>
-                  <div class="agent-update-assignment__updated"><span>Updated</span><strong>{{ formatTimestamp(assignment.updatedAtUnixMillis) }}</strong></div>
+          </div>
+          <div
+            v-if="group.campaigns.length"
+            class="agent-update-campaigns__rows"
+            :class="{ 'agent-update-campaigns__rows--pending': group.key === 'history' && historyPending }"
+            :aria-busy="group.key === 'history' && historyPending ? 'true' : undefined"
+          >
+            <article v-for="campaign in group.campaigns" :key="campaign.id.toString()" class="agent-update-campaign">
+              <div class="agent-update-campaign__summary">
+                <div class="agent-update-campaign__identity">
+                  <NTag size="small" :bordered="false" :type="campaignTag(campaign.state)">{{ sentenceCase(campaignLabel(campaign.state)) }}</NTag>
+                  <bdi dir="ltr" class="agent-update-campaign__name" :title="diagnosticInspectionText(campaign.name)">{{ diagnosticExcerpt(campaign.name, 96).text }}</bdi>
+                  <small><bdi dir="ltr">{{ diagnosticExcerpt(campaign.target?.version ?? "", 48).text }}</bdi> · generation {{ campaign.generation }}</small>
+                </div>
+                <div class="agent-update-campaign__metric agent-update-campaign__healthy"><span>Proven healthy</span><strong>{{ assignmentProgress(campaign) }}</strong></div>
+                <div class="agent-update-campaign__metric agent-update-campaign__wave"><span>Wave / unavailable</span><strong>{{ campaign.policy?.waveSize || 0n }} / {{ campaign.policy?.maxUnavailable || 0n }}</strong></div>
+                <div class="agent-update-campaign__actions">
+                  <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING" secondary size="tiny" :disabled="campaignBusy" @click="changeCampaign(campaign, 'pause')"><template #icon><PauseIcon /></template>Pause</NButton>
+                  <NButton v-if="campaign.state === AgentUpdateCampaignState.PAUSED" secondary size="tiny" :disabled="campaignBusy || !canResumeUpdateCampaign(campaign)" :title="canResumeUpdateCampaign(campaign) ? undefined : 'Recover reserved hosts or retry failed assignments before resuming.'" @click="changeCampaign(campaign, 'resume')"><template #icon><PlayIcon /></template>Resume</NButton>
+                  <NButton v-if="recoverableUpdateAssignments(campaign).length" secondary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, true)"><template #icon><RetryIcon /></template>Recover agents</NButton>
+                  <NButton v-if="retryableStageAssignments(campaign).length" secondary size="tiny" :disabled="campaignBusy" @click="retryFailed(campaign, false)"><template #icon><RetryIcon /></template>Retry failed</NButton>
+                  <NButton v-if="campaign.state === AgentUpdateCampaignState.RUNNING || campaign.state === AgentUpdateCampaignState.PAUSED" secondary size="tiny" type="error" :disabled="campaignBusy" @click="changeCampaign(campaign, 'cancel')">Cancel</NButton>
                 </div>
               </div>
-            </details>
-          </article>
-        </div>
-        <p v-else class="agent-update-empty">No managed update campaigns yet.</p>
+              <NAlert v-if="campaignErrors[campaign.id.toString()]" type="error" :bordered="false" class="agent-update-campaign__error" closable @close="delete campaignErrors[campaign.id.toString()]">
+                <bdi dir="ltr">{{ diagnosticInspectionText(campaignErrors[campaign.id.toString()]) }}</bdi>
+              </NAlert>
+              <p v-if="updateRecoveryMessage(campaign)" class="agent-update-campaign__recovery" role="status">{{ updateRecoveryMessage(campaign) }}</p>
+              <details class="agent-update-campaign__details">
+                <summary>Inspect {{ campaign.assignments.length }} agent assignment{{ campaign.assignments.length === 1 ? "" : "s" }}</summary>
+                <div class="agent-update-assignment-list">
+                  <div v-for="assignment in campaign.assignments" :key="assignment.id.toString()" class="agent-update-assignment">
+                    <div class="agent-update-assignment__identity">
+                      <span class="update-state-dot" :class="{ 'update-state-dot--online': assignment.state === AgentUpdateAssignmentState.SUCCEEDED }" aria-hidden="true" />
+                      <div>
+                        <bdi dir="ltr" class="agent-update-assignment__name" :title="diagnosticInspectionText(assignment.agentName || assignment.agentPublicId)">{{ diagnosticExcerpt(assignment.agentName || assignment.agentPublicId, 64).text }}</bdi>
+                        <small class="mono-text" :title="diagnosticInspectionText(assignment.agentPublicId)"><bdi dir="ltr">{{ diagnosticInspectionText(assignment.agentPublicId) }}</bdi></small>
+                      </div>
+                    </div>
+                    <div class="agent-update-assignment__state">
+                      <span>State</span>
+                      <NTag size="small" :bordered="false" :type="assignment.desiredAction === AgentUpdateDesiredAction.ROLLBACK ? 'warning' : assignmentTag(assignment.state)">{{ sentenceCase(assignmentStateLabel(assignment)) }}</NTag>
+                    </div>
+                    <div class="agent-update-assignment__action"><span>Desired action</span><strong>{{ sentenceCase(assignmentActionLabel(assignment.desiredAction)) }}</strong></div>
+                    <div class="agent-update-assignment__evidence"><span>Evidence</span><strong><bdi dir="ltr" :title="diagnosticInspectionText(assignmentEvidence(assignment))">{{ diagnosticExcerpt(assignmentEvidence(assignment), 160).text }}</bdi></strong></div>
+                    <div class="agent-update-assignment__updated"><span>Updated</span><strong>{{ formatTimestamp(assignment.updatedAtUnixMillis) }}</strong></div>
+                  </div>
+                </div>
+              </details>
+            </article>
+          </div>
+          <p v-else-if="group.key === 'active'" class="agent-update-campaign-group__quiet">No campaigns are running or paused.</p>
+          <p v-else-if="historyLoaded && historyFiltered" class="agent-update-empty" role="status">No campaigns match these filters.</p>
+          <p v-else-if="historyLoaded" class="agent-update-empty">{{ activeCampaigns.length ? "No finished campaigns yet." : "No managed update campaigns yet." }}</p>
+          <p v-if="group.key === 'active' && activeCampaignTotal > activeCampaigns.length" class="agent-update-campaign-group__quiet">
+            Showing the first {{ activeCampaigns.length }} of {{ activeCampaignTotal }} active campaigns.
+          </p>
+          <nav v-if="group.key === 'history' && historyPageCount > 1" class="campaign-pagination" aria-label="Campaign history pages">
+            <span class="campaign-pagination__summary">Page {{ historyPage }} of {{ historyPageCount }}</span>
+            <NPagination
+              :page="historyPage"
+              :page-count="historyPageCount"
+              :page-size="CAMPAIGN_HISTORY_PAGE_SIZE"
+              :page-slot="compactLayout ? 5 : 7"
+              :show-quick-jump-dropdown="false"
+              :prev="renderPaginationPrevious"
+              :next="renderPaginationNext"
+              :label="renderPaginationLabel"
+              size="small"
+              @update:page="changeHistoryPage"
+            />
+          </nav>
+        </SectionCard>
       </SectionCard>
     </NSpin>
 
@@ -1038,9 +1255,118 @@ onUnmounted(() => {
   container: update-campaigns / inline-size;
 }
 
+.agent-update-campaign-group + .agent-update-campaign-group {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.agent-update-campaign-group > :deep(.section-card__header) {
+  padding: 0.875rem 1.25rem 0;
+}
+
+.agent-update-campaign-group__quiet {
+  margin: 0;
+  padding: 0 1.25rem 0.875rem;
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.agent-update-campaign-group .agent-update-empty {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+/* History toolbar: same shape as the Traffic policy list toolbar. */
+.campaign-list-toolbar {
+  padding: 0 1.25rem 0.75rem;
+}
+
+.campaign-list-filter {
+  display: grid;
+  min-width: 0;
+  gap: 0.625rem;
+}
+
+.campaign-list-filter > .n-button {
+  justify-self: start;
+}
+
+.campaign-filter-result {
+  align-self: center;
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.campaign-pagination {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding: 0.75rem 1.25rem;
+}
+
+.campaign-pagination__summary {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-pagination :deep(.n-pagination) {
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 0.375rem;
+}
+
+.campaign-pagination :deep(.n-pagination-item) {
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-pagination :deep(.campaign-page-button) {
+  display: inline-flex;
+  min-width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  cursor: inherit;
+  font: inherit;
+  padding: 0 0.375rem;
+}
+
+.campaign-pagination :deep(.campaign-page-button:disabled) {
+  cursor: not-allowed;
+}
+
+.campaign-pagination :deep(.campaign-page-button:focus-visible) {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
+}
+
+.campaign-pagination :deep(.campaign-page-button svg) {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
 .agent-update-campaigns__rows {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--app-border-subtle);
+  transition: opacity 0.15s ease;
+}
+
+.agent-update-campaigns__rows--pending {
+  opacity: 0.6;
 }
 
 .agent-update-campaign + .agent-update-campaign {
@@ -1437,6 +1763,24 @@ onUnmounted(() => {
   .agent-update-form-grid,
   .agent-update-preview {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .agent-update-campaign-group > :deep(.section-card__header) {
+    padding-inline: 1rem;
+  }
+
+  .agent-update-campaign-group__quiet,
+  .campaign-list-toolbar,
+  .campaign-pagination {
+    padding-inline: 1rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .campaign-list-filter {
+    grid-template-columns: minmax(12rem, 22rem) minmax(9rem, 11rem) auto auto;
+    align-items: center;
+    justify-content: start;
   }
 }
 </style>

@@ -144,6 +144,12 @@ assignments. Failed or blocked assignments can be retried with compare-and-swap
 campaign generations so stale browser actions cannot overwrite newer operator
 decisions.
 
+**Update campaigns** keeps running and paused campaigns pinned under **Active**,
+so **Pause**, **Resume**, and **Cancel** stay on screen. Finished campaigns are
+listed under **History**, ten per page, with campaigns that still need recovery
+first; search matches the campaign name, target version, or target commit, and
+the state filter narrows the list to completed or cancelled campaigns.
+
 ## Failure and recovery
 
 Cancelling a campaign does not immediately release hosts with an outstanding activation authorization. They remain cordoned and reserved until the privileged updater attests rollback and the agent establishes a fresh tunnel. A blocked host in a cancelled campaign can use **Recover agents** (called **Retry** in older interfaces) to request recovery. When rollback is already pending, wait for the updater instead of retrying the same assignment again. A paused campaign must be resumed or cancelled before its queued rollback can execute.
