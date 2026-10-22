@@ -187,7 +187,7 @@ func runtimeFingerprint(deployment []byte, inspection map[string]any) ([]byte, e
 		config["Hostname"] = "<docker-generated>"
 	}
 	labels := receiptMap(config["Labels"])
-	for _, key := range []string{"com.docker.compose.config-hash", "com.docker.compose.version", "com.docker.compose.project.config_files", "com.docker.compose.project.working_dir", "com.docker.compose.replace", "com.docker.compose.image"} {
+	for _, key := range []string{"com.docker.compose.config-hash", "com.docker.compose.version", "com.docker.compose.project.config_files", "com.docker.compose.project.environment_file", "com.docker.compose.project.working_dir", "com.docker.compose.replace", "com.docker.compose.image"} {
 		delete(labels, key)
 	}
 	if err := sortRuntimeStrings(config, "Env", true); err != nil {

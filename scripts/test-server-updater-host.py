@@ -24,6 +24,7 @@ spec.loader.exec_module(host)
 ID = '11111111-1111-4111-8111-111111111111'
 REF = 'ghcr.io/test/repo@sha256:' + 'a' * 64
 HELPER = 'ghcr.io/test/repo-updater@sha256:' + 'd' * 64
+EXECUTOR_ID = 'e' * 64
 
 class Lifecycle(unittest.TestCase):
     def setUp(self):
@@ -1354,21 +1355,24 @@ class CancellationLifecycle(unittest.TestCase):
                 return subprocess.CompletedProcess(args, 0, ('p2pstream ' + 'a' * 64 + '\n').encode(), b'')
             return result
         self.stack.enter_context(patch.object(host.Host, 'compose', compose))
-        self.executor = {'Id': 'stopped-executor', 'Image': self.helper['Id'], 'State': {'Running': False}, 'Config': {'Labels': {'com.docker.compose.project': 'custom-project', 'com.docker.compose.service': 'p2pstream-server-updater', 'p2pstream.server-update.executor': ID}}}
+        self.executor = {'Id': EXECUTOR_ID, 'Image': self.helper['Id'], 'State': {'Running': False}, 'Config': {'Labels': {'com.docker.compose.project': 'custom-project', 'com.docker.compose.service': 'p2pstream-server-updater', 'p2pstream.server-update.executor': ID}}}
         self.commands.clear()
 
     def docker(self, *args, **kwargs):
-        if args[0] == 'inspect' and args[-1] == 'stopped-executor':
+        if args[0] == 'inspect' and args[-1] in {EXECUTOR_ID, EXECUTOR_ID[:12]}:
             self.commands.append(('docker', args))
             return subprocess.CompletedProcess(args, 0, json.dumps([self.executor]).encode(), b'')
         if args[0] == 'ps' and any('server-update.executor=' in str(value) for value in args):
             self.commands.append(('docker', args))
-            return subprocess.CompletedProcess(args, 0, b'stopped-executor\n' if self.executor else b'', b'')
+            # Docker's quiet inventory abbreviates IDs unless --no-trunc is
+            # explicit, while inspect always returns the full immutable ID.
+            inventory_id = EXECUTOR_ID if '--no-trunc' in args else EXECUTOR_ID[:12]
+            return subprocess.CompletedProcess(args, 0, (inventory_id + '\n').encode() if self.executor else b'', b'')
         if args[0] == 'ps' and any('host-helper=' in str(value) for value in args) and self.helper_exists:
             return subprocess.CompletedProcess(args, 0, b'abandoned-helper\n', b'')
         if args[0] == 'rm':
             self.commands.append(('docker', args))
-            self.assertEqual(args, ('rm', 'stopped-executor'))
+            self.assertEqual(args, ('rm', EXECUTOR_ID))
             self.executor = None
             return subprocess.CompletedProcess(args, 0, b'', b'')
         if args[0] == 'exec' and (args[-1] == 'server-health' and self.health_failed or '/bin/sh' in args and self.owner_exists):
@@ -1386,7 +1390,7 @@ class CancellationLifecycle(unittest.TestCase):
         self.assertTrue((self.state / 'host.json').exists())
         self.assertTrue((self.state / 'config.json').exists())
         self.assertFalse((self.state / host.CANCELLATION).exists())
-        self.assertFalse(any(command[:2] == ('docker', ('rm', 'stopped-executor')) for command in self.commands))
+        self.assertFalse(any(command[:2] == ('docker', ('rm', EXECUTOR_ID)) for command in self.commands))
 
     def test_cancel_retains_original_server_sources_and_active_floor(self):
         before = copy.deepcopy(self.info)

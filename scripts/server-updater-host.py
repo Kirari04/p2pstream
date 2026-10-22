@@ -823,7 +823,7 @@ class Host:
         floor = validate_floor(self.config['bootstrap_floor'])
         if receipt:
             require_floor(floor, receipt['floor'])
-        executors = docker('ps', '--all', '--quiet', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
+        executors = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
         require(len(executors) <= 1, 'Multiple saved executors exist; cancellation is refused')
         if executors:
             executor = decode(docker('inspect', executors[0]).stdout)[0]
@@ -842,7 +842,7 @@ class Host:
             atomic(self.directory / CANCELLATION, receipt)
             if executors:
                 docker('rm', executors[0])  # No force: a concurrently started executor fails closed.
-            remaining = docker('ps', '--all', '--quiet', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
+            remaining = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
             require(not remaining, 'An executor remains; cancellation archival is refused')
             self.archive_state()
             receipt['completed'] = True

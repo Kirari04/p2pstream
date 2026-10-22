@@ -53,6 +53,37 @@ func TestRuntimeReceiptAllowsOnlyKnownRecreationDifferences(t *testing.T) {
 	}
 }
 
+func TestRuntimeReceiptIgnoresComposeEnvironmentFileLabelOnly(t *testing.T) {
+	const label = "com.docker.compose.project.environment_file"
+	for _, previous := range []string{"", "/deployment/.env", "/other/.env"} {
+		for _, current := range []string{"", "/deployment/.env", "/other/.env"} {
+			t.Run(previous+"->"+current, func(t *testing.T) {
+				model, original := receiptFixture(t)
+				if previous != "" {
+					receiptMap(receiptMap(original["Config"])["Labels"])[label] = previous
+				}
+				before, err := runtimeFingerprint(model, original)
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, next := receiptFixture(t)
+				if current != "" {
+					receiptMap(receiptMap(next["Config"])["Labels"])[label] = current
+				}
+				after, err := runtimeFingerprint(model, next)
+				if err != nil || string(before) != string(after) {
+					t.Fatalf("equivalent environment-file bookkeeping rejected: %v", err)
+				}
+				receiptMap(next["Config"])["Env"] = []any{"CONFIG_DIR=/data", "SECRET=changed"}
+				after, err = runtimeFingerprint(model, next)
+				if err == nil && string(before) == string(after) {
+					t.Fatal("environment-file bookkeeping hid actual environment drift")
+				}
+			})
+		}
+	}
+}
+
 func TestRuntimeReceiptNormalizesDuplicateNetworkAliases(t *testing.T) {
 	model, inspection := receiptFixture(t)
 	network := receiptMap(receiptMap(receiptMap(inspection["NetworkSettings"])["Networks"])["project_default"])
@@ -127,6 +158,7 @@ func TestRuntimeReceiptRejectsRuntimeDrift(t *testing.T) {
 		"apparmor":       func(m map[string]any) { m["AppArmorProfile"] = "unconfined" },
 		"unknown config": func(m map[string]any) { receiptMap(m["Config"])["FutureSecuritySetting"] = "changed" },
 		"unknown host":   func(m map[string]any) { receiptMap(m["HostConfig"])["FutureSecuritySetting"] = "changed" },
+		"unknown label":  func(m map[string]any) { receiptMap(receiptMap(m["Config"])["Labels"])["operator.setting"] = "changed" },
 		"alias": func(m map[string]any) {
 			receiptMap(receiptMap(receiptMap(m["NetworkSettings"])["Networks"])["project_default"])["Aliases"] = []any{"changed"}
 		},
@@ -203,6 +235,7 @@ func TestRuntimeReceiptBindsCanonicalModelAndImmutableImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	receiptMap(receiptMap(inspection["Config"])["Labels"])["com.docker.compose.config-hash"] = "native-new-hash"
+	receiptMap(receiptMap(inspection["Config"])["Labels"])["com.docker.compose.project.environment_file"] = "/deployment/.env"
 	id = strings.Repeat("b", 64)
 	inspection["Id"] = id
 	receiptMap(inspection["Config"])["Hostname"] = id[:12]
