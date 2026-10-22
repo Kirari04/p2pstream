@@ -32,7 +32,7 @@ override = source / 'production.json'
 env = source / '.env'
 env.write_text('PUBLIC_URL=https://localhost:18091\n')
 env.chmod(0o600)
-model = {'services': {'p2pstream': {'image': images['baseline'], 'restart': 'unless-stopped', 'read_only': True, 'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'}, 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}, 'observer': {'image': images['baseline'], 'command': ['/bin/sh', '-c', 'sleep infinity'], 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/read-only-data', 'read_only': True}]}}, 'volumes': {'data': {'name': project + '-data'}}}
+model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True, 'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'}, 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}, 'observer': {'image': images['baseline'], 'command': ['/bin/sh', '-c', 'sleep infinity'], 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/read-only-data', 'read_only': True}]}}, 'volumes': {'data': {'name': project + '-data'}}}
 base.write_text(json.dumps(model))
 extra = {'services': {'p2pstream': {'environment': {'MANAGEMENT_PUBLIC_URL': '${PUBLIC_URL}', 'SECRET': 'literal-$$HOME-$${SECRET}-$$$$'}, 'ports': [{'target': 8081, 'published': '18091', 'host_ip': '127.0.0.1'}]}}}
 override.write_text(json.dumps(extra))
@@ -46,6 +46,28 @@ def compose(*args):
 
 def info():
     return json.loads(docker('inspect', compose('ps', '-q', 'p2pstream')))[0]
+
+alias_evidence = []
+direct_receipt_failures = []
+
+def assert_runtime_aliases(stage, *, receipt=False):
+    actual = info()
+    networks = actual['NetworkSettings']['Networks']
+    assert set(networks) == {project + '_default'}, networks
+    aliases = {name: network['Aliases'] for name, network in networks.items()}
+    # Stock Compose duplicates this name because container_name equals service.
+    # Assert the real daemon behavior so the regression cannot become vacuous.
+    assert all(values.count('p2pstream') == 2 for values in aliases.values()), aliases
+    assert all(set(values) == {'p2pstream'} for values in aliases.values()), aliases
+    evidence = {'stage': stage, 'docker_aliases': aliases}
+    if receipt:
+        saved = host.read_json(host.STATE / 'runtime-receipt.json')
+        recorded = {name: network['Aliases'] for name, network in saved['fingerprint']['Networks'].items()}
+        assert recorded == {name: ['p2pstream'] for name in networks}, recorded
+        assert saved['deployment_sha256'] == hashlib.sha256(Path(host.read_json(host.STATE / 'config.json')['deployment_file']).read_bytes()).hexdigest()
+        evidence['receipt_aliases'] = recorded
+    alias_evidence.append(evidence)
+    Path('/review/installation-alias-evidence.json').write_text(json.dumps(alias_evidence, indent=2))
 
 def wait(fn, seconds=90):
     end = time.monotonic() + seconds
@@ -61,6 +83,7 @@ wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
 installation = docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity')
 observer = compose('ps', '-q', 'observer')
 initial_container = info()['Id']
+assert_runtime_aliases('original-compose')
 initial_secret = next(v for v in info()['Config']['Env'] if v.startswith('SECRET='))
 
 # The fixture binds the exact real registry image/index. The only nonpublished
@@ -87,7 +110,7 @@ def fixture(version, commit, server_ref, updater_ref):
 
 args = fixture('v0.1.53-staging.9000', 'a' * 40, images['baseline'], images['updater'])
 os.chdir(source)
-checks = []
+checks = ['container-name-matches-service-produces-duplicate-docker-aliases']
 
 def rejected(fn, text):
     try:
@@ -238,6 +261,7 @@ host.install(args, options)
 args.migrate_deployment = False
 new_config = host.read_json(host.STATE / 'config.json')
 assert new_config['deployment_protocol'] == 2 and new_config['token'] == old_config['token']
+assert_runtime_aliases('protocol-2-migration', receipt=True)
 assert new_config['instance_id'] == old_config['instance_id'] and new_config['bootstrap_floor'] == old_config['bootstrap_floor']
 config = (host.STATE / 'config.json').read_bytes()
 assert new_config['token'].encode() not in Path(new_config['deployment_file']).read_bytes()
@@ -245,6 +269,13 @@ assert Path(new_config['deployment_file']).stat().st_mode & 0o777 == 0o640
 compose_versions = {'managed': docker('compose', 'version', '--short'), 'native': docker('--config', '/review/native-docker', 'compose', 'version', '--short')}
 assert compose_versions['managed'].lstrip('v') != compose_versions['native'].lstrip('v'), compose_versions
 native_checks = []
+receipt_before_native = (host.STATE / 'runtime-receipt.json').read_bytes()
+# Exact inputs stay in the disposable guest's private diagnostics. They contain
+# fixture secrets and must be excluded from published evidence selections.
+receipt_inputs = Path('/review/private-runtime-receipt-inputs')
+receipt_inputs.mkdir(mode=0o700)
+(receipt_inputs / 'receipt.json').write_bytes(receipt_before_native)
+(receipt_inputs / 'deployment.json').write_bytes(Path(new_config['deployment_file']).read_bytes())
 for native_options in [[], options]:
     native = subprocess.run(['docker', '--config', '/review/native-docker', 'compose', *native_options, 'up', '-d', '--force-recreate'], cwd=source, check=True, capture_output=True, text=True)
     assert 'orphan' not in (native.stdout + native.stderr).lower()
@@ -255,7 +286,27 @@ for native_options in [[], options]:
     assert (host.STATE / 'config.json').read_bytes() == config
     managed_hash = docker('compose', '-p', project, '-f', new_config['deployment_file'], 'config', '--hash', 'p2pstream').split()[1]
     native_hash = info()['Config']['Labels']['com.docker.compose.config-hash']
-    native_checks.append({'context': 'original-files' if native_options else 'default', 'managed_hash': managed_hash, 'native_hash': native_hash, 'receipt_fallback_required': native_hash != managed_hash})
+    context = 'original-files' if native_options else 'default'
+    assert_runtime_aliases('native-compose-' + context, receipt=True)
+    # Equal service hashes can skip compatibility dispatch. Exercise the receipt
+    # verifier directly against the real native-created container as well.
+    (receipt_inputs / ('inspection-' + context + '.json')).write_text(json.dumps(info()))
+    controller = host.Host()
+    verified = False
+    try:
+        with controller.lock():
+            result = controller.run_helper('/app/server-update-test', ['-test.v', '-test.run=^TestDockerReviewRuntimeReceipt$'],
+                                           image=images['helper'], mounts=('--env', 'REVIEW_CONFIG=' + str(host.STATE / 'config.json'),
+                                                                          '--mount', 'type=bind,src=/review,dst=/review'))
+        Path('/review/installation-direct-receipt-' + context + '.log').write_bytes(result.stdout + result.stderr)
+        direct = host.read_json(host.STATE / 'native-runtime-receipt.json')
+        assert direct['runtime_receipt_verified_directly'] and direct['native_hash'] == native_hash
+        verified = True
+    except host.Failure:
+        Path('/review/installation-direct-receipt-' + context + '.log').write_bytes((host.STATE / 'helper-failure.log').read_bytes())
+        direct_receipt_failures.append(context)
+    assert (host.STATE / 'runtime-receipt.json').read_bytes() == receipt_before_native
+    native_checks.append({'context': context, 'runtime_receipt_verified_directly': verified, 'managed_hash': managed_hash, 'native_hash': native_hash, 'receipt_fallback_required': native_hash != managed_hash})
 Path('/review/installation-compose-compatibility.json').write_text(json.dumps({'versions': compose_versions, 'recreations': native_checks}))
 observer = compose('ps', '-q', 'observer')
 current_container = info()['Id']
@@ -268,7 +319,9 @@ assert compose('ps', '-q', 'observer') == observer
 current_container = info()['Id']
 plan = host.read_json(host.STATE / 'host.json')['source_bridge']['files']
 override = Path(next(item['editable'] for item in plan if item['path'] == str(override)))
-checks += ['explicit-migration-repairs-legacy-binding-before-transition', 'explicit-legacy-migration-preserves-credentials-floors', 'default-and-original-multifile-native-compose-no-orphan', 'different-compose-version-compatible', 'managed-recreate-after-verified-native-hash', 'canonical-model-private-without-token']
+checks += ['explicit-migration-repairs-legacy-binding-before-transition', 'explicit-legacy-migration-preserves-credentials-floors', 'default-and-original-multifile-native-compose-no-orphan', 'different-compose-version-compatible', 'managed-recreate-after-verified-native-hash', 'canonical-model-private-without-token', 'duplicate-docker-aliases-normalized-in-managed-runtime-receipt']
+if not direct_receipt_failures:
+    checks.append('native-recreation-duplicate-aliases-direct-receipt-verification')
 if any(check['receipt_fallback_required'] for check in native_checks):
     checks.append('native-compose-hash-mismatch-runtime-receipt')
 
@@ -374,13 +427,129 @@ host.install(args, options)
 assert host.read_json(host.STATE / 'host.json')['phase'] == 'healthy'
 assert info()['Config']['Image'] == images['candidate']
 assert (host.STATE / 'history').exists()
-checks += ['archive-interruption-after-journal-commit-resumes', 'reenroll-after-removal-current-recipe']
+assert host.read_json(host.STATE / 'config.json')['deployment_protocol'] == 2
+assert_runtime_aliases('fresh-protocol-2-reenrollment', receipt=True)
+checks += ['archive-interruption-after-journal-commit-resumes', 'reenroll-after-removal-current-recipe', 'fresh-protocol-2-enrollment-with-duplicate-docker-aliases']
 
-Path('/review/installation-evidence.json').write_text(json.dumps({'checks': checks, 'project': project, 'result': 'passed'}, indent=2))
-print('PASS release host installation: ' + ', '.join(checks), flush=True)
-# Keep all diagnostics, but stop this project's services so subsequent scenarios
-# remain isolated and do not introduce writers on another scenario's data.
+# Stop the first fixture before beginning an independent first-activation case.
+# These are only this script's containers/directories inside the nested daemon.
+host.manage(argparse.Namespace(action='remove'))
+controller = host.Host()
+completed_server = info()['Id']
+with controller.lock():
+    controller.compose('stop', 'p2pstream', 'observer')
+docker('rm', completed_server)
+completed = Path('/review/completed-main')
+completed.mkdir(mode=0o700)
+host.STATE.rename(completed / 'updater')
+Path('/etc/p2pstream-server-deployment').rename(completed / 'deployment')
+
+source = Path('/review/recovery-source')
+source.mkdir(mode=0o700)
+project = 'review-failed-install-recovery'
+base = source / 'compose.json'
+options = ['-p', project, '-f', str(base)]
+model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True,
+                                  'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'},
+                                  'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
+         'volumes': {'data': {'name': project + '-data'}}}
+base.write_text(json.dumps(model))
+os.chdir(source)
+compose('up', '-d')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+installation = docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity')
+assert_runtime_aliases('recovery-original-compose')
+args = fixture('v0.1.53-staging.9000', 'a' * 40, images['baseline'], images['updater'])
+original_record_runtime = host.Host.record_runtime
+def fail_first_record_runtime(controller):
+    raise host.Failure('fixture first record-runtime failure')
+host.Host.record_runtime = fail_first_record_runtime
+try:
+    rejected(lambda: host.install(args, options), 'fixture first record-runtime failure')
+finally:
+    host.Host.record_runtime = original_record_runtime
+journal = host.read_json(host.STATE / 'host.json')
+assert journal['phase'] == 'rolled_back', journal['phase']
+assert not (host.STATE / 'state.json').exists(), 'Executor created update history before first activation completed'
+assert not (host.STATE / 'history').exists()
+recovery_evidence = {'initial_failed_phase': journal['phase'], 'update_history_created': False, 'existing_host_history': False}
+Path('/review/installation-recovery-evidence.json').write_text(json.dumps(recovery_evidence, indent=2))
+rolled_back_container = info()['Id']
+rolled_back_sources = base.read_bytes()
+old_config = host.read_json(host.STATE / 'config.json')
+old_floor = old_config['bootstrap_floor']
+assert info()['Config']['Image'] == images['baseline']
+assert not any(v.startswith('SERVER_UPDATE_') for v in info()['Config']['Env'])
+assert not any(m['Destination'] == '/run/p2pstream-server-update' for m in info()['Mounts'])
+executors = docker('ps', '-aq', '--filter', 'label=p2pstream.server-update.executor=' + installation).split()
+assert len(executors) == 1 and not json.loads(docker('inspect', executors[0]))[0]['State']['Running']
+
+cancel_args = argparse.Namespace(expect_installation=installation, repository='review/p2pstream', expect_channel='staging', bundle='/review/install-bundle')
+def cancel():
+    controller = host.Host()
+    with controller.lock(allow_archive=True):
+        controller.cancel_enrollment(cancel_args)
+
+# Changed sources and an independently replaced image must be refused without
+# archiving credentials, removing the saved executor, or replacing the server.
+model['services']['p2pstream']['environment']['EXTRA_SETTING'] = 'unapplied'
+base.write_text(json.dumps(model))
+rejected(cancel, 'Original Compose source changed')
+assert info()['Id'] == rolled_back_container and (host.STATE / 'host.json').exists()
+base.write_bytes(rolled_back_sources)
+del model['services']['p2pstream']['environment']['EXTRA_SETTING']
+drift = host.read_json(host.STATE / 'before-compose.json')
+drift['services']['p2pstream']['image'] = images['candidate']
+drift_file = source / 'drift.json'
+drift_file.write_text(json.dumps(drift))
+docker('compose', '-p', project, '-f', str(drift_file), 'up', '-d', '--no-deps', '--force-recreate', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+drifted_container = info()['Id']
+rejected(cancel, 'Original running image was not restored')
+assert info()['Id'] == drifted_container and (host.STATE / 'host.json').exists()
+assert not json.loads(docker('inspect', executors[0]))[0]['State']['Running']
+docker('compose', '-p', project, '-f', str(host.STATE / 'before-compose.json'), 'up', '-d', '--no-deps', '--force-recreate', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+restored_container = info()['Id']
+cancel()
+assert info()['Id'] == restored_container and base.read_bytes() == rolled_back_sources
+assert not (host.STATE / 'host.json').exists() and not (host.STATE / 'config.json').exists()
+assert not docker('ps', '-aq', '--filter', 'label=p2pstream.server-update.executor=' + installation)
+floor_receipt = host.read_json(host.STATE / 'cancelled-enrollment.json')
+assert floor_receipt['completed'] and floor_receipt['installation'] == installation and floor_receipt['floor'] == old_floor
+assert (host.STATE / 'history').is_dir()
+recovery_evidence.update({'source_drift_refused': True, 'running_image_drift_refused': True, 'stopped_executor_removed': True, 'release_floor_retained': True, 'cancelled_original_container_preserved': True})
+Path('/review/installation-recovery-evidence.json').write_text(json.dumps(recovery_evidence, indent=2))
+assert docker('exec', restored_container, '/app/p2pstream', 'server-installation-identity') == installation
+assert_runtime_aliases('cancelled-original-compose')
+
+# Manual deployment of the fixed published server retains the same data volume.
+model['services']['p2pstream']['image'] = images['candidate']
+base.write_text(json.dumps(model))
+compose('up', '-d', '--no-deps', 'p2pstream')
+wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
+assert docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity') == installation
+args = fixture('v0.1.53-staging.9001', 'b' * 40, images['candidate'], images['candidate_updater'])
+host.install(args, options)
+assert host.read_json(host.STATE / 'host.json')['phase'] == 'healthy'
+new_config = host.read_json(host.STATE / 'config.json')
+assert new_config['deployment_protocol'] == 2 and new_config['bootstrap_floor']['sequence'] >= old_floor['sequence']
+assert host.read_json(host.STATE / 'cancelled-enrollment.json') == floor_receipt
+assert info()['Config']['Image'] == images['candidate']
+assert docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity') == installation
+assert_runtime_aliases('cancel-upgrade-fresh-enrollment', receipt=True)
+recovery_evidence.update({'manual_candidate_upgrade_preserves_data_identity': True, 'fresh_protocol_2_enrollment': 'healthy', 'release_floor_receipt_survives_reenrollment': True})
+Path('/review/installation-recovery-evidence.json').write_text(json.dumps(recovery_evidence, indent=2))
+checks += ['first-protocol-2-activation-failure-rolls-back-without-update-history', 'cancel-refuses-source-drift', 'cancel-refuses-running-image-drift',
+           'cancel-removes-only-stopped-original-executor', 'cancel-retains-release-floor-receipt', 'manual-fixed-image-same-data-fresh-enrollment']
+
+# Cleanup precedes the final deferred assertion so every outcome is reviewable.
 host.manage(argparse.Namespace(action='remove'))
 controller = host.Host()
 with controller.lock():
-    controller.compose('stop', 'p2pstream', 'observer')
+    controller.compose('stop', 'p2pstream')
+result = 'failed' if direct_receipt_failures else 'passed'
+Path('/review/installation-evidence.json').write_text(json.dumps({'checks': checks, 'project': project, 'runtime_aliases': alias_evidence,
+                                                               'direct_runtime_receipt_failures': direct_receipt_failures, 'result': result}, indent=2))
+assert not direct_receipt_failures, 'Direct native runtime receipt verification failed: ' + ', '.join(direct_receipt_failures)
+print('PASS release host installation: ' + ', '.join(checks), flush=True)

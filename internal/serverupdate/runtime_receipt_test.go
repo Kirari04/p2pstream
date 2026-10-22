@@ -53,6 +53,63 @@ func TestRuntimeReceiptAllowsOnlyKnownRecreationDifferences(t *testing.T) {
 	}
 }
 
+func TestRuntimeReceiptNormalizesDuplicateNetworkAliases(t *testing.T) {
+	model, inspection := receiptFixture(t)
+	network := receiptMap(receiptMap(receiptMap(inspection["NetworkSettings"])["Networks"])["project_default"])
+	id := inspection["Id"].(string)
+	network["Aliases"] = []any{"p2pstream", "p2pstream", "custom", id[:12], id}
+	original, err := json.Marshal(inspection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := runtimeFingerprint(model, inspection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := json.Marshal(inspection)
+	if err != nil || string(after) != string(original) {
+		t.Fatalf("fingerprint mutated original inspection: %v", err)
+	}
+	for _, aliases := range [][]any{
+		{"custom", "p2pstream"},
+		{"custom", "custom", "p2pstream", "p2pstream", "p2pstream"},
+		{id, "p2pstream", id[:12], "custom", id},
+	} {
+		network["Aliases"] = aliases
+		after, err := runtimeFingerprint(model, inspection)
+		if err != nil || string(before) != string(after) {
+			t.Fatalf("equivalent alias membership rejected: %v\nbefore=%s\nafter=%s", err, before, after)
+		}
+	}
+	for _, aliases := range [][]any{{"p2pstream"}, {"p2pstream", "custom", "added"}, {"p2pstream", "changed"}} {
+		network["Aliases"] = aliases
+		after, err := runtimeFingerprint(model, inspection)
+		if err != nil || string(before) == string(after) {
+			t.Fatalf("alias membership drift was not distinguished: %v", err)
+		}
+	}
+}
+
+func TestRuntimeReceiptRejectsMalformedNetworkAliases(t *testing.T) {
+	for name, aliases := range map[string]any{
+		"string list":  "p2pstream",
+		"number list":  42,
+		"object list":  map[string]any{"alias": "p2pstream"},
+		"number entry": []any{"p2pstream", 42},
+		"null entry":   []any{"p2pstream", nil},
+		"object entry": []any{map[string]any{"alias": "p2pstream"}},
+		"list entry":   []any{[]any{"p2pstream"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			model, inspection := receiptFixture(t)
+			receiptMap(receiptMap(receiptMap(inspection["NetworkSettings"])["Networks"])["project_default"])["Aliases"] = aliases
+			if _, err := runtimeFingerprint(model, inspection); err == nil {
+				t.Fatal("accepted malformed aliases")
+			}
+		})
+	}
+}
+
 func TestRuntimeReceiptRejectsRuntimeDrift(t *testing.T) {
 	changes := map[string]func(map[string]any){
 		"environment": func(m map[string]any) { receiptMap(m["Config"])["Env"] = []any{"CONFIG_DIR=/other", "SECRET=value"} },
@@ -94,13 +151,20 @@ func TestRuntimeReceiptRejectsRuntimeDrift(t *testing.T) {
 }
 
 func TestRuntimeReceiptRejectsAmbiguousEnvironmentAndMounts(t *testing.T) {
-	for _, kind := range []string{"environment", "mount"} {
+	for _, kind := range []string{"environment", "identical environment", "mount", "host mount", "bind"} {
 		model, inspection := receiptFixture(t)
-		if kind == "environment" {
+		switch kind {
+		case "environment":
 			receiptMap(inspection["Config"])["Env"] = []any{"CONFIG_DIR=/data", "CONFIG_DIR=/other"}
-		} else {
+		case "identical environment":
+			receiptMap(inspection["Config"])["Env"] = []any{"CONFIG_DIR=/data", "CONFIG_DIR=/data"}
+		case "mount":
 			mounts := inspection["Mounts"].([]any)
 			inspection["Mounts"] = append(mounts, mounts[0])
+		case "host mount":
+			receiptMap(inspection["HostConfig"])["Mounts"] = []any{map[string]any{"Target": "/data"}, map[string]any{"Target": "/data"}}
+		case "bind":
+			receiptMap(inspection["HostConfig"])["Binds"] = []any{"data:/data:rw", "data:/data:rw"}
 		}
 		if _, err := runtimeFingerprint(model, inspection); err == nil {
 			t.Fatalf("accepted ambiguous %s", kind)
@@ -110,6 +174,8 @@ func TestRuntimeReceiptRejectsAmbiguousEnvironmentAndMounts(t *testing.T) {
 
 func TestRuntimeReceiptBindsCanonicalModelAndImmutableImage(t *testing.T) {
 	model, inspection := receiptFixture(t)
+	network := receiptMap(receiptMap(receiptMap(inspection["NetworkSettings"])["Networks"])["project_default"])
+	network["Aliases"] = []any{"p2pstream", "p2pstream"}
 	directory := t.TempDir()
 	canonical := filepath.Join(directory, "compose.json")
 	inspectPath := filepath.Join(directory, "inspect.json")
@@ -137,6 +203,10 @@ func TestRuntimeReceiptBindsCanonicalModelAndImmutableImage(t *testing.T) {
 		t.Fatal(err)
 	}
 	receiptMap(receiptMap(inspection["Config"])["Labels"])["com.docker.compose.config-hash"] = "native-new-hash"
+	id = strings.Repeat("b", 64)
+	inspection["Id"] = id
+	receiptMap(inspection["Config"])["Hostname"] = id[:12]
+	network["Aliases"] = []any{id[:12], "p2pstream"}
 	publishInspection()
 	if err := driver.VerifyRuntimeReceipt(context.Background(), model, id); err != nil {
 		t.Fatal(err)
@@ -144,6 +214,13 @@ func TestRuntimeReceiptBindsCanonicalModelAndImmutableImage(t *testing.T) {
 	if err := driver.RecordRuntimeReceipt(context.Background(), model, id); err == nil {
 		t.Fatal("adopted mismatching native hash")
 	}
+	network["Aliases"] = []any{"p2pstream", "changed"}
+	publishInspection()
+	if err := driver.VerifyRuntimeReceipt(context.Background(), model, id); err == nil {
+		t.Fatal("accepted changed network aliases")
+	}
+	network["Aliases"] = []any{"p2pstream"}
+	publishInspection()
 	if err := driver.VerifyRuntimeReceipt(context.Background(), append(model, ' '), id); err == nil {
 		t.Fatal("accepted changed canonical bytes")
 	}

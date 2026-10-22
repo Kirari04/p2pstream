@@ -27,6 +27,23 @@ to restore the full application snapshot and matching supported previous image.
 See [server update operations](./server-updates) for migration and interruption
 recovery. The private updater HTTP protocol and database schema are unchanged.
 
+### Recover an enrollment that never completed
+
+If initial setup restored the original server and remains `rolled_back`, a saved
+executor defect may also make `manage repair` fail repeatedly. In particular,
+the `v0.1.53-staging.103` duplicate-network-alias receipt error requires a fixed
+executor; repair keeps the original pinned one.
+
+After a fixed release with cancellation support is published, follow
+[Cancel a never-completed enrollment](./server-updates#cancel-a-never-completed-enrollment).
+Its verified bootstrap checks the old restored deployment and privately archives
+only eligible failed enrollment state, retaining enforced trust floors. It refuses
+completed enrollments, saved updater state (including previews) and unresolved runtime work.
+Cancellation does not change the running image or data. Then manually deploy the
+fixed published image with the same restored Compose configuration and named data
+volume, refresh the Updates page, and enroll again using its fresh setup command.
+Do not delete updater state or use an old copied setup command to bypass recovery.
+
 ## Legacy support ends with v0.1.53
 
 **Legacy support ends with v0.1.53-staging.91 and the stable v0.1.53 release.**

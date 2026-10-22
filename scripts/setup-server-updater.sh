@@ -1,5 +1,6 @@
 #!/bin/sh
-# Run only the exact release command copied from the selected management server.
+# Installation uses the exact release command from the selected management server.
+# Cancellation explicitly selects a compatible published recovery release.
 # HTTPS and the operator's explicit execution trust this bootstrap. The manifest
 # pin below binds subsequent inputs, not the script that is already executing.
 # Keep every effect inside main, invoked last: a truncated download must not
@@ -61,11 +62,15 @@ def main(args):
     require(re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?', version), 'An exact release version is required')
     require(str(uuid.UUID(installation)) == installation and HEX.fullmatch(manifest_hash) and arch in {'amd64', 'arm64'}, 'Invalid installation binding')
     remaining = args[4:]
-    migrate = remaining[0] == '--migrate-deployment'
-    if migrate:
+    migrate = cancel = False
+    while remaining and remaining[0] in {'--migrate-deployment', '--cancel-enrollment'}:
+        require(not migrate and not cancel, 'Choose only one of --migrate-deployment and --cancel-enrollment')
+        migrate = remaining[0] == '--migrate-deployment'
+        cancel = remaining[0] == '--cancel-enrollment'
         remaining = remaining[1:]
     require(remaining and remaining[0] == '--', 'Expected -- before Compose options')
     options = remaining[1:]
+    require(not cancel or not options, 'Enrollment cancellation does not accept Compose options')
     base = 'https://github.com/' + repository + '/releases/download/' + version + '/'
     raw = download(base + 'p2pstream_agent_update_manifest.json', 65536)
     require(hashlib.sha256(raw).hexdigest() == manifest_hash, 'Release changed since this command was copied; refresh the selected server')
@@ -102,12 +107,20 @@ def main(args):
             require(len(members) == len(NAMES) and {m.name for m in members} == NAMES and not archive.pax_headers and all(m.type == tarfile.REGTYPE and 0 <= m.size <= 262144 and not m.pax_headers for m in members), 'Unsafe Docker bundle contents')
             for member in members:
                 (Path(directory) / member.name).write_bytes(archive.extractfile(member).read())
-        command = [sys.executable, '-I', str(Path(directory) / 'server-updater-host.py'), 'install', '--bundle', directory,
-                   '--expect-installation', installation, '--expect-version', version, '--expect-commit', manifest['commit'],
-                   '--expect-channel', channel, '--expect-arch', arch, '--manifest-sha256', manifest_hash, '--repository', repository]
-        if migrate:
-            command.append('--migrate-deployment')
-        subprocess.run(command + ['--'] + options, check=True)
+        command = [sys.executable, '-I', str(Path(directory) / 'server-updater-host.py')]
+        if cancel:
+            # Recovery code comes from this verified release; the restored
+            # server may still run the older release whose enrollment failed.
+            command += ['cancel-enrollment', '--expect-installation', installation, '--repository', repository,
+                        '--expect-channel', channel, '--bundle', directory]
+        else:
+            command += ['install', '--bundle', directory, '--expect-installation', installation,
+                        '--expect-version', version, '--expect-commit', manifest['commit'], '--expect-channel', channel,
+                        '--expect-arch', arch, '--manifest-sha256', manifest_hash, '--repository', repository]
+            if migrate:
+                command.append('--migrate-deployment')
+            command += ['--'] + options
+        subprocess.run(command, check=True)
 
 
 try:
