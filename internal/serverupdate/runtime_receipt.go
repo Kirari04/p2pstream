@@ -187,7 +187,7 @@ func runtimeFingerprint(deployment []byte, inspection map[string]any) ([]byte, e
 		config["Hostname"] = "<docker-generated>"
 	}
 	labels := receiptMap(config["Labels"])
-	for _, key := range []string{"com.docker.compose.config-hash", "com.docker.compose.version", "com.docker.compose.project.config_files", "com.docker.compose.project.working_dir", "com.docker.compose.replace", "com.docker.compose.image"} {
+	for _, key := range []string{"com.docker.compose.config-hash", "com.docker.compose.version", "com.docker.compose.project.config_files", "com.docker.compose.project.environment_file", "com.docker.compose.project.working_dir", "com.docker.compose.replace", "com.docker.compose.image"} {
 		delete(labels, key)
 	}
 	if err := sortRuntimeStrings(config, "Env", true); err != nil {
@@ -235,16 +235,7 @@ func runtimeFingerprint(deployment []byte, inspection map[string]any) ([]byte, e
 		if !staticMAC {
 			delete(network, "MacAddress")
 		}
-		if aliases, ok := network["Aliases"].([]any); ok {
-			filtered := make([]any, 0, len(aliases))
-			for _, alias := range aliases {
-				if alias != id && alias != id[:12] {
-					filtered = append(filtered, alias)
-				}
-			}
-			network["Aliases"] = filtered
-		}
-		if err := sortRuntimeStrings(network, "Aliases", false); err != nil {
+		if err := normalizeRuntimeAliases(network, id); err != nil {
 			return nil, err
 		}
 	}
@@ -255,6 +246,35 @@ func runtimeFingerprint(deployment []byte, inspection map[string]any) ([]byte, e
 		}
 	}
 	return json.Marshal(result)
+}
+
+func normalizeRuntimeAliases(network map[string]any, id string) error {
+	value, exists := network["Aliases"]
+	if !exists || value == nil {
+		return nil
+	}
+	items, ok := value.([]any)
+	if !ok {
+		return errors.New("invalid Docker runtime list")
+	}
+	aliases := make([]string, 0, len(items))
+	seen := map[string]bool{}
+	for _, item := range items {
+		alias, ok := item.(string)
+		if !ok {
+			return errors.New("invalid Docker runtime list entry")
+		}
+		// Compose can add the same DNS alias for the container and service
+		// names. Only alias membership matters; repeated names add no binding.
+		if alias == id || alias == id[:12] || seen[alias] {
+			continue
+		}
+		seen[alias] = true
+		aliases = append(aliases, alias)
+	}
+	sort.Strings(aliases)
+	network["Aliases"] = aliases
+	return nil
 }
 
 func sortRuntimeStrings(object map[string]any, key string, environment bool) error {

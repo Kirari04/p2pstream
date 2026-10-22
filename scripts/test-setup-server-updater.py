@@ -105,6 +105,53 @@ class Bootstrap(unittest.TestCase):
                 self.assertEqual(receipt['mode'], 0o700)
                 self.assertFalse((self.path / 'injected').exists())
 
+    def test_cancel_enrollment_uses_verified_new_release_without_running_version_binding(self):
+        receipt = self.invoke(self.args[:4] + ['--cancel-enrollment', '--'])
+        command = receipt['args']
+        bundle_dir = command[command.index('--bundle') + 1]
+        self.assertEqual(command, ['cancel-enrollment', '--expect-installation', ID, '--repository', 'test/repo',
+                                   '--expect-channel', 'stable', '--bundle', bundle_dir])
+        self.assertFalse(Path(bundle_dir).exists())
+        self.assertEqual(receipt['files'], sorted(bootstrap.NAMES))
+        self.assertEqual(receipt['mode'], 0o700)
+        self.assertEqual([url for url, _ in self.calls], [BASE + name for name in
+                         ('p2pstream_agent_update_manifest.json', 'p2pstream_install.json', BUNDLE)])
+
+    def test_cancel_enrollment_refuses_conflicting_modes_and_compose_options_before_download(self):
+        for options in [['--cancel-enrollment', '--migrate-deployment', '--'],
+                        ['--migrate-deployment', '--cancel-enrollment', '--'],
+                        ['--cancel-enrollment', '--cancel-enrollment', '--'],
+                        ['--migrate-deployment', '--migrate-deployment', '--'],
+                        ['--cancel-enrollment'], ['--cancel-enrollment', '-p', 'project'],
+                        ['--cancel-enrollment', '--', '-p', 'project'],
+                        ['--cancel-enrollment', '--', '--migrate-deployment']]:
+            with self.subTest(options=options):
+                with self.assertRaises(ValueError):
+                    self.invoke(self.args[:4] + options)
+                self.assertEqual(self.calls, [])
+                self.assertFalse(self.receipt.exists())
+
+    def test_cancel_enrollment_keeps_manifest_descriptor_and_bundle_verification(self):
+        for name in ('p2pstream_agent_update_manifest.json', 'p2pstream_install.json', BUNDLE):
+            with self.subTest(asset=name):
+                original = self.files[name]
+                self.files[name] = original + b'x'
+                with self.assertRaisesRegex(ValueError, 'Release changed|Installation asset verification failed'):
+                    self.invoke(self.args[:4] + ['--cancel-enrollment', '--'])
+                self.assertFalse(self.receipt.exists())
+                self.files[name] = original
+
+    def test_cancel_enrollment_propagates_verified_host_refusal_and_cleans_bundle(self):
+        self.entries = [(name, data + b'\nraise SystemExit(23)\n' if name == 'server-updater-host.py' else data, kind)
+                        for name, data, kind in self.entries]
+        self.publish()
+        with self.assertRaises(subprocess.CalledProcessError) as caught:
+            self.invoke(self.args[:4] + ['--cancel-enrollment', '--'])
+        self.assertEqual(caught.exception.returncode, 23)
+        command = json.loads(self.receipt.read_text())['args']
+        self.assertEqual(command[0], 'cancel-enrollment')
+        self.assertFalse(Path(command[command.index('--bundle') + 1]).exists())
+
     def test_manifest_pin_precedes_parsing_downloads_and_extraction(self):
         self.files['p2pstream_agent_update_manifest.json'] = b'not even JSON'
         with patch.object(bootstrap.tempfile, 'TemporaryDirectory', side_effect=AssertionError('premature extraction')):
@@ -228,13 +275,19 @@ class Bootstrap(unittest.TestCase):
         python.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' -I ' + shlex.quote(str(runner)) + ' "$@"\n')
         python.chmod(0o700)
         env = dict(os.environ, PATH=str(self.path) + ':' + os.environ['PATH'])
-        for migrate in (False, True):
-            args = self.args[:4] + (['--migrate-deployment'] if migrate else []) + ['--', '-p', "project ' $(false); *"]
+        for mode in ('install', '--migrate-deployment', '--cancel-enrollment'):
+            options = [] if mode == '--cancel-enrollment' else ['-p', "project ' $(false); *"]
+            args = self.args[:4] + ([] if mode == 'install' else [mode]) + ['--'] + options
             result = subprocess.run(['sh', '-s', '--'] + args, input=SCRIPT, text=True, capture_output=True, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             receipt = json.loads(self.receipt.read_text())
-            self.assertEqual(receipt['args'][-3:], ['--', '-p', "project ' $(false); *"])
-            self.assertEqual('--migrate-deployment' in receipt['args'], migrate)
+            if mode == '--cancel-enrollment':
+                self.assertEqual(receipt['args'][0], 'cancel-enrollment')
+                self.assertNotIn('--expect-version', receipt['args'])
+                self.assertNotIn('--', receipt['args'])
+            else:
+                self.assertEqual(receipt['args'][-3:], ['--'] + options)
+                self.assertEqual('--migrate-deployment' in receipt['args'], mode == '--migrate-deployment')
             self.receipt.unlink()
         for partial in ['', SCRIPT[:SCRIPT.index('\nPY\n}')], SCRIPT[:SCRIPT.rindex('\nmain "$@"')]]:
             result = subprocess.run(['sh', '-s', '--'] + self.args, input=partial, text=True, capture_output=True, env=env)

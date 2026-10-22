@@ -24,6 +24,7 @@ spec.loader.exec_module(host)
 ID = '11111111-1111-4111-8111-111111111111'
 REF = 'ghcr.io/test/repo@sha256:' + 'a' * 64
 HELPER = 'ghcr.io/test/repo-updater@sha256:' + 'd' * 64
+EXECUTOR_ID = 'e' * 64
 
 class Lifecycle(unittest.TestCase):
     def setUp(self):
@@ -1326,6 +1327,447 @@ class Metadata(unittest.TestCase):
         self.assertEqual(result['services']['p2pstream']['environment'], {'CONFIG_DIR': '/data', 'OTHER': '$$secret'})
         self.assertEqual(result['services']['other'], model['services']['other'])
         self.assertNotIn('p2pstream-server-updater', result['services'])
+
+class CancellationLifecycle(unittest.TestCase):
+    """Cancellation proves restoration before archiving a failed first enrollment."""
+    tearDown = Lifecycle.tearDown
+    install = Lifecycle.install
+
+    def setUp(self):
+        self.executor = None
+        self.owner_exists = False
+        self.helper_exists = False
+        self.health_failed = False
+        Lifecycle.setUp(self)
+        self.managed = True
+        self.failure = 'health'
+        with self.assertRaises(host.Failure):
+            self.install()
+        cfg = host.read_json(self.state / 'config.json')
+        self.floor = {'sequence': 12, 'security_epoch': 2, 'minimum_safe_version': 'v1.0.0', 'manifest_sha256': 'f' * 64}
+        cfg.update(channel='stable', bootstrap_floor=self.floor)
+        host.atomic(self.state / 'config.json', cfg)
+        self.manifest.update(sequence=13, security_epoch=2, minimum_safe_version='v1.0.0')
+        fixture_compose = host.Host.compose
+        def compose(controller, *args, **kwargs):
+            result = fixture_compose(controller, *args, **kwargs)
+            if '--hash' in args and kwargs.get('model') == 'before-compose.json':
+                return subprocess.CompletedProcess(args, 0, ('p2pstream ' + 'a' * 64 + '\n').encode(), b'')
+            return result
+        self.stack.enter_context(patch.object(host.Host, 'compose', compose))
+        self.executor = {'Id': EXECUTOR_ID, 'Image': self.helper['Id'], 'State': {'Running': False}, 'Config': {'Labels': {'com.docker.compose.project': 'custom-project', 'com.docker.compose.service': 'p2pstream-server-updater', 'p2pstream.server-update.executor': ID}}}
+        self.commands.clear()
+
+    def docker(self, *args, **kwargs):
+        if args[0] == 'inspect' and args[-1] in {EXECUTOR_ID, EXECUTOR_ID[:12]}:
+            self.commands.append(('docker', args))
+            return subprocess.CompletedProcess(args, 0, json.dumps([self.executor]).encode(), b'')
+        if args[0] == 'ps' and any('server-update.executor=' in str(value) for value in args):
+            self.commands.append(('docker', args))
+            # Docker's quiet inventory abbreviates IDs unless --no-trunc is
+            # explicit, while inspect always returns the full immutable ID.
+            inventory_id = EXECUTOR_ID if '--no-trunc' in args else EXECUTOR_ID[:12]
+            return subprocess.CompletedProcess(args, 0, (inventory_id + '\n').encode() if self.executor else b'', b'')
+        if args[0] == 'ps' and any('host-helper=' in str(value) for value in args) and self.helper_exists:
+            return subprocess.CompletedProcess(args, 0, b'abandoned-helper\n', b'')
+        if args[0] == 'rm':
+            self.commands.append(('docker', args))
+            self.assertEqual(args, ('rm', EXECUTOR_ID))
+            self.executor = None
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        if args[0] == 'exec' and (args[-1] == 'server-health' and self.health_failed or '/bin/sh' in args and self.owner_exists):
+            return subprocess.CompletedProcess(args, 1, b'', b'')
+        return Lifecycle.docker(self, *args, **kwargs)
+
+    def cancel(self):
+        controller = host.Host()
+        with controller.lock(allow_archive=True):
+            controller.cancel_enrollment(self.args)
+
+    def assert_refused(self, message):
+        with self.assertRaisesRegex(host.Failure, message):
+            self.cancel()
+        self.assertTrue((self.state / 'host.json').exists())
+        self.assertTrue((self.state / 'config.json').exists())
+        self.assertFalse((self.state / host.CANCELLATION).exists())
+        self.assertFalse(any(command[:2] == ('docker', ('rm', EXECUTOR_ID)) for command in self.commands))
+
+    def test_cancel_retains_original_server_sources_and_active_floor(self):
+        before = copy.deepcopy(self.info)
+        source = (self.source / 'compose.yaml').read_bytes()
+        restarts = self.restart_count
+        self.cancel()
+        self.assertEqual(self.info, before)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertEqual((self.source / 'compose.yaml').read_bytes(), source)
+        self.assertIsNone(self.executor)
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertFalse((self.state / 'config.json').exists())
+        receipt = host.read_json(self.state / host.CANCELLATION)
+        self.assertEqual(receipt['floor'], self.floor)
+        self.assertTrue(receipt['completed'])
+        archives = list((self.state / 'history').iterdir())
+        self.assertEqual(len(archives), 1)
+        self.assertEqual(host.read_json(archives[0] / 'config.json')['bootstrap_floor'], self.floor)
+        self.cancel()  # Explicit retry after completed cleanup remains harmless.
+
+    def test_cancel_then_fresh_enrollment_enforces_and_retains_floor(self):
+        self.cancel()
+        self.executor = None
+        self.failure = ''
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(host.read_json(self.state / host.CANCELLATION)['floor'], self.floor)
+
+    def test_changed_source_refused(self):
+        (self.source / 'compose.yaml').write_text('changed source')
+        self.assert_refused('Compose source changed')
+
+    def test_changed_resolved_settings_refused(self):
+        self.model['services']['p2pstream']['environment']['SECRET'] = 'changed'
+        self.raw = json.dumps(self.model).encode()
+        self.assert_refused('Resolved original Compose inputs changed')
+
+    def test_changed_immutable_image_refused(self):
+        self.info['Image'] = 'sha256:other'
+        self.assert_refused('Original running image')
+
+    def test_changed_running_hash_refused(self):
+        self.info['Config']['Labels']['com.docker.compose.config-hash'] = 'b' * 64
+        self.assert_refused('Running original settings')
+
+    def test_changed_data_volume_refused(self):
+        self.info['Mounts'][0]['Name'] = 'other-data'
+        self.assert_refused('Original data volume')
+
+    def test_changed_identity_refused(self):
+        self.identity = '22222222-2222-4222-8222-222222222222'
+        self.assert_refused('Original installation identity')
+
+    def test_wrong_selected_installation_refused(self):
+        self.args.expect_installation = '22222222-2222-4222-8222-222222222222'
+        self.assert_refused('Saved enrollment differs')
+
+    def test_unhealthy_original_refused(self):
+        self.health_failed = True
+        self.assert_refused('Original server is unhealthy')
+
+    def test_runtime_ownership_refused(self):
+        self.owner_exists = True
+        self.assert_refused('Runtime ownership remains')
+
+    def test_other_data_writer_refused(self):
+        self.foreign_writer = True
+        self.assert_refused('Another running container writes')
+
+    def test_running_executor_refused(self):
+        self.executor['State']['Running'] = True
+        self.assert_refused('executor is still active')
+
+    def test_foreign_executor_refused(self):
+        self.executor['Image'] = 'sha256:other'
+        self.assert_refused('executor identity differs')
+
+    def test_executor_lock_refused(self):
+        with (self.state / 'executor.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assert_refused('executor still owns')
+
+    def test_pending_helper_refused(self):
+        host.atomic(self.state / 'helper.json', {})
+        self.assert_refused('not a recorded read-only cancellation')
+
+    def test_helper_without_record_refused(self):
+        self.helper_exists = True
+        self.assert_refused('host helper still exists')
+
+    def test_any_update_state_including_preview_refused(self):
+        host.atomic(self.state / 'state.json', {'plan': {}, 'operation': None})
+        self.assert_refused('Update history or maintenance')
+
+    def test_maintenance_refused(self):
+        (self.state / 'control' / 'maintenance').write_text('blocked')
+        self.assert_refused('Update history or maintenance')
+
+    def test_previous_success_refused(self):
+        journal = host.read_json(self.state / 'host.json')
+        journal['verified_version'] = 'v1.0.1'
+        host.atomic(self.state / 'host.json', journal)
+        self.assert_refused('previously enabled')
+
+    def test_original_enrolled_model_refused(self):
+        before = host.read_json(self.state / 'before-compose.json')
+        before['services']['p2pstream-server-updater'] = {'image': HELPER}
+        host.atomic(self.state / 'before-compose.json', before)
+        journal = host.read_json(self.state / 'host.json')
+        journal['before_sha256'] = host.digest((self.state / 'before-compose.json').read_bytes())
+        host.atomic(self.state / 'host.json', journal)
+        self.assert_refused('already enrolled')
+
+    def test_running_binding_refused(self):
+        self.info['Config']['Env'] = ['SERVER_UPDATE_TOKEN=unexpected']
+        self.assert_refused('retains an updater binding')
+
+    def test_archive_interrupted_before_commit_requires_cancellation_retry(self):
+        copy2 = host.shutil.copy2
+        def interrupted(source, target, **kwargs):
+            if Path(source).name == 'host.json':
+                # Exercise a partial copy containing the read-only token even
+                # when filesystem iteration happens to visit host.json first.
+                token = Path(target).parent / 'control' / 'token'
+                if not token.exists():
+                    token.parent.mkdir(exist_ok=True)
+                    copy2(self.state / 'control' / 'token', token)
+                raise KeyboardInterrupt()
+            return copy2(source, target, **kwargs)
+        with patch.object(host.shutil, 'copy2', side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.assertTrue((self.state / 'host.json').exists())
+        self.assertTrue((self.state / 'manage').exists())
+        self.assertEqual(host.read_json(self.state / host.CANCELLATION)['floor'], self.floor)
+        with self.assertRaisesRegex(host.Failure, 'cancellation is incomplete'):
+            self.install()
+        token = self.state / 'control' / 'token'
+        archived_token = self.state / 'history' / host.read_json(self.state / 'archive.json')['id'] / 'control' / 'token'
+        token_bytes = token.read_bytes()
+        self.assertEqual(stat.S_IMODE(token.stat().st_mode), 0o444)
+        self.assertEqual(stat.S_IMODE(archived_token.stat().st_mode), 0o444)
+        # The production controller runs as root and can overwrite this 0444
+        # copy. Model that privilege only on the fixture's existing destination
+        # so unprivileged CI can retry; the source token remains read-only.
+        archived_token.chmod(0o600)
+        self.cancel()
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertEqual(archived_token.read_bytes(), token_bytes)
+        self.assertEqual(stat.S_IMODE(archived_token.stat().st_mode), 0o444)
+
+    def test_pending_cancellation_blocks_repair_and_helper_backed_inspection(self):
+        with patch.object(host.Host, 'archive_state', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.assertFalse(host.read_json(self.state / host.CANCELLATION)['completed'])
+        for action in ('repair', 'rollback', 'logs', 'inspect', 'status'):
+            with self.subTest(action=action):
+                self.commands.clear()
+                with self.assertRaisesRegex(host.Failure, 'cancellation is incomplete'):
+                    host.manage(argparse.Namespace(action=action, compose_args=['ps']))
+                self.assertEqual(self.commands, [])
+                self.assertFalse((self.state / 'helper.json').exists())
+        self.cancel()
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+
+    def pending_cancellation_helper(self):
+        with patch.object(host.Host, 'archive_state', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        controller = host.Host()
+        with controller.lock(allow_archive=True):
+            pending = {'name': controller.helper_name(), 'entrypoint': '/usr/local/bin/docker', 'phase': 'rolled_back', 'readonly': True,
+                       'cancellation_validation': True, 'cancellation_args': list(controller.cancellation_helper_args()[0])}
+        host.atomic(self.state / 'helper.json', pending)
+        return pending
+
+    def test_cancellation_retry_settles_only_its_recorded_readonly_helper(self):
+        self.pending_cancellation_helper()
+        self.cancel()
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+        self.assertFalse((self.state / 'helper.json').exists())
+
+    def first_cancellation_cleanup_failure(self, previous_receipt=False):
+        if previous_receipt:
+            host.atomic(self.state / host.CANCELLATION, {'api': 1, 'installation': ID, 'repository': 'test/repo', 'channel': 'stable', 'floor': self.floor, 'completed': True})
+        original_host = host.Host.__bases__[0]
+        fixture_compose = host.Host.compose
+        docker = host.docker
+        helper_started = False
+        def compose(controller, *args, **kwargs):
+            if args == ('ps', '--all', '--quiet', 'p2pstream'):
+                return original_host.compose(controller, *args, **kwargs)
+            return fixture_compose(controller, *args, **kwargs)
+        def unavailable(*args, **kwargs):
+            nonlocal helper_started
+            if args[0] == 'run':
+                helper_started = True
+                return subprocess.CompletedProcess(args, 0, (self.info['Id'] + '\n').encode(), b'')
+            if helper_started and args[0] == 'ps' and any('host-helper=' in str(value) for value in args):
+                raise host.Failure('Docker inventory unavailable after validation helper')
+            return docker(*args, **kwargs)
+        with patch.object(host.Host, 'compose', compose), patch.object(host, 'docker', side_effect=unavailable):
+            with self.assertRaisesRegex(host.UnsettledHelper, 'restore Docker access and retry the verified cancellation command'):
+                self.cancel()
+        self.assertEqual((self.state / host.CANCELLATION).exists(), previous_receipt)
+        if previous_receipt:
+            self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'recovery_required')
+        self.assertEqual(journal['recovery_phase'], 'rolled_back')
+        self.assertTrue((self.state / 'helper.json').exists())
+
+    def assert_first_cancellation_cleanup_retries_without_restart(self, previous_receipt=False):
+        before = copy.deepcopy(self.info)
+        restarts = self.restart_count
+        self.first_cancellation_cleanup_failure(previous_receipt)
+        self.cancel()
+        self.assertEqual(self.info, before)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertFalse(any(command[0] == 'compose' and command[1][0] in {'up', 'stop', 'start'} for command in self.commands))
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+        self.assertEqual(host.read_json(self.state / host.CANCELLATION)['floor'], self.floor)
+        self.assertFalse((self.state / 'helper.json').exists())
+
+    def test_first_cancellation_cleanup_failure_retries_without_receipt_or_restart(self):
+        self.assert_first_cancellation_cleanup_retries_without_restart()
+
+    def test_first_cancellation_cleanup_failure_with_earlier_receipt_retries(self):
+        self.assert_first_cancellation_cleanup_retries_without_restart(previous_receipt=True)
+
+    def test_first_cancellation_cleanup_retry_refuses_unsafe_helper(self):
+        self.first_cancellation_cleanup_failure()
+        pending = host.read_json(self.state / 'helper.json')
+        for field, value in [('cancellation_validation', False), ('readonly', False), ('entrypoint', '/app/p2pstream'), ('phase', 'applying'), ('name', 'other-helper'), ('cancellation_args', ['compose', 'up', '-d'])]:
+            with self.subTest(field=field):
+                changed = dict(pending)
+                changed[field] = value
+                host.atomic(self.state / 'helper.json', changed)
+                self.commands.clear()
+                with self.assertRaisesRegex(host.Failure, 'not a recorded read-only cancellation'):
+                    self.cancel()
+                self.assertTrue((self.state / 'helper.json').exists())
+                self.assertFalse((self.state / host.CANCELLATION).exists())
+                self.assertEqual(self.commands, [])
+
+    def test_first_cancellation_cleanup_retry_refuses_update_history(self):
+        self.first_cancellation_cleanup_failure()
+        host.atomic(self.state / 'state.json', {'plan': {}, 'operation': None})
+        pending = (self.state / 'helper.json').read_bytes()
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'Update history or maintenance exists'):
+            self.cancel()
+        self.assertEqual((self.state / 'helper.json').read_bytes(), pending)
+        self.assertFalse((self.state / host.CANCELLATION).exists())
+        self.assertEqual(self.commands, [])
+
+    def test_cancellation_helper_daemon_failure_preserves_then_resumes_recovery(self):
+        self.pending_cancellation_helper()
+        docker = host.docker
+        def unavailable(*args, **kwargs):
+            if args[0] == 'ps' and any('host-helper=' in str(value) for value in args):
+                raise host.Failure('Docker unavailable')
+            return docker(*args, **kwargs)
+        with patch.object(host, 'docker', side_effect=unavailable):
+            with self.assertRaisesRegex(host.UnsettledHelper, 'retry the verified cancellation command'):
+                self.cancel()
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'recovery_required')
+        self.assertEqual(journal['recovery_phase'], 'rolled_back')
+        self.assertTrue((self.state / 'helper.json').exists())
+        self.assertEqual(host.read_json(self.state / host.CANCELLATION)['floor'], self.floor)
+        self.cancel()
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+
+    def test_cancellation_retry_refuses_unmarked_mutating_and_wrong_phase_helpers(self):
+        original = self.pending_cancellation_helper()
+        cases = [('cancellation_validation', False), ('readonly', False), ('entrypoint', '/app/p2pstream'), ('phase', 'applying'), ('name', 'other-helper'), ('cancellation_args', ['compose', 'up', '-d'])]
+        for field, value in cases:
+            with self.subTest(field=field):
+                pending = dict(original)
+                pending[field] = value
+                host.atomic(self.state / 'helper.json', pending)
+                self.commands.clear()
+                with self.assertRaisesRegex(host.Failure, 'not a recorded read-only cancellation'):
+                    self.cancel()
+                self.assertTrue((self.state / 'helper.json').exists())
+                self.assertEqual(self.commands, [])
+
+    def test_actual_pinned_validation_helper_marks_exact_readonly_command(self):
+        self.pending_cancellation_helper()
+        (self.state / 'helper.json').unlink()
+        controller = host.Host()
+        original_host = host.Host.__bases__[0]
+        docker = host.docker
+        def interrupted(*args, **kwargs):
+            if args[0] == 'run':
+                raise KeyboardInterrupt()
+            return docker(*args, **kwargs)
+        with controller.lock(allow_archive=True):
+            controller._cancellation_validation = True
+            # Model a killed controller, whose normal exception cleanup did not
+            # run. The production run_helper writes the real receipt first.
+            with patch.object(controller, 'settle_helper', side_effect=[None, KeyboardInterrupt()]), patch.object(host, 'docker', side_effect=interrupted):
+                with self.assertRaises(KeyboardInterrupt):
+                    original_host.compose(controller, 'ps', '--all', '--quiet', 'p2pstream')
+            pending = host.read_json(self.state / 'helper.json')
+            self.assertTrue(pending['cancellation_validation'])
+            self.assertTrue(pending['readonly'])
+            self.assertEqual(tuple(pending['cancellation_args']), controller.cancellation_helper_args()[0])
+        self.cancel()
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+
+    def test_cancellation_helper_marker_cannot_authorize_other_docker_commands(self):
+        self.pending_cancellation_helper()
+        (self.state / 'helper.json').unlink()
+        controller = host.Host()
+        with controller.lock(allow_archive=True):
+            controller._cancellation_validation = True
+            with self.assertRaisesRegex(host.Failure, 'Unexpected cancellation validation helper'):
+                host.Host.__bases__[0].compose(controller, 'logs', '--tail', '100', 'p2pstream')
+            self.assertFalse((self.state / 'helper.json').exists())
+
+    def test_archive_interrupted_after_commit_resumes_without_server_changes(self):
+        with patch.object(host.Host, 'finish_archive', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertTrue((self.state / 'archive.json').exists())
+        before = copy.deepcopy(self.info)
+        self.cancel()
+        self.assertEqual(self.info, before)
+        self.assertFalse((self.state / 'archive.json').exists())
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+
+    def test_new_setup_completes_committed_archive_and_retains_floor(self):
+        with patch.object(host.Host, 'finish_archive', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.install()
+        self.assertTrue(host.read_json(self.state / host.CANCELLATION)['completed'])
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_new_setup_rejects_each_floor_regression_before_pulls(self):
+        self.cancel()
+        original = copy.deepcopy(self.manifest)
+        cases = [('sequence', 11), ('security_epoch', 1), ('minimum_safe_version', 'v0.9.0')]
+        for field, value in cases:
+            with self.subTest(field=field):
+                self.manifest.clear()
+                self.manifest.update(original)
+                self.manifest[field] = value
+                self.commands.clear()
+                with self.assertRaisesRegex(host.Failure, 'retained enrollment floor'):
+                    self.install()
+                self.assertFalse(any(command[0] == 'docker' and command[1][0] == 'pull' for command in self.commands))
+                self.assertFalse((self.state / 'host.json').exists())
+
+    def test_same_sequence_changed_manifest_refused(self):
+        self.cancel()
+        self.manifest['sequence'] = self.floor['sequence']
+        self.args.manifest_sha256 = 'e' * 64
+        with patch.object(host, 'release_metadata', return_value=(self.manifest, self.descriptor, REF, 'e' * 64)):
+            with self.assertRaisesRegex(host.Failure, 'Release identity differs'):
+                self.install()
+
+    def test_cancellation_receipt_identity_and_channel_enforced(self):
+        self.cancel()
+        receipt = host.read_json(self.state / host.CANCELLATION)
+        for field, value in [('channel', 'staging'), ('repository', 'other/repo'), ('installation', '22222222-2222-4222-8222-222222222222')]:
+            with self.subTest(field=field):
+                changed = dict(receipt)
+                changed[field] = value
+                host.atomic(self.state / host.CANCELLATION, changed)
+                with self.assertRaisesRegex(host.Failure, 'Cancellation receipt belongs'):
+                    self.install()
 
 if __name__ == '__main__':
     unittest.main()

@@ -75,7 +75,7 @@ Host helpers have durable container identities. If the controller is interrupted
 
 Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed.
 
-If layout validation rejects preparation before `config.json` exists, the original server has not been changed. Run `sudo /etc/p2pstream-server-updater/manage discard-preparation`, correct and apply the original Compose inputs, then copy a fresh setup block. This command first confirms helper termination and refuses any enrollment configuration, update state, maintenance marker or executor. It archives staging privately without changing containers or data. Once configuration exists, use `repair` or `rollback` to preserve credentials.
+If layout validation rejects preparation before `config.json` exists, the original server has not been changed. Run `sudo /etc/p2pstream-server-updater/manage discard-preparation`, correct and apply the original Compose inputs, then copy a fresh setup block. This command first confirms helper termination and refuses any enrollment configuration, update state, maintenance marker or executor. It archives staging privately without changing containers or data. Once configuration exists, use `repair` or `rollback` to preserve credentials, or the narrowly scoped failed-enrollment cancellation below when applicable.
 
 Archival retains recovery tools and inputs until its journal commit, and resumes interrupted cleanup under the same host lock. Retry `discard-preparation` before that commit, or the fresh setup block after it; retained history and the exported current model remain private and available.
 
@@ -86,6 +86,24 @@ sudo /etc/p2pstream-server-updater/manage remove
 ```
 
 Removal strips updater credentials, control mount, executor service and managed startup ownership from the **current** deployment, retaining the latest pinned image, settings, ports, data and other services. It verifies server health before removing the stopped executor. For migrated deployments it replaces the original entry point with that current standalone model and clears its companion overrides; saved editable inputs remain available. It also exports `/etc/p2pstream-server-updater/detached-compose.json` and prints the applicable command. Recovery tools and the prior model remain available after interruption. Use the exported current model when enrolling again; completed removal state is archived privately.
+
+### Cancel a never-completed enrollment
+
+An initial setup can restore the original server and report `Original deployment restored; enrollment is not enabled`. For example, `v0.1.53-staging.103` can fail `record-runtime` with `ambiguous duplicate Docker runtime entry` when the container and service names produce identical network aliases. Its saved `manage repair` reuses the same pinned executor, so repeating repair cannot apply a later alias fix.
+
+Once a fixed release containing `cancel-enrollment` is published, use its verified bootstrap to cancel this failed enrollment before manually upgrading. This recovery path accepts only a never-completed `rolled_back` enrollment with no saved updater state (`state.json`), including preview history. It verifies the restored original deployment, installation identity, repository and channel, and refuses changed settings, unresolved helpers, runtime ownership or a running executor. It does not change the running server or its data. Failed state is archived privately, and its trust floors remain enforced for subsequent enrollment. Do not delete the state directory or lower its floors.
+
+Download `setup-server-updater.sh` from the **exact fixed release's** GitHub assets. Use the selected server's installation ID and architecture, and the SHA-256 of that fixed release's manifest. The release must use the same repository and channel as the failed enrollment. The placeholders below are not a published version or executable values:
+
+```bash
+sudo sh ./setup-server-updater.sh 'Kirari04/p2pstream@<exact-fixed-release>' \
+  '<installation-id>' '<fixed-release-manifest-sha256>' '<amd64-or-arm64>' \
+  --cancel-enrollment --
+```
+
+Cancellation accepts no Compose options and cannot be combined with `--migrate-deployment`. It uses the saved deployment context, so the fixed bundle can recover an older restored server without requiring that server to run the bundle's version. A refusal leaves the saved recovery state available; diagnose the reported condition before continuing.
+
+After cancellation succeeds, manually deploy the fixed published server image using the restored original Compose files, project and named data volume. Preserve the settings and data; follow [Upgrades](./upgrades) for applicable database and backup requirements. Then refresh the selected server's Updates page and run its fresh setup command to enroll the matching fixed executor. Cancellation alone does not install an updater, and server-only upgrades do not refresh a pinned host updater.
 
 ## Preview and update
 
