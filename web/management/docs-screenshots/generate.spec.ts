@@ -11,7 +11,7 @@ import {
   type FixtureUpstream,
 } from "./fixtures";
 
-const setupToken = "docs-screenshot-setup-token";
+const setupToken = "docs-screenshot-setup-token-not-for-production";
 const username = "admin";
 const password = "docs-screenshot-password";
 const managementPort = process.env.DOCS_SCREENSHOT_MANAGEMENT_PORT ?? "19091";
