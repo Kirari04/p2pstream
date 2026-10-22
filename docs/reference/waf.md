@@ -2,7 +2,7 @@
 
 WAF rules are global public proxy rules evaluated before rate limits, traffic shapers, route resolution, and target forwarding.
 
-In the management UI, choose **Traffic policy -> WAF**. The WAF tab contains separate dense tables for WAF rules and captcha providers, a text and enabled-state filter for rules, and the **Visitor identity & GeoIP** settings below them. The shared **Request tester** can supply a synthetic country result to preview geographic targeting without sending a request through a public listener.
+In the management UI, choose **Traffic policy -> WAF**. The WAF tab has two sub-pages: **Rules** (`/policies/waf`) holds the WAF rule table with a text and enabled-state filter, and **Captcha providers** (`/policies/waf/captcha-providers`) holds the providers that captcha rules use. Each rule row has an **Exact values** toggle that opens a full-width row with the readable match summary, the CEL expression, and the rule's exact key, action, priority, and state. Trusted proxy sources and the GeoIP database live on their own **Traffic policy -> Visitor identity** tab because they also affect rate limits, traffic shaping, captcha verification, and upstream forwarding. The shared **Request tester** can supply a synthetic country result to preview geographic targeting without sending a request through a public listener.
 
 ## Exact Fields And Defaults
 
@@ -64,7 +64,7 @@ Automatic activation defaults:
 
 ## Validation Rules
 
-Choose **Add captcha provider** under **Traffic policy -> WAF** to configure Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and represented only as saved/not-saved state after creation; they are not sent back to the UI. Captcha rules require an enabled provider.
+Choose **Add captcha provider** under **Traffic policy -> WAF -> Captcha providers** to configure Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA v2 checkbox. Provider secret keys are required, stored server-side, and represented only as saved/not-saved state after creation; they are not sent back to the UI. Captcha rules require an enabled provider.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/waf_captcha_provider_modal.png" alt="p2pstream captcha provider drawer showing provider type, site key, secret key saved state, and enabled state">
@@ -72,8 +72,8 @@ Choose **Add captcha provider** under **Traffic policy -> WAF** to configure Clo
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF tab showing a filterable WAF rule table, captcha providers, policy counts, execution order, Request tester, and Visitor identity and GeoIP settings">
-  <figcaption>The dedicated WAF tab keeps rules and captcha providers in separate compact tables. Policy counts and the execution-order strip show where WAF acts relative to the other policy tabs.</figcaption>
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF tab showing the Rules and Captcha providers sub-page switch, a filterable WAF rule table, policy counts, execution order, and Request tester">
+  <figcaption>The WAF tab shows rules first; captcha providers are a separate sub-page. Policy counts and the execution-order strip show where WAF acts relative to the other policy tabs.</figcaption>
 </figure>
 
 Block response template mode requires a selected `generic_body` response template.
@@ -92,7 +92,7 @@ WAF key parts reuse rate-limit key sources: remote IP, host, method, path, proto
 
 `REMOTE_IP` is the built-in client-IP identity source. With no trusted proxy enabled, it is the peer address seen by p2pstream and all client-IP headers are ignored. When the immediate peer belongs to an explicitly enabled trusted CDN or custom proxy source, p2pstream strictly resolves the visitor address from that source's configured header. A missing, malformed, or contradictory trusted header produces an unknown visitor address instead of trusting attacker-controlled input.
 
-`HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Configure visitor identity through **Visitor identity & GeoIP** instead.
+`HEADER` key parts remain supported for application headers such as `X-Plan`, but they cannot use forwarding or client-IP headers such as `Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `X-Forwarded-Port`, or common client-IP variants. Configure visitor identity under **Traffic policy -> Visitor identity** instead.
 
 Before upgrading from an older version that allowed arbitrary header key parts, inspect stored WAF rules:
 
@@ -109,13 +109,13 @@ Automatic trigger thresholds accept `0` to disable individual signals. CPU perce
 
 ## Country Restrictions
 
-Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic policy -> WAF**, in **Visitor identity & GeoIP**. Database credentials are stored server-side and the license key is never returned by the management API.
+Country restrictions use an automatically refreshed local MaxMind GeoLite2 Country database. They are disabled until an administrator supplies a MaxMind account ID and license key and enables GeoIP under **Traffic policy -> Visitor identity**, in **GeoLite2 Country**. Database credentials are stored server-side and the license key is never returned by the management API.
 
 ### Set Up GeoLite2 Country
 
 1. [Create a free GeoLite account](https://www.maxmind.com/en/geolite2/signup) and accept the terms that apply to your use.
 2. [Generate a MaxMind license key](https://support.maxmind.com/knowledge-base/articles/generate-a-maxmind-license-key). Record it when it is shown; MaxMind displays a new key only once.
-3. Enter the numeric account ID and license key in **Visitor identity & GeoIP**, select **Enable GeoIP country lookups**, and choose **Save GeoIP settings**. Saving enabled settings performs the initial database download; the save fails if no usable database can be installed.
+3. Enter the numeric account ID and license key in **Traffic policy -> Visitor identity -> GeoLite2 Country**, select **Enable GeoIP country lookups**, and choose **Save GeoIP settings**. Saving enabled settings performs the initial database download; the save fails if no usable database can be installed.
 4. Monitor database state, build date, last successful refresh, last attempt, and any error shown in the UI. p2pstream checks hourly and refreshes a ready database after 24 hours; failed downloads leave the last valid database active.
 5. Use **Refresh database** only when you need to force a later refresh. Pending form changes must be saved or discarded first.
 
@@ -143,7 +143,7 @@ A country is unknown when p2pstream cannot resolve a trusted visitor IP, the dat
 
 ## Trusted Proxies And CDNs
 
-No proxy source is trusted by default. Built-in presets are available for Cloudflare, Bunny, and Amazon CloudFront, and each one must be explicitly enabled by an administrator. Provider address ranges are downloaded from the provider's official endpoint and refreshed in the background; the last valid range set remains active if a refresh fails.
+Manage these sources under **Traffic policy -> Visitor identity -> Trusted proxies & CDNs**; **Add custom source** in the page header opens the custom source editor. No proxy source is trusted by default. Built-in presets are available for Cloudflare, Bunny, and Amazon CloudFront, and each one must be explicitly enabled by an administrator. Provider address ranges are downloaded from the provider's official endpoint and refreshed in the background; the last valid range set remains active if a refresh fails.
 
 The managed contracts are:
 

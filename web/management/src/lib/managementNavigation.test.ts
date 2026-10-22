@@ -28,6 +28,7 @@ describe("managementNavigation", () => {
       "Cache",
       "Retries",
       "Traffic shaper",
+      "Visitor identity",
     ]);
     expect(MANAGEMENT_NAVIGATION[2]?.items.map((item) => item.label)).toEqual(["Environments", "API tokens", "Management TLS", "Server updates"]);
   });
@@ -77,6 +78,32 @@ describe("managementNavigation", () => {
     expect(isManagementNavigationItemActive(managementTls!, "/settings/management-tls/rotation")).toBe(true);
     expect(managementBreadcrumbsForPath("/settings/management-tls/rotation").map((crumb) => crumb.label)).toEqual(["System", "Management TLS"]);
     expect(isManagementNavigationItemActive(managementTls!, "/settings/management-tls-other")).toBe(false);
+  });
+
+  test("keeps WAF active and adds a breadcrumb on its captcha providers sub-page", () => {
+    const trafficPolicy = MANAGEMENT_NAVIGATION[1]?.items[2];
+    const waf = trafficPolicy?.children?.find((item) => item.key === "policy-waf");
+    const rateLimits = trafficPolicy?.children?.find((item) => item.key === "policy-rate-limits");
+    expect(waf).toBeDefined();
+    expect(waf?.children).toBeUndefined();
+    expect(isManagementNavigationItemActive(waf!, "/policies/waf")).toBe(true);
+    expect(isManagementNavigationItemActive(waf!, "/policies/waf/captcha-providers")).toBe(true);
+    expect(isManagementNavigationItemActive(waf!, "/policies/waffle")).toBe(false);
+    expect(rateLimits && isManagementNavigationItemActive(rateLimits, "/policies/waf/captcha-providers")).toBe(false);
+    expect(trafficPolicy && isManagementNavigationItemActive(trafficPolicy, "/policies/waf/captcha-providers")).toBe(true);
+    expect(managementBreadcrumbsForPath("/policies/waf")).toEqual([
+      { key: "configure", label: "Configure" },
+      { key: "traffic-policy", label: "Traffic policy", path: "/policies/rate-limits" },
+      { key: "policy-waf", label: "WAF", path: "/policies/waf" },
+    ]);
+    expect(managementBreadcrumbsForPath("/policies/waf/captcha-providers")).toEqual([
+      { key: "configure", label: "Configure" },
+      { key: "traffic-policy", label: "Traffic policy", path: "/policies/rate-limits" },
+      { key: "policy-waf", label: "WAF", path: "/policies/waf" },
+      { key: "policy-waf-captcha-providers", label: "Captcha providers", path: "/policies/waf/captcha-providers" },
+    ]);
+    expect(managementRouteLabel("/policies/waf/captcha-providers")).toBe("Captcha providers");
+    expect(managementRouteLabel("/policies/visitor-identity")).toBe("Visitor identity");
   });
 
   test("returns the deepest route label with a safe fallback", () => {

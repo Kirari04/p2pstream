@@ -4,7 +4,6 @@ import {
   Cloud as CloudIcon,
   KeyRound as KeyIcon,
   Pencil as PencilIcon,
-  Plus as PlusIcon,
   RefreshCw as RefreshIcon,
   ShieldCheck as ShieldIcon,
 } from "@lucide/vue";
@@ -122,6 +121,8 @@ function openEditProxy(source: PublicTrustedProxySource) {
 function closeProxyEditor() {
   proxyEditorOpen.value = false;
 }
+
+defineExpose({ openCreateProxy });
 
 async function run(action: () => Promise<void>, successMessage?: string): Promise<boolean> {
   if (!runManagementAction) return false;
@@ -241,230 +242,211 @@ function sourceRangesStale(source: PublicTrustedProxySource): boolean {
 </script>
 
 <template>
-  <SectionCard
-    class="visitor-identity"
-    title="Visitor identity & GeoIP"
-    description="Resolve the visitor address before WAF, rate limits, traffic shaping, captcha verification, and upstream forwarding."
-  >
-    <template #badge>
-      <NTag size="small" :bordered="false" :type="enabledSources.length ? 'info' : 'default'">{{ trustSummary }}</NTag>
-    </template>
+  <div class="visitor-identity">
+    <p class="visitor-identity__note copy-xs line-normal muted-text">
+      <ShieldIcon class="icon-sm no-shrink" aria-hidden="true" />
+      <span>
+        <strong class="base-text weight-medium">No proxy or CDN is trusted by default.</strong>
+        Client-IP headers are ignored unless the network peer belongs to an enabled source below. Conflicting or malformed trusted headers resolve to an unknown visitor.
+      </span>
+    </p>
 
-    <div class="visitor-identity__body">
-      <p class="visitor-identity__note copy-xs line-normal muted-text">
-        <ShieldIcon class="icon-sm no-shrink" aria-hidden="true" />
-        <span>
-          <strong class="base-text weight-medium">No proxy or CDN is trusted by default.</strong>
-          Client-IP headers are ignored unless the network peer belongs to an enabled source below. Conflicting or malformed trusted headers resolve to an unknown visitor.
-        </span>
-      </p>
-
-      <SectionCard
-        variant="plain"
-        :heading-level="3"
-        class="visitor-identity__group"
-        title="GeoLite2 Country"
-        description="Lookups stay local. MaxMind credentials are used only to maintain the country database; the license key is never returned by the API."
-      >
-        <template #badge>
-          <NTag
-            size="small"
-            :bordered="false"
-            :type="geoIpSettings?.enabled && geoIpStatus?.ready ? 'success' : geoIpSettings?.enabled ? 'warning' : 'default'"
-          >
-            {{ !geoIpSettings?.enabled ? 'Disabled' : geoIpStatus?.ready ? 'Ready' : 'Not ready' }}
-          </NTag>
-        </template>
-        <template #actions>
-          <DisabledHint :disabled="Boolean(geoRefreshDisabledReason)" :reason="geoRefreshDisabledReason">
-            <NButton secondary size="small" :disabled="Boolean(geoRefreshDisabledReason)" @click="refreshGeoIpDatabase">
-              <template #icon><RefreshIcon class="icon-sm" /></template>
-              Refresh database
-            </NButton>
-          </DisabledHint>
-        </template>
-
-        <div class="layout-grid space-lg">
-          <NAlert v-if="geoIpStatus?.lastUpdateError" type="warning" :show-icon="false" :bordered="false" class="wrap-anywhere">
-            <strong>Last refresh failed.</strong> <bdi dir="ltr">{{ diagnosticInspectionText(geoIpStatus.lastUpdateError) }}</bdi>
-            <span v-if="geoIpStatus.ready"> The last valid database remains active.</span>
-          </NAlert>
-          <NAlert v-if="geoDatabaseStale" type="warning" :show-icon="false" :bordered="false">
-            <strong>The country database has not refreshed successfully in more than 24 hours.</strong>
-            The last valid database remains active; check credentials and outbound access if the next automatic refresh also fails.
-          </NAlert>
-          <p v-if="geoRefreshDisabledReason" class="copy-xs line-normal muted-text" role="status">
-            Database refresh unavailable: {{ geoRefreshDisabledReason }}
-          </p>
-
-          <dl class="visitor-identity__facts" aria-label="GeoIP database status">
-            <div>
-              <dt>Database</dt>
-              <dd>{{ geoIpStatus?.databaseType || 'No database loaded' }}</dd>
-            </div>
-            <div>
-              <dt>Build date</dt>
-              <dd>{{ formatTimestamp(geoIpStatus?.buildAtUnixMillis) }}</dd>
-            </div>
-            <div>
-              <dt>Last success</dt>
-              <dd>{{ formatTimestamp(geoIpStatus?.lastUpdateSuccessAtUnixMillis) }}</dd>
-            </div>
-            <div>
-              <dt>Last attempt</dt>
-              <dd>{{ formatTimestamp(geoIpStatus?.lastUpdateAttemptAtUnixMillis) }}</dd>
-            </div>
-          </dl>
-
-          <form class="layout-grid space-lg" @submit.prevent="saveGeoIpSettings">
-            <div class="layout-grid space-lg mq-sm-cols-two">
-              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
-                MaxMind account ID
-                <NInput v-model:value="geoForm.maxmindAccountId" size="small" :maxlength="64" autocomplete="off" placeholder="Account ID" />
-              </label>
-              <label class="layout-grid space-xs copy-xs weight-medium muted-text">
-                MaxMind license key
-                <NInput
-                  v-model:value="geoForm.maxmindLicenseKey"
-                  size="small"
-                  type="password"
-                  :maxlength="256"
-                  autocomplete="new-password"
-                  :disabled="geoForm.clearLicenseKey"
-                  :placeholder="geoForm.licenseKeySaved ? 'Saved — leave blank to retain' : 'License key'"
-                >
-                  <template #prefix><KeyIcon class="icon-sm muted-text" aria-hidden="true" /></template>
-                </NInput>
-              </label>
-            </div>
-            <p v-if="geoSaveDisabledReason" class="copy-xs line-normal muted-text" role="status">
-              GeoIP settings cannot be saved: {{ geoSaveDisabledReason }}
-            </p>
-            <div class="layout-row wrap-items align-center spread-items space-lg">
-              <div class="layout-row wrap-items align-center space-lg">
-                <NCheckbox v-model:checked="geoForm.enabled">Enable GeoIP country lookups</NCheckbox>
-                <NCheckbox v-if="geoForm.licenseKeySaved" v-model:checked="geoForm.clearLicenseKey">
-                  Clear saved license key
-                </NCheckbox>
-              </div>
-              <div class="layout-row wrap-items align-center space-sm">
-                <NButton v-if="geoFormDirty" secondary size="small" attr-type="button" :disabled="isBusy" @click="discardGeoIpChanges">
-                  Discard changes
-                </NButton>
-                <DisabledHint :disabled="Boolean(geoSaveDisabledReason)" :reason="geoSaveDisabledReason">
-                  <NButton type="primary" size="small" attr-type="submit" :disabled="Boolean(geoSaveDisabledReason)">
-                    Save GeoIP settings
-                  </NButton>
-                </DisabledHint>
-              </div>
-            </div>
-          </form>
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        variant="plain"
-        :heading-level="3"
-        class="visitor-identity__group"
-        title="Trusted proxies & CDNs"
-        description="Trust establishes visitor identity only. Restrict direct access to the origin separately when traffic must pass through a CDN."
-      >
-        <template #actions>
-          <NButton secondary size="small" :disabled="isBusy" @click="openCreateProxy">
-            <template #icon><PlusIcon class="icon-sm" /></template>
-            Add custom source
+    <SectionCard
+      title="GeoLite2 Country"
+      description="Lookups stay local. MaxMind credentials are used only to maintain the country database; the license key is never returned by the API."
+    >
+      <template #badge>
+        <NTag
+          size="small"
+          :bordered="false"
+          :type="geoIpSettings?.enabled && geoIpStatus?.ready ? 'success' : geoIpSettings?.enabled ? 'warning' : 'default'"
+        >
+          {{ !geoIpSettings?.enabled ? 'Disabled' : geoIpStatus?.ready ? 'Ready' : 'Not ready' }}
+        </NTag>
+      </template>
+      <template #actions>
+        <DisabledHint :disabled="Boolean(geoRefreshDisabledReason)" :reason="geoRefreshDisabledReason">
+          <NButton secondary size="small" :disabled="Boolean(geoRefreshDisabledReason)" @click="refreshGeoIpDatabase">
+            <template #icon><RefreshIcon class="icon-sm" /></template>
+            Refresh database
           </NButton>
-        </template>
+        </DisabledHint>
+      </template>
 
-        <div class="layout-grid space-lg">
-          <div v-if="builtInSources.length" class="visitor-identity__sources divided-list" aria-label="Built-in trusted proxy sources">
-            <article v-for="source in builtInSources" :key="source.id.toString()" class="visitor-identity__source">
+      <div class="layout-grid space-lg">
+        <NAlert v-if="geoIpStatus?.lastUpdateError" type="warning" :show-icon="false" :bordered="false" class="wrap-anywhere">
+          <strong>Last refresh failed.</strong> <bdi dir="ltr">{{ diagnosticInspectionText(geoIpStatus.lastUpdateError) }}</bdi>
+          <span v-if="geoIpStatus.ready"> The last valid database remains active.</span>
+        </NAlert>
+        <NAlert v-if="geoDatabaseStale" type="warning" :show-icon="false" :bordered="false">
+          <strong>The country database has not refreshed successfully in more than 24 hours.</strong>
+          The last valid database remains active; check credentials and outbound access if the next automatic refresh also fails.
+        </NAlert>
+        <p v-if="geoRefreshDisabledReason" class="copy-xs line-normal muted-text" role="status">
+          Database refresh unavailable: {{ geoRefreshDisabledReason }}
+        </p>
+
+        <dl class="visitor-identity__facts" aria-label="GeoIP database status">
+          <div>
+            <dt>Database</dt>
+            <dd>{{ geoIpStatus?.databaseType || 'No database loaded' }}</dd>
+          </div>
+          <div>
+            <dt>Build date</dt>
+            <dd>{{ formatTimestamp(geoIpStatus?.buildAtUnixMillis) }}</dd>
+          </div>
+          <div>
+            <dt>Last success</dt>
+            <dd>{{ formatTimestamp(geoIpStatus?.lastUpdateSuccessAtUnixMillis) }}</dd>
+          </div>
+          <div>
+            <dt>Last attempt</dt>
+            <dd>{{ formatTimestamp(geoIpStatus?.lastUpdateAttemptAtUnixMillis) }}</dd>
+          </div>
+        </dl>
+
+        <form class="layout-grid space-lg" @submit.prevent="saveGeoIpSettings">
+          <div class="layout-grid space-lg mq-sm-cols-two">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+              MaxMind account ID
+              <NInput v-model:value="geoForm.maxmindAccountId" size="small" :maxlength="64" autocomplete="off" placeholder="Account ID" />
+            </label>
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+              MaxMind license key
+              <NInput
+                v-model:value="geoForm.maxmindLicenseKey"
+                size="small"
+                type="password"
+                :maxlength="256"
+                autocomplete="new-password"
+                :disabled="geoForm.clearLicenseKey"
+                :placeholder="geoForm.licenseKeySaved ? 'Saved — leave blank to retain' : 'License key'"
+              >
+                <template #prefix><KeyIcon class="icon-sm muted-text" aria-hidden="true" /></template>
+              </NInput>
+            </label>
+          </div>
+          <p v-if="geoSaveDisabledReason" class="copy-xs line-normal muted-text" role="status">
+            GeoIP settings cannot be saved: {{ geoSaveDisabledReason }}
+          </p>
+          <div class="layout-row wrap-items align-center spread-items space-lg">
+            <div class="layout-row wrap-items align-center space-lg">
+              <NCheckbox v-model:checked="geoForm.enabled">Enable GeoIP country lookups</NCheckbox>
+              <NCheckbox v-if="geoForm.licenseKeySaved" v-model:checked="geoForm.clearLicenseKey">
+                Clear saved license key
+              </NCheckbox>
+            </div>
+            <div class="layout-row wrap-items align-center space-sm">
+              <NButton v-if="geoFormDirty" secondary size="small" attr-type="button" :disabled="isBusy" @click="discardGeoIpChanges">
+                Discard changes
+              </NButton>
+              <DisabledHint :disabled="Boolean(geoSaveDisabledReason)" :reason="geoSaveDisabledReason">
+                <NButton type="primary" size="small" attr-type="submit" :disabled="Boolean(geoSaveDisabledReason)">
+                  Save GeoIP settings
+                </NButton>
+              </DisabledHint>
+            </div>
+          </div>
+        </form>
+      </div>
+    </SectionCard>
+
+    <SectionCard
+      title="Trusted proxies & CDNs"
+      description="Trust establishes visitor identity only. Restrict direct access to the origin separately when traffic must pass through a CDN."
+    >
+      <template #badge>
+        <NTag size="small" :bordered="false" :type="enabledSources.length ? 'info' : 'default'">{{ trustSummary }}</NTag>
+      </template>
+
+      <div class="layout-grid space-lg">
+        <div v-if="builtInSources.length" class="visitor-identity__sources divided-list" aria-label="Built-in trusted proxy sources">
+          <article v-for="source in builtInSources" :key="source.id.toString()" class="visitor-identity__source">
+            <div class="layout-grid space-2xs min-width-zero">
+              <div class="layout-row wrap-items align-center space-sm">
+                <CloudIcon class="icon-sm muted-text" aria-hidden="true" />
+                <h3 class="copy-sm weight-semibold">{{ providerLabel(source.provider) }}</h3>
+                <NTag size="small" :bordered="false" :type="source.enabled ? 'success' : 'default'">
+                  {{ source.enabled ? 'Trusted' : 'Not trusted' }}
+                </NTag>
+                <NTag v-if="source.lastRefreshError" size="small" :bordered="false" type="warning">Refresh issue</NTag>
+                <NTag v-else-if="sourceRangesStale(source)" size="small" :bordered="false" type="warning">Stale ranges</NTag>
+              </div>
+              <p class="copy-xs line-normal muted-text">{{ providerDescription(source.provider) }}</p>
+              <p class="copy-xs mono-text wrap-anywhere muted-text">
+                {{ source.headerName }} · {{ headerModeLabel(source.headerMode) }} · {{ source.cidrCount.toString() }} peer ranges
+              </p>
+              <p class="copy-xs line-normal muted-text">
+                Last success: {{ formatTimestamp(source.lastRefreshSuccessAtUnixMillis) }} ·
+                Last attempt: {{ formatTimestamp(source.lastRefreshAttemptAtUnixMillis) }}
+              </p>
+              <p v-if="source.lastRefreshError" class="copy-xs line-normal warning-text wrap-anywhere">
+                <bdi dir="ltr">{{ diagnosticInspectionText(source.lastRefreshError) }}</bdi><span v-if="source.cidrCount > 0n"> Last valid ranges remain active.</span>
+              </p>
+              <p v-else-if="sourceRangesStale(source)" class="copy-xs line-normal warning-text">
+                These managed ranges have not refreshed successfully in more than 24 hours. The last valid ranges remain active.
+              </p>
+            </div>
+            <div class="visitor-identity__source-actions">
+              <NButton
+                secondary
+                size="small"
+                :disabled="isBusy"
+                :aria-label="`Refresh ${providerLabel(source.provider)} ranges`"
+                @click="refreshSource(source)"
+              >
+                <template #icon><RefreshIcon class="icon-sm" /></template>
+                Refresh
+              </NButton>
+              <NButton
+                size="small"
+                secondary
+                :disabled="isBusy"
+                :aria-label="`${source.enabled ? 'Disable' : 'Enable'} trust for ${providerLabel(source.provider)}`"
+                @click="setSourceEnabled(source, !source.enabled)"
+              >
+                {{ source.enabled ? 'Disable trust' : 'Enable trust' }}
+              </NButton>
+            </div>
+          </article>
+        </div>
+
+        <div class="layout-grid space-sm">
+          <div class="layout-row align-center space-sm">
+            <h3 class="copy-sm weight-semibold base-text">Custom sources</h3>
+            <NTag size="small" :bordered="false">{{ customSources.length.toString() }}</NTag>
+          </div>
+          <div v-if="customSources.length" class="visitor-identity__sources divided-list" aria-label="Custom trusted proxy sources">
+            <article v-for="source in customSources" :key="source.id.toString()" class="visitor-identity__source">
               <div class="layout-grid space-2xs min-width-zero">
                 <div class="layout-row wrap-items align-center space-sm">
-                  <CloudIcon class="icon-sm muted-text" aria-hidden="true" />
-                  <h4 class="copy-sm weight-semibold">{{ providerLabel(source.provider) }}</h4>
+                  <h4 class="copy-sm weight-semibold wrap-anywhere">{{ source.name }}</h4>
                   <NTag size="small" :bordered="false" :type="source.enabled ? 'success' : 'default'">
                     {{ source.enabled ? 'Trusted' : 'Not trusted' }}
                   </NTag>
-                  <NTag v-if="source.lastRefreshError" size="small" :bordered="false" type="warning">Refresh issue</NTag>
-                  <NTag v-else-if="sourceRangesStale(source)" size="small" :bordered="false" type="warning">Stale ranges</NTag>
                 </div>
-                <p class="copy-xs line-normal muted-text">{{ providerDescription(source.provider) }}</p>
                 <p class="copy-xs mono-text wrap-anywhere muted-text">
-                  {{ source.headerName }} · {{ headerModeLabel(source.headerMode) }} · {{ source.cidrCount.toString() }} peer ranges
-                </p>
-                <p class="copy-xs line-normal muted-text">
-                  Last success: {{ formatTimestamp(source.lastRefreshSuccessAtUnixMillis) }} ·
-                  Last attempt: {{ formatTimestamp(source.lastRefreshAttemptAtUnixMillis) }}
-                </p>
-                <p v-if="source.lastRefreshError" class="copy-xs line-normal warning-text wrap-anywhere">
-                  <bdi dir="ltr">{{ diagnosticInspectionText(source.lastRefreshError) }}</bdi><span v-if="source.cidrCount > 0n"> Last valid ranges remain active.</span>
-                </p>
-                <p v-else-if="sourceRangesStale(source)" class="copy-xs line-normal warning-text">
-                  These managed ranges have not refreshed successfully in more than 24 hours. The last valid ranges remain active.
+                  {{ source.headerName }} · {{ headerModeLabel(source.headerMode) }} · {{ source.cidrs.length.toString() }} peer CIDRs
                 </p>
               </div>
               <div class="visitor-identity__source-actions">
-                <NButton
-                  secondary
-                  size="small"
-                  :disabled="isBusy"
-                  :aria-label="`Refresh ${providerLabel(source.provider)} ranges`"
-                  @click="refreshSource(source)"
-                >
-                  <template #icon><RefreshIcon class="icon-sm" /></template>
-                  Refresh
+                <NButton secondary size="small" :disabled="isBusy" :aria-label="`Edit trusted proxy source ${source.name}`" @click="openEditProxy(source)">
+                  <template #icon><PencilIcon class="icon-sm" /></template>
+                  Edit
                 </NButton>
-                <NButton
-                  size="small"
-                  secondary
-                  :disabled="isBusy"
-                  :aria-label="`${source.enabled ? 'Disable' : 'Enable'} trust for ${providerLabel(source.provider)}`"
-                  @click="setSourceEnabled(source, !source.enabled)"
-                >
-                  {{ source.enabled ? 'Disable trust' : 'Enable trust' }}
+                <NButton type="error" secondary size="small" :disabled="isBusy" :aria-label="`Delete trusted proxy source ${source.name}`" @click="deleteProxy(source)">
+                  Delete
                 </NButton>
               </div>
             </article>
           </div>
-
-          <div class="layout-grid space-sm">
-            <div class="layout-row align-center space-sm">
-              <h4 class="copy-sm weight-semibold base-text">Custom sources</h4>
-              <NTag size="small" :bordered="false">{{ customSources.length.toString() }}</NTag>
-            </div>
-            <div v-if="customSources.length" class="visitor-identity__sources divided-list" aria-label="Custom trusted proxy sources">
-              <article v-for="source in customSources" :key="source.id.toString()" class="visitor-identity__source">
-                <div class="layout-grid space-2xs min-width-zero">
-                  <div class="layout-row wrap-items align-center space-sm">
-                    <h5 class="copy-sm weight-semibold wrap-anywhere">{{ source.name }}</h5>
-                    <NTag size="small" :bordered="false" :type="source.enabled ? 'success' : 'default'">
-                      {{ source.enabled ? 'Trusted' : 'Not trusted' }}
-                    </NTag>
-                  </div>
-                  <p class="copy-xs mono-text wrap-anywhere muted-text">
-                    {{ source.headerName }} · {{ headerModeLabel(source.headerMode) }} · {{ source.cidrs.length.toString() }} peer CIDRs
-                  </p>
-                </div>
-                <div class="visitor-identity__source-actions">
-                  <NButton secondary size="small" :disabled="isBusy" :aria-label="`Edit trusted proxy source ${source.name}`" @click="openEditProxy(source)">
-                    <template #icon><PencilIcon class="icon-sm" /></template>
-                    Edit
-                  </NButton>
-                  <NButton type="error" secondary size="small" :disabled="isBusy" :aria-label="`Delete trusted proxy source ${source.name}`" @click="deleteProxy(source)">
-                    Delete
-                  </NButton>
-                </div>
-              </article>
-            </div>
-            <p v-else class="visitor-identity__empty copy-xs line-normal muted-text">
-              No custom proxy source is trusted. Add one only for a proxy whose peer networks and header behavior you control.
-            </p>
-          </div>
+          <p v-else class="visitor-identity__empty copy-xs line-normal muted-text">
+            No custom proxy source is trusted. Add one only for a proxy whose peer networks and header behavior you control.
+          </p>
         </div>
-      </SectionCard>
-    </div>
-  </SectionCard>
+      </div>
+    </SectionCard>
+  </div>
 
   <NDrawer
     v-model:show="proxyEditorOpen"
@@ -543,8 +525,9 @@ function sourceRangesStale(source: PublicTrustedProxySource): boolean {
 </template>
 
 <style scoped>
-.visitor-identity__body {
+.visitor-identity {
   display: grid;
+  min-width: 0;
   gap: 1.5rem;
 }
 
@@ -560,11 +543,6 @@ function sourceRangesStale(source: PublicTrustedProxySource): boolean {
 
 .visitor-identity__note > svg {
   margin-top: 0.0625rem;
-}
-
-.visitor-identity__group {
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 1.25rem;
 }
 
 .visitor-identity__facts {

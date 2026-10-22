@@ -55,7 +55,12 @@ const routes = [
   { path: '/proxy/:section(sites|listeners)', name: 'proxy', component: ProxyConfig },
   { path: '/proxy/:pathMatch(.*)*', redirect: '/proxy/sites' },
   { path: '/policies', redirect: '/policies/rate-limits' },
-  { path: '/policies/:section(rate-limits|waf|access|cache|retries|traffic-shaper)', name: 'policies', component: TrafficPolicies },
+  // WAF has route-backed sub-pages: /policies/waf (rules) and /policies/waf/captcha-providers.
+  {
+    path: '/policies/:section(rate-limits|waf|waf/captcha-providers|access|cache|retries|traffic-shaper|visitor-identity)',
+    name: 'policies',
+    component: TrafficPolicies,
+  },
   { path: '/policies/:pathMatch(.*)*', redirect: '/policies/rate-limits' },
   { path: '/templates', name: 'templates', component: ResponseTemplates },
   { path: '/tls', name: 'tls', component: TlsConfig },

@@ -32,6 +32,7 @@ const allNavigationDestinations = [
   "Cache",
   "Retries",
   "Traffic shaper",
+  "Visitor identity",
   "Templates",
   "TLS",
   "Environments",

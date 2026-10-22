@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, watch } from "vue";
+import { RouterLink } from "vue-router";
 import { Trash2 as TrashIcon } from "@lucide/vue";
 import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber, NTag } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
@@ -573,7 +574,9 @@ defineExpose({ openCreate, openEdit, close });
               :disabled="!providers.length"
             />
             <span v-if="!providers.length" class="weight-normal muted-text">
-              Add a captcha provider in the WAF section before creating a captcha rule.
+              Add a captcha provider in
+              <RouterLink to="/policies/waf/captcha-providers" @click="isOpen = false">WAF → Captcha providers</RouterLink>
+              before creating a captcha rule.
             </span>
             <span v-else-if="!enabledProviders.length" class="weight-normal warning-text">
               All configured captcha providers are disabled.

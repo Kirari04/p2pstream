@@ -4,8 +4,8 @@ import { authenticate } from "./helpers/auth";
 test("keeps unsaved GeoIP credentials through automatic configuration refresh", async ({ page }, testInfo) => {
   const baseURL = testInfo.project.use.baseURL as string;
   await authenticate(page, baseURL);
-  await page.goto("/#/policies/waf");
-  await expect(page.getByRole("heading", { name: "Visitor identity & GeoIP" })).toBeVisible();
+  await page.goto("/#/policies/visitor-identity");
+  await expect(page.getByRole("heading", { name: "GeoLite2 Country" })).toBeVisible();
 
   const accountId = page.getByLabel("MaxMind account ID");
   await accountId.fill("987654321");

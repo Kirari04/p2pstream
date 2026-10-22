@@ -187,7 +187,7 @@ The target response-header timeout limits only the wait for first upstream heade
 
 | Cause | Fix |
 | --- | --- |
-| p2pstream sees one proxy IP | Under **Traffic policy → WAF → Visitor identity & GeoIP**, enable only the actual CDN preset or configure the proxy's peer CIDRs and overwritten client-IP header. Otherwise keep using peer identity or non-forwarding application keys. |
+| p2pstream sees one proxy IP | Under **Traffic policy → Visitor identity**, enable only the actual CDN preset or configure the proxy's peer CIDRs and overwritten client-IP header. Otherwise keep using peer identity or non-forwarding application keys. |
 | Rule too broad | Add host/path/method matchers. |
 | Priority conflict | Move specific rules to lower priority numbers. |
 

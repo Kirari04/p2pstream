@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { toJsonString } from "@bufbuild/protobuf";
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch, type HTMLAttributes } from "vue";
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from "vue-router";
+import { onBeforeRouteLeave, onBeforeRouteUpdate, RouterLink, useRoute, useRouter } from "vue-router";
+import { ChevronRight as ChevronRightIcon } from "@lucide/vue";
 import { Pencil as PencilIcon } from "@lucide/vue";
 import { Plus as PlusIcon } from "@lucide/vue";
 import { Search as SearchIcon } from "@lucide/vue";
@@ -15,6 +15,7 @@ import TrafficPolicyExecutionOrderStrip from "@/components/traffic-policy/Traffi
 import TrafficPolicyRequestPlayground from "@/components/traffic-policy/TrafficPolicyRequestPlayground.vue";
 import PublicAccessControlSettings from "@/components/traffic-policy/PublicAccessControlSettings.vue";
 import PublicVisitorIdentitySettings from "@/components/traffic-policy/PublicVisitorIdentitySettings.vue";
+import PolicyExactValues, { type PolicyExactValue } from "@/components/traffic-policy/PolicyExactValues.vue";
 import CacheStorageUsage from "@/components/traffic-policy/CacheStorageUsage.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
@@ -74,15 +75,18 @@ import type {
   PublicWafCaptchaProvider,
   PublicWafRule,
 } from "@/gen/proto/p2pstream/v1/management_pb";
-import { PublicPolicyMatchRuleSchema, PublicRetryBodyMode, PublicRetryFailureMode, PublicRetryResponseBodyMode } from "@/gen/proto/p2pstream/v1/management_pb";
+import { PublicRetryBodyMode, PublicRetryFailureMode, PublicRetryResponseBodyMode } from "@/gen/proto/p2pstream/v1/management_pb";
 
-const policySectionKeys = ["rate-limits", "waf", "access", "cache", "retries", "traffic-shaper"] as const;
+const policySectionKeys = ["rate-limits", "waf", "access", "cache", "retries", "traffic-shaper", "visitor-identity"] as const;
 type PolicySectionKey = typeof policySectionKeys[number];
+type PolicyFilterKey = Exclude<PolicySectionKey, "visitor-identity">;
 type PolicySectionMeta = {
   key: PolicySectionKey;
   label: string;
   description: string;
 };
+type WafSubpageKey = "rules" | "captcha-providers";
+type PolicyExactListKey = "rate-limit" | "waf" | "captcha-provider" | "cache" | "retry" | "traffic-shaper";
 type PolicyFilterStatus = "all" | "enabled" | "disabled";
 type PolicyFilter = {
   text: string;
@@ -127,7 +131,7 @@ const enabledAccessPolicies = computed(() => accessPolicies.value.filter((policy
 const enabledCacheRules = computed(() => cacheRules.value.filter((rule) => rule.enabled).length);
 const enabledRetryRules = computed(() => retryRules.value.filter((rule) => rule.enabled).length);
 const enabledTrafficShapers = computed(() => trafficShaperRules.value.filter((rule) => rule.enabled).length);
-const policyFilters = reactive<Record<PolicySectionKey, PolicyFilter>>({
+const policyFilters = reactive<Record<PolicyFilterKey, PolicyFilter>>({
   "rate-limits": { text: "", status: "all" },
   waf: { text: "", status: "all" },
   access: { text: "", status: "all" },
@@ -200,6 +204,8 @@ const previewTargetOptions = computed(() => (config.value?.routeTargets ?? [])
   })));
 
 const editorHost = ref<InstanceType<typeof PublicProxyEditorHost> | null>(null);
+const visitorIdentitySettings = ref<InstanceType<typeof PublicVisitorIdentitySettings> | null>(null);
+const openExactValues = reactive(new Set<string>());
 const isPreviewOpen = ref(false);
 const { confirm } = useConfirmDialog();
 
@@ -245,18 +251,51 @@ const policySections: readonly PolicySectionMeta[] = [
     label: "Traffic shaper",
     description: "Limit bandwidth consumption per request or client.",
   },
+  {
+    key: "visitor-identity",
+    label: "Visitor identity",
+    description: "Resolve the visitor address and country before WAF, rate limits, traffic shaping, captcha verification, and upstream forwarding.",
+  },
+];
+const wafSubpages: readonly { key: WafSubpageKey; label: string; path: string; description: string }[] = [
+  {
+    key: "rules",
+    label: "Rules",
+    path: "/policies/waf",
+    description: "Block, challenge, or queue matching application traffic before it reaches routes.",
+  },
+  {
+    key: "captcha-providers",
+    label: "Captcha providers",
+    path: "/policies/waf/captcha-providers",
+    description: "Credentials that WAF captcha rules use to challenge visitors.",
+  },
 ];
 const activePolicySection = computed<PolicySectionKey>(() => normalizePolicySection(route.params.section));
+const activeWafSubpage = computed<WafSubpageKey>(() => (
+  routeSectionParam(route.params.section) === "waf/captcha-providers" ? "captcha-providers" : "rules"
+));
 const policyPrimaryActions: Partial<Record<PolicySectionKey, { label: string; run: () => void }>> = {
   "rate-limits": { label: "Add rate-limit rule", run: openAddRateLimitRuleModal },
   waf: { label: "Add WAF rule", run: openAddWafRuleModal },
   cache: { label: "Add cache rule", run: openAddCacheRuleModal },
   retries: { label: "Add retry rule", run: openAddRetryRuleModal },
   "traffic-shaper": { label: "Add traffic shaper", run: openAddTrafficShaperRuleModal },
+  "visitor-identity": { label: "Add custom source", run: openAddTrustedProxySource },
 };
-const activePolicyPrimaryAction = computed(() => policyPrimaryActions[activePolicySection.value]);
+const activePolicyPrimaryAction = computed(() => {
+  if (activePolicySection.value === "waf" && activeWafSubpage.value === "captcha-providers") {
+    return { label: "Add captcha provider", run: openAddWafCaptchaProviderModal };
+  }
+  return policyPrimaryActions[activePolicySection.value];
+});
 const activePolicyMeta = computed(() => (
   policySections.find((section) => section.key === activePolicySection.value) ?? policySections[0]
+));
+const activePolicyDescription = computed(() => (
+  activePolicySection.value === "waf"
+    ? wafSubpages.find((page) => page.key === activeWafSubpage.value)?.description ?? activePolicyMeta.value.description
+    : activePolicyMeta.value.description
 ));
 const cacheSettingsErrors = computed<Record<CacheSettingsField, string>>(() => ({
   maxDiskMiB: positiveWholeNumberError(cacheSettingsForm.maxDiskMiB, "Disk budget", "MiB"),
@@ -306,8 +345,14 @@ async function run(action: () => Promise<void>, successMessage?: string): Promis
   return runManagementAction(action, successMessage);
 }
 
-function normalizePolicySection(value: unknown): PolicySectionKey {
+function routeSectionParam(value: unknown): string {
   const section = Array.isArray(value) ? value[0] : value;
+  return typeof section === "string" ? section : "";
+}
+
+function normalizePolicySection(value: unknown): PolicySectionKey {
+  const section = routeSectionParam(value);
+  if (section === "waf/captcha-providers") return "waf";
   return policySectionKeys.includes(section as PolicySectionKey) ? section as PolicySectionKey : "rate-limits";
 }
 
@@ -352,17 +397,17 @@ function enabledCountLabel(enabled: number, total: number): string {
   return `${enabled.toString()} of ${total.toString()} enabled`;
 }
 
-function isPolicyFilterActive(section: PolicySectionKey): boolean {
+function isPolicyFilterActive(section: PolicyFilterKey): boolean {
   const filter = policyFilters[section];
   return Boolean(filter.text.trim()) || filter.status !== "all";
 }
 
-function policyFilterResultLabel(section: PolicySectionKey, visible: number, total: number): string {
+function policyFilterResultLabel(section: PolicyFilterKey, visible: number, total: number): string {
   if (!isPolicyFilterActive(section)) return countLabel(total, "rule");
   return `${visible.toString()} of ${countLabel(total, "rule")} shown`;
 }
 
-function clearPolicyFilter(section: PolicySectionKey) {
+function clearPolicyFilter(section: PolicyFilterKey) {
   policyFilters[section].text = "";
   policyFilters[section].status = "all";
 }
@@ -370,7 +415,7 @@ function clearPolicyFilter(section: PolicySectionKey) {
 function filterPolicyRules<T extends { enabled: boolean; id: bigint }>(
   rules: readonly T[],
   kind: TrafficPolicyKind,
-  section: PolicySectionKey,
+  section: PolicyFilterKey,
   searchText: (rule: T) => string,
 ): T[] {
   const filter = policyFilters[section];
@@ -384,12 +429,107 @@ function filterPolicyRules<T extends { enabled: boolean; id: bigint }>(
   });
 }
 
-function exactPolicyMatch(rule?: PublicPolicyMatchRule): string {
-  if (!rule) return "Any request";
-  return toJsonString(PublicPolicyMatchRuleSchema, rule, {
-    alwaysEmitImplicit: true,
-    prettySpaces: 0,
-  });
+function exactValuesId(list: PolicyExactListKey, id: bigint): string {
+  return `policy-exact-${list}-${id.toString()}`;
+}
+
+function isExactValuesOpen(list: PolicyExactListKey, id: bigint): boolean {
+  return openExactValues.has(exactValuesId(list, id));
+}
+
+function toggleExactValues(list: PolicyExactListKey, id: bigint) {
+  const key = exactValuesId(list, id);
+  if (openExactValues.has(key)) openExactValues.delete(key);
+  else openExactValues.add(key);
+}
+
+function exactMatchValue(summary: string, matchRule?: PublicPolicyMatchRule): PolicyExactValue {
+  const expression = matchRule?.celExpression?.trim() ?? "";
+  return {
+    label: "Match",
+    value: summary,
+    code: expression && expression !== "true" ? expression : undefined,
+    wide: true,
+  };
+}
+
+function exactOrderValues(rule: { priority: bigint; enabled: boolean }): PolicyExactValue[] {
+  return [
+    { label: "Priority", value: rule.priority.toString() },
+    { label: "State", value: rule.enabled ? "Enabled" : "Disabled" },
+  ];
+}
+
+function rateLimitExactValues(rule: PublicRateLimitRule): PolicyExactValue[] {
+  return [
+    { label: "Name", value: rule.name, wide: true },
+    exactMatchValue(publicPolicyMatchSummary(rule), rule.matchRule),
+    { label: "Key", value: rateLimitKeySummary(rule) },
+    { label: "Budget", value: rateLimitRuleSummary(rule) },
+    { label: "Algorithm", value: rateLimitAlgorithmLabel(rule.algorithm) },
+    { label: "Response status", value: rule.responseStatusCode.toString() },
+    ...exactOrderValues(rule),
+  ];
+}
+
+function wafExactValues(rule: PublicWafRule): PolicyExactValue[] {
+  return [
+    { label: "Name", value: rule.name, wide: true },
+    exactMatchValue(publicPolicyMatchSummary(rule), rule.matchRule),
+    { label: "Key", value: rateLimitKeySummary(rule) },
+    { label: "Action", value: wafRuleSummary(rule, wafCaptchaProviders.value) },
+    { label: "Activation", value: wafActivationLabel(rule.activationMode) },
+    ...exactOrderValues(rule),
+  ];
+}
+
+function captchaProviderExactValues(provider: PublicWafCaptchaProvider): PolicyExactValue[] {
+  return [
+    { label: "Name", value: provider.name, wide: true },
+    { label: "Site key", code: provider.siteKey || undefined, value: provider.siteKey ? undefined : "Not set", wide: true },
+    { label: "Type", value: wafProviderLabel(provider.providerType) },
+    { label: "Credential", value: provider.secretKeySet ? "Secret saved" : "Secret missing" },
+    { label: "State", value: provider.enabled ? "Enabled" : "Disabled" },
+  ];
+}
+
+function cacheExactValues(rule: PublicCacheRule): PolicyExactValue[] {
+  return [
+    { label: "Name", value: rule.name, wide: true },
+    exactMatchValue(cacheRuleMatchSummary(rule), rule.matchRule),
+    { label: "Key", value: cacheQueryModeLabel(rule.queryMode) },
+    { label: "TTL & storage", value: cacheRuleSummary(rule) },
+    { label: "TTL mode", value: cacheTtlModeLabel(rule.ttlMode) },
+    { label: "Scope", value: cacheScopeLabel(rule.scope) },
+    ...exactOrderValues(rule),
+  ];
+}
+
+function retryExactValues(rule: PublicRetryRule): PolicyExactValue[] {
+  return [
+    { label: "Name", value: rule.name, wide: true },
+    exactMatchValue(publicPolicyMatchSummary(rule), rule.matchRule),
+    { label: "Methods", code: rule.methods.join(", ") || undefined, value: rule.methods.length ? undefined : "None" },
+    { label: "Scope", value: retryScopeSummary(rule) },
+    { label: "Retries", value: rule.maxRetries.toString() },
+    { label: "Failure mode", value: retryFailureModeLabel(rule.failureMode) },
+    { label: "Retry statuses", value: retryStatusSummary(rule) },
+    { label: "Body replay", value: retryBodyModeLabel(rule) },
+    { label: "Response completion", value: retryResponseBodyModeLabel(rule) },
+    ...exactOrderValues(rule),
+  ];
+}
+
+function trafficShaperExactValues(rule: PublicTrafficShaperRule): PolicyExactValue[] {
+  return [
+    { label: "Name", value: rule.name, wide: true },
+    exactMatchValue(publicPolicyMatchSummary(rule), rule.matchRule),
+    { label: "Key", value: trafficShaperKeySummary(rule) },
+    { label: "Applies to", value: trafficShaperProtocolScopeLabel(rule.protocolScope) },
+    { label: "Budget", value: `${trafficShaperRuleSummary(rule)} / ${trafficShaperBudgetSummary(rule)}` },
+    { label: "Budget scope", value: trafficShaperScopeLabel(rule.budgetScope) },
+    ...exactOrderValues(rule),
+  ];
 }
 
 function cacheSettingsDraftFromProto(settings?: PublicCacheSettings | null): CacheSettingsDraft {
@@ -660,6 +800,10 @@ function editWafCaptchaProvider(provider: PublicWafCaptchaProvider) {
   editorHost.value?.openWafCaptchaProvider(provider.id);
 }
 
+function openAddTrustedProxySource() {
+  visitorIdentitySettings.value?.openCreateProxy();
+}
+
 function openAddCacheRuleModal() {
   editorHost.value?.openCreateCacheRule();
 }
@@ -757,7 +901,7 @@ async function deleteTrafficShaperRule(id: bigint) {
   <div v-if="dashboard" class="stack-lg">
     <PageHeader title="Traffic policy">
       <template #description>
-        <span id="traffic-policy-page-description">{{ activePolicyMeta.description }}</span>
+        <span id="traffic-policy-page-description">{{ activePolicyDescription }}</span>
       </template>
       <template #actions>
         <NButton secondary size="small" @click="isPreviewOpen = true">
@@ -844,68 +988,76 @@ async function deleteTrafficShaperRule(id: bigint) {
               </div>
             </div>
             <div class="policy-data-rows" role="rowgroup">
-              <div
-                v-for="rule in filteredRateLimitRules"
-                :key="rule.id.toString()"
-                class="policy-data-row policy-rule-grid"
-                role="row"
-              >
-                <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-                  <span class="policy-data-label">Rule</span>
-                  <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-                  <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-                  <details class="policy-exact-disclosure">
-                    <summary>Exact values</summary>
-                    <dl>
-                      <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                      <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                      <div><dt>Key</dt><dd dir="auto">{{ rateLimitKeySummary(rule) }}</dd></div>
-                      <div><dt>Budget</dt><dd dir="auto">{{ rateLimitRuleSummary(rule) }}</dd></div>
-                    </dl>
-                  </details>
-                </div>
-                <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
-                  <span class="policy-data-label">Match &amp; key</span>
-                  <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-                  <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
-                </div>
-                <div class="policy-data-cell policy-grid-action" data-label="Budget & algorithm" role="cell">
-                  <span class="policy-data-label">Budget &amp; algorithm</span>
-                  <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
-                  <p class="policy-data-secondary mono-text" :title="rateLimitRuleSummary(rule)">{{ rateLimitRuleSummary(rule) }}</p>
-                  <p class="policy-data-secondary">Response {{ rule.responseStatusCode.toString() }}</p>
-                </div>
-                <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-                  <span class="policy-data-label">Order &amp; state</span>
-                  <div class="policy-data-tags">
-                    <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
-                    <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                      {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                    </NTag>
-                  </div>
-                  <div v-if="visiblePolicyWarningsForRule('rate-limit', rule.id).length" class="policy-data-tags">
-                    <NTag
-                      v-for="warning in visiblePolicyWarningsForRule('rate-limit', rule.id)"
-                      :key="warning.code"
-                      size="small"
-                      :bordered="false"
-                      :type="naiveTagType(warningSeverity(warning))"
+              <template v-for="rule in filteredRateLimitRules" :key="rule.id.toString()">
+                <div
+                  class="policy-data-row policy-rule-grid"
+                  role="row"
+                >
+                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                    <span class="policy-data-label">Rule</span>
+                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                    <button
+                      type="button"
+                      class="policy-exact-toggle"
+                      :aria-expanded="isExactValuesOpen('rate-limit', rule.id)"
+                      :aria-controls="isExactValuesOpen('rate-limit', rule.id) ? exactValuesId('rate-limit', rule.id) : undefined"
+                      :aria-label="`Exact values for ${rule.name}`"
+                      @click="toggleExactValues('rate-limit', rule.id)"
                     >
-                      {{ warningLabel(warning) }}
-                    </NTag>
+                      <ChevronRightIcon class="policy-exact-toggle__icon" aria-hidden="true" />
+                      Exact values
+                    </button>
+                  </div>
+                  <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
+                    <span class="policy-data-label">Match &amp; key</span>
+                    <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-action" data-label="Budget & algorithm" role="cell">
+                    <span class="policy-data-label">Budget &amp; algorithm</span>
+                    <NTag size="small" :bordered="false" type="info">{{ rateLimitAlgorithmLabel(rule.algorithm) }}</NTag>
+                    <p class="policy-data-secondary mono-text" :title="rateLimitRuleSummary(rule)">{{ rateLimitRuleSummary(rule) }}</p>
+                    <p class="policy-data-secondary">Response {{ rule.responseStatusCode.toString() }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                    <span class="policy-data-label">Order &amp; state</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                      </NTag>
+                    </div>
+                    <div v-if="visiblePolicyWarningsForRule('rate-limit', rule.id).length" class="policy-data-tags">
+                      <NTag
+                        v-for="warning in visiblePolicyWarningsForRule('rate-limit', rule.id)"
+                        :key="warning.code"
+                        size="small"
+                        :bordered="false"
+                        :type="naiveTagType(warningSeverity(warning))"
+                      >
+                        {{ warningLabel(warning) }}
+                      </NTag>
+                    </div>
+                  </div>
+                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                    <span class="visually-hidden">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
+                      <template #icon><PencilIcon class="icon-sm" /></template>
+                      Edit
+                    </NButton>
+                    <NButton type="error" secondary size="small" aria-label="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
+                      Delete
+                    </NButton>
                   </div>
                 </div>
-                <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                  <span class="visually-hidden">Actions</span>
-                  <NButton secondary size="small" aria-label="Edit rate-limit rule" @click="editRateLimitRule(rule.id)">
-                    <template #icon><PencilIcon class="icon-sm" /></template>
-                    Edit
-                  </NButton>
-                  <NButton type="error" secondary size="small" aria-label="Delete rate-limit rule" @click="deleteRateLimitRule(rule.id)">
-                    Delete
-                  </NButton>
-                </div>
-              </div>
+                <PolicyExactValues
+                  v-if="isExactValuesOpen('rate-limit', rule.id)"
+                  :id="exactValuesId('rate-limit', rule.id)"
+                  :label="`Exact values for ${rule.name}`"
+                  :entries="rateLimitExactValues(rule)"
+                />
+              </template>
             </div>
           </div>
           <EmptyState
@@ -932,7 +1084,20 @@ async function deleteTrafficShaperRule(id: bigint) {
         :tab-props="policyTabProps('waf', `WAF, ${enabledCountLabel(enabledWafRules, wafRules.length)}`)"
       >
         <div class="stack-lg">
-          <SectionCard flush>
+          <nav class="policy-subnav" aria-label="WAF pages">
+            <RouterLink
+              v-for="page in wafSubpages"
+              :key="page.key"
+              :to="page.path"
+              class="policy-subnav__link"
+              :class="{ 'policy-subnav__link--active': activeWafSubpage === page.key }"
+              :aria-current="activeWafSubpage === page.key ? 'page' : undefined"
+            >
+              {{ page.label }}
+            </RouterLink>
+          </nav>
+
+          <SectionCard v-if="activeWafSubpage === 'rules'" flush>
             <div class="policy-list-toolbar">
               <div class="policy-local-filter" aria-label="Filter WAF rules">
                 <NInput
@@ -970,70 +1135,78 @@ async function deleteTrafficShaperRule(id: bigint) {
                 </div>
               </div>
               <div class="policy-data-rows" role="rowgroup">
-                <div
-                  v-for="rule in filteredWafRules"
-                  :key="`rule-${rule.id.toString()}`"
-                  class="policy-data-row policy-rule-grid"
-                  role="row"
-                >
-                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-                    <span class="policy-data-label">Rule</span>
-                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-                    <details class="policy-exact-disclosure">
-                      <summary>Exact values</summary>
-                      <dl>
-                        <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                        <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                        <div><dt>Key</dt><dd dir="auto">{{ rateLimitKeySummary(rule) }}</dd></div>
-                        <div><dt>Action</dt><dd dir="auto">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</dd></div>
-                      </dl>
-                    </details>
-                  </div>
-                  <div class="policy-data-cell policy-grid-match" data-label="Match" role="cell">
-                    <span class="policy-data-label">Match</span>
-                    <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-                    <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
-                  </div>
-                  <div class="policy-data-cell policy-grid-action" data-label="Action" role="cell">
-                    <span class="policy-data-label">Action</span>
-                    <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false" type="info">{{ wafActionLabel(rule.action) }}</NTag>
-                      <NTag size="small" :bordered="false">{{ wafActivationLabel(rule.activationMode) }}</NTag>
-                    </div>
-                    <p class="policy-data-secondary mono-text" dir="auto" :title="wafRuleSummary(rule, wafCaptchaProviders)">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</p>
-                  </div>
-                  <div class="policy-data-cell policy-grid-state" data-label="Order &amp; state" role="cell">
-                    <span class="policy-data-label">Order &amp; state</span>
-                    <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
-                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                      </NTag>
-                    </div>
-                    <div v-if="visiblePolicyWarningsForRule('waf', rule.id).length" class="policy-data-tags">
-                      <NTag
-                        v-for="warning in visiblePolicyWarningsForRule('waf', rule.id)"
-                        :key="warning.code"
-                        size="small"
-                        :bordered="false"
-                        :type="naiveTagType(warningSeverity(warning))"
+                <template v-for="rule in filteredWafRules" :key="`rule-${rule.id.toString()}`">
+                  <div
+                    class="policy-data-row policy-rule-grid"
+                    role="row"
+                  >
+                    <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                      <span class="policy-data-label">Rule</span>
+                      <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                      <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                      <button
+                        type="button"
+                        class="policy-exact-toggle"
+                        :aria-expanded="isExactValuesOpen('waf', rule.id)"
+                        :aria-controls="isExactValuesOpen('waf', rule.id) ? exactValuesId('waf', rule.id) : undefined"
+                        :aria-label="`Exact values for ${rule.name}`"
+                        @click="toggleExactValues('waf', rule.id)"
                       >
-                        {{ warningLabel(warning) }}
-                      </NTag>
+                        <ChevronRightIcon class="policy-exact-toggle__icon" aria-hidden="true" />
+                        Exact values
+                      </button>
+                    </div>
+                    <div class="policy-data-cell policy-grid-match" data-label="Match" role="cell">
+                      <span class="policy-data-label">Match</span>
+                      <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                      <p class="policy-data-secondary mono-text" dir="auto" :title="rateLimitKeySummary(rule)">Key {{ rateLimitKeySummary(rule) }}</p>
+                    </div>
+                    <div class="policy-data-cell policy-grid-action" data-label="Action" role="cell">
+                      <span class="policy-data-label">Action</span>
+                      <div class="policy-data-tags">
+                        <NTag size="small" :bordered="false" type="info">{{ wafActionLabel(rule.action) }}</NTag>
+                        <NTag size="small" :bordered="false">{{ wafActivationLabel(rule.activationMode) }}</NTag>
+                      </div>
+                      <p class="policy-data-secondary mono-text" dir="auto" :title="wafRuleSummary(rule, wafCaptchaProviders)">{{ wafRuleSummary(rule, wafCaptchaProviders) }}</p>
+                    </div>
+                    <div class="policy-data-cell policy-grid-state" data-label="Order &amp; state" role="cell">
+                      <span class="policy-data-label">Order &amp; state</span>
+                      <div class="policy-data-tags">
+                        <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                        <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                          {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                        </NTag>
+                      </div>
+                      <div v-if="visiblePolicyWarningsForRule('waf', rule.id).length" class="policy-data-tags">
+                        <NTag
+                          v-for="warning in visiblePolicyWarningsForRule('waf', rule.id)"
+                          :key="warning.code"
+                          size="small"
+                          :bordered="false"
+                          :type="naiveTagType(warningSeverity(warning))"
+                        >
+                          {{ warningLabel(warning) }}
+                        </NTag>
+                      </div>
+                    </div>
+                    <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                      <span class="visually-hidden">Actions</span>
+                      <NButton secondary size="small" aria-label="Edit WAF rule" @click="editWafRule(rule.id)">
+                        <template #icon><PencilIcon class="icon-sm" /></template>
+                        Edit
+                      </NButton>
+                      <NButton type="error" secondary size="small" aria-label="Delete WAF rule" @click="deleteWafRule(rule.id)">
+                        Delete
+                      </NButton>
                     </div>
                   </div>
-                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                    <span class="visually-hidden">Actions</span>
-                    <NButton secondary size="small" aria-label="Edit WAF rule" @click="editWafRule(rule.id)">
-                      <template #icon><PencilIcon class="icon-sm" /></template>
-                      Edit
-                    </NButton>
-                    <NButton type="error" secondary size="small" aria-label="Delete WAF rule" @click="deleteWafRule(rule.id)">
-                      Delete
-                    </NButton>
-                  </div>
-                </div>
+                  <PolicyExactValues
+                    v-if="isExactValuesOpen('waf', rule.id)"
+                    :id="exactValuesId('waf', rule.id)"
+                    :label="`Exact values for ${rule.name}`"
+                    :entries="wafExactValues(rule)"
+                  />
+                </template>
               </div>
             </div>
             <EmptyState
@@ -1050,16 +1223,7 @@ async function deleteTrafficShaperRule(id: bigint) {
             />
           </SectionCard>
 
-          <SectionCard title="Captcha providers" description="Credentials used by WAF challenge rules." flush>
-            <template #badge>
-              <NTag size="small" :bordered="false">{{ wafCaptchaProviders.length.toString() }}</NTag>
-            </template>
-            <template #actions>
-              <NButton secondary size="small" @click="openAddWafCaptchaProviderModal">
-                <template #icon><PlusIcon class="icon-sm" /></template>
-                Add captcha provider
-              </NButton>
-            </template>
+          <SectionCard v-if="activeWafSubpage === 'captcha-providers'" flush>
             <div v-if="wafCaptchaProviders.length" class="policy-data-table" role="table" aria-label="Captcha providers">
               <div role="rowgroup">
                 <div class="policy-data-header policy-provider-grid" role="row">
@@ -1071,57 +1235,71 @@ async function deleteTrafficShaperRule(id: bigint) {
                 </div>
               </div>
               <div class="policy-data-rows" role="rowgroup">
-                <div
-                  v-for="provider in wafCaptchaProviders"
-                  :key="`provider-${provider.id.toString()}`"
-                  class="policy-data-row policy-provider-grid"
-                  role="row"
-                >
-                  <div class="policy-data-cell policy-grid-identity" data-label="Provider" role="cell">
-                    <span class="policy-data-label">Provider</span>
-                    <p class="policy-data-primary" dir="auto" :title="provider.name">{{ provider.name }}</p>
-                    <p class="policy-data-secondary mono-text" dir="auto" :title="provider.siteKey">{{ provider.siteKey }}</p>
-                    <details class="policy-exact-disclosure">
-                      <summary>Exact values</summary>
-                      <dl>
-                        <div><dt>Name</dt><dd dir="auto">{{ provider.name }}</dd></div>
-                        <div><dt>Site key</dt><dd dir="auto">{{ provider.siteKey }}</dd></div>
-                      </dl>
-                    </details>
+                <template v-for="provider in wafCaptchaProviders" :key="`provider-${provider.id.toString()}`">
+                  <div
+                    class="policy-data-row policy-provider-grid"
+                    role="row"
+                  >
+                    <div class="policy-data-cell policy-grid-identity" data-label="Provider" role="cell">
+                      <span class="policy-data-label">Provider</span>
+                      <p class="policy-data-primary" dir="auto" :title="provider.name">{{ provider.name }}</p>
+                      <p class="policy-data-secondary mono-text" dir="auto" :title="provider.siteKey">{{ provider.siteKey }}</p>
+                      <button
+                        type="button"
+                        class="policy-exact-toggle"
+                        :aria-expanded="isExactValuesOpen('captcha-provider', provider.id)"
+                        :aria-controls="isExactValuesOpen('captcha-provider', provider.id) ? exactValuesId('captcha-provider', provider.id) : undefined"
+                        :aria-label="`Exact values for ${provider.name}`"
+                        @click="toggleExactValues('captcha-provider', provider.id)"
+                      >
+                        <ChevronRightIcon class="policy-exact-toggle__icon" aria-hidden="true" />
+                        Exact values
+                      </button>
+                    </div>
+                    <div class="policy-data-cell policy-grid-type" data-label="Type" role="cell">
+                      <span class="policy-data-label">Type</span>
+                      <NTag size="small" :bordered="false">{{ wafProviderLabel(provider.providerType) }}</NTag>
+                    </div>
+                    <div class="policy-data-cell policy-grid-secret" data-label="Credential" role="cell">
+                      <span class="policy-data-label">Credential</span>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(provider.secretKeySet ? 'success' : 'danger')">
+                        {{ provider.secretKeySet ? 'Secret saved' : 'Secret missing' }}
+                      </NTag>
+                    </div>
+                    <div class="policy-data-cell policy-grid-state" data-label="State" role="cell">
+                      <span class="policy-data-label">State</span>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(provider.enabled ? 'success' : 'warning')">
+                        {{ provider.enabled ? 'Enabled' : 'Disabled' }}
+                      </NTag>
+                    </div>
+                    <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                      <span class="visually-hidden">Actions</span>
+                      <NButton secondary size="small" aria-label="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
+                        <template #icon><PencilIcon class="icon-sm" /></template>
+                        Edit
+                      </NButton>
+                      <NButton type="error" secondary size="small" aria-label="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
+                        Delete
+                      </NButton>
+                    </div>
                   </div>
-                  <div class="policy-data-cell policy-grid-type" data-label="Type" role="cell">
-                    <span class="policy-data-label">Type</span>
-                    <NTag size="small" :bordered="false">{{ wafProviderLabel(provider.providerType) }}</NTag>
-                  </div>
-                  <div class="policy-data-cell policy-grid-secret" data-label="Credential" role="cell">
-                    <span class="policy-data-label">Credential</span>
-                    <NTag size="small" :bordered="false" :type="naiveTagType(provider.secretKeySet ? 'success' : 'danger')">
-                      {{ provider.secretKeySet ? 'Secret saved' : 'Secret missing' }}
-                    </NTag>
-                  </div>
-                  <div class="policy-data-cell policy-grid-state" data-label="State" role="cell">
-                    <span class="policy-data-label">State</span>
-                    <NTag size="small" :bordered="false" :type="naiveTagType(provider.enabled ? 'success' : 'warning')">
-                      {{ provider.enabled ? 'Enabled' : 'Disabled' }}
-                    </NTag>
-                  </div>
-                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                    <span class="visually-hidden">Actions</span>
-                    <NButton secondary size="small" aria-label="Edit captcha provider" @click="editWafCaptchaProvider(provider)">
-                      <template #icon><PencilIcon class="icon-sm" /></template>
-                      Edit
-                    </NButton>
-                    <NButton type="error" secondary size="small" aria-label="Delete captcha provider" @click="deleteWafCaptchaProvider(provider.id)">
-                      Delete
-                    </NButton>
-                  </div>
-                </div>
+                  <PolicyExactValues
+                    v-if="isExactValuesOpen('captcha-provider', provider.id)"
+                    :id="exactValuesId('captcha-provider', provider.id)"
+                    :label="`Exact values for ${provider.name}`"
+                    :entries="captchaProviderExactValues(provider)"
+                  />
+                </template>
               </div>
             </div>
-            <p v-else class="policy-quiet-empty">No captcha providers yet. Add one before creating a captcha rule.</p>
+            <EmptyState
+              v-else
+              title="No captcha providers configured"
+              description="Captcha rules challenge visitors through Turnstile, hCaptcha, or reCAPTCHA. Add a provider before creating a captcha rule."
+              action-label="Add captcha provider"
+              @action="openAddWafCaptchaProviderModal"
+            />
           </SectionCard>
-
-          <PublicVisitorIdentitySettings :config="config" />
         </div>
       </NTabPane>
 
@@ -1183,70 +1361,78 @@ async function deleteTrafficShaperRule(id: bigint) {
                 </div>
               </div>
               <div class="policy-data-rows" role="rowgroup">
-                <div
-                  v-for="rule in filteredCacheRules"
-                  :key="rule.id.toString()"
-                  class="policy-data-row policy-rule-grid"
-                  role="row"
-                >
-                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-                    <span class="policy-data-label">Rule</span>
-                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-                    <details class="policy-exact-disclosure">
-                      <summary>Exact values</summary>
-                      <dl>
-                        <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                        <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                        <div><dt>Key</dt><dd dir="auto">{{ cacheQueryModeLabel(rule.queryMode) }}</dd></div>
-                        <div><dt>TTL &amp; storage</dt><dd dir="auto">{{ cacheRuleSummary(rule) }}</dd></div>
-                      </dl>
-                    </details>
-                  </div>
-                  <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
-                    <span class="policy-data-label">Match &amp; key</span>
-                    <p class="policy-data-value" dir="auto" :title="cacheRuleMatchSummary(rule)">{{ cacheRuleMatchSummary(rule) }}</p>
-                    <p class="policy-data-secondary mono-text" dir="auto" :title="cacheQueryModeLabel(rule.queryMode)">{{ cacheQueryModeLabel(rule.queryMode) }}</p>
-                  </div>
-                  <div class="policy-data-cell policy-grid-action" data-label="TTL & storage" role="cell">
-                    <span class="policy-data-label">TTL &amp; storage</span>
-                    <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
-                      <NTag size="small" :bordered="false">{{ cacheScopeLabel(rule.scope) }}</NTag>
-                    </div>
-                    <p class="policy-data-secondary mono-text" dir="auto" :title="cacheRuleSummary(rule)">{{ cacheRuleSummary(rule) }}</p>
-                  </div>
-                  <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-                    <span class="policy-data-label">Order &amp; state</span>
-                    <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
-                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                      </NTag>
-                    </div>
-                    <div v-if="visiblePolicyWarningsForRule('cache', rule.id).length" class="policy-data-tags">
-                      <NTag
-                        v-for="warning in visiblePolicyWarningsForRule('cache', rule.id)"
-                        :key="warning.code"
-                        size="small"
-                        :bordered="false"
-                        :type="naiveTagType(warningSeverity(warning))"
+                <template v-for="rule in filteredCacheRules" :key="rule.id.toString()">
+                  <div
+                    class="policy-data-row policy-rule-grid"
+                    role="row"
+                  >
+                    <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                      <span class="policy-data-label">Rule</span>
+                      <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                      <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                      <button
+                        type="button"
+                        class="policy-exact-toggle"
+                        :aria-expanded="isExactValuesOpen('cache', rule.id)"
+                        :aria-controls="isExactValuesOpen('cache', rule.id) ? exactValuesId('cache', rule.id) : undefined"
+                        :aria-label="`Exact values for ${rule.name}`"
+                        @click="toggleExactValues('cache', rule.id)"
                       >
-                        {{ warningLabel(warning) }}
-                      </NTag>
+                        <ChevronRightIcon class="policy-exact-toggle__icon" aria-hidden="true" />
+                        Exact values
+                      </button>
+                    </div>
+                    <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
+                      <span class="policy-data-label">Match &amp; key</span>
+                      <p class="policy-data-value" dir="auto" :title="cacheRuleMatchSummary(rule)">{{ cacheRuleMatchSummary(rule) }}</p>
+                      <p class="policy-data-secondary mono-text" dir="auto" :title="cacheQueryModeLabel(rule.queryMode)">{{ cacheQueryModeLabel(rule.queryMode) }}</p>
+                    </div>
+                    <div class="policy-data-cell policy-grid-action" data-label="TTL & storage" role="cell">
+                      <span class="policy-data-label">TTL &amp; storage</span>
+                      <div class="policy-data-tags">
+                        <NTag size="small" :bordered="false" type="info">{{ cacheTtlModeLabel(rule.ttlMode) }}</NTag>
+                        <NTag size="small" :bordered="false">{{ cacheScopeLabel(rule.scope) }}</NTag>
+                      </div>
+                      <p class="policy-data-secondary mono-text" dir="auto" :title="cacheRuleSummary(rule)">{{ cacheRuleSummary(rule) }}</p>
+                    </div>
+                    <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                      <span class="policy-data-label">Order &amp; state</span>
+                      <div class="policy-data-tags">
+                        <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                        <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                          {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                        </NTag>
+                      </div>
+                      <div v-if="visiblePolicyWarningsForRule('cache', rule.id).length" class="policy-data-tags">
+                        <NTag
+                          v-for="warning in visiblePolicyWarningsForRule('cache', rule.id)"
+                          :key="warning.code"
+                          size="small"
+                          :bordered="false"
+                          :type="naiveTagType(warningSeverity(warning))"
+                        >
+                          {{ warningLabel(warning) }}
+                        </NTag>
+                      </div>
+                    </div>
+                    <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                      <span class="visually-hidden">Actions</span>
+                      <NButton secondary size="small" aria-label="Edit cache rule" @click="editCacheRule(rule.id)">
+                        <template #icon><PencilIcon class="icon-sm" /></template>
+                        Edit
+                      </NButton>
+                      <NButton type="error" secondary size="small" aria-label="Delete cache rule" @click="deleteCacheRule(rule.id)">
+                        Delete
+                      </NButton>
                     </div>
                   </div>
-                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                    <span class="visually-hidden">Actions</span>
-                    <NButton secondary size="small" aria-label="Edit cache rule" @click="editCacheRule(rule.id)">
-                      <template #icon><PencilIcon class="icon-sm" /></template>
-                      Edit
-                    </NButton>
-                    <NButton type="error" secondary size="small" aria-label="Delete cache rule" @click="deleteCacheRule(rule.id)">
-                      Delete
-                    </NButton>
-                  </div>
-                </div>
+                  <PolicyExactValues
+                    v-if="isExactValuesOpen('cache', rule.id)"
+                    :id="exactValuesId('cache', rule.id)"
+                    :label="`Exact values for ${rule.name}`"
+                    :entries="cacheExactValues(rule)"
+                  />
+                </template>
               </div>
             </div>
             <EmptyState
@@ -1443,77 +1629,81 @@ async function deleteTrafficShaperRule(id: bigint) {
                 </div>
               </div>
               <div class="policy-data-rows" role="rowgroup">
-                <div
-                  v-for="rule in filteredRetryRules"
-                  :key="rule.id.toString()"
-                  class="policy-data-row policy-rule-grid"
-                  role="row"
-                >
-                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-                    <span class="policy-data-label">Rule</span>
-                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-                    <details class="policy-exact-disclosure">
-                      <summary>Exact values</summary>
-                      <dl>
-                        <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                        <div><dt>Methods</dt><dd><code dir="ltr">{{ rule.methods.join(', ') }}</code></dd></div>
-                        <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                        <div><dt>Scope</dt><dd>{{ retryScopeSummary(rule) }}</dd></div>
-                        <div><dt>Failure mode</dt><dd>{{ retryFailureModeLabel(rule.failureMode) }}</dd></div>
-                        <div><dt>Retry statuses</dt><dd>{{ retryStatusSummary(rule) }}</dd></div>
-                        <div><dt>Body replay</dt><dd>{{ retryBodyModeLabel(rule) }}</dd></div>
-                        <div><dt>Response completion</dt><dd>{{ retryResponseBodyModeLabel(rule) }}</dd></div>
-                      </dl>
-                    </details>
-                  </div>
-                  <div class="policy-data-cell policy-grid-match" data-label="Match & scope" role="cell">
-                    <span class="policy-data-label">Match &amp; scope</span>
-                    <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-                    <p class="policy-data-secondary mono-text" :title="retryScopeSummary(rule)">{{ retryScopeSummary(rule) }}</p>
-                  </div>
-                  <div class="policy-data-cell policy-grid-action" data-label="Attempt policy" role="cell">
-                    <span class="policy-data-label">Attempt policy</span>
-                    <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false" type="info">{{ rule.maxRetries.toString() }} {{ rule.maxRetries === 1n ? 'retry' : 'retries' }}</NTag>
-                      <NTag size="small" :bordered="false">{{ retryFailureModeLabel(rule.failureMode) }}</NTag>
-                    </div>
-                    <p class="policy-data-secondary mono-text" :title="retryMethodSummary(rule)">{{ retryMethodSummary(rule) }}</p>
-                    <p class="policy-data-secondary">{{ retryStatusSummary(rule) }}</p>
-                    <p class="policy-data-secondary">{{ retryBodyModeLabel(rule) }}</p>
-                    <p class="policy-data-secondary">{{ retryResponseBodyModeLabel(rule) }}</p>
-                  </div>
-                  <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-                    <span class="policy-data-label">Order &amp; state</span>
-                    <div class="policy-data-tags">
-                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
-                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                      </NTag>
-                    </div>
-                    <div v-if="visiblePolicyWarningsForRule('retry', rule.id).length" class="policy-data-tags">
-                      <NTag
-                        v-for="warning in visiblePolicyWarningsForRule('retry', rule.id)"
-                        :key="warning.code"
-                        size="small"
-                        :bordered="false"
-                        :type="naiveTagType(warningSeverity(warning))"
+                <template v-for="rule in filteredRetryRules" :key="rule.id.toString()">
+                  <div
+                    class="policy-data-row policy-rule-grid"
+                    role="row"
+                  >
+                    <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                      <span class="policy-data-label">Rule</span>
+                      <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                      <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                      <button
+                        type="button"
+                        class="policy-exact-toggle"
+                        :aria-expanded="isExactValuesOpen('retry', rule.id)"
+                        :aria-controls="isExactValuesOpen('retry', rule.id) ? exactValuesId('retry', rule.id) : undefined"
+                        :aria-label="`Exact values for ${rule.name}`"
+                        @click="toggleExactValues('retry', rule.id)"
                       >
-                        {{ warningLabel(warning) }}
-                      </NTag>
+                        <ChevronRightIcon class="policy-exact-toggle__icon" aria-hidden="true" />
+                        Exact values
+                      </button>
+                    </div>
+                    <div class="policy-data-cell policy-grid-match" data-label="Match & scope" role="cell">
+                      <span class="policy-data-label">Match &amp; scope</span>
+                      <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                      <p class="policy-data-secondary mono-text" :title="retryScopeSummary(rule)">{{ retryScopeSummary(rule) }}</p>
+                    </div>
+                    <div class="policy-data-cell policy-grid-action" data-label="Attempt policy" role="cell">
+                      <span class="policy-data-label">Attempt policy</span>
+                      <div class="policy-data-tags">
+                        <NTag size="small" :bordered="false" type="info">{{ rule.maxRetries.toString() }} {{ rule.maxRetries === 1n ? 'retry' : 'retries' }}</NTag>
+                        <NTag size="small" :bordered="false">{{ retryFailureModeLabel(rule.failureMode) }}</NTag>
+                      </div>
+                      <p class="policy-data-secondary mono-text" :title="retryMethodSummary(rule)">{{ retryMethodSummary(rule) }}</p>
+                      <p class="policy-data-secondary">{{ retryStatusSummary(rule) }}</p>
+                      <p class="policy-data-secondary">{{ retryBodyModeLabel(rule) }}</p>
+                      <p class="policy-data-secondary">{{ retryResponseBodyModeLabel(rule) }}</p>
+                    </div>
+                    <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                      <span class="policy-data-label">Order &amp; state</span>
+                      <div class="policy-data-tags">
+                        <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                        <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                          {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                        </NTag>
+                      </div>
+                      <div v-if="visiblePolicyWarningsForRule('retry', rule.id).length" class="policy-data-tags">
+                        <NTag
+                          v-for="warning in visiblePolicyWarningsForRule('retry', rule.id)"
+                          :key="warning.code"
+                          size="small"
+                          :bordered="false"
+                          :type="naiveTagType(warningSeverity(warning))"
+                        >
+                          {{ warningLabel(warning) }}
+                        </NTag>
+                      </div>
+                    </div>
+                    <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                      <span class="visually-hidden">Actions</span>
+                      <NButton secondary size="small" aria-label="Edit retry rule" @click="editRetryRule(rule.id)">
+                        <template #icon><PencilIcon class="icon-sm" /></template>
+                        Edit
+                      </NButton>
+                      <NButton type="error" secondary size="small" aria-label="Delete retry rule" @click="deleteRetryRule(rule.id)">
+                        Delete
+                      </NButton>
                     </div>
                   </div>
-                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                    <span class="visually-hidden">Actions</span>
-                    <NButton secondary size="small" aria-label="Edit retry rule" @click="editRetryRule(rule.id)">
-                      <template #icon><PencilIcon class="icon-sm" /></template>
-                      Edit
-                    </NButton>
-                    <NButton type="error" secondary size="small" aria-label="Delete retry rule" @click="deleteRetryRule(rule.id)">
-                      Delete
-                    </NButton>
-                  </div>
-                </div>
+                  <PolicyExactValues
+                    v-if="isExactValuesOpen('retry', rule.id)"
+                    :id="exactValuesId('retry', rule.id)"
+                    :label="`Exact values for ${rule.name}`"
+                    :entries="retryExactValues(rule)"
+                  />
+                </template>
               </div>
             </div>
             <EmptyState
@@ -1583,72 +1773,79 @@ async function deleteTrafficShaperRule(id: bigint) {
               </div>
             </div>
             <div class="policy-data-rows" role="rowgroup">
-              <div
-                v-for="rule in filteredTrafficShaperRules"
-                :key="rule.id.toString()"
-                class="policy-data-row policy-rule-grid"
-                role="row"
-              >
-                <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
-                  <span class="policy-data-label">Rule</span>
-                  <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
-                  <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
-                  <details class="policy-exact-disclosure">
-                    <summary>Exact values</summary>
-                    <dl>
-                      <div><dt>Name</dt><dd dir="auto">{{ rule.name }}</dd></div>
-                      <div><dt>Match rule</dt><dd><code dir="ltr">{{ exactPolicyMatch(rule.matchRule) }}</code></dd></div>
-                      <div><dt>Key</dt><dd dir="auto">{{ trafficShaperKeySummary(rule) }}</dd></div>
-                      <div><dt>Applies to</dt><dd dir="auto">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</dd></div>
-                      <div><dt>Budget</dt><dd dir="auto">{{ trafficShaperRuleSummary(rule) }} / {{ trafficShaperBudgetSummary(rule) }}</dd></div>
-                    </dl>
-                  </details>
-                </div>
-                <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
-                  <span class="policy-data-label">Match &amp; key</span>
-                  <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
-                  <p class="policy-data-secondary mono-text" dir="auto" :title="trafficShaperKeySummary(rule)">Key {{ trafficShaperKeySummary(rule) }}</p>
-                </div>
-                <div class="policy-data-cell policy-grid-action" data-label="Budget & scope" role="cell">
-                  <span class="policy-data-label">Budget &amp; scope</span>
-                  <div class="policy-data-tags">
-                    <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
-                    <NTag size="small" :bordered="false">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</NTag>
-                  </div>
-                  <p class="policy-data-secondary mono-text" :title="trafficShaperRuleSummary(rule)">{{ trafficShaperRuleSummary(rule) }}</p>
-                  <p class="policy-data-secondary" :title="trafficShaperBudgetSummary(rule)">{{ trafficShaperBudgetSummary(rule) }}</p>
-                </div>
-                <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
-                  <span class="policy-data-label">Order &amp; state</span>
-                  <div class="policy-data-tags">
-                    <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
-                    <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
-                      {{ rule.enabled ? 'Enabled' : 'Disabled' }}
-                    </NTag>
-                  </div>
-                  <div v-if="visiblePolicyWarningsForRule('traffic-shaper', rule.id).length" class="policy-data-tags">
-                    <NTag
-                      v-for="warning in visiblePolicyWarningsForRule('traffic-shaper', rule.id)"
-                      :key="warning.code"
-                      size="small"
-                      :bordered="false"
-                      :type="naiveTagType(warningSeverity(warning))"
+              <template v-for="rule in filteredTrafficShaperRules" :key="rule.id.toString()">
+                <div
+                  class="policy-data-row policy-rule-grid"
+                  role="row"
+                >
+                  <div class="policy-data-cell policy-grid-identity" data-label="Rule" role="cell">
+                    <span class="policy-data-label">Rule</span>
+                    <p class="policy-data-primary" dir="auto" :title="rule.name">{{ rule.name }}</p>
+                    <p class="policy-data-secondary mono-text">Rule #{{ rule.id.toString() }}</p>
+                    <button
+                      type="button"
+                      class="policy-exact-toggle"
+                      :aria-expanded="isExactValuesOpen('traffic-shaper', rule.id)"
+                      :aria-controls="isExactValuesOpen('traffic-shaper', rule.id) ? exactValuesId('traffic-shaper', rule.id) : undefined"
+                      :aria-label="`Exact values for ${rule.name}`"
+                      @click="toggleExactValues('traffic-shaper', rule.id)"
                     >
-                      {{ warningLabel(warning) }}
-                    </NTag>
+                      <ChevronRightIcon class="policy-exact-toggle__icon" aria-hidden="true" />
+                      Exact values
+                    </button>
+                  </div>
+                  <div class="policy-data-cell policy-grid-match" data-label="Match & key" role="cell">
+                    <span class="policy-data-label">Match &amp; key</span>
+                    <p class="policy-data-value" dir="auto" :title="publicPolicyMatchSummary(rule)">{{ publicPolicyMatchSummary(rule) }}</p>
+                    <p class="policy-data-secondary mono-text" dir="auto" :title="trafficShaperKeySummary(rule)">Key {{ trafficShaperKeySummary(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-action" data-label="Budget & scope" role="cell">
+                    <span class="policy-data-label">Budget &amp; scope</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false" type="info">{{ trafficShaperScopeLabel(rule.budgetScope) }}</NTag>
+                      <NTag size="small" :bordered="false">{{ trafficShaperProtocolScopeLabel(rule.protocolScope) }}</NTag>
+                    </div>
+                    <p class="policy-data-secondary mono-text" :title="trafficShaperRuleSummary(rule)">{{ trafficShaperRuleSummary(rule) }}</p>
+                    <p class="policy-data-secondary" :title="trafficShaperBudgetSummary(rule)">{{ trafficShaperBudgetSummary(rule) }}</p>
+                  </div>
+                  <div class="policy-data-cell policy-grid-state" data-label="Order & state" role="cell">
+                    <span class="policy-data-label">Order &amp; state</span>
+                    <div class="policy-data-tags">
+                      <NTag size="small" :bordered="false">P{{ rule.priority.toString() }}</NTag>
+                      <NTag size="small" :bordered="false" :type="naiveTagType(rule.enabled ? 'success' : 'warning')">
+                        {{ rule.enabled ? 'Enabled' : 'Disabled' }}
+                      </NTag>
+                    </div>
+                    <div v-if="visiblePolicyWarningsForRule('traffic-shaper', rule.id).length" class="policy-data-tags">
+                      <NTag
+                        v-for="warning in visiblePolicyWarningsForRule('traffic-shaper', rule.id)"
+                        :key="warning.code"
+                        size="small"
+                        :bordered="false"
+                        :type="naiveTagType(warningSeverity(warning))"
+                      >
+                        {{ warningLabel(warning) }}
+                      </NTag>
+                    </div>
+                  </div>
+                  <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
+                    <span class="visually-hidden">Actions</span>
+                    <NButton secondary size="small" aria-label="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
+                      <template #icon><PencilIcon class="icon-sm" /></template>
+                      Edit
+                    </NButton>
+                    <NButton type="error" secondary size="small" aria-label="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
+                      Delete
+                    </NButton>
                   </div>
                 </div>
-                <div class="policy-data-cell policy-data-actions policy-grid-actions" data-label="Actions" role="cell">
-                  <span class="visually-hidden">Actions</span>
-                  <NButton secondary size="small" aria-label="Edit traffic-shaper rule" @click="editTrafficShaperRule(rule.id)">
-                    <template #icon><PencilIcon class="icon-sm" /></template>
-                    Edit
-                  </NButton>
-                  <NButton type="error" secondary size="small" aria-label="Delete traffic-shaper rule" @click="deleteTrafficShaperRule(rule.id)">
-                    Delete
-                  </NButton>
-                </div>
-              </div>
+                <PolicyExactValues
+                  v-if="isExactValuesOpen('traffic-shaper', rule.id)"
+                  :id="exactValuesId('traffic-shaper', rule.id)"
+                  :label="`Exact values for ${rule.name}`"
+                  :entries="trafficShaperExactValues(rule)"
+                />
+              </template>
             </div>
           </div>
           <EmptyState
@@ -1664,6 +1861,17 @@ async function deleteTrafficShaperRule(id: bigint) {
             @action="openAddTrafficShaperRuleModal"
           />
         </SectionCard>
+      </NTabPane>
+
+      <NTabPane
+        id="traffic-policy-panel-visitor-identity"
+        name="visitor-identity"
+        role="tabpanel"
+        aria-labelledby="traffic-policy-tab-visitor-identity"
+        tab="Visitor identity"
+        :tab-props="policyTabProps('visitor-identity', 'Visitor identity')"
+      >
+        <PublicVisitorIdentitySettings ref="visitorIdentitySettings" :config="config" />
       </NTabPane>
     </NTabs>
 
@@ -1776,12 +1984,48 @@ async function deleteTrafficShaperRule(id: bigint) {
   white-space: nowrap;
 }
 
-.policy-quiet-empty {
-  margin: 0;
-  padding: 1.25rem;
+/* WAF sub-pages: route-backed links styled like SegmentedControl. */
+.policy-subnav {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 0.125rem;
+  border-radius: 8px;
+  padding: 0.1875rem;
+  background: var(--app-panel-muted);
+}
+
+.stack-lg > .policy-subnav + * {
+  margin-top: 1rem;
+}
+
+.policy-subnav__link {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  border-radius: 6px;
+  padding: 0.25rem 0.625rem;
   color: var(--app-text-muted);
   font-size: 0.8125rem;
-  line-height: 1.5;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+
+.policy-subnav__link:hover {
+  color: var(--app-text);
+}
+
+.policy-subnav__link--active {
+  background: var(--app-panel);
+  box-shadow: 0 0 0 1px var(--app-border-subtle), 0 1px 2px rgba(0, 0, 0, 0.12);
+  color: var(--app-text);
+}
+
+.policy-subnav__link:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
 }
 
 /* Rule tables: role="table" grids that stack into labelled cells on narrow containers. */
@@ -1806,7 +2050,8 @@ async function deleteTrafficShaperRule(id: bigint) {
   padding: 0.875rem 1rem;
 }
 
-.policy-data-row + .policy-data-row {
+.policy-data-row + .policy-data-row,
+.policy-exact-row + .policy-data-row {
   border-top: 1px solid var(--app-border-subtle);
 }
 
@@ -1906,52 +2151,54 @@ async function deleteTrafficShaperRule(id: bigint) {
   max-width: 100%;
 }
 
-.policy-exact-disclosure {
-  max-width: 100%;
-  margin-top: 0.125rem;
+/* Exact values: a quiet toggle in the identity cell opens a full-width row below. */
+.policy-exact-toggle {
+  display: inline-flex;
+  min-height: 1.5rem;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0 0 -0.3125rem;
+  border: 0;
+  border-radius: 6px;
+  padding: 0.125rem 0.375rem 0.125rem 0.25rem;
+  background: transparent;
   color: var(--app-text-muted);
-  font-size: 0.75rem;
-}
-
-.policy-exact-disclosure > summary {
-  width: max-content;
-  max-width: 100%;
   cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
-.policy-exact-disclosure > summary:hover {
+.policy-exact-toggle:hover {
+  background: var(--app-hover);
   color: var(--app-text);
 }
 
-.policy-exact-disclosure dl {
-  display: grid;
-  gap: 0.5rem;
-  width: min(30rem, 100%);
-  margin: 0.5rem 0 0;
-  border-radius: 8px;
-  padding: 0.625rem 0.75rem;
-  background: var(--app-panel-muted);
+.policy-exact-toggle:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 1px;
 }
 
-.policy-exact-disclosure dl > div {
-  display: grid;
-  gap: 0.125rem;
-  min-width: 0;
-}
-
-.policy-exact-disclosure dd {
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
+.policy-exact-toggle[aria-expanded="true"] {
   color: var(--app-text);
-  line-height: 1.45;
-  unicode-bidi: isolate;
 }
 
-.policy-exact-disclosure code {
-  white-space: pre-wrap;
-  word-break: break-word;
+.policy-exact-toggle__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex: none;
+  transition: transform 140ms ease-out;
+}
+
+.policy-exact-toggle[aria-expanded="true"] .policy-exact-toggle__icon {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .policy-exact-toggle__icon {
+    transition: none;
+  }
 }
 
 /* Cache storage form. */
@@ -2063,6 +2310,10 @@ async function deleteTrafficShaperRule(id: bigint) {
 @media (pointer: coarse) {
   .policy-data-actions :deep(.n-button) {
     min-height: 2.75rem;
+  }
+
+  .policy-subnav__link {
+    min-height: 2.5rem;
   }
 }
 

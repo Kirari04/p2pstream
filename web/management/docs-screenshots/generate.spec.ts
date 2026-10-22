@@ -166,11 +166,13 @@ test.describe("docs screenshots", () => {
 
       await gotoApp(page, "/#/policies/waf", "Traffic policy");
       await capture(page, "traffic_policies_waf_and_ratelimits.png");
-      await openFirstButton(page, "Edit captcha provider", "Edit captcha provider");
-      await capture(page, "waf_captcha_provider_modal.png");
-      await closeModal(page);
       await openFirstButton(page, "Edit WAF rule", "Edit WAF rule");
       await capture(page, "edit_waf_modal.png");
+      await closeModal(page);
+
+      await gotoApp(page, "/#/policies/waf/captcha-providers", "Traffic policy");
+      await openFirstButton(page, "Edit captcha provider", "Edit captcha provider");
+      await capture(page, "waf_captcha_provider_modal.png");
       await closeModal(page);
 
       await gotoApp(page, "/#/policies/cache", "Traffic policy");

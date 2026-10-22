@@ -89,13 +89,22 @@ Radii: 10px for cards, 8px for inner groups, tiles and inputs, 6px for chips.
   header (Proxy, Agents, Traffic policy, Diagnostics). Pages with their own
   header (Settings pages, Monitor → Traffic flow / Diagnostics) are reached
   from the sidebar and breadcrumbs, with no tab bar repeating the sidebar.
+- **Sub-pages inside a tab:** when one tab holds more than one list (Traffic
+  policy → WAF → Rules / Captcha providers), give each its own route and
+  switch with a small secondary nav of `RouterLink`s styled like
+  `SegmentedControl`, with `aria-current="page"` on the active link (links,
+  not `aria-pressed` buttons). The page-header primary action follows the
+  sub-page. List the sub-page under `subpages` in `managementNavigation.ts`
+  so breadcrumbs show it while the sidebar keeps one item for the tab.
 
 ## Patterns
 
 - **Tables:** `NDataTable size="small"` inside a flush `SectionCard`
   (row hairlines only; don't set `single-line=false`). Responsive `role="table"`
   grids that stack into labelled cells on phones, as used by the Traffic
-  Policy rule lists, are an accepted alternative. Set
+  Policy rule lists, are an accepted alternative. Long exact values in such a
+  grid open in a full-width expansion row after the data row
+  (`PolicyExactValues`), never inside a narrow cell. Set
   `scroll-x` to the real column sum, keep it within the card at 1280px, pin
   the actions column with `fixed: "right"`, and shorten long IDs with
   `clip-text` plus a `title` attribute.
