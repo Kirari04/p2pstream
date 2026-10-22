@@ -33,6 +33,7 @@ TERMINAL = {'succeeded', 'rolled_back', 'failed'}
 HEX = re.compile(r'^[0-9a-f]{64}$')
 VERSION = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?$')
 REPOSITORY = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*$')
+CANCELLATION = 'cancelled-enrollment.json'
 
 class Failure(RuntimeError):
     pass
@@ -56,6 +57,39 @@ def decode(data):
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
+
+def stable_version(value):
+    require(isinstance(value, str) and VERSION.fullmatch(value) and '-' not in value, 'Invalid retained minimum safe version')
+    return tuple(int(part) for part in value[1:].split('.'))
+
+def validate_floor(value):
+    require(isinstance(value, dict) and set(value) == {'sequence', 'security_epoch', 'minimum_safe_version', 'manifest_sha256'}, 'Invalid retained enrollment floor')
+    require(all(type(value[key]) is int and 0 < value[key] < 2 ** 64 for key in ('sequence', 'security_epoch')) and isinstance(value['manifest_sha256'], str) and HEX.fullmatch(value['manifest_sha256']), 'Invalid retained enrollment floor')
+    stable_version(value['minimum_safe_version'])
+    return value
+
+def require_floor(candidate, previous):
+    validate_floor(candidate)
+    validate_floor(previous)
+    require(candidate['sequence'] >= previous['sequence'] and candidate['security_epoch'] >= previous['security_epoch'] and stable_version(candidate['minimum_safe_version']) >= stable_version(previous['minimum_safe_version']), 'Release is below the retained enrollment floor')
+    require(candidate['sequence'] != previous['sequence'] or candidate['manifest_sha256'] == previous['manifest_sha256'], 'Release identity differs from the retained enrollment floor')
+
+def cancellation_receipt(directory, installation, repository, channel):
+    path = directory / CANCELLATION
+    if not os.path.lexists(path):
+        return None
+    value = read_json(path)
+    require(set(value) == {'api', 'installation', 'repository', 'channel', 'floor', 'completed'} and value['api'] == 1 and type(value['completed']) is bool, 'Invalid cancellation receipt')
+    require((value['installation'], value['repository'], value['channel']) == (installation, repository, channel), 'Cancellation receipt belongs to another installation, publisher or channel')
+    validate_floor(value['floor'])
+    return value
+
+def check_cancellation_floor(directory, args, manifest, manifest_hash):
+    receipt = cancellation_receipt(directory, args.expect_installation, args.repository, args.expect_channel)
+    if receipt:
+        require_floor({key: manifest[key] for key in ('sequence', 'security_epoch', 'minimum_safe_version')} | {'manifest_sha256': manifest_hash}, receipt['floor'])
+        version = args.expect_version.partition('-')[0]
+        require(stable_version(version) > stable_version(receipt['floor']['minimum_safe_version']) or version == receipt['floor']['minimum_safe_version'] and '-' not in args.expect_version, 'Selected server is below the retained minimum safe version')
 
 def read_json(path):
     info = path.lstat()
@@ -498,6 +532,8 @@ class Host:
                 if not (self.directory / 'host.json').exists():
                     self.finish_archive()
                 else:
+                    if not allow_archive and os.path.lexists(self.directory / CANCELLATION) and not read_json(self.directory / CANCELLATION).get('completed'):
+                        raise Failure('Enrollment cancellation archival is incomplete; retry the verified cancellation command')
                     require(allow_archive, 'Interrupted archival must finish before host operations. For unactivated preparation run sudo ' + str(self.directory / 'manage') + ' discard-preparation; for completed removal retry the fresh setup block.')
             if (self.directory / 'host.json').exists():
                 self.journal = read_json(self.directory / 'host.json')
@@ -551,12 +587,21 @@ class Host:
             self.phase('recovery_required', recovery_phase=previous, error='Cannot confirm host helper termination: ' + str(error))
             raise UnsettledHelper('Host helper may still be running. Do not start competing recovery. Restore Docker access, then sudo ' + str(self.directory / 'manage') + ' repair') from error
 
-    def run_helper(self, entrypoint, args, *, mounts=(), readonly=False, image=None, timeout=180):
+    def cancellation_helper_args(self):
+        return [tuple(('compose', '--project-name', self.config['project'], '--project-directory', str(path.parent), '-f', str(path), *operation))
+                for path, operation in ((self.current_model_path(), ('ps', '--all', '--quiet', 'p2pstream')),
+                                        (self.directory / 'before-compose.json', ('config', '--hash', 'p2pstream')))]
+
+    def run_helper(self, entrypoint, args, *, mounts=(), readonly=False, image=None, timeout=180, cancellation_validation=False):
         if readonly:
             require(not (self.directory / 'helper.json').exists(), 'An unfinished host helper exists; use explicit repair or recover-update before inspection')
         self.settle_helper()
         name = self.helper_name()
-        atomic(self.directory / 'helper.json', {'name': name, 'entrypoint': entrypoint, 'phase': self.journal['phase'], 'readonly': readonly})
+        pending = {'name': name, 'entrypoint': entrypoint, 'phase': self.journal['phase'], 'readonly': readonly}
+        if cancellation_validation:
+            require(readonly and entrypoint == '/usr/local/bin/docker' and tuple(args) in self.cancellation_helper_args() and not mounts and image is None, 'Unexpected cancellation validation helper')
+            pending.update(cancellation_validation=True, cancellation_args=list(args))
+        atomic(self.directory / 'helper.json', pending)
         mount = 'type=bind,src=' + str(self.directory) + ',dst=' + str(self.directory) + (',readonly' if readonly else '')
         deployment = self.config.get('deployment_file') if self.config else None
         deployment_directory = str(Path(deployment).parent) if deployment else self.journal.get('deployment_directory')
@@ -579,14 +624,14 @@ class Host:
         self.settle_helper()
         return result
 
-    def tools(self, *args, image=None, readonly=False):
+    def tools(self, *args, image=None, readonly=False, cancellation_validation=False):
         # Read Compose inputs on the HOST, never inside this container. Only
         # normalized snapshots underneath the private state directory are used.
-        return self.run_helper('/usr/local/bin/docker', args, image=image, readonly=readonly)
+        return self.run_helper('/usr/local/bin/docker', args, image=image, readonly=readonly, cancellation_validation=cancellation_validation)
 
     def compose(self, *args, model='compose.json'):
         path = self.model_path(model)
-        return self.tools('compose', '--project-name', self.config['project'], '--project-directory', str(path.parent), '-f', str(path), *args, readonly=bool(args and args[0] in {'ps', 'logs', 'config'}))
+        return self.tools('compose', '--project-name', self.config['project'], '--project-directory', str(path.parent), '-f', str(path), *args, readonly=bool(args and args[0] in {'ps', 'logs', 'config'}), cancellation_validation=bool(getattr(self, '_cancellation_validation', False)))
 
     def command(self, *args):
         mounts = []
@@ -701,12 +746,118 @@ class Host:
         self.archive_state()
         print('Unactivated preparation archived privately. Deployment unchanged. Correct/apply your original Compose inputs, then copy a fresh setup command from the selected server.')
 
+    def validate_cancelled_original(self):
+        require(self.journal.get('phase') == 'rolled_back' and self.config, 'Only an already rolled-back initial enrollment can be cancelled; use repair or rollback first')
+        require(not self.journal.get('verified_version') and not self.journal.get('verified_commit') and not self.journal.get('deployment_migration'), 'A previously enabled enrollment cannot be cancelled')
+        require(self.config.get('deployment_protocol') == 2, 'Cancellation requires managed deployment ownership')
+        require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update history or maintenance exists; enrollment cancellation is refused')
+        require(not os.path.lexists(self.directory / 'helper.json'), 'An unfinished helper exists; use repair or rollback before cancellation')
+        helpers = docker('ps', '--all', '--quiet', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation']).stdout.decode().split()
+        require(not helpers, 'A host helper still exists; cancellation is refused')
+        raw = (self.directory / 'before-compose.json').read_bytes()
+        require(digest(raw) == self.journal.get('before_sha256'), 'Original deployment snapshot changed; cancellation is refused')
+        original = decode(raw)
+        require('p2pstream-server-updater' not in original['services'], 'Original deployment was already enrolled; cancellation is refused')
+        server = original['services']['p2pstream']
+        require(not any(key.startswith('SERVER_UPDATE_') for key in server.get('environment', {})) and not any(key.startswith('p2pstream.server-update.') for key in server.get('labels', {})), 'Original deployment retains an updater binding')
+        require(not any(v.get('target') == '/run/p2pstream-server-update' or v.get('target', '').startswith('/run/p2pstream-server-update/') for v in server.get('volumes', [])), 'Original deployment retains an updater control mount')
+        require(read_json(self.current_model_path()) == original, 'Current model differs from the restored original deployment')
+        for item in self.journal.get('source_bridge', {}).get('files', []):
+            path = Path(item['path'])
+            if item['editable'] is None and not item.get('original_backup'):
+                require(not os.path.lexists(path), 'A generated Compose bridge remains after rollback')
+            else:
+                require(stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == item['original_sha256'], 'Original Compose source changed after rollback')
+        source = decode(docker('compose', *self.journal['compose_options'], 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)
+        # Enrollment replaces only the input image reference with its publisher-
+        # verified digest; source files may retain their equivalent release tag.
+        require(source['services']['p2pstream'].get('image') == read_json(self.directory / 'input.json')['services']['p2pstream'].get('image'), 'Original Compose image input changed')
+        source['services']['p2pstream']['image'] = server['image']
+        require(source == original, 'Resolved original Compose inputs changed after rollback')
+        info = self.server_container()
+        require(info['State']['Running'] and info['Image'] == self.journal['before_image_id'], 'Original running image was not restored; cancellation is refused')
+        labels = info['Config'].get('Labels', {})
+        require(labels.get('com.docker.compose.project') == self.config['project'] and labels.get('com.docker.compose.service') == 'p2pstream', 'Original server belongs to another Compose deployment')
+        fields = self.compose('config', '--hash', 'p2pstream', model='before-compose.json').stdout.decode().split()
+        require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]) and labels.get('com.docker.compose.config-hash') == fields[1], 'Running original settings differ from the rollback snapshot')
+        require(not any(key.startswith('p2pstream.server-update.') for key in labels) and not any(value.partition('=')[0].startswith('SERVER_UPDATE_') for value in info['Config'].get('Env', [])), 'Running original server retains an updater binding')
+        require(not any(m['Destination'] == '/run/p2pstream-server-update' or m['Destination'].startswith('/run/p2pstream-server-update/') for m in info['Mounts']), 'Running original server retains an updater control mount')
+        mounts = [m for m in info['Mounts'] if m['Destination'] == '/data']
+        require(len(mounts) == 1 and mounts[0].get('Name') == self.config['data_volume'] and mounts[0].get('RW') and not any(m['Destination'].startswith('/data/') for m in info['Mounts']), 'Original data volume was not restored')
+        require(docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
+        require(docker('exec', info['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Original server is unhealthy; cancellation is refused')
+        # Inspect through the exact restored image, without mounting a second
+        # writer or altering the stable lock inode. Broken owner links also fail.
+        owner = docker('exec', info['Id'], '/bin/sh', '-c', 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json', check=False)
+        require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
+        require_data_writers(self.config['data_volume'], info['Id'])
+
+    def cancel_enrollment(self, args):
+        receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
+        if not self.journal:
+            require(receipt, 'No cancelled enrollment exists on this host')
+            # lock() finishes a committed archive before reaching this branch.
+            receipt['completed'] = True
+            atomic(self.directory / CANCELLATION, receipt)
+            return
+        require((self.journal.get('installation'), self.config and self.config.get('repository'), self.config and self.config.get('channel')) == (args.expect_installation, args.repository, args.expect_channel), 'Saved enrollment differs from the selected installation, publisher or channel')
+        # Validation can be interrupted before any cancellation receipt exists,
+        # or while a completed receipt from an earlier enrollment is retained.
+        # Mark its two exact read-only helpers from the first attempt, and settle
+        # only those helpers before re-proving restoration on every retry.
+        require(self.journal['phase'] == 'rolled_back' or (self.journal['phase'] == 'recovery_required' and self.journal.get('recovery_phase') == 'rolled_back'), 'Cancellation validation recovery belongs to another host operation')
+        require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update history or maintenance exists; enrollment cancellation is refused')
+        if os.path.lexists(self.directory / 'helper.json'):
+            pending = read_json(self.directory / 'helper.json')
+            require(pending.get('cancellation_validation') is True and pending.get('readonly') is True and pending.get('name') == self.helper_name() and pending.get('entrypoint') == '/usr/local/bin/docker' and pending.get('phase') == 'rolled_back' and isinstance(pending.get('cancellation_args'), list) and tuple(pending['cancellation_args']) in self.cancellation_helper_args(), 'Pending helper is not a recorded read-only cancellation validation')
+            try:
+                self.settle_helper()
+            except UnsettledHelper as error:
+                raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
+        if self.journal['phase'] == 'recovery_required':
+            self.journal.pop('recovery_phase', None)
+            self.phase('rolled_back', error='Original deployment restored; cancellation validation resumed')
+        self._cancellation_validation = True
+        try:
+            self.validate_cancelled_original()
+        except UnsettledHelper as error:
+            raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
+        floor = validate_floor(self.config['bootstrap_floor'])
+        if receipt:
+            require_floor(floor, receipt['floor'])
+        executors = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
+        require(len(executors) <= 1, 'Multiple saved executors exist; cancellation is refused')
+        if executors:
+            executor = decode(docker('inspect', executors[0]).stdout)[0]
+            labels = executor['Config'].get('Labels', {})
+            expected_image = decode(docker('image', 'inspect', self.updater).stdout)[0]['Id']
+            require(executor['Id'] == executors[0] and executor['Image'] == expected_image and labels.get('com.docker.compose.project') == self.config['project'] and labels.get('com.docker.compose.service') == 'p2pstream-server-updater' and labels.get('p2pstream.server-update.executor') == self.journal['installation'], 'Saved executor identity differs; cancellation is refused')
+            require(not executor['State']['Running'] and not executor['State'].get('Restarting') and not executor['State'].get('Paused'), 'The saved executor is still active; cancellation is refused')
+        fd = os.open(self.directory / 'executor.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise Failure('An executor still owns this deployment; cancellation is refused') from error
+            self.handoff_recovery_controller(args.bundle)
+            receipt = {'api': 1, 'installation': args.expect_installation, 'repository': args.repository, 'channel': args.expect_channel, 'floor': floor, 'completed': False}
+            atomic(self.directory / CANCELLATION, receipt)
+            if executors:
+                docker('rm', executors[0])  # No force: a concurrently started executor fails closed.
+            remaining = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
+            require(not remaining, 'An executor remains; cancellation archival is refused')
+            self.archive_state()
+            receipt['completed'] = True
+            atomic(self.directory / CANCELLATION, receipt)
+        finally:
+            os.close(fd)
+
     def archive_state(self):
         marker = self.directory / 'archive.json'
         if marker.exists():
             transaction = read_json(marker)
         else:
-            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json'}]
+            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json', CANCELLATION}]
             transaction = {'id': str(uuid.uuid4()), 'stage': 'copying', 'names': names}
             atomic(marker, transaction)
         archive = self.archive_directory(transaction)
@@ -739,7 +890,7 @@ class Host:
 
     def archive_directory(self, transaction):
         require(str(uuid.UUID(transaction['id'])) == transaction['id'], 'Invalid archive identity')
-        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json'} for n in transaction['names']), 'Unsafe archive inventory')
+        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json', CANCELLATION} for n in transaction['names']), 'Unsafe archive inventory')
         return self.directory / 'history' / transaction['id']
 
     def sync_directory(self):
@@ -1044,9 +1195,14 @@ def install(args, options):
     migration_requested = False
     owned_aliases = {}
     removed_source_files = None
-    if any((STATE / name).exists() for name in ('host.json', 'archive.json', 'reenrollment.json')):
+    if any(os.path.lexists(STATE / name) for name in ('host.json', 'archive.json', 'reenrollment.json', CANCELLATION)):
         host = Host()
         with host.lock(allow_archive=True):
+            cancellation = cancellation_receipt(STATE, identity, args.repository, args.expect_channel)
+            if cancellation and not cancellation['completed']:
+                require(not host.journal, 'Enrollment cancellation is incomplete; retry the verified cancellation command before setup')
+                cancellation['completed'] = True
+                atomic(STATE / CANCELLATION, cancellation)
             if host.journal:
                 require(host.journal.get('installation') == identity, 'State directory belongs to another installation')
             elif (STATE / 'reenrollment.json').exists():
@@ -1109,6 +1265,7 @@ def install(args, options):
         fields = docker('compose', '--project-directory', source_dir, '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
         require(migration_requested or len(fields) == 2 and fields[1] == container['Config']['Labels'].get('com.docker.compose.config-hash'), 'Compose inputs differ from the running server; apply or revert pending changes before enrollment')
     manifest, desc, server_image, manifest_hash = release_metadata(args.repository, args.expect_version, args.expect_commit, args.expect_channel, args.manifest_sha256)
+    check_cancellation_floor(STATE, args, manifest, manifest_hash)
     platform = [p for p in manifest['oci_images'][0]['platforms'] if p['os'] == 'linux' and p['arch'] == arch]
     require(len(platform) == 1, 'Release lacks the selected server platform')
     # Resolve exact index and compare its selected local immutable image config
@@ -1128,6 +1285,7 @@ def install(args, options):
     source_files = removed_source_files or compose_sources(options, container)
     layout = source_layout(source_dir, source_files, model['name'], owned_aliases)
     with host.lock(allow_archive=True):
+        check_cancellation_floor(STATE, args, manifest, manifest_hash)
         if host.journal.get('phase') == 'removed':
             host.archive_removed()
         if host.journal:
@@ -1201,6 +1359,14 @@ def manage(args):
     host = Host()
     with host.lock(allow_archive=args.action == 'discard-preparation'):
         require(host.journal, 'No saved enrollment; use the selected server setup command')
+        receipt_path = STATE / CANCELLATION
+        if os.path.lexists(receipt_path) and not read_json(receipt_path).get('completed'):
+            # Even read-only Compose inspection starts a journaled helper. An
+            # interrupted helper must not strand a transaction whose only safe
+            # next action is finishing cancellation. Status exits before helpers.
+            if args.action == 'status':
+                print('Host setup: ' + host.journal['phase'])
+            raise Failure('Enrollment cancellation is incomplete; retry the verified cancellation command')
         if args.action == 'discard-preparation':
             host.discard_preparation()
             return
@@ -1435,6 +1601,11 @@ def main():
     setup.add_argument('--manifest-sha256', required=True)
     setup.add_argument('--repository', required=True)
     setup.add_argument('--migrate-deployment', action='store_true', help='Explicitly migrate compatible legacy enrollment to managed Compose ownership')
+    cancel = commands.add_parser('cancel-enrollment', help='Archive a proven restored, never-completed enrollment using a verified release bundle')
+    for key in ('installation', 'channel'):
+        cancel.add_argument('--expect-' + key, required=True)
+    cancel.add_argument('--repository', required=True)
+    cancel.add_argument('--bundle', required=True)
     for action in ['status', 'logs', 'apply', 'recreate', 'repair', 'rollback', 'remove', 'recover-update', 'discard-preparation']:
         commands.add_parser(action)
     inspect = commands.add_parser('inspect')
@@ -1450,6 +1621,14 @@ def main():
     try:
         if args.action == 'install':
             install(args, options)
+        elif args.action == 'cancel-enrollment':
+            require(not options, 'Cancellation uses the saved Compose context; additional options are refused')
+            require(str(uuid.UUID(args.expect_installation)) == args.expect_installation and REPOSITORY.fullmatch(args.repository) and args.expect_channel in {'stable', 'staging'}, 'Invalid cancellation identity, publisher or channel')
+            local_engine()
+            controller = Host()
+            with controller.lock(allow_archive=True):
+                controller.cancel_enrollment(args)
+            print('Failed enrollment cancelled and archived privately; original server remains running. Release floors retained. Manually deploy a current fixed published server using the same Compose inputs and data volume, then copy its fresh setup command.')
         elif args.action == 'deploy':
             require(not options, 'Unexpected Compose options')
             deploy(args)

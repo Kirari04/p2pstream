@@ -965,6 +965,23 @@ func TestHalfCloseSessionShutdown(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	// Closing the client does not join the server's shutdown. Wait for the
+	// server to observe it naturally, then join teardown before reading: a
+	// concurrent window update can otherwise hit the closed peer transport.
+	shutdownErr := make(chan error, 1)
+	go func() {
+		<-server.CloseChan()
+		shutdownErr <- server.Close()
+	}()
+	select {
+	case err := <-shutdownErr:
+		if err != nil {
+			t.Fatalf("server shutdown: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("server did not finish peer-initiated shutdown")
+	}
+
 	buf := make([]byte, dataSize)
 	n, err := stream2.Read(buf)
 	if err != nil {
@@ -972,6 +989,9 @@ func TestHalfCloseSessionShutdown(t *testing.T) {
 	}
 	if int64(n) != dataSize {
 		t.Fatalf("bad: %v", n)
+	}
+	if !bytes.Equal(buf[:n], data) {
+		t.Fatal("buffered payload changed during session shutdown")
 	}
 
 	// EOF after close
