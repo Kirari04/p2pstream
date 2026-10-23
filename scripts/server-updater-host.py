@@ -6,6 +6,7 @@ steps are rejected by the independently shipped Go layout validator.
 """
 import argparse
 import contextlib
+import datetime
 import fcntl
 import grp
 import hashlib
@@ -34,6 +35,33 @@ HEX = re.compile(r'^[0-9a-f]{64}$')
 VERSION = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?$')
 REPOSITORY = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*$')
 CANCELLATION = 'cancelled-enrollment.json'
+BLOCKED_INITIAL_OWNER = 'blocked-initial-owner.json'
+OWNER_ABSENT = 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json'
+# Published servers need no new recovery CLI or interpreter. These fixed native
+# commands run only inside the independently proved, immutable current server.
+# stat does not follow links; dd refuses links and cannot block on a FIFO. Read
+# bounds and before/after metadata checks also apply to the read-only probe.
+OWNER_PROBE = r'''set -eu
+export LC_ALL=C PATH=/usr/bin:/bin
+cd /data
+test ! -L /data
+owner=.p2pstream-runtime-owner.json
+test ! -L "$owner" && test -f "$owner"
+metadata=$(stat -c '%d:%i:%f:%h:%u:%g:%s:%y:%z' -- "$owner")
+printf '%s\n' "$metadata"
+dd if="$owner" iflag=nonblock,nofollow bs=4097 count=1 status=none
+test "$metadata" = "$(stat -c '%d:%i:%f:%h:%u:%g:%s:%y:%z' -- "$owner")"
+test ! -L "$owner"
+'''
+LEASE_PROBE = r'''set -eu
+export LC_ALL=C PATH=/usr/bin:/bin
+cd /data
+test ! -L /data
+stat -c '%d:%i' -- /data
+test ! -L .p2pstream-runtime.lock && test -f .p2pstream-runtime.lock
+stat -c '%d:%i:%f:%h:%u:%g:%s:%y:%z' -- .p2pstream-runtime.lock
+head -c 65537 /proc/locks
+'''
 
 class Failure(RuntimeError):
     pass
@@ -872,14 +900,179 @@ class Host:
         require(not any(m['Destination'] == '/run/p2pstream-server-update' or m['Destination'].startswith('/run/p2pstream-server-update/') for m in info['Mounts']), 'Running upgraded server retains an updater control mount')
         require(docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
         require(docker('exec', info['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Upgraded server is unhealthy; cancellation is refused')
-        owner = docker('exec', info['Id'], '/bin/sh', '-c', 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json', check=False)
-        require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
         require_data_writers(self.config['data_volume'], info['Id'])
-        self._cancelled_upgrade = {'options': options, 'model': source_raw, 'server': self.cancellation_server_identity(info), 'snapshots': snapshots, 'replacements': replacements}
+        owner = self.prove_blocked_initial_owner(info, args, floor, source_raw)
+        self._cancelled_upgrade = {'options': options, 'model': source_raw, 'server': self.cancellation_server_identity(info), 'snapshots': snapshots, 'replacements': replacements, 'owner': owner}
         self.check_cancelled_upgrade(options)
         for name, snapshot in snapshots.items():
             require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
         return floor
+
+    @staticmethod
+    def cancellation_inode(metadata, limit):
+        fields = metadata.split(':', 7)
+        require(len(fields) == 8 and all(re.fullmatch(r'[0-9]+', fields[i]) for i in (0, 1, 3, 4, 5, 6)) and re.fullmatch(r'[0-9a-f]+', fields[2]), 'Unsafe runtime ownership metadata')
+        device, inode, mode, links, uid, gid, size = [int(value, 16 if i == 2 else 10) for i, value in enumerate(fields[:7])]
+        require(stat.S_ISREG(mode) and not mode & 0o022 and links == 1 and size <= limit, 'Unsafe runtime ownership metadata')
+        return device, inode
+
+    def cancellation_owner_snapshot(self, container):
+        absent = docker('exec', container, '/bin/sh', '-c', OWNER_ABSENT, check=False, timeout=15)
+        if absent.returncode == 0:
+            return None
+        result = docker('exec', container, '/bin/sh', '-c', OWNER_PROBE, check=False, timeout=15)
+        require(result.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
+        metadata, separator, raw = result.stdout.partition(b'\n')
+        require(separator and 0 < len(raw) <= 4096, 'Unsafe runtime owner marker')
+        metadata = metadata.decode('ascii')
+        self.cancellation_inode(metadata, 4096)
+        return {'metadata': metadata, 'data_hex': raw.hex(), 'sha256': digest(raw)}
+
+    def cancellation_live_lease(self, info):
+        # The published standalone binary must be PID 1 in its own namespace.
+        # Thus a kernel FLOCK entry for PID 1 proves this exact server holds the
+        # stable writer lease, without attempting to acquire or replace it.
+        require(info['Config'].get('Cmd') == ['/app/p2pstream', 'server'] and not info['Config'].get('Entrypoint') and not info.get('HostConfig', {}).get('Init') and not info.get('HostConfig', {}).get('PidMode'), 'Cannot prove the standalone server lifetime lease')
+        result = docker('exec', info['Id'], '/bin/sh', '-c', LEASE_PROBE, check=False, timeout=15)
+        require(result.returncode == 0, 'Cannot inspect the standalone server lifetime lease')
+        directory, separator, remainder = result.stdout.partition(b'\n')
+        require(separator and re.fullmatch(rb'[0-9]+:[0-9]+', directory), 'Cannot inspect the runtime data directory')
+        metadata, separator, locks = remainder.partition(b'\n')
+        require(separator and len(locks) <= 65536, 'Cannot inspect the standalone server lifetime lease')
+        metadata = metadata.decode('ascii')
+        device, inode = self.cancellation_inode(metadata, 4096)
+        held = []
+        for line in locks.decode('ascii').splitlines():
+            match = re.fullmatch(r'[0-9]+: +FLOCK +ADVISORY +WRITE +1 +([0-9a-f]+):([0-9a-f]+):([0-9]+) +0 +EOF', line)
+            if match and (int(match[1], 16), int(match[2], 16), int(match[3])) == (os.major(device), os.minor(device), inode):
+                held.append(':'.join(match.groups()))
+        require(len(held) == 1, 'Standalone server does not hold the stable lifetime lease')
+        return {'metadata': metadata, 'key': held[0], 'directory': directory.decode('ascii')}
+
+    @staticmethod
+    def cancellation_stat_matches(info, metadata):
+        fields = metadata.split(':', 7)
+        identity = [int(value, 16 if i == 2 else 10) for i, value in enumerate(fields[:7])]
+        dates = re.fullmatch(r'(.*)\.([0-9]{9}) ([+-][0-9]{4}):(.*)\.([0-9]{9}) ([+-][0-9]{4})', fields[7])
+        require(dates, 'Invalid runtime ownership timestamps')
+        times = [int(datetime.datetime.strptime(dates[i] + dates[i + 2], '%Y-%m-%d %H:%M:%S%z').timestamp()) * 10 ** 9 + int(dates[i + 1]) for i in (1, 4)]
+        return identity + times == [info.st_dev, info.st_ino, info.st_mode, info.st_nlink, info.st_uid, info.st_gid, info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+
+    @contextlib.contextmanager
+    def cancellation_data_directory(self, info, lease):
+        volume = decode(docker('volume', 'inspect', self.config['data_volume']).stdout)
+        require(len(volume) == 1 and volume[0].get('Name') == self.config['data_volume'] and volume[0].get('Driver') == 'local' and volume[0].get('Scope') == 'local', 'Cannot prove the local runtime data volume')
+        mountpoint = volume[0].get('Mountpoint')
+        mounts = [m for m in info['Mounts'] if m['Destination'] == '/data']
+        require(isinstance(mountpoint, str) and Path(mountpoint).is_absolute() and len(mounts) == 1 and mounts[0].get('Source') == mountpoint and mounts[0].get('Type') == 'volume', 'Runtime data mountpoint differs from the local volume')
+        try:
+            fd = os.open(mountpoint, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        except OSError as error:
+            raise Failure('Runtime data volume is not locally accessible; cancellation is refused') from error
+        try:
+            current = os.fstat(fd)
+            require(f'{current.st_dev}:{current.st_ino}' == lease['directory'], 'Local runtime data directory differs from the running container')
+            yield fd
+        finally:
+            os.close(fd)
+
+    def check_local_cancellation_owner(self, directory, snapshot, lease):
+        current_lock = os.stat('.p2pstream-runtime.lock', dir_fd=directory, follow_symlinks=False)
+        require(self.cancellation_stat_matches(current_lock, lease['metadata']), 'Local stable lifetime lock differs from the running container')
+        name = '.p2pstream-runtime-owner.json'
+        if snapshot is None:
+            try:
+                os.stat(name, dir_fd=directory, follow_symlinks=False)
+            except FileNotFoundError:
+                return
+            raise Failure('Runtime ownership changed during cancellation validation')
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        try:
+            require(self.cancellation_stat_matches(os.fstat(fd), snapshot['metadata']), 'Local runtime owner differs from the running container')
+            raw = os.read(fd, 4097)
+            require(raw.hex() == snapshot['data_hex'] and digest(raw) == snapshot['sha256'], 'Local runtime owner bytes differ from the archived marker')
+            require(self.cancellation_stat_matches(os.fstat(fd), snapshot['metadata']) and self.cancellation_stat_matches(os.stat(name, dir_fd=directory, follow_symlinks=False), snapshot['metadata']), 'Runtime owner changed during cancellation validation')
+        finally:
+            os.close(fd)
+
+    def prove_blocked_initial_owner(self, info, args, floor, source_raw):
+        snapshot = self.cancellation_owner_snapshot(info['Id'])
+        path = self.directory / BLOCKED_INITIAL_OWNER
+        if snapshot is None and not os.path.lexists(path):
+            return None  # Preserve the original owner-absent cancellation path.
+        enrolled_raw = (self.directory / 'enrolled-compose.json').read_bytes()
+        enrolled = decode(enrolled_raw)
+        server = enrolled['services']['p2pstream']
+        env = server.get('environment', {})
+        generation = env.get('SERVER_UPDATE_GENERATION')
+        require(isinstance(generation, str) and re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', generation), 'Unknown initial enrollment generation')
+        require(isinstance(self.journal.get('version'), str) and VERSION.fullmatch(self.journal['version']) and isinstance(self.journal.get('commit'), str) and re.fullmatch(r'[0-9a-f]{40}', self.journal['commit']), 'Invalid initial enrolled release identity')
+        require(isinstance(server.get('image'), str) and re.fullmatch(re.escape('ghcr.io/' + self.config['repository'].lower() + '@sha256:') + r'[0-9a-f]{64}', server['image']), 'Initial enrolled image is not pinned')
+        require(enrolled.get('name') == self.config['project'] and server.get('image') == self.journal['server_image'] and env.get('SERVER_UPDATE_INSTANCE_ID') == self.journal['installation'] and env.get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2' and not env.get('SERVER_UPDATE_TOKEN') and env.get('SERVER_UPDATE_TOKEN_FILE') == '/run/p2pstream-server-update/token' and env.get('SERVER_UPDATE_SOCKET') == '/run/p2pstream-server-update/control.sock' and env.get('SERVER_UPDATE_GATE_FILE') == '/run/p2pstream-server-update/maintenance', 'Initial enrolled runtime binding differs')
+        old = decode(docker('image', 'inspect', server['image']).stdout)
+        require(len(old) == 1 and old[0]['Id'] == self.journal['before_image_id'], 'Initial enrolled image differs')
+        labels = old[0]['Config'].get('Labels', {})
+        require((labels.get('org.opencontainers.image.version'), labels.get('org.opencontainers.image.revision'), labels.get('org.opencontainers.image.source', '').lower()) == (self.journal['version'], self.journal['commit'], 'https://github.com/' + self.config['repository'].lower()), 'Initial enrolled image release identity differs')
+        expected = {'api': 2, 'allowed': False, 'instance_id': self.journal['installation'], 'generation': generation, 'version': self.journal['version'], 'commit': self.journal['commit']}
+        provenance = {'installation': self.journal['installation'], 'data_volume': self.config['data_volume'], 'enrolled_sha256': digest(enrolled_raw), 'journal_sha256': digest((self.directory / 'host.json').read_bytes()), 'config_sha256': digest((self.directory / 'config.json').read_bytes()), 'source_model_sha256': digest(source_raw), 'server_sha256': digest(json.dumps(self.cancellation_server_identity(info), sort_keys=True).encode()), 'current_version': args.expect_version, 'current_commit': args.expect_commit, 'floor': floor}
+        lease = self.cancellation_live_lease(info)
+        with self.cancellation_data_directory(info, lease) as directory:
+            self.check_local_cancellation_owner(directory, snapshot, lease)
+        if os.path.lexists(path):
+            metadata = path.lstat()
+            require(stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1 and not metadata.st_mode & 0o022 and metadata.st_uid == 0, 'Unsafe blocked initial owner archive')
+            recorded = read_json(path)
+            receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
+            require(set(recorded) == {'api', 'owner', 'lease', 'provenance'} and recorded['api'] == 1 and recorded['provenance'] == provenance and recorded['lease'] == lease and receipt and not receipt['completed'] and receipt['floor'] == floor, 'Blocked initial owner archive or retained floor differs')
+            require(snapshot is None or snapshot == recorded['owner'], 'Runtime owner changed after cancellation was recorded')
+            archived = recorded['owner']
+        else:
+            require(not os.path.lexists(self.directory / 'archive.json'), 'Runtime owner appeared during cancellation archival')
+            archived = snapshot
+        require(isinstance(archived, dict) and set(archived) == {'metadata', 'data_hex', 'sha256'}, 'Invalid blocked initial owner archive')
+        raw = bytes.fromhex(archived['data_hex'])
+        self.cancellation_inode(archived['metadata'], 4096)
+        require(0 < len(raw) <= 4096 and digest(raw) == archived['sha256'], 'Blocked initial owner archive hash differs')
+        owner = decode(raw)
+        require(isinstance(owner, dict) and owner == expected and type(owner.get('api')) is int and owner.get('allowed') is False, 'Runtime ownership is not the exact blocked initial enrollment')
+        return {'snapshot': snapshot, 'record': {'api': 1, 'owner': archived, 'lease': lease, 'provenance': provenance}}
+
+    def retire_blocked_initial_owner(self):
+        proof = self._cancelled_upgrade
+        owner = proof['owner']
+        if owner is None:
+            return
+        # Host and executor locks, current release floor and every deployment
+        # gate precede this one narrowly scoped admission-metadata operation.
+        # The sole published standalone writer never changes its owner marker;
+        # trusted host writers are serialized by the two controller locks. No
+        # generic detach/offline data operation is being authorized here.
+        self.check_cancelled_upgrade(proof['options'])
+        for name, snapshot in proof['snapshots'].items():
+            require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
+        path = self.directory / BLOCKED_INITIAL_OWNER
+        if not os.path.lexists(path):
+            atomic(path, owner['record'])  # Exact bytes/hash/provenance durable before unlink.
+        else:
+            require(read_json(path) == owner['record'], 'Blocked initial owner archive changed')
+        self.check_cancelled_upgrade(proof['options'])
+        snapshot, lease = owner['snapshot'], owner['record']['lease']
+        with self.cancellation_data_directory(proof['server'], lease) as directory:
+            self.check_cancelled_upgrade(proof['options'])
+            # Mutation stays in the Python process holding both controller
+            # locks: an orphaned Docker exec could resume after a retry and
+            # unlink a newly enrolled owner. Read-only exec probes are harmless
+            # if orphaned. A directory FD binds every local lookup and unlink to
+            # the exact volume inode independently observed in the container.
+            self.clear_blocked_initial_owner(directory, snapshot, lease)
+        owner['snapshot'] = None
+        self.check_cancelled_upgrade(proof['options'])
+
+    def clear_blocked_initial_owner(self, directory, snapshot, lease):
+        self.check_local_cancellation_owner(directory, snapshot, lease)
+        if snapshot is not None:
+            os.unlink('.p2pstream-runtime-owner.json', dir_fd=directory)
+        os.fsync(directory)  # Also make an interrupted unlink durable on retry.
 
     @staticmethod
     def cancellation_source_snapshot(path):
@@ -932,8 +1125,10 @@ class Host:
         require(docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout == proof['model'] and docker('compose', *options, 'ps', '--all', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split() == [proof['server']['Id']], 'Upgraded deployment changed during cancellation validation')
         require(docker('exec', proof['server']['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Upgraded server is unhealthy; cancellation is refused')
         require(docker('exec', proof['server']['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
-        owner = docker('exec', proof['server']['Id'], '/bin/sh', '-c', 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json', check=False)
-        require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
+        expected = proof['owner']
+        require(self.cancellation_owner_snapshot(proof['server']['Id']) == (expected['snapshot'] if expected else None), 'Runtime ownership changed during cancellation validation')
+        if expected:
+            require(self.cancellation_live_lease(info[0]) == expected['record']['lease'], 'Standalone lifetime lease changed during cancellation validation')
         require_data_writers(self.config['data_volume'], proof['server']['Id'])
 
     def restore_cancelled_upgrade(self):
@@ -1022,6 +1217,7 @@ class Host:
             remaining = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
             require(not remaining, 'An executor remains; cancellation archival is refused')
             if getattr(args, 'upgraded_deployment', False):
+                self.retire_blocked_initial_owner()
                 self.restore_cancelled_upgrade()
             self.archive_state()
             receipt['completed'] = True

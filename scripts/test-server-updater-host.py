@@ -9,6 +9,8 @@ import io
 import json
 import os
 from pathlib import Path
+import select
+import signal
 import stat
 import subprocess
 import sys
@@ -2181,6 +2183,366 @@ class UpgradedCancellationLifecycle(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 host.main()
             self.assertIn('requires --upgraded-deployment', error.getvalue())
+
+class BlockedInitialOwnerCancellation(unittest.TestCase):
+    """Real native file commands, mocked Docker inventory and namespace locks."""
+    tearDown = Lifecycle.tearDown
+    install = Lifecycle.install
+    cancel = CancellationLifecycle.cancel
+    files = UpgradedCancellationLifecycle.files
+    legacy_failure = UpgradedCancellationLifecycle.legacy_failure
+    bridges = UpgradedCancellationLifecycle.bridges
+    assert_retired = UpgradedCancellationLifecycle.assert_retired
+
+    def setUp(self):
+        UpgradedCancellationLifecycle.setUp(self)
+        enrolled = host.read_json(self.state / 'enrolled-compose.json')
+        enrolled['services']['p2pstream']['environment'].update(
+            SERVER_UPDATE_INSTANCE_ID=ID,
+            SERVER_UPDATE_SOCKET='/run/p2pstream-server-update/control.sock',
+            SERVER_UPDATE_GATE_FILE='/run/p2pstream-server-update/maintenance')
+        host.atomic(self.state / 'enrolled-compose.json', enrolled)
+        self.legacy_failure()
+        self.info['Config']['Cmd'] = ['/app/p2pstream', 'server']
+        self.data = self.path / 'data'
+        self.data.mkdir()
+        self.info['Mounts'][0].update(Source=str(self.data), Type='volume')
+        self.volume = {'Name': 'custom-data', 'Driver': 'local', 'Scope': 'local', 'Mountpoint': str(self.data)}
+        self.marker = self.data / '.p2pstream-runtime-owner.json'
+        self.runtime_lock = self.data / '.p2pstream-runtime.lock'
+        self.runtime_lock.touch(mode=0o600)
+        self.application = self.data / 'application.db'
+        self.application.write_bytes(b'application data is never opened by cleanup')
+        self.lock_table = self.path / 'proc-locks'
+        lock = self.runtime_lock.stat()
+        self.lock_table.write_text(f'42: FLOCK  ADVISORY  WRITE 1 {os.major(lock.st_dev):02x}:{os.minor(lock.st_dev):02x}:{lock.st_ino} 0 EOF\n')
+        self.marker_value = {'api': 2, 'instance_id': ID, 'generation': ID, 'allowed': False, 'version': 'v1.0.1', 'commit': 'b' * 40}
+        host.atomic(self.marker, self.marker_value, mode=0o644)
+        self.original_marker = self.marker.read_bytes()
+        self.original_lock = self.runtime_lock.stat()
+        self.original_journal = (self.state / 'host.json').read_bytes()
+        self.cleanup_fault = None
+        self.cleanup_calls = 0
+        self.cleanup_before = None
+        clear = host.Host.clear_blocked_initial_owner
+        def checked_clear(controller, directory, snapshot, lease):
+            self.cleanup_calls += 1
+            self.assertFalse(host.read_json(self.state / host.CANCELLATION)['completed'])
+            self.assertEqual(host.read_json(self.state / host.CANCELLATION)['floor'], self.current_floor)
+            archived = host.read_json(self.state / host.BLOCKED_INITIAL_OWNER)
+            self.assertEqual(bytes.fromhex(archived['owner']['data_hex']), self.original_marker)
+            self.assertEqual((self.state / 'host.json').read_bytes(), self.original_journal)
+            for name in ('host.lock', 'executor.lock'):
+                with (self.state / name).open('rb') as stream:
+                    with self.assertRaises(BlockingIOError):
+                        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if self.cleanup_before:
+                self.cleanup_before()
+            if self.cleanup_fault == 'before':
+                raise KeyboardInterrupt()
+            if self.cleanup_fault == 'after-unlink':
+                with patch.object(os, 'fsync', side_effect=KeyboardInterrupt):
+                    clear(controller, directory, snapshot, lease)
+            else:
+                clear(controller, directory, snapshot, lease)
+            if self.cleanup_fault == 'after-sync':
+                raise KeyboardInterrupt()
+        self.stack.enter_context(patch.object(host.Host, 'clear_blocked_initial_owner', checked_clear))
+
+    def docker(self, *args, **kwargs):
+        if args[:2] == ('volume', 'inspect'):
+            self.commands.append(('docker', args))
+            return subprocess.CompletedProcess(args, 0, json.dumps([self.volume]).encode(), b'')
+        native = {host.OWNER_ABSENT, host.OWNER_PROBE, host.LEASE_PROBE}
+        if hasattr(self, 'data') and args[:1] == ('exec',) and len(args) >= 5 and args[2:4] == ('/bin/sh', '-c') and args[4] in native:
+            self.commands.append(('docker', args))
+            script = args[4].replace('/data', str(self.data)).replace('/proc/locks', str(self.lock_table))
+            return subprocess.run(['/bin/sh', '-c', script, *args[5:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=3)
+        return UpgradedCancellationLifecycle.docker(self, *args, **kwargs)
+
+    def assert_data_preserved(self):
+        self.assertEqual(self.application.read_bytes(), b'application data is never opened by cleanup')
+        lock = self.runtime_lock.stat()
+        for field in ('st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_size', 'st_mtime_ns', 'st_ctime_ns'):
+            self.assertEqual(getattr(lock, field), getattr(self.original_lock, field))
+        self.assertEqual(self.runtime_lock.read_bytes(), b'')
+
+    def assert_refused(self, message):
+        before, server, restarts = self.files(), copy.deepcopy(self.info), self.restart_count
+        marker = self.marker.read_bytes() if self.marker.is_file() else None
+        with self.assertRaisesRegex((host.Failure, ValueError), message):
+            self.cancel()
+        self.assertEqual(self.files(), before)
+        self.assertEqual(self.info, server)
+        self.assertEqual(self.restart_count, restarts)
+        if marker is not None:
+            self.assertEqual(self.marker.read_bytes(), marker)
+        self.assertEqual(self.cleanup_calls, 0)
+        self.assert_data_preserved()
+
+    def assert_cleanup_complete(self):
+        self.assertFalse(os.path.lexists(self.marker))
+        self.assert_data_preserved()
+        archived = next((self.state / 'history').iterdir())
+        record = host.read_json(archived / host.BLOCKED_INITIAL_OWNER)
+        self.assertEqual(bytes.fromhex(record['owner']['data_hex']), self.original_marker)
+        self.assertEqual(record['owner']['sha256'], host.digest(self.original_marker))
+        self.assertEqual(record['provenance']['floor'], self.current_floor)
+        self.assertEqual((archived / 'host.json').read_bytes(), self.original_journal)
+
+    def test_exact_blocked_initial_owner_is_archived_and_removed_without_restart(self):
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        self.cancel()
+        self.assert_retired(server, restarts)
+        self.assert_cleanup_complete()
+        self.assertEqual(self.cleanup_calls, 1)
+        self.cancel()
+        self.assertEqual(self.cleanup_calls, 1)
+
+    def test_blocked_initial_owner_cleanup_and_owned_bridge_restoration(self):
+        journal = self.bridges(alias=True)
+        restored = {item['path']: Path(item['editable']).read_bytes() for item in journal['source_bridge']['files'] if item['editable']}
+        self.original_journal = (self.state / 'host.json').read_bytes()
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        self.cancel()
+        self.assert_retired(server, restarts)
+        self.assert_cleanup_complete()
+        for name, data in restored.items():
+            self.assertEqual(Path(name).read_bytes(), data)
+
+    def test_owner_schema_and_exact_initial_identity_are_mandatory(self):
+        cases = [('api', 1), ('api', 2.0), ('allowed', True), ('allowed', 0), ('generation', '22222222-2222-4222-8222-222222222222'), ('instance_id', '22222222-2222-4222-8222-222222222222'), ('version', 'v1.0.2'), ('commit', '9' * 40), ('extra', 'unknown')]
+        for key, value in cases:
+            with self.subTest(key=key, value=value):
+                host.atomic(self.marker, dict(self.marker_value, **{key: value}), mode=0o644)
+                self.assert_refused('not the exact blocked initial enrollment')
+
+    def test_malformed_duplicate_and_oversized_owner_refused(self):
+        for raw in (b'{', b'{}', b'null', b'[]', b'{"api":2,"api":2}', b' ' * 4097):
+            with self.subTest(raw=raw[:40]):
+                host.atomic(self.marker, raw, mode=0o644)
+                self.assert_refused('Expecting|not the exact|Duplicate|Unsafe')
+
+    def test_owner_symlink_hardlink_fifo_and_writable_files_refused(self):
+        self.marker.unlink()
+        self.marker.symlink_to(self.application)
+        self.assert_refused('Runtime ownership remains')
+        self.marker.unlink()
+        self.marker.symlink_to(self.data / 'missing')
+        self.assert_refused('Runtime ownership remains')
+        self.marker.unlink()
+        os.mkfifo(self.marker)
+        self.assert_refused('Runtime ownership remains')
+        self.marker.unlink()
+        host.atomic(self.marker, self.original_marker, mode=0o644)
+        os.link(self.marker, self.data / 'linked-owner')
+        self.assert_refused('Unsafe runtime ownership metadata')
+        (self.data / 'linked-owner').unlink()
+        self.marker.chmod(0o666)
+        self.assert_refused('Unsafe runtime ownership metadata')
+
+    def test_unknown_saved_generation_and_old_release_drift_refused(self):
+        path = self.state / 'enrolled-compose.json'
+        saved = host.read_json(path)
+        changed = copy.deepcopy(saved)
+        del changed['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION']
+        host.atomic(path, changed)
+        host.atomic(Path(host.read_json(self.state / 'config.json')['deployment_file']), changed)
+        self.assert_refused('Unknown initial enrollment generation')
+        host.atomic(path, saved)
+        host.atomic(Path(host.read_json(self.state / 'config.json')['deployment_file']), saved)
+        self.old_image['Config']['Labels']['org.opencontainers.image.revision'] = '8' * 40
+        self.assert_refused('Initial enrolled image release identity differs')
+
+    def test_missing_wrong_pid_wrong_inode_or_shared_lease_refused(self):
+        good = self.lock_table.read_text()
+        wrong_inode = good.replace(':' + str(self.runtime_lock.stat().st_ino) + ' ', ':999999999 ')
+        for locks in ('', good.replace('WRITE 1 ', 'WRITE 9 '), wrong_inode, good.replace('WRITE', 'READ'), good.replace('FLOCK', 'POSIX'), good + good):
+            with self.subTest(locks=locks):
+                self.lock_table.write_text(locks)
+                self.assert_refused('does not hold the stable lifetime lease')
+
+    def test_noncanonical_server_process_or_namespace_refused(self):
+        self.info['Config']['Cmd'] = ['/bin/sh', '-c', '/app/p2pstream server']
+        self.assert_refused('Cannot prove the standalone server lifetime lease')
+        self.info['Config']['Cmd'] = ['/app/p2pstream', 'server']
+        for options in ({'Init': True}, {'PidMode': 'host'}):
+            self.info['HostConfig'] = options
+            self.assert_refused('Cannot prove the standalone server lifetime lease')
+
+    def test_unsafe_stable_lock_refused_without_replacement(self):
+        self.runtime_lock.chmod(0o666)
+        self.original_lock = self.runtime_lock.stat()
+        self.assert_refused('Unsafe runtime ownership metadata')
+
+    def test_host_volume_path_must_match_container_directory_inode(self):
+        other = self.path / 'unrelated-volume'
+        other.mkdir()
+        self.volume['Mountpoint'] = str(other)
+        self.assert_refused('mountpoint differs from the local volume')
+        self.info['Mounts'][0]['Source'] = str(other)
+        self.assert_refused('directory differs from the running container')
+        other.rmdir()
+        other.symlink_to(self.data, target_is_directory=True)
+        self.assert_refused('not locally accessible')
+        other.unlink()
+        self.assert_refused('not locally accessible')
+
+    def test_volume_driver_and_host_lock_identity_are_not_assumed(self):
+        self.volume['Driver'] = 'remote'
+        self.assert_refused('Cannot prove the local runtime data volume')
+        self.volume['Driver'] = 'local'
+        real = host.Host.cancellation_live_lease
+        def changed(controller, info):
+            lease = real(controller, info)
+            fields = lease['metadata'].split(':')
+            fields[1] = str(int(fields[1]) + 1)
+            lease['metadata'] = ':'.join(fields)
+            return lease
+        with patch.object(host.Host, 'cancellation_live_lease', changed):
+            self.assert_refused('Local stable lifetime lock differs')
+
+    def test_directory_descriptor_never_unlinks_a_replacement_path(self):
+        moved = self.path / 'original-data'
+        def replace_directory():
+            self.data.rename(moved)
+            self.data.mkdir()
+            host.atomic(self.marker, dict(self.marker_value, allowed=True), mode=0o644)
+        self.cleanup_before = replace_directory
+        with self.assertRaisesRegex(host.Failure, 'Runtime ownership changed'):
+            self.cancel()
+        self.assertFalse((moved / self.marker.name).exists())
+        self.assertTrue(host.read_json(self.marker)['allowed'])
+        self.assertEqual((moved / self.runtime_lock.name).stat().st_ino, self.original_lock.st_ino)
+
+    @unittest.skipUnless(hasattr(os, 'fork'), 'Requires Linux process and flock semantics')
+    def test_controller_death_cannot_leave_a_mutator_that_removes_reenrolled_owner(self):
+        ready_read, ready_write = os.pipe()
+        resume_read, resume_write = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                os.close(ready_read)
+                os.close(resume_write)
+                unlink = os.unlink
+                def paused_unlink(path, *args, **kwargs):
+                    if path == '.p2pstream-runtime-owner.json' and 'dir_fd' in kwargs:
+                        os.write(ready_write, b'R')
+                        os.read(resume_read, 1)
+                    return unlink(path, *args, **kwargs)
+                with patch.object(os, 'unlink', paused_unlink):
+                    self.cancel()
+                os._exit(0)
+            except BaseException:
+                os._exit(2)
+        os.close(ready_write)
+        os.close(resume_read)
+        alive = True
+        try:
+            self.assertTrue(select.select([ready_read], [], [], 5)[0], 'Cleanup did not reach its final unlink')
+            self.assertEqual(os.read(ready_read, 1), b'R')
+            for name in ('host.lock', 'executor.lock'):
+                with (self.state / name).open('rb') as stream:
+                    with self.assertRaises(BlockingIOError):
+                        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.assertEqual(self.marker.read_bytes(), self.original_marker)
+            os.kill(pid, signal.SIGKILL)
+            self.assertEqual(os.waitpid(pid, 0)[1], signal.SIGKILL)
+            alive = False
+            self.cancel()
+            self.assert_cleanup_complete()
+            replacement = dict(self.marker_value, generation='22222222-2222-4222-8222-222222222222', allowed=True)
+            host.atomic(self.marker, replacement, mode=0o644)
+            # The only process that could perform the old unlink is dead. No
+            # mutating Docker exec/helper can survive to remove this generation.
+            with self.assertRaises(BrokenPipeError):
+                os.write(resume_write, b'R')
+            self.assertEqual(host.read_json(self.marker), replacement)
+            for kind, *details in self.commands:
+                if kind == 'docker' and details[0][:1] == ('exec',) and '/bin/sh' in details[0]:
+                    self.assertIn(details[0][-1], {host.OWNER_ABSENT, host.OWNER_PROBE, host.LEASE_PROBE})
+        finally:
+            if alive:
+                os.kill(pid, signal.SIGKILL)
+                os.waitpid(pid, 0)
+            os.close(ready_read)
+            os.close(resume_write)
+
+    def interrupted_cleanup(self, point):
+        self.cleanup_fault = point
+        with self.assertRaises((KeyboardInterrupt, host.Failure)):
+            self.cancel()
+        self.assertEqual((self.state / 'host.json').read_bytes(), self.original_journal)
+        self.assertFalse(host.read_json(self.state / host.CANCELLATION)['completed'])
+        self.assertTrue((self.state / host.BLOCKED_INITIAL_OWNER).exists())
+        self.assert_data_preserved()
+        self.cleanup_fault = None
+
+    def test_interruption_before_cleanup_reproves_exact_archived_owner(self):
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        self.interrupted_cleanup('before')
+        self.assertEqual(self.marker.read_bytes(), self.original_marker)
+        self.cancel()
+        self.assert_retired(server, restarts)
+        self.assert_cleanup_complete()
+
+    def test_interruption_after_unlink_reproves_absence_and_resyncs(self):
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        self.interrupted_cleanup('after-unlink')
+        self.assertFalse(self.marker.exists())
+        self.cancel()
+        self.assert_retired(server, restarts)
+        self.assert_cleanup_complete()
+        self.assertEqual(self.cleanup_calls, 2)
+
+    def test_interruption_after_sync_reproves_absence_and_receipt(self):
+        self.interrupted_cleanup('after-sync')
+        self.cancel()
+        self.assert_cleanup_complete()
+
+    def test_retry_cannot_refloor_or_discard_cleanup_provenance(self):
+        self.interrupted_cleanup('after-unlink')
+        self.manifest['sequence'] += 1
+        with self.assertRaisesRegex(host.Failure, 'archive or retained floor differs'):
+            self.cancel()
+        self.manifest['sequence'] -= 1
+        record = host.read_json(self.state / host.BLOCKED_INITIAL_OWNER)
+        record['owner']['sha256'] = '0' * 64
+        host.atomic(self.state / host.BLOCKED_INITIAL_OWNER, record)
+        with self.assertRaisesRegex(host.Failure, 'archive hash differs'):
+            self.cancel()
+        self.assertEqual(self.cleanup_calls, 1)
+        self.assert_data_preserved()
+
+    def test_retry_cannot_accept_recreated_owner_or_changed_lifetime_lock(self):
+        self.interrupted_cleanup('before')
+        host.atomic(self.marker, self.original_marker, mode=0o644)
+        with self.assertRaisesRegex(host.Failure, 'owner changed after cancellation was recorded'):
+            self.cancel()
+        self.marker.unlink()
+        self.runtime_lock.write_bytes(b'changed')
+        with self.assertRaisesRegex(host.Failure, 'archive or retained floor differs'):
+            self.cancel()
+        self.assertEqual(self.cleanup_calls, 1)
+
+    def test_last_local_compare_refuses_changed_owner_and_preserves_archive(self):
+        self.cleanup_before = lambda: host.atomic(self.marker, dict(self.marker_value, allowed=True), mode=0o644)
+        with self.assertRaisesRegex(host.Failure, 'Local runtime owner differs'):
+            self.cancel()
+        self.assertTrue(host.read_json(self.marker)['allowed'])
+        self.assertTrue((self.state / host.BLOCKED_INITIAL_OWNER).exists())
+        self.assert_data_preserved()
+
+    def test_all_existing_deployment_gates_precede_owner_cleanup(self):
+        self.foreign_writer = True
+        self.assert_refused('Another running container writes')
+        self.foreign_writer = False
+        self.executor['State']['Running'] = True
+        self.assert_refused('saved executor is still active')
+        self.executor['State']['Running'] = False
+        self.image['Id'] = 'sha256:foreign'
+        self.assert_refused('not the upgraded canonical release image')
+
 
 if __name__ == '__main__':
     unittest.main()

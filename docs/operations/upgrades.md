@@ -50,8 +50,10 @@ The saved enrollment still belongs to the old image; repeating `repair` or
 [upgraded-deployment recovery](./server-updates#if-the-server-was-already-manually-upgraded)
 from a published recovery release that supports it. It separately verifies the
 current published image, permits only an image change to the original settings,
-restores any proven setup-owned Compose entry points, and archives the failed
-enrollment without restarting the server or changing its data. Then run fresh
+restores any proven setup-owned Compose entry points, and retires only an exact
+blocked startup marker left by that failed enrollment. It preserves the stable
+writer lock and archives the failed enrollment without restarting the server or
+changing application data. Then run fresh
 setup from the current server. `.106` includes the alias fix and original-image
 cancellation, but does not include this later recovery mode.
 
