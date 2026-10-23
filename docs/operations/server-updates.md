@@ -73,7 +73,11 @@ sudo /etc/p2pstream-server-updater/manage rollback
 
 Host helpers have durable container identities. If the controller is interrupted, read-only inspection refuses to terminate a surviving helper. Explicit `repair` settles an abandoned setup/settings helper; interrupted data recovery resumes through `recover-update`, bound to the same saved update operation. When Docker access fails during helper cleanup, restore it before running that explicit recovery command. A timeout never permits competing rollback until helper termination is confirmed.
 
-Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed.
+If initial activation fails while Compose replaces the server and the journal still records `activating`, run `manage repair` to resume that activation. Repair rechecks the saved inputs, image, installation and data writers before creating the replacement. Configuration rollback continues to refuse a missing server; an unrelated `recovery_required` journal does not authorize recreation.
+
+Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`, with its time and check name. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed. Verification timeouts identify the last failed stage and reference a helper log only when that attempt produced it.
+
+Final enrollment verification checks server readiness as well as management reachability. Active agent updates, unfinished management certificate rotation, an enabled public listener that is not running, or unsupported backup paths can block it. The updater check reports the known blocker; finish the indicated operation or correct the reported configuration before retrying. Older executors, including `.106`, report only `server is not healthy`. A successful rollback restores the original deployment, so checking it afterward does not reproduce the failed enrolled state.
 
 If layout validation rejects preparation before `config.json` exists, the original server has not been changed. Run `sudo /etc/p2pstream-server-updater/manage discard-preparation`, correct and apply the original Compose inputs, then copy a fresh setup block. This command first confirms helper termination and refuses any enrollment configuration, update state, maintenance marker or executor. It archives staging privately without changing containers or data. Once configuration exists, use `repair` or `rollback` to preserve credentials, or the narrowly scoped failed-enrollment cancellation below when applicable.
 
@@ -104,6 +108,25 @@ sudo sh ./setup-server-updater.sh 'Kirari04/p2pstream@<exact-fixed-release>' \
 Cancellation accepts no Compose options and cannot be combined with `--migrate-deployment`. It uses the saved deployment context, so the fixed bundle can recover an older restored server without requiring that server to run the bundle's version. A refusal leaves the saved recovery state available; diagnose the reported condition before continuing.
 
 After cancellation succeeds, manually deploy the fixed published server image using the restored original Compose files, project and named data volume. Preserve the settings and data; follow [Upgrades](./upgrades) for applicable database and backup requirements. Then refresh the selected server's Updates page and run its fresh setup command to enroll the matching fixed executor. Cancellation alone does not install an updater, and server-only upgrades do not refresh a pinned host updater.
+
+### If the server was already manually upgraded
+
+A manual server upgrade can leave an older failed enrollment behind. For example, the running server can be `.106` while `host.json` still records `.103`. Ordinary `.106` setup tries the saved enrollment and can leave `recovery_required` with `Running image changed after setup was staged`. Repeating its `repair` or `rollback` does not adopt the new release. Keep the current server running and use a published recovery release with `--upgraded-deployment` support; `.106` does not contain that recovery mode.
+
+The recovery bundle and the running server have separate release bindings. Download the bootstrap from the exact recovery release and add the **currently running** version and its manifest SHA-256:
+
+```bash
+sudo sh ./setup-server-updater.sh 'Kirari04/p2pstream@<exact-recovery-release>' \
+  '<installation-id>' '<recovery-release-manifest-sha256>' '<amd64-or-arm64>' \
+  --cancel-enrollment --upgraded-deployment \
+  '<current-server-version>' '<current-server-manifest-sha256>' --
+```
+
+This accepts only an initial enrollment that never succeeded, with no update/preview history, maintenance or active executor. It independently verifies the installed image against the current published release, the installation and named data volume, health, and the complete Compose configuration. Only the server image may have changed. The repository and channel must match, and saved release floors remain enforced. Unknown deployment changes are refused.
+
+Recovery restores only verified setup-owned Compose entry points if the old repair left them pointing at its saved deployment. If that repair also wrote a blocked startup-owner marker, recovery can archive and retire only the exact marker belonging to the failed initial generation, after proving the current standalone server holds the stable lifetime lock. Allowed, foreign or unproven ownership is refused; the lock file is never removed or replaced. Recovery archives failed enrollment state privately, retains the current release floor, and leaves the running server and application data unchanged. Retry the same verified recovery command if interrupted. After success, refresh the current server's Updates page and run its fresh setup command. That separate enrollment restarts the server once; cancellation itself does not enable updates.
+
+Newer ordinary setup refuses a stale image or release binding before retrying activation. Host rollback also refuses a missing server instead of recreating an old enrollment image. Do not delete or edit the journal to bypass either check.
 
 ## Preview and update
 
