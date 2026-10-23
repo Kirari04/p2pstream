@@ -1920,6 +1920,13 @@ class UpgradedCancellationLifecycle(unittest.TestCase):
         self.assertIn('Running image changed after setup was staged', str(error.exception))
 
     def test_empty_inventory_cannot_redeploy_old_image_during_rollback(self):
+        # Model the image edit through .env, leaving source bytes eligible for
+        # old rollback. The before-controller must reach its empty-inventory
+        # deployment path rather than fail on an unrelated source-byte guard.
+        journal = host.read_json(self.state / 'host.json')
+        for item in journal['source_bridge']['files']:
+            if item['editable']:
+                Path(item['path']).write_bytes(Path(item['editable']).read_bytes())
         self.server_inventory = b''
         server, restarts = copy.deepcopy(self.info), self.restart_count
         before_model = Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes()
@@ -1928,6 +1935,22 @@ class UpgradedCancellationLifecycle(unittest.TestCase):
         self.assertEqual(self.info, server)
         self.assertEqual(self.restart_count, restarts)
         self.assertEqual(Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes(), before_model)
+        self.assertFalse(any(command[0] == 'compose' and command[1][0] in {'up', 'stop', 'start'} for command in self.commands))
+
+    def test_failed_activation_cannot_roll_back_a_missing_external_upgrade(self):
+        journal = host.read_json(self.state / 'host.json')
+        for item in journal['source_bridge']['files']:
+            if item['editable']:
+                Path(item['path']).write_bytes(Path(item['editable']).read_bytes())
+        self.server_inventory = b''
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        controller = host.Host()
+        with controller.lock():
+            with self.assertRaises(host.Failure):
+                controller.recover_failure(host.Failure('Running image changed after setup was staged'))
+        self.assertEqual(self.info, server)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recovery_required')
         self.assertFalse(any(command[0] == 'compose' and command[1][0] in {'up', 'stop', 'start'} for command in self.commands))
 
     def test_non_image_source_edit_is_refused(self):
