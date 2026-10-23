@@ -18,6 +18,7 @@ import (
 	"p2pstream/internal/server"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -125,8 +126,8 @@ func init() {
 		if err != nil {
 			return err
 		}
-		if !status.Ready || status.InstanceID != cfg.InstanceID || status.Maintenance || len(status.Blocked) > 0 {
-			return errors.New("server is not healthy")
+		if err := validateServerUpdaterStatus(status, cfg.InstanceID); err != nil {
+			return err
 		}
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
 	}}
@@ -258,6 +259,47 @@ func init() {
 		_, err = io.Copy(cmd.OutOrStdout(), io.LimitReader(resp.Body, 64<<10))
 		return err
 	}})
+}
+
+func validateServerUpdaterStatus(status serverupdate.RuntimeStatus, instanceID string) error {
+	var reasons []string
+	if !status.Ready {
+		reasons = append(reasons, "readiness is false")
+	}
+	if status.InstanceID != instanceID {
+		reasons = append(reasons, "server instance mismatch")
+	}
+	if status.Maintenance {
+		reasons = append(reasons, "maintenance is active")
+	}
+	// Only emit the fixed messages from serverUpdateRuntimeStatus. Never echo
+	// arbitrary runtime text or identity values into host-controller diagnostics.
+	// Deduplication bounds the output even if a runtime repeats blockers.
+	seen := make(map[string]bool)
+	unknown := false
+	for _, reason := range status.Blocked {
+		switch reason {
+		case "Database schema is unavailable",
+			"Finish or cancel active agent updates before updating the server",
+			"Finish management certificate rotation before updating the server",
+			"An enabled public listener is not running",
+			"Automatic backups require the standard /data database; use a manual deployment for custom database paths",
+			"Custom state paths outside /data require a manual deployment":
+			if !seen[reason] {
+				reasons = append(reasons, "blocked: "+reason)
+				seen[reason] = true
+			}
+		default:
+			unknown = true
+		}
+	}
+	if unknown {
+		reasons = append(reasons, "blocked: unrecognized runtime blocker (details omitted)")
+	}
+	if len(reasons) == 0 {
+		return nil
+	}
+	return fmt.Errorf("server is not healthy: %s", strings.Join(reasons, "; "))
 }
 
 func serveServerUpdater(configPath string, retry bool) error {
