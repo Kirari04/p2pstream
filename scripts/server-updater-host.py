@@ -642,7 +642,14 @@ class Host:
                             '--mount', mount, *mounts, image or self.updater, *args, timeout=timeout, check=False)
             if result.returncode:
                 diagnostic = self.directory / 'helper-failure.log'
-                atomic(diagnostic, result.stdout + b'\n' + result.stderr)
+                action = 'host helper'
+                if entrypoint == '/app/p2pstream' and len(args) >= 2 and args[0] == 'server-updater' and args[1] in {'check', 'enroll', 'configure', 'recover', 'runtime-block', 'runtime-allow', 'runtime-detach', 'record-runtime'}:
+                    action = 'server-updater ' + args[1]
+                elif entrypoint == '/usr/local/bin/docker' and args and args[0] == 'compose':
+                    action = 'Docker Compose'
+                header = {'time': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'check': action, 'exit': result.returncode}
+                atomic(diagnostic, json.dumps(header).encode() + b'\n' + result.stdout + b'\n' + result.stderr)
+                self._helper_failure_diagnostic = diagnostic
                 raise Failure('Host helper failed (exit ' + str(result.returncode) + '); private diagnostic: ' + str(diagnostic))
         except BaseException:
             # Killing the Docker client does not kill its container. Confirm the
@@ -702,22 +709,48 @@ class Host:
         raise Failure('Private updater did not become reachable')
 
     def healthy(self):
+        self._helper_failure_diagnostic = None
+        self._health_check_stage = 'private updater authentication'
         self.status_socket()
-        return decode(self.command('check').stdout)
+        self._health_check_stage = 'server readiness and deployment verification'
+        result = self.command('check')
+        self._health_check_stage = 'verification response decoding'
+        return decode(result.stdout)
 
     def wait_healthy(self):
         deadline = time.monotonic() + 120
         consecutive = 0
+        last_failure = None
         while time.monotonic() < deadline:
             try:
+                self._health_check_stage = 'server verification'
+                self._helper_failure_diagnostic = None
                 status = self.healthy()
                 consecutive += 1
                 if consecutive >= 3:
                     return status
-            except (Failure, OSError, ValueError):
+            except UnsettledHelper:
+                raise  # Preserve the explicit helper-settlement recovery boundary.
+            except (Failure, OSError, ValueError) as error:
                 consecutive = 0
+                # Raw exception text can contain private response or filesystem
+                # values. Report the fixed stage and point to attributable local
+                # helper output when this attempt actually produced it.
+                detail = 'verification refused'
+                if isinstance(error, OSError):
+                    detail = 'local operating-system error'
+                    if type(error.errno) is int:
+                        detail += ' (errno ' + str(error.errno) + ')'
+                elif isinstance(error, ValueError):
+                    detail = 'invalid verification response'
+                last_failure = self._health_check_stage + ': ' + detail
+                if self._helper_failure_diagnostic:
+                    last_failure += '; private diagnostic: ' + str(self._helper_failure_diagnostic)
             time.sleep(2)
-        raise Failure('Server health, deployment hash, or authenticated updater verification failed')
+        message = 'Server verification did not reach three consecutive successful checks'
+        if last_failure:
+            message += '. Last failure during ' + last_failure
+        raise Failure(message)
 
     def archive_removed(self):
         require(self.journal.get('phase') == 'removed', 'Only a completed removal can be reenrolled')

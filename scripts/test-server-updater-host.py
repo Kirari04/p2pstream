@@ -1134,10 +1134,15 @@ class Lifecycle(unittest.TestCase):
             return subprocess.CompletedProcess(args, 0, b'', b'')
         with controller.lock(), patch.object(host, 'docker', rejected):
             with self.assertRaisesRegex(host.Failure, 'private diagnostic'):
-                base.run_helper(controller, '/app/p2pstream', ['server-updater', 'enroll'])
+                base.run_helper(controller, '/app/p2pstream', ['server-updater', 'enroll', '--private-input', 'secret-sentinel'])
         diagnostic = self.state / 'helper-failure.log'
         self.assertEqual(diagnostic.stat().st_mode & 0o777, 0o600)
         self.assertIn(b'private validator detail', diagnostic.read_bytes())
+        header = json.loads(diagnostic.read_bytes().splitlines()[0])
+        self.assertEqual(header['check'], 'server-updater enroll')
+        self.assertEqual(header['exit'], 1)
+        self.assertRegex(header['time'], r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$')
+        self.assertNotIn('secret-sentinel', json.dumps(header))
         self.assertFalse((self.state / 'helper.json').exists())
 
     def test_inspection_never_terminates_an_abandoned_recovery_helper(self):
@@ -2542,6 +2547,66 @@ class BlockedInitialOwnerCancellation(unittest.TestCase):
         self.executor['State']['Running'] = False
         self.image['Id'] = 'sha256:foreign'
         self.assert_refused('not the upgraded canonical release image')
+
+
+class VerificationDiagnostics(unittest.TestCase):
+    def timeout(self, controller):
+        with patch.object(host.time, 'monotonic', side_effect=[0, 0, 121]), patch.object(host.time, 'sleep'):
+            with self.assertRaises(host.Failure) as caught:
+                controller.wait_healthy()
+        self.assertNotIn('secret-sentinel', str(caught.exception))
+        return str(caught.exception)
+
+    def test_socket_failure_identifies_stage_without_stale_helper_output(self):
+        controller = host.Host()
+        controller._helper_failure_diagnostic = Path('/private/stale.log')
+        with patch.object(controller, 'status_socket', side_effect=OSError(2, 'secret-sentinel')), patch.object(controller, 'command') as command:
+            message = self.timeout(controller)
+        self.assertIn('private updater authentication: local operating-system error (errno 2)', message)
+        self.assertNotIn('private diagnostic', message)
+        command.assert_not_called()
+
+    def test_failed_check_identifies_fresh_private_diagnostic(self):
+        controller = host.Host()
+        def rejected(*args):
+            controller._helper_failure_diagnostic = controller.directory / 'helper-failure.log'
+            raise host.Failure('secret-sentinel')
+        with patch.object(controller, 'status_socket'), patch.object(controller, 'command', side_effect=rejected):
+            message = self.timeout(controller)
+        self.assertIn('server readiness and deployment verification: verification refused', message)
+        self.assertIn('private diagnostic: ' + str(controller.directory / 'helper-failure.log'), message)
+
+    def test_invalid_response_identifies_decode_stage_without_echoing_content(self):
+        controller = host.Host()
+        with patch.object(controller, 'status_socket'), patch.object(controller, 'command', return_value=subprocess.CompletedProcess([], 0, b'secret-sentinel', b'')):
+            message = self.timeout(controller)
+        self.assertIn('verification response decoding: invalid verification response', message)
+        self.assertNotIn('private diagnostic', message)
+
+    def test_authentication_refusal_does_not_echo_response_or_run_check(self):
+        controller = host.Host()
+        with patch.object(controller, 'status_socket', side_effect=host.Failure('secret-sentinel')), patch.object(controller, 'command') as command:
+            message = self.timeout(controller)
+        self.assertIn('private updater authentication: verification refused', message)
+        command.assert_not_called()
+
+    def test_unsettled_helper_keeps_its_recovery_boundary_without_retry(self):
+        controller = host.Host()
+        error = host.UnsettledHelper('helper still running')
+        with patch.object(controller, 'healthy', side_effect=error) as healthy, patch.object(host.time, 'sleep') as sleep:
+            with self.assertRaises(host.UnsettledHelper) as caught:
+                controller.wait_healthy()
+        self.assertIs(caught.exception, error)
+        self.assertEqual(healthy.call_count, 1)
+        sleep.assert_not_called()
+
+    def test_success_still_requires_three_consecutive_checks(self):
+        controller = host.Host()
+        status = {'ready': True}
+        attempts = [status, status, host.Failure('temporary'), status, status, status]
+        with patch.object(controller, 'healthy', side_effect=attempts) as healthy, patch.object(host.time, 'monotonic', return_value=0), patch.object(host.time, 'sleep'):
+            self.assertEqual(controller.wait_healthy(), status)
+        self.assertEqual(healthy.call_count, 6)
 
 
 if __name__ == '__main__':
