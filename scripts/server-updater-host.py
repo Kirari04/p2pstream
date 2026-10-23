@@ -792,6 +792,166 @@ class Host:
         require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
         require_data_writers(self.config['data_volume'], info['Id'])
 
+    def validate_cancelled_upgrade(self, args):
+        # Old controllers can leave bare recovery_required after refusing an
+        # external image change. It is not evidence of a completed rollback:
+        # prove the entire current deployment independently, without a helper,
+        # phase rewrite, source restoration, or execution of the saved model.
+        require(self.config and self.config.get('deployment_protocol') == 2, 'Upgraded cancellation requires managed deployment ownership')
+        require(self.journal.get('phase') in {'rolled_back', 'recovery_required'} and not self.journal.get('recovery_phase') and not self.journal.get('recovery_operation'), 'Upgraded cancellation belongs to another host operation')
+        require(not self.journal.get('verified_version') and not self.journal.get('verified_commit') and not self.journal.get('deployment_migration'), 'A previously enabled enrollment cannot be cancelled')
+        require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update history or maintenance exists; enrollment cancellation is refused')
+        require(not os.path.lexists(self.directory / 'helper.json'), 'An unfinished helper exists; upgraded cancellation is refused')
+        helpers = docker('ps', '--all', '--quiet', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation']).stdout.decode().split()
+        require(not helpers, 'A host helper still exists; cancellation is refused')
+        history = self.directory / 'history'
+        if os.path.lexists(history):
+            require(stat.S_ISDIR(history.lstat().st_mode), 'Unsafe enrollment history')
+            transaction = read_json(self.directory / 'archive.json') if os.path.lexists(self.directory / 'archive.json') else None
+            partial = self.archive_directory(transaction) if transaction else None
+            for archive in history.iterdir():
+                require(stat.S_ISDIR(archive.lstat().st_mode) and not os.path.lexists(archive / 'state.json') and not os.path.lexists(archive / 'control' / 'maintenance'), 'Prior update history exists; upgraded cancellation is refused')
+                if archive == partial and not os.path.lexists(archive / 'host.json'):
+                    continue  # This cancellation may have stopped during copying.
+                previous = read_json(archive / 'host.json')
+                require(previous.get('installation') == self.journal['installation'] and previous.get('phase') in {'preparing', 'rolled_back', 'recovery_required'} and not any(previous.get(key) for key in ('verified_version', 'verified_commit', 'deployment_migration', 'recovery_phase', 'recovery_operation')), 'Prior verified enrollment history exists; upgraded cancellation is refused')
+        raw = (self.directory / 'before-compose.json').read_bytes()
+        require(digest(raw) == self.journal.get('before_sha256'), 'Original deployment snapshot changed; cancellation is refused')
+        original = decode(raw)
+        require('p2pstream-server-updater' not in original['services'], 'Original deployment was already enrolled; cancellation is refused')
+        server = original['services']['p2pstream']
+        require(not any(key.startswith('SERVER_UPDATE_') for key in server.get('environment', {})) and not any(key.startswith('p2pstream.server-update.') for key in server.get('labels', {})), 'Original deployment retains an updater binding')
+        require(not any(v.get('target') == '/run/p2pstream-server-update' or v.get('target', '').startswith('/run/p2pstream-server-update/') for v in server.get('volumes', [])), 'Original deployment retains an updater control mount')
+        saved = read_json(self.current_model_path())
+        require(saved == original or saved == read_json(self.directory / 'enrolled-compose.json'), 'Saved model differs from the initial enrollment snapshots')
+        options, snapshots, replacements = self.upgraded_cancellation_sources()
+        arch = local_engine()
+        require(arch == args.expect_arch == self.journal['architecture'], 'Docker daemon architecture differs from selected server')
+        manifest, _, server_image, manifest_hash = release_metadata(args.repository, args.expect_version, args.expect_commit, args.expect_channel, args.manifest_sha256)
+        floor = {key: manifest[key] for key in ('sequence', 'security_epoch', 'minimum_safe_version')} | {'manifest_sha256': manifest_hash}
+        require_floor(floor, self.config['bootstrap_floor'])
+        check_cancellation_floor(self.directory, args, manifest, manifest_hash)
+        version = args.expect_version.partition('-')[0]
+        require(stable_version(version) > stable_version(floor['minimum_safe_version']) or version == floor['minimum_safe_version'] and '-' not in args.expect_version, 'Selected server is below the current minimum safe version')
+        require(args.expect_version != self.journal['version'] and floor['sequence'] > self.config['bootstrap_floor']['sequence'], 'Upgraded cancellation requires a newer published release')
+        platform = [p for p in manifest['oci_images'][0]['platforms'] if p['os'] == 'linux' and p['arch'] == arch]
+        require(len(platform) == 1, 'Release lacks the selected server platform')
+        # A pull may download immutable content; it never recreates the service.
+        docker('pull', '--quiet', '--platform', 'linux/' + arch, server_image)
+        published = decode(docker('image', 'inspect', server_image).stdout)[0]
+        source_dir = self.journal['source_directory']
+        source_raw = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
+        source = decode(source_raw)
+        source_image = source['services']['p2pstream']['image']
+        source['services']['p2pstream']['image'] = server['image']
+        require(source == original, 'Only the server image may change after failed enrollment; resolved Compose settings differ')
+        source['services']['p2pstream']['image'] = source_image
+        ids = docker('compose', *options, 'ps', '--all', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split()
+        require(len(ids) == 1, 'Expected exactly one existing upgraded server')
+        inspection = decode(docker('inspect', ids[0]).stdout)
+        require(len(inspection) == 1 and inspection[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
+        info = inspection[0]
+        require(not info['State'].get('Paused') and not info['State'].get('Restarting'), 'Upgraded server is not stably running')
+        require(info['Image'] == published['Id'] and info['Image'] != self.journal['before_image_id'], 'Running image is not the upgraded canonical release image')
+        require(decode(docker('image', 'inspect', source_image).stdout)[0]['Id'] == info['Image'], 'Compose image input differs from the running published image')
+        require(validate_running(info, source, published, arch, args) == self.config['data_volume'], 'Original data volume was not preserved')
+        require(source['name'] == self.config['project'], 'Upgraded server belongs to another Compose deployment')
+        with tempfile.TemporaryDirectory(prefix='p2pstream-cancellation-') as tmp:
+            path = Path(tmp) / 'compose.json'
+            atomic(path, source_raw)
+            fields = docker('compose', '--project-directory', source_dir, '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
+        labels = info['Config'].get('Labels', {})
+        require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]) and labels.get('com.docker.compose.config-hash') == fields[1], 'Running upgraded settings differ from current Compose inputs')
+        require(not any(key.startswith('p2pstream.server-update.') for key in labels) and not any(value.partition('=')[0].startswith('SERVER_UPDATE_') for value in info['Config'].get('Env', [])), 'Running upgraded server retains an updater binding')
+        require(not any(m['Destination'] == '/run/p2pstream-server-update' or m['Destination'].startswith('/run/p2pstream-server-update/') for m in info['Mounts']), 'Running upgraded server retains an updater control mount')
+        require(docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
+        require(docker('exec', info['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Upgraded server is unhealthy; cancellation is refused')
+        owner = docker('exec', info['Id'], '/bin/sh', '-c', 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json', check=False)
+        require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
+        require_data_writers(self.config['data_volume'], info['Id'])
+        self._cancelled_upgrade = {'options': options, 'model': source_raw, 'server': self.cancellation_server_identity(info), 'snapshots': snapshots, 'replacements': replacements}
+        self.check_cancelled_upgrade(options)
+        for name, snapshot in snapshots.items():
+            require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
+        return floor
+
+    @staticmethod
+    def cancellation_source_snapshot(path):
+        if not os.path.lexists(path):
+            return None
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode), 'Cancellation source must be a regular file without symlinks')
+        return {'data': path.read_bytes(), 'mode': stat.S_IMODE(info.st_mode), 'uid': info.st_uid, 'gid': info.st_gid}
+
+    def upgraded_cancellation_sources(self):
+        snapshots, replacements = {}, {}
+        files = self.journal.get('source_bridge', {}).get('files', [])
+        def snapshot(name):
+            if name not in snapshots:
+                snapshots[name] = self.cancellation_source_snapshot(Path(name))
+            return snapshots[name]
+        for name in self.journal['source_files']:
+            require(snapshot(name), 'Original Compose source is missing')
+        bridges = {item['path']: json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode() for item in files}
+        restoring = any(snapshot(item['path']) and snapshot(item['path'])['data'] == bridges[item['path']] for item in files)
+        for item in files:
+            name = item['path']
+            current = snapshot(name)
+            if item['editable'] is not None:
+                if restoring:
+                    editable = snapshot(item['editable'])
+                    require(editable and current and current['data'] in (bridges[name], editable['data']), 'Compose source is not an owned bridge or its exact editable input')
+                    if current['data'] == bridges[name]:
+                        replacements[name] = dict(current, data=editable['data'])
+            else:
+                backup = snapshot(item['original_backup']) if item.get('original_backup') else None
+                require(not item.get('original_backup') or backup and digest(backup['data']) == item['original_sha256'], 'Default Compose recovery snapshot changed')
+                require(current is None and backup is None or current and current['data'] in ([bridges[name]] + ([backup['data']] if backup else [])), 'Default Compose alias is not an owned bridge or its original backup')
+                if current and current['data'] == bridges[name]:
+                    replacements[name] = dict(current, data=backup['data']) if backup else None
+        return self.input_options() if restoring else self.journal['compose_options'], snapshots, replacements
+
+    @staticmethod
+    def cancellation_server_identity(info):
+        # Health logs and ExecIDs change during probes; runtime/settings changes
+        # must not. Keep the projection independent of probe timestamps.
+        return {key: info.get(key) for key in ('Id', 'Image', 'Config', 'HostConfig', 'Mounts', 'NetworkSettings', 'RestartCount')} | {
+            'State': {key: info['State'].get(key) for key in ('Running', 'Paused', 'Restarting', 'StartedAt')}}
+
+    def check_cancelled_upgrade(self, options):
+        proof = self._cancelled_upgrade
+        source_dir = self.journal['source_directory']
+        info = decode(docker('inspect', proof['server']['Id']).stdout)
+        require(len(info) == 1 and self.cancellation_server_identity(info[0]) == proof['server'], 'Upgraded deployment changed during cancellation validation')
+        require(docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout == proof['model'] and docker('compose', *options, 'ps', '--all', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split() == [proof['server']['Id']], 'Upgraded deployment changed during cancellation validation')
+        require(docker('exec', proof['server']['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Upgraded server is unhealthy; cancellation is refused')
+        require(docker('exec', proof['server']['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
+        owner = docker('exec', proof['server']['Id'], '/bin/sh', '-c', 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json', check=False)
+        require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
+        require_data_writers(self.config['data_volume'], proof['server']['Id'])
+
+    def restore_cancelled_upgrade(self):
+        proof = self._cancelled_upgrade
+        self.check_cancelled_upgrade(proof['options'])
+        # Validate the entire captured set before the first source write. The
+        # receipt is already durable; retries recognize exact mixed restored and
+        # bridge bytes, and independently prove the same current deployment.
+        for name, snapshot in proof['snapshots'].items():
+            require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
+        for name, replacement in proof['replacements'].items():
+            path = Path(name)
+            require(self.cancellation_source_snapshot(path) == proof['snapshots'][name], 'Compose source changed during cancellation restoration')
+            if replacement is None:
+                path.unlink()
+                fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+            else:
+                atomic(path, replacement['data'], mode=replacement['mode'], uid=replacement['uid'], gid=replacement['gid'])
+        self.check_cancelled_upgrade(self.journal['compose_options'])
+
     def cancel_enrollment(self, args):
         receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
         if not self.journal:
@@ -801,6 +961,16 @@ class Host:
             atomic(self.directory / CANCELLATION, receipt)
             return
         require((self.journal.get('installation'), self.config and self.config.get('repository'), self.config and self.config.get('channel')) == (args.expect_installation, args.repository, args.expect_channel), 'Saved enrollment differs from the selected installation, publisher or channel')
+        if getattr(args, 'upgraded_deployment', False):
+            floor = self.validate_cancelled_upgrade(args)
+        else:
+            self.validate_original_cancellation()
+            floor = validate_floor(self.config['bootstrap_floor'])
+        if receipt:
+            require_floor(floor, receipt['floor'])
+        self.archive_cancelled_enrollment(args, floor)
+
+    def validate_original_cancellation(self):
         # Validation can be interrupted before any cancellation receipt exists,
         # or while a completed receipt from an earlier enrollment is retained.
         # Mark its two exact read-only helpers from the first attempt, and settle
@@ -822,9 +992,8 @@ class Host:
             self.validate_cancelled_original()
         except UnsettledHelper as error:
             raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
-        floor = validate_floor(self.config['bootstrap_floor'])
-        if receipt:
-            require_floor(floor, receipt['floor'])
+
+    def archive_cancelled_enrollment(self, args, floor):
         executors = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
         require(len(executors) <= 1, 'Multiple saved executors exist; cancellation is refused')
         if executors:
@@ -846,6 +1015,8 @@ class Host:
                 docker('rm', executors[0])  # No force: a concurrently started executor fails closed.
             remaining = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
             require(not remaining, 'An executor remains; cancellation archival is refused')
+            if getattr(args, 'upgraded_deployment', False):
+                self.restore_cancelled_upgrade()
             self.archive_state()
             receipt['completed'] = True
             atomic(self.directory / CANCELLATION, receipt)
@@ -1077,7 +1248,6 @@ class Host:
     def rollback(self):
         require(self.journal['phase'] in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished host transaction exists; rollback cannot downgrade a healthy updated deployment')
         self.idle()
-        self.phase('rolling_back')
         # Stop before changing models; a successful same-image configuration
         # rollback does not claim to restore application data.
         previous = self.directory / 'before-compose.json'
@@ -1085,10 +1255,11 @@ class Host:
         require(digest(previous.read_bytes()) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
         before = read_json(previous)
         ids = self.compose('ps', '--all', '--quiet', 'p2pstream', model='before-compose.json').stdout.decode().split()
-        if ids:
-            require(len(ids) == 1, 'Ambiguous recovery deployment')
-            info = decode(docker('inspect', ids[0]).stdout)[0]
-            require(info['Image'] == self.journal['before_image_id'], 'Running image changed outside this host transaction; refusing configuration-only rollback')
+        require(len(ids) == 1, 'Expected exactly one existing server for configuration rollback; refusing to recreate a missing deployment')
+        inspection = decode(docker('inspect', ids[0]).stdout)
+        require(len(inspection) == 1 and inspection[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
+        require(inspection[0]['Image'] == self.journal['before_image_id'], 'Running image changed outside this host transaction; refusing configuration-only rollback')
+        self.phase('rolling_back')
         helper_model = 'before-compose.json' if 'p2pstream-server-updater' in before['services'] else 'enrolled-compose.json'
         if (self.directory / helper_model).exists():
             self.compose('stop', 'p2pstream-server-updater', model=helper_model)
@@ -1218,6 +1389,12 @@ def install(args, options):
                     removed_source_files = host.journal.get('source_files')
             if host.journal and host.journal['phase'] != 'removed':
                 require(host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options, 'Use the recorded Compose context for this enrollment')
+                if host.journal['phase'] != 'healthy' and not host.journal.get('verified_version') and not host.journal.get('verified_commit'):
+                    # Check before saved repair can write a model, start helpers,
+                    # or convert a failed preflight into a rollback transaction.
+                    require((host.journal.get('version'), host.journal.get('commit')) == (args.expect_version, args.expect_commit), 'Running release changed after setup was staged; use verified upgraded-deployment cancellation before fresh enrollment')
+                    staged_image = host.journal.get('before_image_id') or decode(docker('image', 'inspect', host.journal['server_image']).stdout)[0]['Id']
+                    require(container['Image'] == staged_image, 'Running image changed after setup was staged; use verified upgraded-deployment cancellation before fresh enrollment')
             if host.journal.get('phase') == 'healthy':
                 try:
                     host.healthy()
@@ -1606,6 +1783,10 @@ def main():
         cancel.add_argument('--expect-' + key, required=True)
     cancel.add_argument('--repository', required=True)
     cancel.add_argument('--bundle', required=True)
+    cancel.add_argument('--upgraded-deployment', action='store_true', help='Prove a manually upgraded published server before retiring a never-completed enrollment')
+    for key in ('version', 'commit', 'arch'):
+        cancel.add_argument('--expect-' + key)
+    cancel.add_argument('--manifest-sha256')
     for action in ['status', 'logs', 'apply', 'recreate', 'repair', 'rollback', 'remove', 'recover-update', 'discard-preparation']:
         commands.add_parser(action)
     inspect = commands.add_parser('inspect')
@@ -1624,11 +1805,20 @@ def main():
         elif args.action == 'cancel-enrollment':
             require(not options, 'Cancellation uses the saved Compose context; additional options are refused')
             require(str(uuid.UUID(args.expect_installation)) == args.expect_installation and REPOSITORY.fullmatch(args.repository) and args.expect_channel in {'stable', 'staging'}, 'Invalid cancellation identity, publisher or channel')
+            current_identity = (args.expect_version, args.expect_commit, args.expect_arch, args.manifest_sha256)
+            if args.upgraded_deployment:
+                require(all(current_identity), 'Upgraded cancellation requires current version, commit, architecture and manifest SHA-256')
+                require(VERSION.fullmatch(args.expect_version) and re.fullmatch('[0-9a-f]{40}', args.expect_commit) and args.expect_arch in {'amd64', 'arm64'} and HEX.fullmatch(args.manifest_sha256), 'Invalid current release identity')
+            else:
+                require(not any(value is not None for value in current_identity), 'Current release identity requires --upgraded-deployment')
             local_engine()
             controller = Host()
             with controller.lock(allow_archive=True):
                 controller.cancel_enrollment(args)
-            print('Failed enrollment cancelled and archived privately; original server remains running. Release floors retained. Manually deploy a current fixed published server using the same Compose inputs and data volume, then copy its fresh setup command.')
+            if args.upgraded_deployment:
+                print('Failed enrollment cancelled and archived privately; verified current server remains running. Release floors retained. Copy its fresh setup command to enroll.')
+            else:
+                print('Failed enrollment cancelled and archived privately; original server remains running. Release floors retained. Manually deploy a current fixed published server using the same Compose inputs and data volume, then copy its fresh setup command.')
         elif args.action == 'deploy':
             require(not options, 'Unexpected Compose options')
             deploy(args)

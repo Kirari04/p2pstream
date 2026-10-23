@@ -44,6 +44,17 @@ fixed published image with the same restored Compose configuration and named dat
 volume, refresh the Updates page, and enroll again using its fresh setup command.
 Do not delete updater state or use an old copied setup command to bypass recovery.
 
+If the server was manually upgraded **before** cancellation, leave it running.
+The saved enrollment still belongs to the old image; repeating `repair` or
+`rollback` cannot adopt the upgrade. Use the explicit
+[upgraded-deployment recovery](./server-updates#if-the-server-was-already-manually-upgraded)
+from a published recovery release that supports it. It separately verifies the
+current published image, permits only an image change to the original settings,
+restores any proven setup-owned Compose entry points, and archives the failed
+enrollment without restarting the server or changing its data. Then run fresh
+setup from the current server. `.106` includes the alias fix and original-image
+cancellation, but does not include this later recovery mode.
+
 ## Legacy support ends with v0.1.53
 
 **Legacy support ends with v0.1.53-staging.91 and the stable v0.1.53 release.**

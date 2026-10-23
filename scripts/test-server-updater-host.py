@@ -1769,5 +1769,346 @@ class CancellationLifecycle(unittest.TestCase):
                 with self.assertRaisesRegex(host.Failure, 'Cancellation receipt belongs'):
                     self.install()
 
+
+class UpgradedCancellationLifecycle(unittest.TestCase):
+    """Never infer rollback from a stale phase: prove the current deployment."""
+    tearDown = Lifecycle.tearDown
+    install = Lifecycle.install
+    cancel = CancellationLifecycle.cancel
+
+    def setUp(self):
+        CancellationLifecycle.setUp(self)
+        self.old_image = copy.deepcopy(self.image)
+        self.current_ref = 'ghcr.io/test/repo@sha256:' + '9' * 64
+        self.args.upgraded_deployment = True
+        self.args.expect_version = 'v1.0.2'
+        self.args.expect_commit = '9' * 40
+        self.image['Id'] = self.info['Image'] = 'sha256:upgraded'
+        self.image['Config']['Labels'].update({'org.opencontainers.image.version': self.args.expect_version, 'org.opencontainers.image.revision': self.args.expect_commit})
+        self.model['services']['p2pstream']['image'] = 'ghcr.io/test/repo:v1.0.2'
+        self.raw = json.dumps(self.model).encode()
+        (self.source / 'compose.yaml').write_bytes(self.raw)
+        self.stack.enter_context(patch.object(host, 'release_metadata', return_value=(self.manifest, self.descriptor, self.current_ref, 'f' * 64)))
+        self.current_floor = dict(self.floor, sequence=13)
+        self.commands.clear()
+
+    def docker(self, *args, **kwargs):
+        if args[:2] == ('image', 'inspect') and args[-1] == REF and hasattr(self, 'old_image'):
+            self.commands.append(('docker', args))
+            return subprocess.CompletedProcess(args, 0, json.dumps([self.old_image]).encode(), b'')
+        return CancellationLifecycle.docker(self, *args, **kwargs)
+
+    def files(self):
+        return {str(p): p.read_bytes() for directory in (self.state, self.source, self.path / 'p2pstream-server-deployment') if directory.exists() for p in directory.rglob('*') if p.is_file() and p.name not in {'host.lock', 'executor.lock'}}
+
+    def assert_refused(self, message):
+        before = self.files()
+        server = copy.deepcopy(self.info)
+        restarts = self.restart_count
+        with self.assertRaisesRegex(host.Failure, message):
+            self.cancel()
+        self.assertEqual(self.files(), before)
+        self.assertEqual(self.info, server)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertIsNotNone(self.executor)
+        self.assertFalse(any(command[0] in {'binary', 'compose'} for command in self.commands))
+
+    def legacy_failure(self):
+        # Exact persisted consequence of .106 repairing a .103 enrollment after
+        # manual upgrade: old enrolled model + bare recovery_required, no claim
+        # that rollback or activation completed. Real Docker tests produce it.
+        journal = host.read_json(self.state / 'host.json')
+        journal.update(phase='recovery_required', error='Running image changed; configuration rollback failed')
+        journal.pop('recovery_phase', None)
+        host.atomic(self.state / 'host.json', journal)
+        cfg = host.read_json(self.state / 'config.json')
+        host.atomic(Path(cfg['deployment_file']), (self.state / 'enrolled-compose.json').read_bytes())
+
+    def bridges(self, alias=False):
+        self.legacy_failure()
+        journal = host.read_json(self.state / 'host.json')
+        if alias:
+            path = self.source / 'docker-compose.yml'
+            journal['source_bridge']['files'].append({'path': str(path), 'editable': None, 'original_sha256': None, 'original_backup': None, 'bridge': {'include': [host.read_json(self.state / 'config.json')['deployment_file']]}, 'mode': 0o644, 'uid': 0, 'gid': 0})
+        for item in journal['source_bridge']['files']:
+            host.atomic(Path(item['path']), json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode(), mode=item['mode'])
+        host.atomic(self.state / 'host.json', journal)
+        return journal
+
+    def assert_retired(self, original_server, restarts):
+        self.assertEqual(self.info, original_server)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertIsNone(self.executor)
+        self.assertFalse((self.state / 'host.json').exists())
+        receipt = host.read_json(self.state / host.CANCELLATION)
+        self.assertTrue(receipt['completed'])
+        self.assertEqual(receipt['floor'], self.current_floor)
+        self.assertFalse(any(command[0] in {'binary', 'compose'} for command in self.commands))
+        archived = next((self.state / 'history').iterdir())
+        self.assertEqual(host.read_json(archived / 'config.json')['bootstrap_floor'], self.floor)
+
+    def test_manual_upgrade_then_retire_preserves_current_server_and_sources(self):
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        source = (self.source / 'compose.yaml').read_bytes()
+        self.cancel()
+        self.assert_retired(server, restarts)
+        self.assertEqual((self.source / 'compose.yaml').read_bytes(), source)
+        self.cancel()
+
+    def test_bare_legacy_recovery_with_enrolled_model_is_proved_without_phase_rewrite(self):
+        self.legacy_failure()
+        journal = (self.state / 'host.json').read_bytes()
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        self.cancel()
+        self.assert_retired(server, restarts)
+        archived = next((self.state / 'history').iterdir())
+        self.assertEqual((archived / 'host.json').read_bytes(), journal)
+
+    def test_proven_bridge_restoration_preserves_server_and_original_input_metadata(self):
+        journal = self.bridges(alias=True)
+        expected = {item['path']: Path(item['editable']).read_bytes() for item in journal['source_bridge']['files'] if item['editable']}
+        modes = {name: stat.S_IMODE(Path(name).stat().st_mode) for name in expected}
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        self.cancel()
+        self.assert_retired(server, restarts)
+        for name, raw in expected.items():
+            self.assertEqual(Path(name).read_bytes(), raw)
+            self.assertEqual(stat.S_IMODE(Path(name).stat().st_mode), modes[name])
+        self.assertFalse((self.source / 'docker-compose.yml').exists())
+
+    def test_bridge_restoration_interruption_reproves_mixed_state_and_retries(self):
+        journal = self.bridges(alias=True)
+        real_atomic = host.atomic
+        first_source = journal['source_bridge']['files'][0]['path']
+        def interrupted(path, *args, **kwargs):
+            result = real_atomic(path, *args, **kwargs)
+            if str(path) == first_source:
+                raise KeyboardInterrupt()
+            return result
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        with patch.object(host, 'atomic', side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.assertFalse(host.read_json(self.state / host.CANCELLATION)['completed'])
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recovery_required')
+        self.cancel()
+        self.assert_retired(server, restarts)
+
+    def test_original_cancellation_does_not_adopt_manual_upgrade(self):
+        self.args.upgraded_deployment = False
+        self.assert_refused('Original Compose source changed')
+
+    def test_stale_setup_rejects_before_saved_helper_model_or_phase_changes(self):
+        before = self.files()
+        server = copy.deepcopy(self.info)
+        with self.assertRaises(host.Failure) as error:
+            self.install()
+        self.assertEqual(self.files(), before)
+        self.assertEqual(self.info, server)
+        self.assertFalse(any(command[0] in {'binary', 'compose'} for command in self.commands))
+        self.assertIn('Running release changed after setup was staged', str(error.exception))
+
+    def test_same_release_labels_cannot_hide_staged_image_change(self):
+        self.args.expect_version = 'v1.0.1'
+        self.args.expect_commit = 'b' * 40
+        self.image['Config']['Labels'] = copy.deepcopy(self.old_image['Config']['Labels'])
+        before = self.files()
+        with self.assertRaises(host.Failure) as error:
+            self.install()
+        self.assertEqual(self.files(), before)
+        self.assertFalse(any(command[0] in {'binary', 'compose'} for command in self.commands))
+        self.assertIn('Running image changed after setup was staged', str(error.exception))
+
+    def test_empty_inventory_cannot_redeploy_old_image_during_rollback(self):
+        self.server_inventory = b''
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        before_model = Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes()
+        with self.assertRaisesRegex(host.Failure, 'exactly one existing server for configuration rollback'):
+            host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(self.info, server)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertEqual(Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes(), before_model)
+        self.assertFalse(any(command[0] == 'compose' and command[1][0] in {'up', 'stop', 'start'} for command in self.commands))
+
+    def test_non_image_source_edit_is_refused(self):
+        self.model['services']['p2pstream']['environment']['SECRET'] = 'changed'
+        self.raw = json.dumps(self.model).encode()
+        self.assert_refused('Only the server image may change')
+
+    def test_bridge_with_changed_editable_settings_is_refused(self):
+        self.bridges()
+        self.model['services']['p2pstream']['ports'][0]['published'] = '9444'
+        self.raw = json.dumps(self.model).encode()
+        self.assert_refused('Only the server image may change')
+
+    def test_bridge_with_foreign_source_or_alias_is_refused(self):
+        journal = self.bridges(alias=True)
+        for name in [journal['source_bridge']['files'][0]['path'], str(self.source / 'docker-compose.yml')]:
+            with self.subTest(name=name):
+                path = Path(name)
+                old = path.read_bytes()
+                path.write_text('foreign change')
+                self.assert_refused('not an owned bridge')
+                path.write_bytes(old)
+
+    def test_bridge_with_missing_editable_snapshot_is_refused(self):
+        journal = self.bridges()
+        Path(journal['source_bridge']['files'][0]['editable']).unlink()
+        self.assert_refused('not an owned bridge')
+
+    def test_source_snapshot_change_during_pull_is_refused_before_cleanup(self):
+        self.bridges()
+        real_docker = self.docker
+        def drift(*args, **kwargs):
+            if args[0] == 'pull':
+                (self.source / 'prod.yaml').write_text('foreign change')
+            return real_docker(*args, **kwargs)
+        with patch.object(host, 'docker', side_effect=drift):
+            with self.assertRaisesRegex(host.Failure, 'Compose source changed during cancellation validation'):
+                self.cancel()
+        self.assertEqual((self.source / 'prod.yaml').read_text(), 'foreign change')
+        self.assertTrue((self.state / 'host.json').exists())
+
+    def test_running_health_logs_may_advance_but_deployment_must_not(self):
+        real_docker = self.docker
+        def probes(*args, **kwargs):
+            result = real_docker(*args, **kwargs)
+            if args[0] == 'inspect' and args[-1] != EXECUTOR_ID:
+                value = json.loads(result.stdout)
+                value[0]['State']['Health'] = {'Status': 'healthy', 'Log': [len(self.commands)]}
+                value[0]['ExecIDs'] = [str(len(self.commands))]
+                result.stdout = json.dumps(value).encode()
+            return result
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        with patch.object(host, 'docker', side_effect=probes):
+            self.cancel()
+        self.assert_retired(server, restarts)
+
+    def test_runtime_start_or_config_drift_during_proof_is_refused(self):
+        real_docker = self.docker
+        for change in ('start', 'config', 'restart', 'network'):
+            inspections = 0
+            def drift(*args, **kwargs):
+                nonlocal inspections
+                result = real_docker(*args, **kwargs)
+                if args[0] == 'inspect' and args[-1] != EXECUTOR_ID:
+                    inspections += 1
+                    if inspections > 1:
+                        value = json.loads(result.stdout)
+                        if change == 'start':
+                            value[0]['State']['StartedAt'] = 'changed'
+                        elif change == 'config':
+                            value[0]['Config']['Env'] = ['CHANGED=1']
+                        elif change == 'restart':
+                            value[0]['RestartCount'] = 1
+                        else:
+                            value[0]['NetworkSettings'] = {'Networks': {'other': {}}}
+                        result.stdout = json.dumps(value).encode()
+                return result
+            with self.subTest(change=change), patch.object(host, 'docker', side_effect=drift):
+                self.assert_refused('Upgraded deployment changed')
+
+    def test_release_floor_and_canonical_image_are_enforced(self):
+        for field, value, message in [('sequence', 11, 'below the retained'), ('security_epoch', 1, 'below the retained'), ('minimum_safe_version', 'v0.9.0', 'below the retained')]:
+            old = self.manifest[field]
+            with self.subTest(field=field):
+                self.manifest[field] = value
+                self.assert_refused(message)
+            self.manifest[field] = old
+        self.image['Id'] = 'sha256:foreign'
+        self.assert_refused('not the upgraded canonical release image')
+
+    def test_current_image_labels_arch_and_publisher_are_enforced(self):
+        mutations = [('Architecture', 'arm64', 'platform differs'), ('org.opencontainers.image.version', 'v9.0.0', 'Stale command'), ('org.opencontainers.image.revision', '0' * 40, 'Stale command'), ('org.opencontainers.image.source', 'https://github.com/foreign/repo', 'another publisher')]
+        for key, value, message in mutations:
+            target = self.image if key == 'Architecture' else self.image['Config']['Labels']
+            old = target[key]
+            with self.subTest(field=key):
+                target[key] = value
+                self.assert_refused(message)
+            target[key] = old
+
+    def test_wrong_recovery_phase_and_prior_success_are_refused(self):
+        original = host.read_json(self.state / 'host.json')
+        for change in [{'phase': 'healthy'}, {'phase': 'recovery_required', 'recovery_phase': 'activating'}, {'verified_version': 'v1.0.1'}, {'verified_commit': 'b' * 40}, {'deployment_migration': {'phase': 'started'}}]:
+            with self.subTest(change=change):
+                host.atomic(self.state / 'host.json', dict(original, **change))
+                self.assert_refused('another host operation|previously enabled')
+        host.atomic(self.state / 'host.json', original)
+
+    def test_previous_verified_or_update_archive_is_refused(self):
+        archive = self.state / 'history' / '22222222-2222-4222-8222-222222222222'
+        archive.mkdir(parents=True)
+        previous = host.read_json(self.state / 'host.json')
+        host.atomic(archive / 'host.json', dict(previous, verified_version='v1.0.1'))
+        self.assert_refused('Prior verified enrollment history')
+        host.atomic(archive / 'host.json', previous)
+        host.atomic(archive / 'state.json', {})
+        self.assert_refused('Prior update history')
+
+    def test_partial_archive_before_journal_copy_can_retry(self):
+        real_copy = host.shutil.copy2
+        def interrupted(source, target, **kwargs):
+            if Path(source).name == 'host.json':
+                raise KeyboardInterrupt()
+            return real_copy(source, target, **kwargs)
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        with patch.object(host.shutil, 'copy2', side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        for path in (self.state / 'history').rglob('*'):
+            if path.is_file():
+                path.chmod(0o600)
+        self.cancel()
+        self.assert_retired(server, restarts)
+
+    def test_cancellation_floor_prevents_old_fresh_enrollment(self):
+        self.cancel()
+        self.args.expect_version = 'v1.0.1'
+        self.args.expect_commit = 'b' * 40
+        self.manifest['sequence'] = 12
+        self.image = copy.deepcopy(self.old_image)
+        self.info['Image'] = self.old_image['Id']
+        with self.assertRaisesRegex(host.Failure, 'below the retained enrollment floor'):
+            self.install()
+
+    test_changed_identity_refused = CancellationLifecycle.test_changed_identity_refused
+    test_wrong_selected_installation_refused = CancellationLifecycle.test_wrong_selected_installation_refused
+    test_runtime_ownership_refused = CancellationLifecycle.test_runtime_ownership_refused
+    test_other_data_writer_refused = CancellationLifecycle.test_other_data_writer_refused
+    test_running_executor_refused = CancellationLifecycle.test_running_executor_refused
+    test_foreign_executor_refused = CancellationLifecycle.test_foreign_executor_refused
+    test_executor_lock_refused = CancellationLifecycle.test_executor_lock_refused
+    test_helper_without_record_refused = CancellationLifecycle.test_helper_without_record_refused
+    test_any_update_state_including_preview_refused = CancellationLifecycle.test_any_update_state_including_preview_refused
+    test_maintenance_refused = CancellationLifecycle.test_maintenance_refused
+    test_original_enrolled_model_refused = CancellationLifecycle.test_original_enrolled_model_refused
+    test_running_binding_refused = CancellationLifecycle.test_running_binding_refused
+
+    def test_pending_helper_is_not_settled_by_upgraded_cancellation(self):
+        host.atomic(self.state / 'helper.json', {'phase': 'rolled_back', 'readonly': True})
+        self.assert_refused('An unfinished helper exists')
+
+    def test_changed_data_volume_refused(self):
+        self.info['Mounts'][0]['Name'] = 'other-data'
+        self.assert_refused('Running data mount differs')
+
+    def test_unhealthy_current_server_refused(self):
+        self.health_failed = True
+        self.assert_refused('Upgraded server is unhealthy')
+
+    def test_current_cli_identity_is_required_only_in_explicit_mode(self):
+        common = ['host', 'cancel-enrollment', '--expect-installation', ID, '--expect-channel', 'stable', '--repository', 'test/repo', '--bundle', str(self.bundle)]
+        params = ['--expect-version', 'v1.0.2', '--expect-commit', '9' * 40, '--expect-arch', 'amd64', '--manifest-sha256', 'f' * 64]
+        for index in range(0, len(params), 2):
+            with self.subTest(missing=params[index]), patch.object(sys, 'argv', common + ['--upgraded-deployment'] + params[:index] + params[index + 2:]), contextlib.redirect_stderr(io.StringIO()) as error:
+                with self.assertRaises(SystemExit):
+                    host.main()
+                self.assertIn('requires current version, commit, architecture and manifest SHA-256', error.getvalue())
+        with patch.object(sys, 'argv', common + params), contextlib.redirect_stderr(io.StringIO()) as error:
+            with self.assertRaises(SystemExit):
+                host.main()
+            self.assertIn('requires --upgraded-deployment', error.getvalue())
+
 if __name__ == '__main__':
     unittest.main()
