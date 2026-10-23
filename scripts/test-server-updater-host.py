@@ -828,11 +828,13 @@ class Lifecycle(unittest.TestCase):
         self.assertNotIn('recovery_phase', journal)
         cfg = (self.state / 'config.json').read_bytes()
         model = Path(host.decode(cfg)['deployment_file']).read_bytes()
-        # Explicit rollback remains unable to recreate an absent deployment.
+        # The public rollback dispatch must refuse absence without erasing the
+        # interrupted activation that the public repair dispatch can resume.
+        before_rollback = len(self.commands)
         with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
-            controller = host.Host()
-            with controller.lock():
-                controller.rollback()
+            host.manage(argparse.Namespace(action='rollback'))
+        rollback_journal = host.read_json(self.state / 'host.json')
+        self.assert_no_server_lifecycle(self.commands[before_rollback:])
         host.atomic(self.state / 'helper.json', {'name': 'p2pstream-server-update-host-' + ID, 'phase': 'activating', 'readonly': True})
         base = host.Host.__mro__[1]
         def identity(*args, **kwargs):
@@ -841,6 +843,7 @@ class Lifecycle(unittest.TestCase):
         with patch.object(base, 'run_helper', side_effect=identity) as helper:
             host.manage(argparse.Namespace(action='repair'))
         self.assertEqual(journal['phase'], 'activating')
+        self.assertEqual(rollback_journal['phase'], 'activating')
         self.assertTrue(helper.call_args.kwargs['readonly'])
         self.assertIn('type=volume,src=custom-data,dst=/server-data,readonly', helper.call_args.kwargs['mounts'])
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
@@ -969,6 +972,31 @@ class Lifecycle(unittest.TestCase):
         journal = host.read_json(self.state / 'host.json')
         self.assertEqual(journal['phase'], 'recovery_required')
         self.assertNotIn('recovery_phase', journal)
+        current = Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes()
+        self.assertNotIn('p2pstream-server-updater', host.decode(current)['services'])
+        before = len(self.commands)
+        with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes(), current)
+        self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_missing_activation_explicit_rollback_failure_after_start_cannot_resume(self):
+        self.interrupt_activation_replacement()
+        # The old container becomes visible again, allowing rollback to start.
+        # Its own Compose recreation then removes it and fails after model writes.
+        self.server_inventory = None
+        original = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
+                self.assertEqual(controller.journal['phase'], 'rolling_back')
+                self.commands.append(('compose', args, kwargs.get('model', 'compose.json')))
+                self.server_inventory = b''
+                raise host.Failure('Explicit rollback replacement failed after removal')
+            return original(controller, *args, **kwargs)
+        with patch.object(host.Host, 'compose', interrupted):
+            with self.assertRaisesRegex(host.Failure, 'Explicit rollback replacement failed after removal'):
+                host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recovery_required')
         current = Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes()
         self.assertNotIn('p2pstream-server-updater', host.decode(current)['services'])
         before = len(self.commands)

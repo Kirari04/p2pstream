@@ -1844,10 +1844,14 @@ def manage(args):
             require(host.journal['phase'] in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished host transaction exists; rollback cannot downgrade a healthy updated deployment')
             require(host.journal.get('recovery_phase') not in {'healthy', 'repairing', 'recreating', 'migrating_deployment', 'recovering_update'}, 'Use repair or recover-update for the recorded helper; no unfinished configuration transaction exists')
             host.settle_helper()
+            activating = host.interrupted_initial_activation()
             try:
                 host.rollback()
             except Exception as error:
-                host.phase('recovery_required', error=str(error))
+                # Refusing an absent server before rollback starts must retain
+                # the same initial-activation repair path as automatic recovery.
+                resume = activating and isinstance(error, MissingRollbackServer) and host.journal['phase'] == 'activating'
+                host.phase('activating' if resume else 'recovery_required', error=str(error))
                 raise
             return
         if args.action == 'recreate':
