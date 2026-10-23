@@ -69,6 +69,9 @@ class Failure(RuntimeError):
 class UnsettledHelper(Failure):
     pass
 
+class MissingRollbackServer(Failure):
+    pass
+
 def require(condition, message):
     if not condition:
         raise Failure(message)
@@ -487,6 +490,8 @@ class Host:
         args = ('--force-recreate',) if force else ()
         if self.config.get('deployment_protocol') == 2:
             self.compose('stop', 'p2pstream')
+            # Compose config-change recreation can remove the old container
+            # before replacement creation fails, even without --force-recreate.
             self.compose('up', '--no-start', '--no-deps', '--no-build', '--pull', 'never', *args, 'p2pstream')
             self.runtime('detach' if detached else 'allow')
             self.compose('start', 'p2pstream')
@@ -1450,6 +1455,11 @@ class Host:
         self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
         print('Last managed server configuration restored; current image, data and credentials preserved.')
 
+    def interrupted_initial_activation(self):
+        return (self.journal['phase'] == 'activating' and self.config.get('deployment_protocol') == 2
+                and not any(self.journal.get(key) for key in ('verified_version', 'verified_commit', 'deployment_migration', 'recovery_phase', 'recovery_operation'))
+                and not os.path.lexists(self.directory / 'state.json'))
+
     def activate(self):
         self.idle()
         if self.config.get('deployment_protocol') == 2 and self.journal.get('source_bridge'):
@@ -1459,7 +1469,7 @@ class Host:
         require(raw == (self.directory / 'input.json').read_bytes(), 'Compose inputs changed after setup was staged; restore the recorded inputs before repair')
         expected = decode(docker('image', 'inspect', self.journal['server_image']).stdout)[0]['Id']
         ids = self.compose('ps', '--all', '--quiet', 'p2pstream').stdout.decode().split()
-        require(len(ids) == 1 or not ids and self.journal['phase'] == 'activating' and self.config.get('deployment_protocol') == 2, 'Server disappeared after setup was staged; inspect the host before repair')
+        require(len(ids) == 1 or not ids and self.interrupted_initial_activation(), 'Server disappeared after setup was staged; inspect the host before repair')
         if ids:
             actual = decode(docker('inspect', ids[0]).stdout)[0]
             require(actual['Image'] == expected, 'Running image changed after setup was staged; refusing a configuration-only replacement')
@@ -1490,6 +1500,10 @@ class Host:
         require(digest(previous.read_bytes()) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
         before = read_json(previous)
         ids = self.compose('ps', '--all', '--quiet', 'p2pstream', model='before-compose.json').stdout.decode().split()
+        if not ids:
+            # This successful inventory is also the only failure that permits
+            # retaining an interrupted activation. No rollback writes began.
+            raise MissingRollbackServer('Expected exactly one existing server for configuration rollback; refusing to recreate a missing deployment')
         require(len(ids) == 1, 'Expected exactly one existing server for configuration rollback; refusing to recreate a missing deployment')
         inspection = decode(docker('inspect', ids[0]).stdout)
         require(len(inspection) == 1 and inspection[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
@@ -1545,11 +1559,16 @@ class Host:
     def recover_failure(self, error):
         if isinstance(error, UnsettledHelper):
             raise error
-        self.phase('recovery_required', error=str(error))
+        activating = self.interrupted_initial_activation()
+        self.phase('activating' if activating else 'recovery_required', error=str(error))
         try:
             self.rollback()
         except Exception as rollback_error:
-            self.phase('recovery_required', error=str(error) + '; configuration rollback failed: ' + str(rollback_error))
+            # Preserve only an actual initial activation whose rollback proved
+            # absence before starting. Once rollback enters rolling_back, even
+            # a later missing container must stay on the rollback recovery path.
+            resume = activating and isinstance(rollback_error, MissingRollbackServer) and self.journal['phase'] == 'activating'
+            self.phase('activating' if resume else 'recovery_required', error=str(error) + '; configuration rollback failed: ' + str(rollback_error))
         raise Failure(str(error) + '\nDurable recovery state: ' + str(self.directory / 'host.json') + '\nRecovery: sudo ' + str(self.directory / 'manage') + ' rollback\nResume: sudo ' + str(self.directory / 'manage') + ' repair') from error
 
 def validate_running(container, model, image, arch, expected):

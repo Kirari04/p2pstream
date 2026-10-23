@@ -800,6 +800,197 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
         self.assertEqual((self.state / 'config.json').read_bytes(), cfg)
         self.assertEqual(self.restart_count, 1)
+
+    def interrupt_activation_replacement(self, *, rolling_back=False):
+        self.managed = True
+        self.failure = 'health' if rolling_back else ''
+        original = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream' and (not rolling_back or controller.journal['phase'] == 'rolling_back'):
+                # Compose config-change recreation can remove the old container
+                # and fail before creating its replacement, without --force-recreate.
+                self.assertFalse(self.info['State']['Running'])
+                self.commands.append(('compose', args, kwargs.get('model', 'compose.json')))
+                self.server_inventory = b''
+                raise host.Failure('Compose replacement failed after old container removal')
+            return original(controller, *args, **kwargs)
+        with patch.object(host.Host, 'compose', interrupted):
+            with self.assertRaisesRegex(host.Failure, 'Compose replacement failed|health failure'):
+                self.install()
+        self.assertEqual(self.server_inventory, b'')
+
+    def assert_no_server_lifecycle(self, commands):
+        self.assertFalse(any(item[0] == 'compose' and item[1][0] in {'up', 'stop', 'start'} and item[1][-1] == 'p2pstream' for item in commands))
+
+    def test_missing_activation_replacement_repairs_through_failure_recovery(self):
+        self.interrupt_activation_replacement()
+        journal = host.read_json(self.state / 'host.json')
+        self.assertNotIn('recovery_phase', journal)
+        cfg = (self.state / 'config.json').read_bytes()
+        model = Path(host.decode(cfg)['deployment_file']).read_bytes()
+        # Explicit rollback remains unable to recreate an absent deployment.
+        with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
+            controller = host.Host()
+            with controller.lock():
+                controller.rollback()
+        host.atomic(self.state / 'helper.json', {'name': 'p2pstream-server-update-host-' + ID, 'phase': 'activating', 'readonly': True})
+        base = host.Host.__mro__[1]
+        def identity(*args, **kwargs):
+            self.assertFalse((self.state / 'helper.json').exists())
+            return subprocess.CompletedProcess([], 0, (ID + '\n').encode(), b'')
+        with patch.object(base, 'run_helper', side_effect=identity) as helper:
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(journal['phase'], 'activating')
+        self.assertTrue(helper.call_args.kwargs['readonly'])
+        self.assertIn('type=volume,src=custom-data,dst=/server-data,readonly', helper.call_args.kwargs['mounts'])
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual((self.state / 'config.json').read_bytes(), cfg)
+        self.assertEqual(Path(host.decode(cfg)['deployment_file']).read_bytes(), model)
+        self.assertEqual(self.restart_count, 1)
+        self.assertEqual(len(self.models_started), 1)
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(self.restart_count, 1)
+
+    def test_missing_activation_replacement_can_be_interrupted_repeatedly(self):
+        self.interrupt_activation_replacement()
+        original = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
+                self.commands.append(('compose', args, kwargs.get('model', 'compose.json')))
+                self.server_inventory = b''
+                raise host.Failure('Repeated replacement interruption')
+            return original(controller, *args, **kwargs)
+        with patch.object(host.Host, 'data_identity', return_value=ID):
+            for _ in range(2):
+                before = len(self.commands)
+                with patch.object(host.Host, 'compose', interrupted):
+                    with self.assertRaisesRegex(host.Failure, 'Repeated replacement interruption'):
+                        host.manage(argparse.Namespace(action='repair'))
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'activating')
+                self.assertEqual(sum(item[0] == 'compose' and item[1][0] == 'up' for item in self.commands[before:]), 1)
+                self.assertEqual(self.restart_count, 0)
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(self.restart_count, 1)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_missing_activation_does_not_adopt_bare_stale_recovery(self):
+        self.interrupt_activation_replacement()
+        journal = host.read_json(self.state / 'host.json')
+        journal['phase'] = 'recovery_required'
+        host.atomic(self.state / 'host.json', journal)
+        before = len(self.commands)
+        with patch.object(host.Host, 'data_identity', return_value=ID) as identity:
+            with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
+                host.manage(argparse.Namespace(action='repair'))
+        identity.assert_not_called()
+        self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_missing_activation_does_not_reinterpret_helper_recovery_phase(self):
+        self.interrupt_activation_replacement()
+        journal = host.read_json(self.state / 'host.json')
+        journal.update(phase='recovery_required', recovery_phase='activating')
+        host.atomic(self.state / 'host.json', journal)
+        before = len(self.commands)
+        with patch.object(host.Host, 'data_identity', return_value=ID) as identity:
+            with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
+                host.manage(argparse.Namespace(action='repair'))
+        identity.assert_not_called()
+        self.assertEqual(host.read_json(self.state / 'host.json'), journal)
+        self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_missing_activation_does_not_infer_absence_from_failed_inventory(self):
+        self.interrupt_activation_replacement()
+        original = host.Host.compose
+        def unavailable(controller, *args, **kwargs):
+            if args[0] == 'ps':
+                raise host.Failure('Docker inventory unavailable')
+            return original(controller, *args, **kwargs)
+        before = len(self.commands)
+        with patch.object(host.Host, 'compose', unavailable), patch.object(host.Host, 'data_identity', return_value=ID) as identity:
+            with self.assertRaisesRegex(host.Failure, 'Docker inventory unavailable'):
+                host.manage(argparse.Namespace(action='repair'))
+        identity.assert_not_called()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recovery_required')
+        self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_missing_activation_does_not_adopt_other_phases_or_protocol(self):
+        self.interrupt_activation_replacement()
+        original = host.read_json(self.state / 'host.json')
+        cfg = host.read_json(self.state / 'config.json')
+        for phase, protocol in [('prepared', 2), ('applying', 2), ('removing', 2), ('rolling_back', 2), ('rolled_back', 2), ('activating', 1)]:
+            with self.subTest(phase=phase, protocol=protocol):
+                host.atomic(self.state / 'host.json', dict(original, phase=phase))
+                host.atomic(self.state / 'config.json', dict(cfg, deployment_protocol=protocol))
+                before = len(self.commands)
+                with self.assertRaises(host.Failure):
+                    host.manage(argparse.Namespace(action='repair'))
+                self.assert_no_server_lifecycle(self.commands[before:])
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recovery_required' if phase in {'prepared', 'rolled_back', 'activating'} else phase)
+
+    def test_missing_activation_refuses_changed_identity_and_foreign_writer(self):
+        self.interrupt_activation_replacement()
+        for identity, writer, message in [('wrong', False, 'Installation identity changed'), (ID, True, 'Another running container writes')]:
+            with self.subTest(identity=identity, writer=writer):
+                self.foreign_writer = writer
+                before = len(self.commands)
+                with patch.object(host.Host, 'data_identity', return_value=identity):
+                    with self.assertRaisesRegex(host.Failure, message):
+                        host.manage(argparse.Namespace(action='repair'))
+                self.assert_no_server_lifecycle(self.commands[before:])
+                self.assertEqual(self.restart_count, 0)
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'activating')
+
+    def test_missing_activation_refuses_source_drift(self):
+        self.interrupt_activation_replacement()
+        self.raw += b' '
+        before = len(self.commands)
+        with patch.object(host.Host, 'data_identity', return_value=ID) as identity:
+            with self.assertRaisesRegex(host.Failure, 'Compose inputs changed after setup was staged'):
+                host.manage(argparse.Namespace(action='repair'))
+        identity.assert_not_called()
+        self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_missing_activation_refuses_multiple_or_changed_image_containers(self):
+        self.interrupt_activation_replacement()
+        original = host.read_json(self.state / 'host.json')
+        for inventory, image, message in [(b'one\ntwo\n', 'sha256:config', 'Server disappeared'), (b'container\n', 'sha256:external', 'Running image changed')]:
+            with self.subTest(inventory=inventory):
+                host.atomic(self.state / 'host.json', original)
+                self.server_inventory = inventory
+                self.info['Image'] = image
+                before = len(self.commands)
+                with self.assertRaisesRegex(host.Failure, message):
+                    host.manage(argparse.Namespace(action='repair'))
+                self.assert_no_server_lifecycle(self.commands[before:])
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'recovery_required')
+
+    def test_missing_activation_never_preserves_provenance_after_rollback_started(self):
+        self.interrupt_activation_replacement(rolling_back=True)
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'recovery_required')
+        self.assertNotIn('recovery_phase', journal)
+        current = Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes()
+        self.assertNotIn('p2pstream-server-updater', host.decode(current)['services'])
+        before = len(self.commands)
+        with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(Path(host.read_json(self.state / 'config.json')['deployment_file']).read_bytes(), current)
+        self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_missing_activation_does_not_resume_successful_enrollment_or_update_history(self):
+        self.interrupt_activation_replacement()
+        original = host.read_json(self.state / 'host.json')
+        for values in [{'verified_version': 'v1.0.1'}, {'verified_commit': 'b' * 40}, {'deployment_migration': {'phase': 'started'}}, {'update_history': True}]:
+            with self.subTest(values=values):
+                host.atomic(self.state / 'host.json', dict(original, **values))
+                if values.get('update_history'):
+                    host.atomic(self.state / 'state.json', {'operation': {'phase': 'succeeded'}})
+                before = len(self.commands)
+                with patch.object(host.Host, 'data_identity', return_value=ID) as identity:
+                    with self.assertRaises(host.Failure):
+                        host.manage(argparse.Namespace(action='repair'))
+                identity.assert_not_called()
+                self.assert_no_server_lifecycle(self.commands[before:])
     def test_healthy_state_never_allows_installation_era_rollback(self):
         self.install()
         with self.assertRaisesRegex(host.Failure, 'cannot downgrade'):
