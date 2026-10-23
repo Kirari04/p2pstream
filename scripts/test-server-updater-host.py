@@ -2062,6 +2062,55 @@ class UpgradedCancellationLifecycle(unittest.TestCase):
         self.cancel()
         self.assert_retired(server, restarts)
 
+    def test_partial_archive_with_truncated_journal_can_retry(self):
+        real_copy = host.shutil.copy2
+        def interrupted(source, target, **kwargs):
+            if Path(source).name == 'host.json':
+                Path(target).write_bytes(b'{"phase":')
+                raise KeyboardInterrupt()
+            return real_copy(source, target, **kwargs)
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        active = (self.state / 'host.json').read_bytes()
+        with patch.object(host.shutil, 'copy2', side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.assertEqual((self.state / 'host.json').read_bytes(), active)
+        archive = next((self.state / 'history').iterdir())
+        self.assertEqual((archive / 'host.json').read_bytes(), b'{"phase":')
+        for path in archive.rglob('*'):
+            if path.is_file():
+                path.chmod(0o600)
+        self.cancel()
+        self.assert_retired(server, restarts)
+        self.assertEqual((archive / 'host.json').read_bytes(), active)
+
+    def test_archive_copied_marker_before_commit_can_retry(self):
+        real_atomic = host.atomic
+        def interrupted(path, value, **kwargs):
+            result = real_atomic(path, value, **kwargs)
+            if Path(path).name == 'archive.json' and value['stage'] == 'copied':
+                raise KeyboardInterrupt()
+            return result
+        server, restarts = copy.deepcopy(self.info), self.restart_count
+        with patch.object(host, 'atomic', side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                self.cancel()
+        self.assertEqual(host.read_json(self.state / 'archive.json')['stage'], 'copied')
+        for path in (self.state / 'history').rglob('*'):
+            if path.is_file():
+                path.chmod(0o600)
+        self.cancel()
+        self.assert_retired(server, restarts)
+
+    def test_truncated_unrelated_history_is_not_exempted(self):
+        archive = self.state / 'history' / '22222222-2222-4222-8222-222222222222'
+        archive.mkdir(parents=True)
+        (archive / 'host.json').write_bytes(b'{"phase":')
+        before = self.files()
+        with self.assertRaises(ValueError):
+            self.cancel()
+        self.assertEqual(self.files(), before)
+
     def test_cancellation_floor_prevents_old_fresh_enrollment(self):
         self.cancel()
         self.args.expect_version = 'v1.0.1'

@@ -811,8 +811,14 @@ class Host:
             partial = self.archive_directory(transaction) if transaction else None
             for archive in history.iterdir():
                 require(stat.S_ISDIR(archive.lstat().st_mode) and not os.path.lexists(archive / 'state.json') and not os.path.lexists(archive / 'control' / 'maintenance'), 'Prior update history exists; upgraded cancellation is refused')
-                if archive == partial and not os.path.lexists(archive / 'host.json'):
-                    continue  # This cancellation may have stopped during copying.
+                if archive == partial:
+                    receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
+                    require(transaction['stage'] in {'copying', 'copied'} and receipt and not receipt['completed'], 'Partial archive is not an active enrollment cancellation')
+                    # copy2 may leave a present but truncated destination. This
+                    # exact transaction's intact active journal is authoritative
+                    # until the archive commit removes it; all other history is
+                    # still parsed strictly below.
+                    continue
                 previous = read_json(archive / 'host.json')
                 require(previous.get('installation') == self.journal['installation'] and previous.get('phase') in {'preparing', 'rolled_back', 'recovery_required'} and not any(previous.get(key) for key in ('verified_version', 'verified_commit', 'deployment_migration', 'recovery_phase', 'recovery_operation')), 'Prior verified enrollment history exists; upgraded cancellation is refused')
         raw = (self.directory / 'before-compose.json').read_bytes()
