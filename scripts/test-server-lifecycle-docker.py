@@ -322,6 +322,29 @@ def install_arguments(catalog, release, installation, variant):
     return args, value
 
 
+def host_refusal_check(host, error):
+    # The host's error body and helper log can contain private command/model
+    # data. Preserve only source locations in the exact loaded controller so a
+    # CI refusal can be traced without publishing either of those bodies. Keep
+    # wrapping/recovery causes, too: their outer site can hide the first failure.
+    sites, seen = [], set()
+    for _ in range(4):
+        if error is None or id(error) in seen:
+            break
+        seen.add(id(error))
+        lines = []
+        trace = error.__traceback__
+        while trace is not None:
+            if trace.tb_frame.f_globals is vars(host):
+                lines.append(str(trace.tb_lineno))
+            trace = trace.tb_next
+        site = 'host-lines-' + '-'.join(lines[-8:]) if lines else 'host-site-unavailable'
+        if site not in sites:
+            sites.append(site)
+        error = error.__cause__ or error.__context__
+    return 'unexpected-host-refusal-' + '-cause-'.join(sites)
+
+
 def worker(args):
     host, images = load_host(), read('/review/images.json')
     catalog, installation = read(ROOT / 'catalog.json'), read(ROOT / 'identity.json')['installation']
@@ -435,7 +458,8 @@ def worker(args):
     except host.Failure as error:
         expected = {'blocker': 'Enrollment blocked:', 'history': 'Missing retained configuration',
                     'floor': 'retained enrollment floor'}.get(args.refusal)
-        require(expected and expected in str(error), 'unexpected-host-refusal')
+        if not expected or expected not in str(error):
+            raise CheckFailure(host_refusal_check(host, error)) from None
         if args.block_after_prepare:
             require(refusal_snapshot is not None, 'after-prepare-checkpoint-not-reached')
             assert_unchanged(refusal_snapshot, images, private=True)
