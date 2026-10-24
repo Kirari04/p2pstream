@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -113,7 +114,7 @@ func TestStandaloneEnrollmentPreflightReadOnlyAndSocketLifecycle(t *testing.T) {
 	if _, err := os.Lstat(app.Config.ServerUpdateGateFile); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("read-only query created maintenance gate: %v", err)
 	}
-	if err := app.startServerUpdateRuntime(context.Background(), socket); err == nil {
+	if err := app.listenServerUpdateRuntime(context.Background(), socket, true); err == nil {
 		t.Fatal("second server stole a live runtime socket")
 	}
 	cancel()
@@ -276,7 +277,8 @@ func TestEnrollmentPreflightCancelledCampaignAndRollback(t *testing.T) {
 		{"cancelled campaign blocked assignment", "blocked", "none", true},
 		{"cancelled campaign blocked rollback pending", "blocked", "rollback", true},
 		{"cancelled campaign rollback pending", "failed", "rollback", true},
-		{"conservative cancelled assignment rollback", "cancelled", "rollback", true},
+		{"terminal cancelled assignment ignores obsolete rollback", "cancelled", "rollback", false},
+		{"terminal succeeded assignment ignores obsolete rollback", "succeeded", "rollback", false},
 		{"completed rollback", "failed", "none", false},
 		{"completed cancelled assignment", "cancelled", "none", false},
 		{"completed update", "succeeded", "none", false},
@@ -287,6 +289,17 @@ func TestEnrollmentPreflightCancelledCampaignAndRollback(t *testing.T) {
 			campaignID, assignmentID := insertAgentUpdateTestCampaign(t, app.DB, agent.ID, test.state, test.action, test.blocked)
 			if _, err := app.DB.Exec("UPDATE agent_update_campaigns SET state='cancelled' WHERE id=?", campaignID); err != nil {
 				t.Fatal(err)
+			}
+			assignment, _, err := app.activeAgentUpdateAssignment(context.Background(), agent.ID)
+			if test.blocked && (err != nil || assignment.ID != assignmentID) || !test.blocked && !errors.Is(err, sql.ErrNoRows) {
+				t.Fatalf("engine active assignment disagrees: %+v %v", assignment, err)
+			}
+			admin := createTestAdminSession(t, app)
+			req := connect.NewRequest(&p2pstreamv1.GetAgentUpdateOverviewRequest{})
+			req.Header().Set("Cookie", admin.Get("Cookie"))
+			overview, err := app.GetAgentUpdateOverview(context.Background(), req)
+			if err != nil || len(overview.Msg.Agents) != 1 || (overview.Msg.Agents[0].ActiveAssignmentId != 0) != test.blocked {
+				t.Fatalf("agent overview disagrees: %v %v", overview, err)
 			}
 			p := app.serverEnrollmentPreflight(context.Background())
 			if p.Ready == test.blocked {
@@ -379,7 +392,7 @@ func TestEnrollmentRuntimeSocketUnsafeAndStalePaths(t *testing.T) {
 	if err := os.WriteFile(path, []byte("preserve me"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.startServerUpdateRuntime(context.Background(), path); err == nil {
+	if err := app.listenServerUpdateRuntime(context.Background(), path, true); err == nil {
 		t.Fatal("accepted regular file at socket path")
 	}
 	data, _ := os.ReadFile(path)
@@ -390,7 +403,7 @@ func TestEnrollmentRuntimeSocketUnsafeAndStalePaths(t *testing.T) {
 	if err := os.Symlink(filepath.Join(t.TempDir(), "missing"), path); err != nil {
 		t.Fatal(err)
 	}
-	if err := app.startServerUpdateRuntime(context.Background(), path); err == nil {
+	if err := app.listenServerUpdateRuntime(context.Background(), path, true); err == nil {
 		t.Fatal("accepted socket symlink")
 	}
 	_ = os.Remove(path)
@@ -434,5 +447,190 @@ func TestStandaloneReadOnlyFilesystemKeepsServingWithoutPreflight(t *testing.T) 
 	app.Config.ServerUpdateSocket = "/private/control.sock"
 	if err := app.startServerUpdateRuntime(context.Background(), path); err == nil {
 		t.Fatal("enrolled runtime silently lost mandatory socket")
+	}
+}
+
+// Exercise the public startup entry point used by cmd/server, rather than just
+// accepting errors from the private listener helper. An unavailable optional
+// observer must never prevent a standalone server from starting.
+func TestStandalonePreflightConflictsKeepStartupAvailable(t *testing.T) {
+	for _, kind := range []string{"regular file", "symlink", "live listener", "wrong owner"} {
+		t.Run(kind, func(t *testing.T) {
+			app := newEnrollmentPreflightApp(t)
+			app.InstallationID = uuid.NewString()
+			path, err := serverupdate.EnrollmentPreflightSocket(app.InstallationID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Remove(path) })
+			var live *net.UnixListener
+			switch kind {
+			case "regular file":
+				err = os.WriteFile(path, []byte("preserve existing file"), 0600)
+			case "symlink":
+				err = os.Symlink(filepath.Join(t.TempDir(), "missing"), path)
+			default:
+				live, err = net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				live.SetUnlinkOnClose(false)
+				t.Cleanup(func() { _ = live.Close() })
+				if kind == "wrong owner" {
+					if os.Geteuid() != 0 {
+						t.Skip("chown requires root; unsafe UID is also covered by the socket metadata fixture")
+					}
+					err = os.Chown(path, 1, -1)
+				}
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.Lstat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := app.listenServerUpdateRuntime(context.Background(), path, true); err == nil {
+				t.Fatal("conflicting socket unexpectedly accepted")
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			startupErr := app.StartServerUpdateRuntime(ctx)
+			cancel()
+			after, err := os.Lstat(path)
+			if err != nil || !os.SameFile(before, after) || before.Mode() != after.Mode() {
+				t.Fatalf("startup unlinked or replaced existing path: %v", err)
+			}
+			if kind == "regular file" {
+				data, err := os.ReadFile(path)
+				if err != nil || string(data) != "preserve existing file" {
+					t.Fatalf("existing file changed: %q %v", data, err)
+				}
+			}
+			if live != nil {
+				conn, err := net.DialTimeout("unix", path, time.Second)
+				if err != nil {
+					t.Fatalf("existing listener stopped: %v", err)
+				}
+				_ = conn.Close()
+			}
+			// Enrollment continues to require a usable observation socket.
+			app.Config.ServerUpdateSocket = "/private/control.sock"
+			if err := app.startServerUpdateRuntime(context.Background(), path); err == nil {
+				t.Fatal("enrolled preflight ignored conflicting socket")
+			}
+			if startupErr != nil {
+				t.Fatalf("standalone startup rejected optional preflight conflict: %v", startupErr)
+			}
+		})
+	}
+}
+
+func TestStandalonePublicStartupRecoversStaleOwnedPreflightSocket(t *testing.T) {
+	app := newEnrollmentPreflightApp(t)
+	app.InstallationID = uuid.NewString()
+	path, err := serverupdate.EnrollmentPreflightSocket(app.InstallationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale.SetUnlinkOnClose(false)
+	_ = stale.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	if err := app.StartServerUpdateRuntime(ctx); err != nil {
+		t.Fatal(err)
+	}
+	client := enrollmentSocketClient(t, path, cancel)
+	code, body := runtimeRequest(t, client, http.MethodPost, "/enrollment-preflight")
+	preflight, err := serverupdate.DecodeEnrollmentPreflight(strings.NewReader(string(body)))
+	if code != 200 || err != nil || !preflight.Ready || preflight.InstallationID != app.InstallationID {
+		t.Fatalf("stale socket recovery: %s %v", body, err)
+	}
+}
+
+func TestServerUpdateRuntimeStartupPreservesCancellation(t *testing.T) {
+	for _, enrolled := range []bool{false, true} {
+		app := newEnrollmentPreflightApp(t)
+		app.InstallationID = uuid.NewString()
+		if enrolled {
+			app.Config.ServerUpdateSocket = "/private/control.sock"
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		if err := app.StartServerUpdateRuntime(ctx); !errors.Is(err, context.Canceled) {
+			t.Fatalf("enrolled=%v startup cancellation = %v", enrolled, err)
+		}
+	}
+}
+
+// The metadata fixture exercises the exact ownership guard on unprivileged
+// hosts that cannot chown the public-startup socket fixture above.
+type enrollmentSocketInfoFixture struct {
+	os.FileInfo
+	metadata any
+}
+
+func (f enrollmentSocketInfoFixture) Sys() any { return f.metadata }
+
+func TestEnrollmentPreflightSocketOwnershipFixture(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "owned.sock")
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	info, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateServerUpdateRuntimeSocket(info); err != nil {
+		t.Fatalf("owned socket rejected: %v", err)
+	}
+	otherOwner := *info.Sys().(*syscall.Stat_t)
+	otherOwner.Uid = uint32(os.Geteuid()) + 1
+	for _, metadata := range []any{&otherOwner, nil, (*syscall.Stat_t)(nil)} {
+		if err := validateServerUpdateRuntimeSocket(enrollmentSocketInfoFixture{info, metadata}); err == nil {
+			t.Fatalf("unsafe socket metadata accepted: %v", metadata)
+		}
+	}
+}
+
+func TestEnrolledPublicStartupRequiresRuntimeSocket(t *testing.T) {
+	// The enrolled protocol has a fixed path. Only create an exclusive fixture;
+	// never disturb a running local server or another test's existing socket.
+	file, err := os.OpenFile(serverupdate.RuntimeSocket, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if errors.Is(err, os.ErrExist) {
+		t.Skip("enrolled runtime socket path is already occupied")
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Remove(serverupdate.RuntimeSocket) })
+	if _, err := file.WriteString("preserve enrolled path"); err != nil {
+		t.Fatal(err)
+	}
+	_ = file.Close()
+	before, err := os.Lstat(serverupdate.RuntimeSocket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := newEnrollmentPreflightApp(t)
+	app.Config.ServerUpdateSocket = "/private/control.sock"
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := app.StartServerUpdateRuntime(ctx); err == nil {
+		t.Fatal("enrolled public startup ignored mandatory runtime failure")
+	}
+	after, err := os.Lstat(serverupdate.RuntimeSocket)
+	if err != nil || !os.SameFile(before, after) {
+		t.Fatalf("enrolled startup replaced conflicting path: %v", err)
+	}
+	data, err := os.ReadFile(serverupdate.RuntimeSocket)
+	if err != nil || string(data) != "preserve enrolled path" {
+		t.Fatalf("enrolled startup changed existing file: %q %v", data, err)
 	}
 }

@@ -46,7 +46,9 @@ const setupCommand = computed(() => serverSetupCommand(overview.value?.setupComm
 const singleLineSetup = computed(() => Boolean(setupCommand.value && !/[\r\n]/.test(setupCommand.value)));
 const deploymentMigration = computed(() => Boolean(overview.value?.executorConfigured && (overview.value.setupCommand || overview.value.setupUnavailable)));
 const showSetup = computed(() => Boolean(overview.value && !running.value && !pending.value && !blocked.value && (!overview.value.executorConfigured || deploymentMigration.value)));
-const setupBlockers = computed(() => overview.value?.blockers ?? []);
+// Legacy host migration uses its own deployment validation, not enrollment
+// preflight or the executor's software-update readiness checks.
+const setupBlockers = computed(() => deploymentMigration.value ? [] : overview.value?.blockers ?? []);
 const actionIsCurrent = (revision: number, requestScope: string) => !disposed && revision === actionRevision && requestScope === scope();
 
 function savePending(value: PendingServerUpdate | null) {

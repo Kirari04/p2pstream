@@ -231,12 +231,18 @@ func (a *App) StartServerUpdateRuntime(ctx context.Context) error {
 
 func (a *App) startServerUpdateRuntime(ctx context.Context, socket string) error {
 	err := a.listenServerUpdateRuntime(ctx, socket, true)
-	// Older standalone read-only deployments need not have writable /tmp. Keep
-	// serving normally, but leave preflight unavailable: setup must fail closed
-	// rather than recreate a container to acquire readiness. Enrolled deployments
-	// retain the existing requirement for their executor's readiness socket.
-	if (a.Config == nil || a.Config.ServerUpdateSocket == "") && (errors.Is(err, syscall.EROFS) || errors.Is(err, os.ErrPermission)) {
-		log.Warn().Msg("Enrollment preflight unavailable: the local readiness socket directory is not writable; provide writable /tmp before enrollment")
+	if err == nil {
+		return nil
+	}
+	// Cancellation is a lifecycle shutdown request, not an unavailable observer.
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	// The standalone observer is optional even when /tmp contains a conflicting
+	// file or listener. Keep the existing path intact and serve normally; setup
+	// still fails closed without a usable preflight. Enrolled sockets stay strict.
+	if a.Config == nil || a.Config.ServerUpdateSocket == "" {
+		log.Warn().Err(err).Msg("Enrollment preflight unavailable: resolve the local readiness socket before enrollment")
 		return nil
 	}
 	return err
@@ -247,9 +253,8 @@ func (a *App) listenServerUpdateRuntime(ctx context.Context, socket string, enro
 		return err
 	}
 	if info, err := os.Lstat(socket); err == nil {
-		owner, ok := info.Sys().(*syscall.Stat_t)
-		if info.Mode()&os.ModeSocket == 0 || !ok || owner.Uid != uint32(os.Geteuid()) {
-			return errors.New("unsafe server status socket")
+		if err := validateServerUpdateRuntimeSocket(info); err != nil {
+			return err
 		}
 		connection, err := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, "unix", socket)
 		if err == nil {
@@ -326,6 +331,14 @@ func (a *App) listenServerUpdateRuntime(ctx context.Context, socket string, enro
 	return nil
 }
 
+func validateServerUpdateRuntimeSocket(info os.FileInfo) error {
+	owner, ok := info.Sys().(*syscall.Stat_t)
+	if info.Mode()&os.ModeSocket == 0 || !ok || owner == nil || owner.Uid != uint32(os.Geteuid()) {
+		return errors.New("unsafe server status socket")
+	}
+	return nil
+}
+
 func (a *App) serverEnrollmentPreflight(ctx context.Context) serverupdate.EnrollmentPreflight {
 	return serverupdate.NewEnrollmentPreflight(a.InstallationID, a.serverUpdateRuntimeStatus(ctx))
 }
@@ -369,7 +382,9 @@ func (a *App) serverUpdateRuntimeStatus(ctx context.Context) serverupdate.Runtim
 			s.Blocked = append(s.Blocked, "Database schema is unavailable")
 		}
 		var active int
-		if err := a.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM agent_update_assignments WHERE state NOT IN ('succeeded','failed','cancelled') OR desired_action='rollback'").Scan(&active); err != nil || active > 0 {
+		// Match the engine and agent overview: failed assignments stay active
+		// until rollback completes, regardless of their campaign's state.
+		if err := a.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM agent_update_assignments WHERE state NOT IN ('succeeded','failed','cancelled') OR (state='failed' AND desired_action='rollback')").Scan(&active); err != nil || active > 0 {
 			s.Blocked = append(s.Blocked, "Finish or cancel active agent updates before updating the server")
 		}
 	}
