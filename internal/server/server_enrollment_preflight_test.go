@@ -445,8 +445,8 @@ func TestStandaloneReadOnlyFilesystemKeepsServingWithoutPreflight(t *testing.T) 
 		t.Fatalf("standalone read-only deployment stopped: %v", err)
 	}
 	app.Config.ServerUpdateSocket = "/private/control.sock"
-	if err := app.startServerUpdateRuntime(context.Background(), path); err == nil {
-		t.Fatal("enrolled runtime silently lost mandatory socket")
+	if err := app.startServerUpdateRuntime(context.Background(), path); err != nil {
+		t.Fatalf("enrolled read-only deployment stopped for optional observer: %v", err)
 	}
 }
 
@@ -514,10 +514,10 @@ func TestStandalonePreflightConflictsKeepStartupAvailable(t *testing.T) {
 				}
 				_ = conn.Close()
 			}
-			// Enrollment continues to require a usable observation socket.
+			// The enrollment-only observer stays optional after enrollment too.
 			app.Config.ServerUpdateSocket = "/private/control.sock"
-			if err := app.startServerUpdateRuntime(context.Background(), path); err == nil {
-				t.Fatal("enrolled preflight ignored conflicting socket")
+			if err := app.startServerUpdateRuntime(context.Background(), path); err != nil {
+				t.Fatalf("enrolled startup rejected optional preflight conflict: %v", err)
 			}
 			if startupErr != nil {
 				t.Fatalf("standalone startup rejected optional preflight conflict: %v", startupErr)
@@ -620,10 +620,36 @@ func TestEnrolledPublicStartupRequiresRuntimeSocket(t *testing.T) {
 	}
 	app := newEnrollmentPreflightApp(t)
 	app.Config.ServerUpdateSocket = "/private/control.sock"
+	app.InstallationID = uuid.NewString()
+	preflightPath, err := serverupdate.EnrollmentPreflightSocket(app.InstallationID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A stale owned observer would be replaced if startup attempted it first.
+	observer, err := net.ListenUnix("unix", &net.UnixAddr{Name: preflightPath, Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	observer.SetUnlinkOnClose(false)
+	_ = observer.Close()
+	t.Cleanup(func() { _ = os.Remove(preflightPath) })
+	observerBefore, err := os.Lstat(preflightPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := app.StartServerUpdateRuntime(ctx); err == nil {
 		t.Fatal("enrolled public startup ignored mandatory runtime failure")
+	}
+	observerAfter, err := os.Lstat(preflightPath)
+	if err != nil || !os.SameFile(observerBefore, observerAfter) || observerBefore.Mode() != observerAfter.Mode() {
+		t.Fatalf("failed mandatory runtime attempted optional observer: %v", err)
+	}
+	connection, err := net.DialTimeout("unix", preflightPath, time.Second)
+	if err == nil {
+		_ = connection.Close()
+		t.Fatal("failed mandatory runtime started optional observer")
 	}
 	after, err := os.Lstat(serverupdate.RuntimeSocket)
 	if err != nil || !os.SameFile(before, after) {
@@ -632,5 +658,79 @@ func TestEnrolledPublicStartupRequiresRuntimeSocket(t *testing.T) {
 	data, err := os.ReadFile(serverupdate.RuntimeSocket)
 	if err != nil || string(data) != "preserve enrolled path" {
 		t.Fatalf("enrolled startup changed existing file: %q %v", data, err)
+	}
+}
+
+func TestEnrolledPreflightConflictsKeepMandatoryRuntimeAvailable(t *testing.T) {
+	for _, kind := range []string{"regular file", "live listener"} {
+		t.Run(kind, func(t *testing.T) {
+			// Reserve the fixed runtime path exclusively before creating fixtures;
+			// never remove a socket belonging to a running server or another test.
+			reservation, err := os.OpenFile(serverupdate.RuntimeSocket, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+			if errors.Is(err, os.ErrExist) {
+				t.Skip("enrolled runtime socket path is already occupied")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = reservation.Close()
+			if err := os.Remove(serverupdate.RuntimeSocket); err != nil {
+				t.Fatal(err)
+			}
+			app := newEnrollmentPreflightApp(t)
+			app.InstallationID = uuid.NewString()
+			app.Config.ServerUpdateSocket = "/private/control.sock"
+			app.Config.ServerUpdateInstanceID = uuid.NewString()
+			path, err := serverupdate.EnrollmentPreflightSocket(app.InstallationID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Remove(path) })
+			if kind == "regular file" {
+				err = os.WriteFile(path, []byte("preserve existing file"), 0600)
+			} else {
+				var listener *net.UnixListener
+				listener, err = net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
+				if err == nil {
+					listener.SetUnlinkOnClose(false)
+					t.Cleanup(func() { _ = listener.Close() })
+				}
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.Lstat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			client := enrollmentSocketClient(t, serverupdate.RuntimeSocket, cancel)
+			if err := app.StartServerUpdateRuntime(ctx); err != nil {
+				t.Fatalf("enrolled startup rejected optional preflight conflict: %v", err)
+			}
+			want := app.serverUpdateRuntimeStatus(ctx)
+			for _, endpoint := range []string{"/status", "/prepare"} {
+				code, body := runtimeRequest(t, client, http.MethodPost, endpoint)
+				var got serverupdate.RuntimeStatus
+				if code != http.StatusOK || json.Unmarshal(body, &got) != nil || !reflect.DeepEqual(got, want) {
+					t.Fatalf("mandatory runtime %s unavailable or changed: %s", endpoint, body)
+				}
+			}
+			after, err := os.Lstat(path)
+			if err != nil || !os.SameFile(before, after) || before.Mode() != after.Mode() {
+				t.Fatalf("enrolled startup replaced preflight squatter: %v", err)
+			}
+			if kind == "regular file" {
+				if data, err := os.ReadFile(path); err != nil || string(data) != "preserve existing file" {
+					t.Fatalf("enrolled startup changed existing file: %q %v", data, err)
+				}
+			} else {
+				connection, err := net.DialTimeout("unix", path, time.Second)
+				if err != nil {
+					t.Fatalf("existing preflight listener stopped: %v", err)
+				}
+				_ = connection.Close()
+			}
+		})
 	}
 }

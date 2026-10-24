@@ -238,14 +238,12 @@ func (a *App) startServerUpdateRuntime(ctx context.Context, socket string) error
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
-	// The standalone observer is optional even when /tmp contains a conflicting
-	// file or listener. Keep the existing path intact and serve normally; setup
-	// still fails closed without a usable preflight. Enrolled sockets stay strict.
-	if a.Config == nil || a.Config.ServerUpdateSocket == "" {
-		log.Warn().Err(err).Msg("Enrollment preflight unavailable: resolve the local readiness socket before enrollment")
-		return nil
-	}
-	return err
+	// The enrollment-only observer is optional in every mode, even when /tmp
+	// contains a conflicting file or listener. Keep the existing path intact and
+	// serve normally; preflight consumers still fail closed. An enrolled server's
+	// mandatory RuntimeSocket was bound strictly before attempting this observer.
+	log.Warn().Err(err).Msg("Enrollment preflight unavailable: resolve the local readiness socket before enrollment")
+	return nil
 }
 
 func (a *App) listenServerUpdateRuntime(ctx context.Context, socket string, enrollmentOnly bool) error {
