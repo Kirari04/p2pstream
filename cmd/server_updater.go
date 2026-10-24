@@ -33,8 +33,11 @@ func init() {
 	var configPath string
 	serve := &cobra.Command{Use: "serve", Short: "Serve the private update socket and recover interrupted deployments", RunE: func(cmd *cobra.Command, args []string) error { return serveServerUpdater(configPath, false) }}
 	serve.Flags().StringVar(&configPath, "config", "/etc/p2pstream-server-updater/config.json", "locally installed executor configuration")
-	var directory, deploymentDirectory, model, image, updater, installation, releaseDirectory string
+	var directory, deploymentDirectory, deploymentLayout, model, image, updater, installation, releaseDirectory string
 	enroll := &cobra.Command{Use: "enroll", Short: "Adopt a trusted, resolved Compose model (local installation only)", RunE: func(cmd *cobra.Command, args []string) error {
+		if deploymentLayout != "" && (deploymentLayout != serverupdate.DeploymentLayoutSingleFileV1 || deploymentDirectory == "") {
+			return errors.New("single-file-v1 requires --deployment-directory; other deployment layouts are unsupported")
+		}
 		data, err := os.ReadFile(model)
 		if err != nil {
 			return err
@@ -62,6 +65,9 @@ func init() {
 		if installation == "" {
 			return errors.New("--installation is required; read it from the running server before enrollment")
 		}
+		if deploymentLayout == serverupdate.DeploymentLayoutSingleFileV1 {
+			return serverupdate.EnrollSingleFileInstallation(directory, deploymentDirectory, data, image, updater, buildinfo.Version, buildinfo.RepositorySlug(), floor, installation)
+		}
 		if deploymentDirectory != "" {
 			return serverupdate.EnrollManagedInstallation(directory, deploymentDirectory, data, image, updater, buildinfo.Version, buildinfo.RepositorySlug(), floor, installation)
 		}
@@ -69,6 +75,7 @@ func init() {
 	}}
 	enroll.Flags().StringVar(&directory, "directory", "/etc/p2pstream-server-updater", "private enrollment directory")
 	enroll.Flags().StringVar(&deploymentDirectory, "deployment-directory", "", "root-owned group-readable canonical deployment directory (protocol 2)")
+	enroll.Flags().StringVar(&deploymentLayout, "deployment-layout", "", "explicit deployment layout: single-file-v1 stages the canonical model privately")
 	enroll.Flags().StringVar(&model, "compose", "", "resolved Compose JSON")
 	enroll.Flags().StringVar(&image, "image", "", "installed release digest")
 	enroll.Flags().StringVar(&releaseDirectory, "release-directory", "", "protected verified release assets for offline enrollment")
@@ -132,8 +139,8 @@ func init() {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
 	}}
 	check.Flags().StringVar(&configPath, "config", "/etc/p2pstream-server-updater/config.json", "executor configuration")
-	for _, action := range []string{"runtime-block", "runtime-allow", "runtime-detach", "record-runtime"} {
-		var path string
+	for _, action := range []string{"runtime-block", "runtime-block-staged", "runtime-allow", "runtime-detach", "record-runtime"} {
+		var path, stagedInstallation, stagedImage string
 		guard := &cobra.Command{Use: action, Short: "Coordinate deployment ownership (trusted host controller only)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Geteuid() != 0 {
 				return errors.New("deployment coordination must run as root")
@@ -157,6 +164,8 @@ func init() {
 			switch action {
 			case "runtime-block":
 				return driver.BlockRuntime(cmd.Context())
+			case "runtime-block-staged":
+				return driver.BlockStagedRuntime(cmd.Context(), stagedInstallation, stagedImage)
 			case "runtime-allow":
 				return driver.AllowRuntime(cmd.Context())
 			case "runtime-detach":
@@ -166,10 +175,19 @@ func init() {
 			}
 		}}
 		guard.Flags().StringVar(&path, "config", "/etc/p2pstream-server-updater/config.json", "executor configuration")
+		if action == "runtime-block-staged" {
+			guard.Flags().StringVar(&stagedInstallation, "installation", "", "verified installation for initial canonical publication")
+			guard.Flags().StringVar(&stagedImage, "image", "", "verified published image for initial canonical publication")
+		}
 		command.AddCommand(guard)
 	}
 	rootCmd.AddCommand(&cobra.Command{Use: "server-deployment-capabilities", Short: "Report immutable deployment capabilities without opening application data", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		// Existing pinned executors reject unknown fields. Keep this wire shape
+		// fixed so they can continue upgrading to this server release.
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(serverupdate.DeploymentCapabilities{RuntimeGuard: 2, Version: buildinfo.Version, Commit: buildinfo.Commit})
+	}})
+	rootCmd.AddCommand(&cobra.Command{Use: "server-enrollment-capabilities", Short: "Report immutable enrollment capabilities without opening application data", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(serverupdate.DeploymentCapabilities{RuntimeGuard: 2, EnrollmentPreflight: serverupdate.EnrollmentPreflightAPI, CanonicalCompose: 1, Version: buildinfo.Version, Commit: buildinfo.Commit})
 	}})
 	command.AddCommand(serve, enroll, recover, configure, check)
 	rootCmd.AddCommand(&cobra.Command{Use: "server-installation-identity", Short: "Read the existing data-backed installation identity", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
@@ -235,6 +253,21 @@ func init() {
 		return nil
 	}})
 	rootCmd.AddCommand(command)
+	rootCmd.AddCommand(&cobra.Command{Use: "server-enrollment-preflight", Short: "Read container-local enrollment readiness without changing server state", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		dir := os.Getenv("CONFIG_DIR")
+		if dir == "" {
+			dir = "p2pstream-data"
+		}
+		id, err := serverupdate.InstallationIdentity(dir, false)
+		if err != nil {
+			return errors.New("server enrollment preflight requires an existing installation identity")
+		}
+		socket, err := serverupdate.EnrollmentPreflightSocket(id)
+		if err != nil {
+			return err
+		}
+		return printServerEnrollmentPreflight(cmd.Context(), cmd.OutOrStdout(), socket, id)
+	}})
 	rootCmd.AddCommand(&cobra.Command{Use: "server-update-status [status|prepare]", Short: "Query the container-local server readiness socket", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if args[0] != "status" && args[0] != "prepare" {
 			return errors.New("expected status or prepare")
@@ -259,6 +292,34 @@ func init() {
 		_, err = io.Copy(cmd.OutOrStdout(), io.LimitReader(resp.Body, 64<<10))
 		return err
 	}})
+}
+
+func printServerEnrollmentPreflight(ctx context.Context, out io.Writer, socket, installationID string) error {
+	t := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+	}}
+	defer t.CloseIdleConnections()
+	client := &http.Client{Transport: t, Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://server/enrollment-preflight", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return errors.New("server enrollment preflight is unavailable")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("server enrollment preflight is unavailable")
+	}
+	p, err := serverupdate.DecodeEnrollmentPreflight(resp.Body)
+	if err != nil {
+		return err
+	}
+	if p.InstallationID != installationID {
+		return errors.New("server enrollment preflight installation identity does not match")
+	}
+	return json.NewEncoder(out).Encode(p)
 }
 
 func validateServerUpdaterStatus(status serverupdate.RuntimeStatus, instanceID string) error {

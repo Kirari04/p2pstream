@@ -64,7 +64,7 @@ class Lifecycle(unittest.TestCase):
             (self.bundle / name).write_bytes(source.read_bytes())
         self.args = argparse.Namespace(bundle=str(self.bundle), expect_installation=ID, expect_version='v1.0.1', expect_commit='b' * 40, expect_channel='stable', expect_arch='amd64', manifest_sha256='f' * 64, repository='test/repo')
         self.options = ['-p', 'custom-project', '-f', str(self.source / 'compose.yaml'), '-f', str(self.source / 'prod.yaml'), '--env-file', str(self.source / '.env')]
-        self.manifest = {'oci_images': [{'platforms': [{'os': 'linux', 'arch': 'amd64'}]}], '_files': {'p2pstream_agent_update_manifest.json': b'fixture', 'p2pstream_install.json': b'fixture', 'p2pstream_server_update.json': b'fixture'}}
+        self.manifest = {'sequence': 12, 'security_epoch': 2, 'minimum_safe_version': 'v1.0.0', 'oci_images': [{'platforms': [{'os': 'linux', 'arch': 'amd64'}]}], '_files': {'p2pstream_agent_update_manifest.json': b'fixture', 'p2pstream_install.json': b'fixture', 'p2pstream_server_update.json': b'fixture'}}
         self.descriptor = {'updater_images': {'linux/amd64': HELPER}}
         outer = self
         class FixtureHost(host.Host):
@@ -77,7 +77,7 @@ class Lifecycle(unittest.TestCase):
                 if args[0] == 'enroll':
                     if outer.failure == 'layout':
                         raise host.Failure('unsupported layout')
-                    cfg = {'instance_id': ID, 'repository': 'test/repo', 'project': 'custom-project', 'token': 'private-token' * 4, 'control_dir': str(outer.state / 'control'), 'data_volume': 'custom-data'}
+                    cfg = {'instance_id': ID, 'repository': 'test/repo', 'project': 'custom-project', 'token': 'private-token' * 4, 'control_dir': str(outer.state / 'control'), 'data_volume': 'custom-data', 'channel': outer.args.expect_channel, 'bootstrap_floor': {key: outer.manifest[key] for key in ('sequence', 'security_epoch', 'minimum_safe_version')} | {'manifest_sha256': outer.args.manifest_sha256}}
                     model = host.read_json(Path(args[args.index('--compose') + 1]))
                     model['services']['p2pstream']['image'] = args[args.index('--image') + 1]
                     model['services']['p2pstream']['environment']['SERVER_UPDATE_TOKEN'] = cfg['token']
@@ -192,6 +192,10 @@ class Lifecycle(unittest.TestCase):
             out = json.dumps([self.info]).encode()
         elif args[0:2] == ('image', 'inspect'):
             out = json.dumps([self.helper if args[-1] == HELPER else self.image]).encode()
+        elif args[0] == 'exec' and args[-1] in {'server-deployment-capabilities', 'server-enrollment-capabilities'}:
+            out = json.dumps({'runtime_guard': 2, 'enrollment_preflight': 1, 'version': self.args.expect_version, 'commit': self.args.expect_commit}).encode()
+        elif args[0] == 'exec' and args[-1] == 'server-enrollment-preflight':
+            out = json.dumps({'api': 1, 'installation_id': self.identity, 'version': self.args.expect_version, 'commit': self.args.expect_commit, 'ready': True, 'blockers': []}).encode()
         elif args[0] == 'exec':
             out = (self.identity + '\n').encode() if args[-1] == 'server-installation-identity' else b'{}'
         elif args[0] == 'ps':
@@ -1537,6 +1541,929 @@ class Lifecycle(unittest.TestCase):
             with self.assertRaisesRegex(host.Failure, 'configuration exists'):
                 host.manage(argparse.Namespace(action='discard-preparation'))
         self.assertTrue((self.state / 'config.json').exists())
+
+class RetainedInstallation(unittest.TestCase):
+    setUp = Lifecycle.setUp
+    tearDown = Lifecycle.tearDown
+    install = Lifecycle.install
+    docker = Lifecycle.docker
+
+    def observed(self):
+        self.managed = True
+        self.install()
+        floor = dict(host.read_json(self.state / 'config.json')['bootstrap_floor'])
+        observed = dict(floor, sequence=14, security_epoch=3, minimum_safe_version='v1.0.1', manifest_sha256='e' * 64)
+        host.atomic(self.state / 'state.json', {'api': 1, 'instance_id': ID, 'channel': 'stable', 'floor': floor, 'observed_floor': observed})
+        return observed
+
+    def test_ordinary_remove_reenroll_cannot_forget_observed_floor(self):
+        observed = self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'retained enrollment floor'):
+            self.install()
+        self.assertFalse(any(c[0] == 'docker' and c[1][0] == 'pull' for c in self.commands))
+        self.assertEqual(host.read_json(self.state / 'installation-receipt.json')['floor'], observed)
+
+
+    def archive(self):
+        controller = host.Host()
+        with controller.lock(allow_archive=True):
+            controller.archive_removed()
+
+    def read_retained(self):
+        return host.retained_installation(self.state, ID, 'test/repo', 'stable')
+
+    def test_legacy_archive_recovers_observed_floor_without_image_inference(self):
+        observed = self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        self.archive()
+        (self.state / host.INSTALLATION_RECEIPT).unlink()
+        self.assertEqual(self.read_retained()['floor'], observed)
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'retained enrollment floor'):
+            self.install()
+        self.assertFalse(any(c[0] == 'docker' and c[1][0] == 'pull' for c in self.commands))
+
+    def test_retained_floor_survives_archive_commit_interruption(self):
+        observed = self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        with patch.object(host.Host, 'finish_archive', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.archive()
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['floor'], observed)
+        # Also recover an archive committed by an older controller with no receipt.
+        (self.state / host.INSTALLATION_RECEIPT).unlink()
+        with host.Host().lock(allow_archive=True):
+            pass
+        self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['floor'], observed)
+        self.assertFalse((self.state / 'archive.json').exists())
+
+    def test_receipt_is_durable_before_archive_copy_and_remove_commit(self):
+        observed = self.observed()
+        original = host.Host.phase
+        def phase(controller, name, **values):
+            if name == 'removed':
+                self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['floor'], observed)
+                raise KeyboardInterrupt()
+            return original(controller, name, **values)
+        with patch.object(host.Host, 'phase', phase):
+            with self.assertRaises(KeyboardInterrupt):
+                host.manage(argparse.Namespace(action='remove'))
+        journal = host.read_json(self.state / 'host.json')
+        journal['phase'] = 'removed'
+        host.atomic(self.state / 'host.json', journal)
+        with patch.object(host.shutil, 'copy2', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.archive()
+        self.assertTrue((self.state / 'host.json').exists())
+        self.assertEqual(self.read_retained()['floor'], observed)
+        self.archive()
+        self.assertEqual(self.read_retained()['floor'], observed)
+
+    def test_interrupted_partial_archive_is_ignored_only_with_active_journal(self):
+        observed = self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        with patch.object(host.shutil, 'copy2', side_effect=KeyboardInterrupt()):
+            with self.assertRaises(KeyboardInterrupt):
+                self.archive()
+        self.assertEqual(self.read_retained()['floor'], observed)
+        (self.state / 'host.json').unlink()
+        with self.assertRaisesRegex(host.Failure, 'Incomplete retained archive'):
+            self.read_retained()
+
+    def test_receipt_write_failure_prevents_archive_commit(self):
+        self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        original = host.atomic
+        def fail(path, data, *args, **kwargs):
+            if Path(path).name == host.INSTALLATION_RECEIPT:
+                raise OSError('simulated durable write failure')
+            return original(path, data, *args, **kwargs)
+        with patch.object(host, 'atomic', fail):
+            with self.assertRaises(OSError):
+                self.archive()
+        self.assertTrue((self.state / 'host.json').exists())
+        self.assertFalse((self.state / 'archive.json').exists())
+
+    def test_archive_requires_executor_lock(self):
+        self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        with open(self.state / 'executor.lock', 'a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(host.Failure, 'executor still owns'):
+                self.archive()
+        self.assertTrue((self.state / 'host.json').exists())
+
+    def test_matching_reenrollment_preserves_observed_floor_and_provenance(self):
+        observed = self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        original = host.read_json(self.state / host.INSTALLATION_RECEIPT)
+        self.manifest.update({k: observed[k] for k in ('sequence', 'security_epoch', 'minimum_safe_version')})
+        self.args.manifest_sha256 = observed['manifest_sha256']
+        with patch.object(host, 'release_metadata', return_value=(self.manifest, self.descriptor, REF, observed['manifest_sha256'])):
+            self.install()
+        receipt = self.read_retained()
+        self.assertEqual(receipt['floor'], observed)
+        self.assertTrue(all(source in receipt['sources'] for source in original['sources']))
+        self.assertNotIn('created_at', receipt)
+        self.assertEqual(host.read_json(self.state / 'config.json')['bootstrap_floor'], observed)
+
+    def test_equal_sequence_manifest_conflict_in_older_history_is_not_hidden(self):
+        self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        self.archive()
+        archive = next((self.state / 'history').iterdir())
+        config = host.read_json(archive / 'config.json')
+        # Conflict below the winning observed sequence must still fail closed.
+        config['bootstrap_floor']['manifest_sha256'] = '0' * 64
+        host.atomic(archive / 'config.json', config)
+        with self.assertRaisesRegex(host.Failure, 'Release identity differs'):
+            self.read_retained()
+
+    def test_each_effective_constraint_and_equal_sequence_hash_is_enforced(self):
+        observed = self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        for key, value in [('sequence', 13), ('security_epoch', 2), ('minimum_safe_version', 'v1.0.0'), ('manifest_sha256', '0' * 64)]:
+            with self.subTest(key=key):
+                candidate = dict(observed, **{key: value})
+                with self.assertRaisesRegex(host.Failure, 'retained enrollment floor'):
+                    host.check_cancellation_floor(self.state, self.args, candidate, candidate['manifest_sha256'])
+
+    def test_live_and_archived_identity_must_match_config_and_receipt(self):
+        self.observed()
+        for filename, field, value in [('state.json', 'instance_id', '22222222-2222-4222-8222-222222222222'), ('state.json', 'channel', 'staging'), ('config.json', 'repository', 'other/repo'), ('host.json', 'installation', '22222222-2222-4222-8222-222222222222')]:
+            path = self.state / filename
+            original = path.read_bytes()
+            changed = host.decode(original)
+            changed[field] = value
+            host.atomic(path, changed)
+            with self.subTest(filename=filename, field=field), self.assertRaisesRegex(host.Failure, 'another installation'):
+                self.read_retained()
+            host.atomic(path, original)
+        host.manage(argparse.Namespace(action='remove'))
+        self.archive()
+        archive = next((self.state / 'history').iterdir())
+        path = archive / 'config.json'
+        changed = host.read_json(path)
+        changed['repository'] = 'other/repo'
+        host.atomic(path, changed)
+        with self.assertRaisesRegex(host.Failure, 'another installation'):
+            self.read_retained()
+
+    def test_incomplete_history_cannot_be_replaced_by_current_image_or_receipt(self):
+        self.observed()
+        host.manage(argparse.Namespace(action='remove'))
+        self.archive()
+        archive = next((self.state / 'history').iterdir())
+        (archive / 'config.json').unlink()
+        with self.assertRaisesRegex(host.Failure, 'Missing retained configuration'):
+            self.read_retained()
+        (self.state / host.INSTALLATION_RECEIPT).unlink()
+        with self.assertRaisesRegex(host.Failure, 'Missing retained configuration'):
+            self.read_retained()
+
+    def test_legacy_missing_or_zero_observed_uses_activated_floor(self):
+        self.observed()
+        state = host.read_json(self.state / 'state.json')
+        state.pop('observed_floor')
+        for observed in [None, {'sequence': 0, 'security_epoch': 0, 'minimum_safe_version': '', 'manifest_sha256': ''}]:
+            if observed is not None:
+                state['observed_floor'] = observed
+            host.atomic(self.state / 'state.json', state)
+            self.assertEqual(self.read_retained()['floor'], state['floor'])
+
+    def test_invalid_floor_and_receipt_structures_fail_closed(self):
+        self.observed()
+        path = self.state / 'state.json'
+        original = host.read_json(path)
+        cases = [('sequence', 0), ('sequence', True), ('sequence', 2 ** 64), ('sequence', 1.5), ('security_epoch', False), ('security_epoch', -1), ('security_epoch', 2 ** 64), ('minimum_safe_version', 'v1.01.0'), ('minimum_safe_version', 'v1.0.0-staging.1'), ('minimum_safe_version', 'v' + '1' * 93 + '.0.0'), ('manifest_sha256', 'A' * 64), ('manifest_sha256', 'f' * 63)]
+        for key, value in cases:
+            state = copy.deepcopy(original)
+            state['observed_floor'][key] = value
+            host.atomic(path, state)
+            with self.subTest(key=key, value=value), self.assertRaises(host.Failure):
+                self.read_retained()
+        host.atomic(path, original)
+        receipt = host.persist_installation(self.state, ID, 'test/repo', 'stable')
+        for change in [{'api': True}, {'api': 2}, {'sources': []}, {'floor': dict(receipt['floor'], sequence=15)}, {'repository': 'other/repo'}]:
+            host.atomic(self.state / host.INSTALLATION_RECEIPT, dict(receipt, **change))
+            with self.subTest(change=change), self.assertRaises(host.Failure):
+                self.read_retained()
+
+    def test_older_cancellation_receipt_is_migrated_without_losing_semantics(self):
+        self.state.mkdir(mode=0o700)
+        floor = {'sequence': 12, 'security_epoch': 2, 'minimum_safe_version': 'v1.0.0', 'manifest_sha256': 'f' * 64}
+        old = {'api': 1, 'installation': ID, 'repository': 'test/repo', 'channel': 'stable', 'floor': floor, 'completed': True}
+        host.atomic(self.state / host.CANCELLATION, old)
+        receipt = host.persist_installation(self.state, ID, 'test/repo', 'stable')
+        self.assertEqual(receipt['floor'], floor)
+        self.assertEqual(host.read_json(self.state / host.CANCELLATION), old)
+        self.assertEqual(receipt['sources'], [{'kind': 'cancellation', 'sha256': host.digest((self.state / host.CANCELLATION).read_bytes()), 'floor': floor}])
+
+    def test_uint64_maximum_and_large_semver_components_are_not_truncated(self):
+        floor = {'sequence': 2 ** 64 - 1, 'security_epoch': 2 ** 64 - 1, 'minimum_safe_version': 'v18446744073709551616.0.0', 'manifest_sha256': 'f' * 64}
+        self.assertEqual(host.validate_floor(floor), floor)
+        host.require_floor(floor, dict(floor, sequence=2 ** 64 - 2, minimum_safe_version='v18446744073709551615.9.9'))
+
+    def test_missing_history_with_empty_history_directory_cannot_reset_receipt(self):
+        self.state.mkdir(mode=0o700)
+        (self.state / 'history').mkdir(mode=0o700)
+        host.atomic(self.state / 'reenrollment.json', {'installation': ID})
+        with self.assertRaisesRegex(host.Failure, 'Missing retained removal history'):
+            self.read_retained()
+
+    def test_selected_server_below_retained_minimum_safe_is_refused(self):
+        observed = self.observed()
+        self.args.expect_version = 'v1.0.0'
+        with self.assertRaisesRegex(host.Failure, 'Selected server is below'):
+            host.check_cancellation_floor(self.state, self.args, observed, observed['manifest_sha256'])
+
+
+
+class EnrollmentPreflight(unittest.TestCase):
+    setUp = Lifecycle.setUp
+    tearDown = Lifecycle.tearDown
+    install = Lifecycle.install
+    docker = Lifecycle.docker
+
+    def ready(self):
+        return {'api': 1, 'installation_id': ID, 'version': self.args.expect_version, 'commit': self.args.expect_commit, 'ready': True, 'blockers': []}
+
+    def blocked(self, code='agent_updates_active'):
+        return dict(self.ready(), ready=False, blockers=[{'code': code, 'action': 'UNTRUSTED ACTION', 'message': 'UNTRUSTED MESSAGE'}])
+
+    def probe(self, response, *, capability=None):
+        original = self.docker
+        def docker(*args, **kwargs):
+            if args[0] == 'exec' and args[-1] == 'server-enrollment-preflight':
+                self.commands.append(('docker', args))
+                value = response() if callable(response) else response
+                if isinstance(value, subprocess.CompletedProcess):
+                    return value
+                return subprocess.CompletedProcess(args, 0, value if isinstance(value, bytes) else json.dumps(value).encode(), b'')
+            if capability is not None and args[0] == 'exec' and args[-1] in {'server-deployment-capabilities', 'server-enrollment-capabilities'}:
+                return subprocess.CompletedProcess(args, 0, json.dumps(capability).encode(), b'')
+            return original(*args, **kwargs)
+        return patch.object(host, 'docker', docker)
+
+    def test_initial_blocker_precedes_all_state_tools_pulls_and_mutations(self):
+        sources = {p: p.read_bytes() for p in self.source.iterdir()}
+        with self.probe(self.blocked()):
+            with self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'Wait for agent updates') as error:
+                self.install()
+        self.assertNotIn('UNTRUSTED', str(error.exception))
+        self.assertFalse(self.state.exists())
+        self.assertEqual(sources, {p: p.read_bytes() for p in self.source.iterdir()})
+        self.assertFalse(any(c[0] in {'binary', 'compose'} or c[0] == 'docker' and c[1][0] in {'pull', 'run'} for c in self.commands))
+
+    def test_second_preflight_blocks_before_runtime_bridge_or_lifecycle(self):
+        self.managed = True
+        calls = 0
+        def response():
+            nonlocal calls
+            calls += 1
+            return self.ready() if calls == 1 else self.blocked('certificate_rotation_active')
+        sources = {p: p.read_bytes() for p in self.source.iterdir()}
+        with self.probe(response):
+            with self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'certificate rotation'):
+                self.install()
+        self.assertEqual(calls, 2)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'prepared')
+        self.assertEqual(sources, {p: p.read_bytes() for p in self.source.iterdir()})
+        self.assertEqual(self.restart_count, 0)
+        self.assertFalse(any(c[0] == 'binary' and c[1][0].startswith('runtime-') or c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_capability_is_explicit_and_missing_capability_fails_closed(self):
+        for capability in [{}, {'enrollment_preflight': True}, {'enrollment_preflight': 2}]:
+            with self.subTest(capability=capability), self.probe(self.ready(), capability=capability):
+                with self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'capability 1'):
+                    self.install()
+                self.assertFalse(self.state.exists())
+
+    def test_strict_response_shapes_identities_and_limit(self):
+        valid = self.ready()
+        invalid = [dict(valid, api=True), dict(valid, api=2), dict(valid, extra='unexpected'), dict(valid, ready=1), dict(valid, blockers=None), dict(valid, installation_id='foreign'), dict(valid, version='v9.0.0'), dict(valid, commit='c' * 40), dict(valid, ready=False), dict(valid, blockers=self.blocked()['blockers']), self.blocked('unknown'), dict(valid, ready=False, blockers=[{'code': 'agent_updates_active', 'action': 1, 'message': 'x'}]), b'{' + b' ' * (16 * 1024), b'not JSON', b'{"api":1,"api":1}', subprocess.CompletedProcess([], 1, b'UNTRUSTED', b'UNTRUSTED')]
+        for value in invalid:
+            with self.subTest(value=str(value)[:80]), self.probe(value):
+                with self.assertRaises(host.EnrollmentPreflightFailure) as error:
+                    self.install()
+                self.assertNotIn('UNTRUSTED', str(error.exception))
+                self.assertFalse(self.state.exists())
+
+    def test_preflight_rechecks_actual_container_after_response(self):
+        def changed():
+            self.info['Image'] = 'sha256:changed'
+            return self.ready()
+        with self.probe(changed), self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'deployment changed'):
+            self.install()
+        self.assertFalse(self.state.exists())
+
+    def test_stale_image_guard_precedes_preflight(self):
+        self.image['Config']['Labels']['org.opencontainers.image.version'] = 'v1.0.2'
+        with self.probe(lambda: self.fail('preflight must not execute')):
+            with self.assertRaisesRegex(host.Failure, 'Stale command'):
+                self.install()
+        self.assertFalse(self.state.exists())
+
+    def test_healthy_setup_and_repair_are_idempotent_despite_preflight_blocker(self):
+        self.install()
+        before = (self.state / 'host.json').read_bytes()
+        self.commands.clear()
+        with self.probe(lambda: self.fail('healthy enrollment must not run preflight')):
+            self.install()
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual((self.state / 'host.json').read_bytes(), before)
+        self.assertEqual(self.restart_count, 1)
+
+    def test_saved_legacy_preparation_requires_capability_before_activation(self):
+        self.failure = 'layout'
+        with self.assertRaisesRegex(host.Failure, 'unsupported layout'):
+            self.install()
+        self.failure = ''
+        with self.probe(self.ready(), capability={}):
+            with self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'capability 1'):
+                host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'prepared')
+        self.assertEqual(self.restart_count, 0)
+
+
+    def test_probe_failure_during_activation_does_not_fabricate_rollback(self):
+        self.managed = True
+        calls = 0
+        def response():
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise host.Failure('UNTRUSTED server failure')
+            return self.ready()
+        with self.probe(response), self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'could not verify') as error:
+            self.install()
+        self.assertNotIn('UNTRUSTED', str(error.exception))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'prepared')
+        self.assertEqual(self.restart_count, 0)
+
+    def test_interrupted_stopped_replacement_uses_only_exact_preflight_provenance(self):
+        self.managed = True
+        original = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            result = original(controller, *args, **kwargs)
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
+                raise KeyboardInterrupt()
+            return result
+        with patch.object(host.Host, 'compose', interrupted), self.assertRaises(KeyboardInterrupt):
+            self.install()
+        self.assertFalse(self.info['State']['Running'])
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'activating')
+        self.assertEqual(journal['activation_preflight']['installation'], ID)
+        with patch.object(host.Host, 'data_identity', return_value=ID), self.probe(lambda: self.fail('stopped replacement cannot answer exec')):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+
+    def test_rolled_back_repair_refusal_preserves_model_journal_and_lifecycle(self):
+        self.managed = True
+        self.failure = 'health'
+        with self.assertRaises(host.Failure):
+            self.install()
+        cfg = host.read_json(self.state / 'config.json')
+        model = Path(cfg['deployment_file'])
+        before_model = model.read_bytes()
+        before_journal = (self.state / 'host.json').read_bytes()
+        before_inputs = {p: p.read_bytes() for p in self.source.iterdir()}
+        self.commands.clear()
+        with self.probe(self.blocked()), self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'agent updates'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(model.read_bytes(), before_model)
+        self.assertEqual((self.state / 'host.json').read_bytes(), before_journal)
+        self.assertEqual({p: p.read_bytes() for p in self.source.iterdir()}, before_inputs)
+        self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
+
+
+class SingleFileLifecycle(unittest.TestCase):
+    tearDown = Lifecycle.tearDown
+    install = Lifecycle.install
+
+    def setUp(self):
+        Lifecycle.setUp(self)
+        self.managed = True
+        self.args.deployment_layout = host.SINGLE_LAYOUT
+        self.options = []
+        (self.source / 'prod.yaml').unlink()
+        (self.source / '.env').unlink()
+        self.source.chmod(0o2750)
+        self.canonical = self.source / 'compose.yaml'
+        host.atomic(self.canonical, self.raw, mode=0o640)
+        self.inputs = self.path / 'compose.inputs.yaml'
+        self.launcher = self.path / 'stable' / 'sbin' / 'p2pstream-server-update'
+        self.controller = self.path / 'stable' / 'libexec' / 'p2pstream' / 'server-updater-host.py'
+        for key, value in [('SINGLE_DIRECTORY', self.source), ('SINGLE_INPUTS', self.inputs), ('STABLE_LAUNCHER', self.launcher), ('STABLE_CONTROLLER', self.controller)]:
+            self.stack.enter_context(patch.object(host, key, value))
+        # Model a protected root for deterministic unprivileged tests. All actual
+        # components inside this fixture still exercise their real modes/types.
+        original_lstat = Path.lstat
+        def protected_root(path, *args, **kwargs):
+            info = original_lstat(path, *args, **kwargs)
+            if path == Path(tempfile.gettempdir()):
+                values = list(info)
+                values[0] = stat.S_IFDIR | 0o755
+                return os.stat_result(values)
+            return info
+        self.stack.enter_context(patch.object(Path, 'lstat', protected_root))
+        fixture = host.Host
+        outer = self
+        class SingleHost(fixture):
+            def command(self, *args):
+                if args[0] != 'enroll':
+                    return super().command(*args)
+                outer.commands.append(('binary', args))
+                outer.assertIn('--deployment-layout', args)
+                outer.assertEqual(args[args.index('--deployment-layout') + 1], host.SINGLE_LAYOUT)
+                if outer.failure == 'layout':
+                    raise host.Failure('unsupported layout')
+                source = host.read_json(outer.state / 'input.json')
+                source['services']['p2pstream']['image'] = REF
+                env = source['services']['p2pstream'].setdefault('environment', {})
+                env.update(SERVER_UPDATE_INSTANCE_ID=ID, SERVER_UPDATE_TOKEN_FILE='/run/p2pstream-server-update/token', SERVER_UPDATE_SOCKET='/run/p2pstream-server-update/control.sock', SERVER_UPDATE_GATE_FILE='/run/p2pstream-server-update/maintenance', SERVER_UPDATE_RUNTIME_PROTOCOL='2', SERVER_UPDATE_GENERATION=ID)
+                source['services']['p2pstream'].setdefault('labels', {})['p2pstream.server-update.instance'] = ID
+                source['services']['p2pstream-server-updater'] = {'image': HELPER, 'volumes': []}
+                cfg = {'instance_id': ID, 'repository': 'test/repo', 'project': 'custom-project', 'token': 'private-token' * 4, 'control_dir': str(outer.state / 'control'), 'data_volume': 'custom-data', 'channel': outer.args.expect_channel, 'bootstrap_floor': {key: outer.manifest[key] for key in ('sequence', 'security_epoch', 'minimum_safe_version')} | {'manifest_sha256': outer.args.manifest_sha256}, 'deployment_protocol': 2, 'deployment_layout': host.SINGLE_LAYOUT, 'deployment_file': str(outer.canonical)}
+                (outer.state / 'control').mkdir(exist_ok=True)
+                host.atomic(outer.state / 'control' / 'token', cfg['token'].encode(), mode=0o444)
+                host.atomic(outer.state / 'original-compose.json', (outer.state / 'input.json').read_bytes())
+                host.atomic(outer.state / 'staged-compose.yaml', (json.dumps(source, indent=2) + '\n').encode())
+                host.atomic(outer.state / 'config.json', cfg)
+                return subprocess.CompletedProcess(args, 0, b'{}', b'')
+        self.stack.enter_context(patch.object(host, 'Host', SingleHost))
+
+    def docker(self, *args, **kwargs):
+        if args[0] in {'exec', 'run'} and args[-1] == 'server-enrollment-capabilities':
+            self.commands.append(('docker', args))
+            return subprocess.CompletedProcess(args, 0, json.dumps({'runtime_guard': 2, 'enrollment_preflight': 1, 'canonical_compose': 1, 'version': self.args.expect_version, 'commit': self.args.expect_commit}).encode(), b'')
+        if args[0] == 'compose' and 'ps' in args:
+            self.commands.append(('docker', args))
+            return subprocess.CompletedProcess(args, 0, self.server_inventory if self.server_inventory is not None else (self.info['Id'] + '\n').encode(), b'')
+        if args[0] == 'compose' and 'config' in args and '--hash' not in args and '--environment' not in args:
+            self.commands.append(('docker', args))
+            paths = [value for index, value in enumerate(args) if index and args[index - 1] == '-f']
+            path = Path(paths[-1]) if paths else self.source / 'compose.yaml'
+            raw = path.read_bytes()
+            if not raw.lstrip().startswith(b'{'):
+                raw = self.raw  # Native Compose resolves the published YAML fixture.
+            return subprocess.CompletedProcess(args, 0, raw, b'')
+        return Lifecycle.docker(self, *args, **kwargs)
+
+    def test_initial_stage_block_stop_publish_order_and_no_bridges(self):
+        original = self.canonical.read_bytes()
+        command = host.Host.command
+        compose = host.Host.compose
+        seen = []
+        def binary(controller, *args):
+            if args[0] in {'enroll', 'runtime-block-staged'}:
+                self.assertEqual(self.canonical.read_bytes(), original)
+                if args[0] == 'runtime-block-staged':
+                    self.assertEqual(controller.journal['phase'], 'activating')
+                    self.assertTrue(self.launcher.exists())
+                    self.assertEqual(controller.journal['single_initial']['candidate_sha256'], host.digest((self.state / 'staged-compose.yaml').read_bytes()))
+                seen.append(args[0])
+            return command(controller, *args)
+        def composed(controller, *args, **kwargs):
+            if args[0] == 'stop' and args[-1] == 'p2pstream' and kwargs.get('model') == 'before-compose.json':
+                self.assertEqual(seen[-1], 'runtime-block-staged')
+                self.assertEqual(self.canonical.read_bytes(), original)
+                seen.append('original-stopped')
+            if args[0] == 'up' and args[-1] == 'p2pstream':
+                self.assertEqual(seen[-1], 'original-stopped')
+                self.assertEqual(self.canonical.read_bytes(), (self.state / 'staged-compose.yaml').read_bytes())
+            return compose(controller, *args, **kwargs)
+        with patch.object(host.Host, 'command', binary), patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'source_bridges', side_effect=AssertionError('no bridge allowed')):
+            self.install()
+        self.assertEqual(seen, ['enroll', 'runtime-block-staged', 'original-stopped'])
+        self.assertEqual(stat.S_IMODE(self.canonical.stat().st_mode), 0o640)
+        self.assertEqual(stat.S_IMODE(self.source.stat().st_mode), 0o2750)
+        self.assertFalse(any('.p2pstream-input-' in p.name for p in self.source.iterdir()))
+        self.assertNotIn('include', host.read_json(self.canonical))
+        self.assertEqual(host.read_json(self.inputs)['services']['p2pstream']['environment']['SECRET'], '$$literal')
+        before = self.canonical.read_bytes()
+        self.install()
+        self.assertEqual(self.restart_count, 1)
+        self.assertEqual(self.canonical.read_bytes(), before)
+
+    def test_original_published_yaml_is_preserved_until_publication(self):
+        template = (self.bundle / 'compose.yaml').read_bytes()
+        import re
+        raw, count = re.subn(rb'(?m)^    image: [^\n]+$', ('    image: ' + REF).encode(), template)
+        self.assertEqual(count, 1)
+        self.model['services']['p2pstream']['image'] = REF
+        self.raw = json.dumps(self.model).encode()
+        host.atomic(self.canonical, raw, mode=0o640)
+        original = host.Host.command
+        def command(controller, *args):
+            if args[0] == 'runtime-block-staged':
+                self.assertEqual(self.canonical.read_bytes(), raw)
+                self.assertEqual((self.state / 'original-source.yaml').read_bytes(), raw)
+            return original(controller, *args)
+        with patch.object(host.Host, 'command', command):
+            self.install()
+        self.assertTrue(self.canonical.read_bytes().startswith(b'{\n'))
+
+    def test_apply_and_remove_keep_native_canonical_current_and_inputs_editable(self):
+        self.install()
+        before = host.read_json(self.canonical)
+        edited = host.read_json(self.inputs)
+        edited['services']['p2pstream']['image'] = 'ignored-image-edit'
+        edited['services']['p2pstream']['environment']['SECRET'] = '$$new-value'
+        host.atomic(self.inputs, edited, mode=0o640)
+        with patch.object(host.Host, 'source_bridges', side_effect=AssertionError('no bridge allowed')):
+            host.manage(argparse.Namespace(action='apply'))
+        current = host.read_json(self.canonical)
+        self.assertEqual(current['services']['p2pstream']['image'], before['services']['p2pstream']['image'])
+        self.assertEqual(current['services']['p2pstream-server-updater'], before['services']['p2pstream-server-updater'])
+        self.assertEqual(current['services']['p2pstream']['environment']['SECRET'], '$$new-value')
+        self.assertTrue(self.canonical.read_bytes().startswith(b'{\n'))
+        inputs = self.inputs.read_bytes()
+        host.manage(argparse.Namespace(action='remove'))
+        detached = host.read_json(self.canonical)
+        self.assertEqual(detached['services']['p2pstream']['image'], REF)
+        self.assertEqual(detached['services']['p2pstream']['environment']['SECRET'], '$$new-value')
+        self.assertNotIn('p2pstream-server-updater', detached['services'])
+        self.assertEqual(self.inputs.read_bytes(), inputs)
+        self.assertTrue(self.canonical.read_bytes().startswith(b'{\n'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['source_directory'], str(self.source))
+        self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['installation'], ID)
+
+    def test_preflight_refusal_before_staging_and_before_canonical_activation(self):
+        original = self.docker
+        for fail_at in [1, 2]:
+            calls = 0
+            def docker(*args, **kwargs):
+                nonlocal calls
+                if args[0] == 'exec' and args[-1] == 'server-enrollment-preflight':
+                    calls += 1
+                    if calls == fail_at:
+                        return subprocess.CompletedProcess(args, 0, json.dumps({'api': 1, 'installation_id': ID, 'version': self.args.expect_version, 'commit': self.args.expect_commit, 'ready': False, 'blockers': [{'code': 'agent_updates_active', 'action': 'ignored', 'message': 'ignored'}]}).encode(), b'')
+                return original(*args, **kwargs)
+            before = self.canonical.read_bytes()
+            with self.subTest(fail_at=fail_at), patch.object(host, 'docker', docker), self.assertRaises(host.EnrollmentPreflightFailure):
+                self.install()
+            self.assertEqual(self.canonical.read_bytes(), before)
+            self.assertEqual(self.restart_count, 0)
+            if fail_at == 1:
+                self.assertFalse(self.state.exists())
+                self.assertFalse(self.launcher.exists())
+            else:
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'prepared')
+
+    def test_initial_publication_interruptions_resume_exact_candidate(self):
+        original = host.atomic
+        def interrupt(path, data, *args, **kwargs):
+            result = original(path, data, *args, **kwargs)
+            if Path(path) == self.canonical and (self.state / 'host.json').exists() and host.read_json(self.state / 'host.json')['phase'] == 'activating':
+                raise KeyboardInterrupt()
+            return result
+        with patch.object(host, 'atomic', interrupt), self.assertRaises(KeyboardInterrupt):
+            self.install()
+        self.assertFalse(self.info['State']['Running'])
+        self.assertEqual(self.canonical.read_bytes(), (self.state / 'staged-compose.yaml').read_bytes())
+        with patch.object(host.Host, 'data_identity', return_value=ID):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(self.restart_count, 1)
+
+    def test_source_drift_after_stopping_fails_closed_without_overwrite(self):
+        original = host.Host.compose
+        changed = b'operator canonical changes'
+        def compose(controller, *args, **kwargs):
+            result = original(controller, *args, **kwargs)
+            if args[0] == 'stop' and args[-1] == 'p2pstream' and kwargs.get('model') == 'before-compose.json':
+                self.canonical.write_bytes(changed)
+            return result
+        with patch.object(host.Host, 'compose', compose), self.assertRaises(host.CanonicalDrift):
+            self.install()
+        self.assertEqual(self.canonical.read_bytes(), changed)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'activating')
+        with self.assertRaises(host.CanonicalDrift):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(self.canonical.read_bytes(), changed)
+
+    def test_rollback_restores_same_path_and_reuses_recorded_fresh_generation(self):
+        self.install()
+        original_model = host.read_json(self.canonical)
+        before_generation = original_model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION']
+        edit = host.read_json(self.inputs)
+        edit['services']['p2pstream']['environment']['SECRET'] = 'new'
+        host.atomic(self.inputs, edit, mode=0o640)
+        original = host.Host.deploy_server
+        def interrupted(controller, *args, **kwargs):
+            if controller.journal['phase'] == 'applying':
+                raise KeyboardInterrupt()
+            return original(controller, *args, **kwargs)
+        with patch.object(host.Host, 'deploy_server', interrupted), self.assertRaises(KeyboardInterrupt):
+            host.manage(argparse.Namespace(action='apply'))
+        inputs = self.inputs.read_bytes()
+        original_atomic = host.atomic
+        def crash(path, data, *args, **kwargs):
+            result = original_atomic(path, data, *args, **kwargs)
+            if Path(path) == self.canonical and host.read_json(self.state / 'host.json')['phase'] == 'rolling_back':
+                raise KeyboardInterrupt()
+            return result
+        with patch.object(host, 'atomic', crash), self.assertRaises(KeyboardInterrupt):
+            host.manage(argparse.Namespace(action='repair'))
+        rollback = self.canonical.read_bytes()
+        generation = host.decode(rollback)['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION']
+        self.assertNotEqual(generation, before_generation)
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(self.canonical.read_bytes(), rollback)
+        self.assertEqual(self.inputs.read_bytes(), inputs)
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['environment']['SECRET'], '$$literal')
+
+    def test_launcher_survives_removal_and_history_archival(self):
+        self.install()
+        launcher, controller = self.launcher.read_bytes(), self.controller.read_bytes()
+        host.manage(argparse.Namespace(action='remove'))
+        instance = host.Host()
+        with instance.lock():
+            instance.archive_removed()
+        self.assertEqual(self.launcher.read_bytes(), launcher)
+        self.assertEqual(self.controller.read_bytes(), controller)
+        self.assertFalse((self.state / 'manage').exists())
+        with self.assertRaisesRegex(host.Failure, 'private enrollment history is missing'):
+            host.manage(argparse.Namespace(action='repair'))
+
+    def test_removed_reenrollment_retains_floor_and_uses_same_canonical(self):
+        self.install()
+        floor = host.read_json(self.state / 'config.json')['bootstrap_floor']
+        observed = dict(floor, sequence=14, manifest_sha256='e' * 64)
+        host.atomic(self.state / 'state.json', {'api': 1, 'instance_id': ID, 'channel': 'stable', 'floor': floor, 'observed_floor': observed})
+        host.manage(argparse.Namespace(action='remove'))
+        with self.assertRaisesRegex(host.Failure, 'retained enrollment floor'):
+            self.install()
+        # Use the current detached model as editable inputs (image edits cannot
+        # silently get overwritten during reenrollment).
+        host.atomic(self.inputs, self.canonical.read_bytes(), mode=0o640)
+        self.manifest.update(sequence=14)
+        self.args.manifest_sha256 = 'e' * 64
+        with patch.object(host, 'release_metadata', return_value=(self.manifest, self.descriptor, REF, 'e' * 64)):
+            self.install()
+        self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['floor'], observed)
+        self.assertEqual(host.read_json(self.state / 'config.json')['deployment_file'], str(self.canonical))
+
+    def test_unsafe_paths_overrides_and_multifile_refused_before_mutation(self):
+        for kind in ['override', 'directory-mode', 'symlink', 'multiple', 'extra-service']:
+            with self.subTest(kind=kind):
+                if kind == 'override':
+                    (self.source / 'compose.override.yaml').write_text('services: {}')
+                elif kind == 'directory-mode':
+                    self.path.chmod(0o777)
+                elif kind == 'symlink':
+                    self.canonical.rename(self.source / 'saved.yaml')
+                    self.canonical.symlink_to(self.source / 'saved.yaml')
+                elif kind == 'multiple':
+                    self.options = ['-f', str(self.canonical), '-f', str(self.canonical)]
+                else:
+                    value = host.read_json(self.canonical)
+                    value['services']['other'] = {'image': 'other'}
+                    host.atomic(self.canonical, value, mode=0o640)
+                with self.assertRaises((host.Failure, OSError)):
+                    self.install()
+                self.assertFalse(self.state.exists())
+                self.assertFalse(self.launcher.exists())
+                (self.source / 'compose.override.yaml').unlink(missing_ok=True)
+                self.path.chmod(0o700)
+                if self.canonical.is_symlink():
+                    self.canonical.unlink()
+                    (self.source / 'saved.yaml').rename(self.canonical)
+                host.atomic(self.canonical, self.raw, mode=0o640)
+                self.options = []
+
+    def test_explicit_selection_requires_both_binary_capabilities(self):
+        original = self.docker
+        def docker(*args, **kwargs):
+            if args[0] == 'run' and args[-1] == 'server-enrollment-capabilities':
+                value = {'runtime_guard': 2, 'enrollment_preflight': 1, 'version': self.args.expect_version, 'commit': self.args.expect_commit}
+                return subprocess.CompletedProcess(args, 0, json.dumps(value).encode(), b'')
+            return original(*args, **kwargs)
+        with patch.object(host, 'docker', docker), self.assertRaisesRegex(host.Failure, 'canonical Compose capability'):
+            self.install()
+        self.assertFalse(self.launcher.exists())
+        self.assertFalse(self.state.exists())
+
+    def test_layout_declaration_selects_standard_only_and_cannot_inject_paths(self):
+        self.args.deployment_layout = ''
+        receipt = {'api': 1, 'deployment_layout': host.SINGLE_LAYOUT, 'repository': 'test/repo', 'version': 'v1.0.1', 'commit': 'b' * 40, 'channel': 'stable', 'manifest_sha256': 'f' * 64, 'image': REF}
+        host.atomic(self.source / 'release.json', dict(receipt, path='/untrusted'))
+        with self.assertRaisesRegex(host.Failure, 'Invalid standard deployment layout declaration'):
+            self.install()
+        host.atomic(self.source / 'release.json', receipt)
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'config.json')['deployment_layout'], host.SINGLE_LAYOUT)
+
+    def test_missing_canonical_requires_recorded_initial_activation_and_candidate(self):
+        self.install()
+        self.canonical.unlink()
+        with self.assertRaisesRegex(host.Failure, 'missing outside a recorded initial activation'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertFalse(self.canonical.exists())
+
+
+    def test_rolled_back_single_repair_blocker_preserves_all_transaction_bytes(self):
+        self.failure = 'health'
+        with self.assertRaisesRegex(host.Failure, 'health failure'):
+            self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        before = {path: path.read_bytes() for path in (self.canonical, self.inputs, self.state / 'host.json')}
+        original = self.docker
+        def blocked(*args, **kwargs):
+            if args[0] == 'exec' and args[-1] == 'server-enrollment-preflight':
+                return subprocess.CompletedProcess(args, 0, json.dumps({'api': 1, 'installation_id': ID, 'version': self.args.expect_version, 'commit': self.args.expect_commit, 'ready': False, 'blockers': [{'code': 'agent_updates_active', 'action': 'ignored', 'message': 'ignored'}]}).encode(), b'')
+            return original(*args, **kwargs)
+        self.commands.clear()
+        with patch.object(host, 'docker', blocked), self.assertRaises(host.EnrollmentPreflightFailure):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'stop', 'start', 'up'} for c in self.commands))
+
+    def test_repair_recovers_only_executor_without_server_replacement(self):
+        self.install()
+        before = {p: p.read_bytes() for p in (self.canonical, self.inputs, self.state / 'host.json')}
+        self.failure = 'socket'
+        original = host.Host.start_executor
+        def restarted(controller):
+            self.failure = ''
+            return original(controller)
+        self.commands.clear()
+        with patch.object(host.Host, 'start_executor', restarted):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(self.restart_count, 1)
+        self.assertEqual({p: p.read_bytes() for p in before}, before)
+        self.assertTrue(any(c[0] == 'compose' and c[1] == ('stop', 'p2pstream-server-updater') for c in self.commands))
+        self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} and c[1][-1] == 'p2pstream' for c in self.commands))
+
+    def test_executor_repair_refuses_native_hash_drift(self):
+        self.install()
+        self.failure = 'socket'
+        self.info['Config']['Labels']['com.docker.compose.config-hash'] = '0' * 64
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'Running settings differ'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
+
+    def test_existing_owner_without_history_never_gets_new_generation(self):
+        original = self.docker
+        def owner(*args, **kwargs):
+            if args[0] == 'exec' and args[-1] == host.OWNER_ABSENT:
+                return subprocess.CompletedProcess(args, 1, b'', b'')
+            return original(*args, **kwargs)
+        with patch.object(host, 'docker', owner), self.assertRaisesRegex(host.Failure, 'Runtime ownership remains'):
+            self.install()
+        self.assertFalse(self.state.exists())
+        self.assertFalse(self.launcher.exists())
+
+    def test_lost_private_history_with_enrolled_canonical_is_not_fresh_install(self):
+        self.install()
+        # Emulate lost/moved private state without changing any runtime inputs.
+        (self.state / 'host.json').rename(self.state / 'host-lost.json')
+        original = self.canonical.read_bytes()
+        with self.assertRaisesRegex(host.Failure, 'private enrollment history is missing'):
+            self.install()
+        self.assertEqual(self.canonical.read_bytes(), original)
+
+    def test_prepare_interruption_keeps_yaml_then_repair_uses_private_candidate(self):
+        self.failure = 'layout'
+        original = self.canonical.read_bytes()
+        with self.assertRaisesRegex(host.Failure, 'unsupported layout'):
+            self.install()
+        self.assertEqual(self.canonical.read_bytes(), original)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'preparing')
+        self.failure = ''
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_original_missing_server_rollback_stays_strict(self):
+        original = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
+                self.server_inventory = b''
+                raise host.Failure('missing replacement')
+            return original(controller, *args, **kwargs)
+        with patch.object(host.Host, 'compose', interrupted), self.assertRaisesRegex(host.Failure, 'missing replacement'):
+            self.install()
+        before = self.canonical.read_bytes()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'activating')
+        with self.assertRaisesRegex(host.Failure, 'refusing to recreate a missing deployment'):
+            host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(self.canonical.read_bytes(), before)
+        with patch.object(host.Host, 'data_identity', return_value=ID):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_declared_deploy_prepares_only_protected_standard_inputs(self):
+        self.canonical.unlink()
+        args = argparse.Namespace(deployment_layout=host.SINGLE_LAYOUT, directory=str(self.source), repository='test/repo', release='v1.0.1')
+        self.manifest.update(commit='b' * 40, channel='stable')
+        with patch.object(host, '__file__', str(self.bundle / 'server-updater-host.py')):
+            host.deploy(args)
+        self.assertIn(REF.encode(), self.canonical.read_bytes())
+        self.assertEqual(host.read_json(self.source / 'release.json')['deployment_layout'], host.SINGLE_LAYOUT)
+        self.assertEqual(stat.S_IMODE(self.canonical.stat().st_mode), 0o640)
+        self.assertFalse(self.state.exists())
+        self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
+        self.args.deployment_layout = ''
+        self.model['services']['p2pstream']['image'] = REF
+        self.raw = json.dumps(self.model).encode()
+        self.install()
+        self.assertEqual(host.read_json(self.state / 'config.json')['deployment_layout'], host.SINGLE_LAYOUT)
+
+    def test_arbitrary_yaml_include_rejected_before_compose_or_state(self):
+        self.canonical.write_text('services:\n  p2pstream: {}\n"include": other.yaml\n')
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'published standalone template'):
+            self.install()
+        self.assertEqual(self.commands, [])
+        self.assertFalse(self.state.exists())
+
+
+    def test_apply_rejects_hidden_input_includes_before_compose_resolution(self):
+        self.install()
+        model = host.read_json(self.inputs)
+        model['include'] = ['/operator/unrelated.yaml']
+        host.atomic(self.inputs, model, mode=0o640)
+        before = self.canonical.read_bytes()
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'without includes'):
+            host.manage(argparse.Namespace(action='apply'))
+        self.assertEqual(self.canonical.read_bytes(), before)
+        self.assertFalse(any(c[0] == 'docker' and 'config' in c[1] for c in self.commands))
+        self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'stop', 'start', 'up'} for c in self.commands))
+
+    def test_unexpected_owner_after_preparation_cannot_be_adopted(self):
+        original = self.docker
+        def owner(*args, **kwargs):
+            if args[0] == 'exec' and args[-1] == host.OWNER_ABSENT and (self.state / 'config.json').exists():
+                return subprocess.CompletedProcess(args, 1, b'', b'')
+            return original(*args, **kwargs)
+        # Readiness succeeds, but public repair must not replace a new unknown
+        # owner, including through its generic automatic rollback path.
+        prepare = host.Host.prepare_single
+        def stop_after_prepare(controller):
+            prepare(controller)
+            raise KeyboardInterrupt()
+        with patch.object(host.Host, 'prepare_single', stop_after_prepare), self.assertRaises(KeyboardInterrupt):
+            self.install()
+        original_model = self.canonical.read_bytes()
+        self.commands.clear()
+        before_journal = (self.state / 'host.json').read_bytes()
+        with patch.object(host, 'docker', owner), self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'Unexpected runtime ownership'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual((self.state / 'host.json').read_bytes(), before_journal)
+        self.assertEqual(self.canonical.read_bytes(), original_model)
+        self.assertFalse(any(c[0] == 'binary' and c[1][0].startswith('runtime-') for c in self.commands))
+
+
+    def test_private_compose_operations_keep_recorded_project_context(self):
+        self.install()
+        controller = host.Host()
+        with controller.lock():
+            # FixtureHost implements native lifecycle results; invoke the real
+            # host Compose wrapper to check the helper's exact argument contract.
+            real_host = host.Host.__mro__[2]
+            with patch.object(controller, 'tools', return_value=subprocess.CompletedProcess([], 0, b'{}', b'')) as tools:
+                real_host.compose(controller, 'config', '--format', 'json', model='before-compose.json')
+            args = tools.call_args.args
+            self.assertEqual(args[args.index('--project-directory') + 1], str(self.source))
+            self.assertEqual(args[args.index('-f') + 1], str(self.state / 'before-compose.json'))
+
+    def test_stable_path_symlink_refused_without_chmod_or_journal(self):
+        unrelated = self.path / 'unrelated'
+        unrelated.mkdir(mode=0o700)
+        self.controller.parent.parent.parent.mkdir(mode=0o750)
+        (self.controller.parent.parent).symlink_to(unrelated, target_is_directory=True)
+        with self.assertRaisesRegex(host.Failure, 'Unsafe protected deployment path'):
+            self.install()
+        self.assertFalse((self.state / 'host.json').exists())
+        self.assertFalse(self.launcher.exists())
+        self.assertEqual(stat.S_IMODE(unrelated.stat().st_mode), 0o700)
+
+
+    def test_stopped_original_before_activation_does_not_trigger_rollback_mutations(self):
+        original = host.Host.prepare_single
+        def stopped(controller):
+            original(controller)
+            self.info['State']['Running'] = False
+            raise KeyboardInterrupt()
+        with patch.object(host.Host, 'prepare_single', stopped), self.assertRaises(KeyboardInterrupt):
+            self.install()
+        before = {p: p.read_bytes() for p in (self.canonical, self.inputs, self.state / 'host.json')}
+        self.commands.clear()
+        with self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'Original server is stopped'):
+            host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual({p: p.read_bytes() for p in before}, before)
+        self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'stop', 'start', 'up'} for c in self.commands))
+
 
 class Metadata(unittest.TestCase):
     def test_duplicate_keys_and_restricted_compose_options(self):
