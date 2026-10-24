@@ -1614,7 +1614,19 @@ class RetainedInstallation(unittest.TestCase):
         journal = host.read_json(self.state / 'host.json')
         journal['phase'] = 'removed'
         host.atomic(self.state / 'host.json', journal)
-        with patch.object(host.shutil, 'copy2', side_effect=KeyboardInterrupt()):
+        original_iterdir = Path.iterdir
+        def directory_first(path):
+            entries = list(original_iterdir(path))
+            if path == self.state:
+                entries.sort(key=lambda item: item.name != 'control')
+            return iter(entries)
+        # Interrupt the first copy regardless of filesystem enumeration order.
+        # copytree binds its default copy2 at import time, so patching copy2
+        # alone can first copy a read-only token and exercise root permissions
+        # on retry instead of this receipt-before-copy boundary.
+        with patch.object(Path, 'iterdir', directory_first), \
+                patch.object(host.shutil, 'copytree', side_effect=KeyboardInterrupt()), \
+                patch.object(host.shutil, 'copy2', side_effect=KeyboardInterrupt()):
             with self.assertRaises(KeyboardInterrupt):
                 self.archive()
         self.assertTrue((self.state / 'host.json').exists())
@@ -1625,7 +1637,8 @@ class RetainedInstallation(unittest.TestCase):
     def test_interrupted_partial_archive_is_ignored_only_with_active_journal(self):
         observed = self.observed()
         host.manage(argparse.Namespace(action='remove'))
-        with patch.object(host.shutil, 'copy2', side_effect=KeyboardInterrupt()):
+        with patch.object(host.shutil, 'copytree', side_effect=KeyboardInterrupt()), \
+                patch.object(host.shutil, 'copy2', side_effect=KeyboardInterrupt()):
             with self.assertRaises(KeyboardInterrupt):
                 self.archive()
         self.assertEqual(self.read_retained()['floor'], observed)
