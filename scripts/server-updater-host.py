@@ -2122,7 +2122,11 @@ class Host:
         return fields[1]
 
     def data_identity(self):
-        return self.run_helper('/app/p2pstream', ('server-installation-identity',), readonly=True, image=self.journal['server_image'] if self.single_file() and self.journal['phase'] in {'preparing', 'prepared', 'activating', 'rolled_back'} else read_json(self.current_model_path())['services']['p2pstream']['image'], mounts=(
+        # The initial canonical leaf can still be original YAML after stop.
+        # Select its verified private model independently of recovery phase;
+        # published/updated canonical models retain their current image.
+        model = decode(self.replacement_model()) if self.single_file() else read_json(self.current_model_path())
+        return self.run_helper('/app/p2pstream', ('server-installation-identity',), readonly=True, image=model['services']['p2pstream']['image'], mounts=(
             '--env', 'CONFIG_DIR=/server-data', '--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data,readonly')).stdout.decode().strip()
 
     def validate_recreation_server(self, info, image_id, hashes, *, stopped=False):
@@ -2247,7 +2251,9 @@ class Host:
                 # The exact original YAML may still use a tag. Its immutable
                 # before snapshot is the normalized replacement identity.
                 require(actual is not None or self.journal.get('replacement_intent'), 'Missing canonical model has no blocked replacement proof')
-                return read_state_bytes(self.directory / 'before-compose.json')
+                raw = read_state_bytes(self.directory / 'before-compose.json')
+                require(digest(raw) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
+                return raw
         return self.current_model_path().read_bytes()
 
     def block_single_replacement(self):
@@ -2282,7 +2288,9 @@ class Host:
         return {'before_sha256': digest(raw), 'image': image, 'image_id': published[0]['Id'], 'version': version, 'commit': commit,
                 'config_sha256': digest((self.directory / 'config.json').read_bytes()), 'installation': self.journal['installation'],
                 'project': self.config['project'], 'data_volume': self.config['data_volume'],
-                'source_sha256': self.cancellation_model_hash(docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)}
+                # Canonical recovery restores the immutable transaction model;
+                # editable inputs belong to the operator's next explicit apply.
+                'source_sha256': self.cancellation_model_hash(raw) if self.single_file() else self.cancellation_model_hash(docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)}
 
     def recorded_rollback_transition(self, intent, binding):
         transition = self.journal.get('rollback_transition')
@@ -2516,7 +2524,7 @@ class Host:
         if self.journal['detached_continuation']['operation'] == 'remove':
             self.finish_removal()
         else:
-            self.phase('rolled_back', error='Original deployment restored; enrollment is not enabled')
+            self.phase('rolled_back', error='Original standalone server restored at the canonical path; editable inputs retained' if self.single_file() else 'Original deployment restored; enrollment is not enabled')
             print(self.journal['error'])
 
     def interrupted_initial_activation(self):
@@ -2533,7 +2541,7 @@ class Host:
         else:
             ids = docker('compose', *self.journal['compose_options'], 'ps', '--all', '--quiet', 'p2pstream', cwd=self.journal['source_directory']).stdout.decode().split()
         require(len(ids) == 1, 'Expected the original running server before enrollment repair')
-        return enrollment_preflight(ids[0], expected, self.journal['installation'], self.journal['version'], self.journal['commit'])
+        return enrollment_preflight(ids[0], expected, self.journal['installation'], self.journal['version'], self.journal['commit'], canonical=self.single_file())
 
     def activate(self):
         if self.single_file():

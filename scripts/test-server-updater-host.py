@@ -2680,8 +2680,12 @@ class SingleFileLifecycle(unittest.TestCase):
             return subprocess.CompletedProcess(args, 0, raw, b'')
         return Lifecycle.docker(self, *args, **kwargs)
 
-    def interrupt_canonical_replacement(self, action):
+    def interrupt_canonical_replacement(self, action, *, prepared_settings=None):
         self.install()
+        if prepared_settings is not None:
+            model = host.read_json(self.inputs)
+            model['services']['p2pstream']['environment']['SECRET'] = prepared_settings
+            host.atomic(self.inputs, model, mode=0o640)
         original = host.Host.compose
         def interrupted(controller, *args, **kwargs):
             if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
@@ -2724,6 +2728,185 @@ class SingleFileLifecycle(unittest.TestCase):
 
     def test_canonical_owned_remove_missing_replacement_public_rollback(self):
         self.recover_canonical_replacement('remove', 'rollback')
+
+    def recover_owned_canonical_after_input_edit(self, operation, recovery, *, revert=False):
+        self.interrupt_canonical_replacement(operation, prepared_settings='settings-at-operation-start')
+        previous = host.read_json(self.state / 'before-compose.json')
+        if revert:
+            edited = (self.state / 'input.json').read_bytes()
+        else:
+            model = host.read_json(self.inputs)
+            model['services']['p2pstream']['environment']['SECRET'] = 'future-unapplied-settings'
+            model['services']['p2pstream']['image'] = 'future-unapplied-image'
+            edited = (json.dumps(model, indent=3) + '\n\n').encode()
+        host.atomic(self.inputs, edited, mode=0o640)
+        before_image, directory = self.info['Image'], self.data_directory
+        host.manage(argparse.Namespace(action=recovery))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(self.inputs.read_bytes(), edited)
+        self.assertEqual((self.info['Image'], self.data_directory), (before_image, directory))
+        restored = host.read_json(self.canonical)
+        for model in (previous, restored):
+            model['services']['p2pstream']['environment'].pop('SERVER_UPDATE_GENERATION')
+        self.assertEqual(restored, previous)
+
+    def test_canonical_owned_apply_missing_input_edit_public_repair(self):
+        self.recover_owned_canonical_after_input_edit('apply', 'repair')
+
+    def test_canonical_owned_apply_missing_input_revert_public_rollback(self):
+        self.recover_owned_canonical_after_input_edit('apply', 'rollback', revert=True)
+
+    def test_canonical_owned_remove_missing_input_revert_public_repair(self):
+        self.recover_owned_canonical_after_input_edit('remove', 'repair', revert=True)
+
+    def test_canonical_owned_remove_missing_input_edit_public_rollback(self):
+        self.recover_owned_canonical_after_input_edit('remove', 'rollback')
+
+    def raw_canonical_yaml(self):
+        import re
+        template = (self.bundle / 'compose.yaml').read_bytes()
+        raw, count = re.subn(rb'(?m)^    image: [^\n]+$', b'    image: ghcr.io/test/repo:v1.0.1', template)
+        self.assertEqual(count, 1)
+        host.atomic(self.canonical, raw, mode=0o640)
+        return raw
+
+    def check_identity_helper_image(self, expected):
+        helper = host.Host.run_helper
+        self.identity_helpers = []
+        def checked(controller, entrypoint, args, **kwargs):
+            if args == ('server-installation-identity',):
+                self.assertEqual(kwargs.get('image'), expected)
+                self.assertTrue(kwargs.get('readonly'))
+                self.assertIn('type=volume,src=custom-data,dst=/server-data,readonly', kwargs['mounts'])
+                self.identity_helpers.append(expected)
+            return helper(controller, entrypoint, args, **kwargs)
+        self.stack.enter_context(patch.object(host.Host, 'run_helper', checked))
+
+    def stop_initial_yaml_before_publication(self):
+        raw = self.raw_canonical_yaml()
+        compose = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'stop' and args[-1] == 'p2pstream' and kwargs.get('model') == 'before-compose.json':
+                raise KeyboardInterrupt()
+            return result
+        with patch.object(host.Host, 'compose', interrupted), self.assertRaises(KeyboardInterrupt):
+            self.install()
+        self.assertEqual(self.canonical.read_bytes(), raw)
+        self.assertFalse(self.info['State']['Running'])
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'activating')
+        self.assertIn('replacement_intent', host.read_json(self.state / 'host.json'))
+        self.check_identity_helper_image(REF)
+        return raw
+
+    def test_raw_yaml_stopped_initial_public_rollback_then_repair(self):
+        self.stop_initial_yaml_before_publication()
+        inputs = self.inputs.read_bytes()
+        host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        self.assertTrue(self.info['State']['Running'])
+        self.assertIsNone(self.runtime_owner)
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertEqual(self.inputs.read_bytes(), inputs)
+        self.assertTrue(self.identity_helpers)
+
+    def test_raw_yaml_initial_prepublication_write_failure_automatically_rolls_back(self):
+        raw = self.raw_canonical_yaml()
+        self.check_identity_helper_image(REF)
+        write = host.Host.write_model
+        def unavailable(controller, data):
+            if controller.journal['phase'] == 'activating':
+                self.assertFalse(self.info['State']['Running'])
+                self.assertEqual(self.canonical.read_bytes(), raw)
+                raise host.Failure('canonical prepublication write unavailable')
+            return write(controller, data)
+        with patch.object(host.Host, 'write_model', unavailable), self.assertRaisesRegex(host.Failure, 'canonical prepublication write unavailable'):
+            self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        self.assertTrue(self.info['State']['Running'])
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['image'], REF)
+        self.assertTrue(self.identity_helpers)
+
+    def test_canonical_identity_helper_keeps_current_updated_image_in_every_phase(self):
+        self.install()
+        model = host.read_json(self.canonical)
+        updated_image = 'ghcr.io/test/repo@sha256:' + '9' * 64
+        model['services']['p2pstream']['image'] = updated_image
+        host.atomic(self.canonical, model, mode=0o640)
+        self.info['Image'] = self.image['Id'] = 'sha256:real-software-update'
+        self.check_identity_helper_image(updated_image)
+        controller = host.Host()
+        with controller.lock():
+            self.assertEqual(controller.journal['server_image'], REF)
+            for phase in ('healthy', 'preparing', 'prepared', 'activating', 'rolling_back', 'recovery_required', 'rolled_back'):
+                with self.subTest(phase=phase):
+                    controller.journal['phase'] = phase
+                    self.assertEqual(controller.data_identity(), ID)
+        self.assertEqual(len(self.identity_helpers), 7)
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['image'], updated_image)
+
+    def test_raw_yaml_identity_helper_refuses_modified_private_before_snapshot(self):
+        raw = self.stop_initial_yaml_before_publication()
+        model = host.read_json(self.state / 'before-compose.json')
+        model['services']['p2pstream']['image'] = 'ghcr.io/test/repo@sha256:' + '9' * 64
+        host.atomic(self.state / 'before-compose.json', model)
+        controller = host.Host()
+        with controller.lock():
+            controller.journal['phase'] = 'recovery_required'
+            with self.assertRaisesRegex(host.Failure, 'Recovery snapshot differs from the recorded transaction'):
+                controller.data_identity()
+        self.assertEqual(self.identity_helpers, [])
+        self.assertEqual(self.canonical.read_bytes(), raw)
+        self.assertFalse(self.info['State']['Running'])
+
+    def test_canonical_preparing_repair_requires_canonical_capability_before_prepare(self):
+        self.failure = 'layout'
+        with self.assertRaisesRegex(host.Failure, 'unsupported layout'):
+            self.install()
+        self.failure = ''
+        before = {p: p.read_bytes() for root in (self.state, self.source) for p in root.rglob('*') if p.is_file()}
+        docker = self.docker
+        for capability in (None, 0, True):
+            with self.subTest(capability=capability):
+                def unavailable(*args, **kwargs):
+                    if args[0] == 'exec' and args[-1] == 'server-enrollment-capabilities':
+                        value = {'runtime_guard': 2, 'enrollment_preflight': 1, 'version': self.args.expect_version, 'commit': self.args.expect_commit}
+                        if capability is not None:
+                            value['canonical_compose'] = capability
+                        return subprocess.CompletedProcess(args, 0, json.dumps(value).encode(), b'')
+                    return docker(*args, **kwargs)
+                self.commands.clear()
+                with patch.object(host, 'docker', unavailable), patch.object(host.Host, 'prepare_single', side_effect=AssertionError('must preflight before preparing')):
+                    with self.assertRaisesRegex(host.EnrollmentPreflightFailure, 'canonical Compose capability 1'):
+                        host.manage(argparse.Namespace(action='repair'))
+                self.assertEqual({p: p.read_bytes() for root in (self.state, self.source) for p in root.rglob('*') if p.is_file()}, before)
+                Lifecycle.assert_no_server_lifecycle(self, self.commands)
+                self.assertFalse(any(c[0] == 'binary' for c in self.commands))
+
+    def resume_raw_yaml_rollback_stop_interruption(self, action):
+        raw = self.stop_initial_yaml_before_publication()
+        compose = host.Host.compose
+        def interrupted(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'stop' and args[-1] == 'p2pstream' and controller.journal['phase'] == 'rolling_back':
+                raise KeyboardInterrupt()
+            return result
+        with patch.object(host.Host, 'compose', interrupted), self.assertRaises(KeyboardInterrupt):
+            host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(self.canonical.read_bytes(), raw)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolling_back')
+        self.assertFalse(self.info['State']['Running'])
+        host.manage(argparse.Namespace(action=action))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        self.assertTrue(self.info['State']['Running'])
+        self.assertTrue(self.identity_helpers)
+
+    def test_raw_yaml_rollback_stop_interruption_public_repair(self):
+        self.resume_raw_yaml_rollback_stop_interruption('repair')
+
+    def test_raw_yaml_rollback_stop_interruption_public_rollback(self):
+        self.resume_raw_yaml_rollback_stop_interruption('rollback')
 
     def recover_canonical_created_apply_target_after_rollback_publish(self, action):
         compose, write = host.Host.compose, host.Host.write_model
@@ -2797,7 +2980,7 @@ class SingleFileLifecycle(unittest.TestCase):
         owner, image = copy.deepcopy(self.runtime_owner), copy.deepcopy(self.image)
         for change, message in [('intent', 'no durable blocked replacement proof'), ('snapshot', 'rollback snapshot differs'),
                                 ('token', 'binding changed'), ('project', 'installation or project differs'), ('volume', 'binding changed'),
-                                ('source', 'binding changed'), ('image-id', 'Recovery image differs'),
+                                ('private-source', 'rollback snapshot differs'), ('image-id', 'Recovery image differs'),
                                 ('image-label', 'binding changed'), ('directory', 'owner or data directory changed'),
                                 ('owner', 'owner or data directory changed'), ('absent-owner', 'owner or data directory changed'),
                                 ('identity', 'Installation identity changed'), ('writer', 'Another running container writes'),
@@ -2818,10 +3001,10 @@ class SingleFileLifecycle(unittest.TestCase):
                     cfg = host.read_json(self.state / 'config.json')
                     cfg[{'token': 'token', 'project': 'project', 'volume': 'data_volume'}[change]] = 'changed'
                     host.atomic(self.state / 'config.json', cfg)
-                elif change == 'source':
-                    model = host.read_json(self.inputs)
+                elif change == 'private-source':
+                    model = host.read_json(self.state / 'before-compose.json')
                     model['services']['p2pstream']['environment']['SECRET'] = 'changed'
-                    host.atomic(self.inputs, model, mode=0o640)
+                    host.atomic(self.state / 'before-compose.json', model)
                 elif change == 'image-id':
                     self.image['Id'] = 'sha256:external'
                 elif change == 'image-label':
@@ -2882,6 +3065,7 @@ class SingleFileLifecycle(unittest.TestCase):
         self.commands.clear()
         host.manage(argparse.Namespace(action='repair'))
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        self.assertIn('canonical path', host.read_json(self.state / 'host.json')['error'])
         self.assertEqual((self.info['Id'], self.restart_count), (target, restarts))
         self.assertTrue(self.info['State']['Running'])
         self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'stop'} for c in self.commands))
