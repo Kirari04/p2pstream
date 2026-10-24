@@ -251,7 +251,7 @@ func (a *App) listenServerUpdateRuntime(ctx context.Context, socket string, enro
 		if info.Mode()&os.ModeSocket == 0 || !ok || owner.Uid != uint32(os.Geteuid()) {
 			return errors.New("unsafe server status socket")
 		}
-		connection, err := net.DialTimeout("unix", socket, time.Second)
+		connection, err := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, "unix", socket)
 		if err == nil {
 			_ = connection.Close()
 			return errors.New("server status socket is already in use")
