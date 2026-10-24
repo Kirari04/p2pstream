@@ -302,8 +302,38 @@ func init() {
 }
 
 func printServerEnrollmentPreflight(ctx context.Context, out io.Writer, socket, installationID string) error {
+	verifyPeer, err := serverEnrollmentPreflightPeerVerifier()
+	if err != nil {
+		return err
+	}
+	return printServerEnrollmentPreflightWithPeer(ctx, out, socket, installationID, verifyPeer)
+}
+
+var errServerEnrollmentPreflightPeer = errors.New("server enrollment preflight requires the same-user PID 1 server; run setup in the supported Linux Docker container")
+var errServerEnrollmentPreflightPlatform = errors.New("server enrollment preflight peer verification requires Linux; use the supported Linux Docker deployment")
+
+// The public command always selects the platform's fixed PID 1 / current-UID
+// verifier. Only internal tests supply a different trusted peer for HTTP/schema
+// controls; installation identity and well-formed JSON cannot authenticate it.
+func printServerEnrollmentPreflightWithPeer(ctx context.Context, out io.Writer, socket, installationID string, verifyPeer func(net.Conn) error) error {
 	t := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+		connection, err := (&net.Dialer{}).DialContext(ctx, "unix", socket)
+		if err != nil {
+			return nil, err
+		}
+		if verifyPeer == nil {
+			err = errServerEnrollmentPreflightPeer
+		} else if err = ctx.Err(); err == nil {
+			err = verifyPeer(connection)
+			if err == nil {
+				err = ctx.Err()
+			}
+		}
+		if err != nil {
+			_ = connection.Close()
+			return nil, err
+		}
+		return connection, nil
 	}}
 	defer t.CloseIdleConnections()
 	client := &http.Client{Transport: t, Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
@@ -313,6 +343,9 @@ func printServerEnrollmentPreflight(ctx context.Context, out io.Writer, socket, 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		if errors.Is(err, errServerEnrollmentPreflightPeer) {
+			return errServerEnrollmentPreflightPeer
+		}
 		return errors.New("server enrollment preflight is unavailable")
 	}
 	defer resp.Body.Close()

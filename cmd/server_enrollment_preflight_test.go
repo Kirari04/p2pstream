@@ -1,17 +1,25 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"p2pstream/internal/buildinfo"
+	"p2pstream/internal/config"
+	"p2pstream/internal/server"
 	"p2pstream/internal/serverupdate"
 )
 
@@ -123,7 +131,9 @@ func TestPrintServerEnrollmentPreflightStrictBoundedResponse(t *testing.T) {
 			go func() { _ = srv.Serve(listener) }()
 			t.Cleanup(func() { _ = srv.Close() })
 			var out bytes.Buffer
-			err = printServerEnrollmentPreflight(context.Background(), &out, socket, id)
+			// HTTP/schema fixtures explicitly trust this test listener. The public
+			// CLI never accepts a caller-selected verifier or expected PID.
+			err = printServerEnrollmentPreflightWithPeer(context.Background(), &out, socket, id, func(net.Conn) error { return nil })
 			if test.valid {
 				if err != nil || !json.Valid(out.Bytes()) {
 					t.Fatalf("valid response rejected: %v %q", err, out.Bytes())
@@ -160,11 +170,14 @@ func TestServerEnrollmentPreflightCommandReadsExistingIdentityOnly(t *testing.T)
 		{name: "zero identity", identity: uuid.Nil.String()},
 		{name: "noncanonical identity", identity: "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"},
 		{name: "unavailable socket", identity: "valid"},
-		{name: "ready configured directory", identity: "valid", serve: true},
-		{name: "blocked configured directory exits successfully", identity: "valid", serve: true, blocked: true},
-		{name: "ready default directory", identity: "valid", serve: true, defaultDir: true},
+		{name: "foreign ready configured directory", identity: "valid", serve: true},
+		{name: "foreign blocked configured directory", identity: "valid", serve: true, blocked: true},
+		{name: "foreign ready default directory", identity: "valid", serve: true, defaultDir: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			if test.serve && os.Getpid() == 1 {
+				t.Skip("foreign listener fixture must not itself run as PID 1")
+			}
 			root := t.TempDir()
 			dir := filepath.Join(root, "data")
 			if test.defaultDir {
@@ -219,12 +232,7 @@ func TestServerEnrollmentPreflightCommandReadsExistingIdentityOnly(t *testing.T)
 			command.SetContext(context.Background())
 			t.Cleanup(func() { command.SetOut(nil); command.SetContext(nil) })
 			err = command.RunE(command, nil)
-			if test.serve {
-				p, decodeErr := serverupdate.DecodeEnrollmentPreflight(&out)
-				if err != nil || decodeErr != nil || p.InstallationID != id || p.Ready == test.blocked {
-					t.Fatalf("command response: %+v error=%v decode=%v", p, err, decodeErr)
-				}
-			} else if err == nil || out.Len() != 0 {
+			if err == nil || out.Len() != 0 {
 				t.Fatalf("unavailable preflight failed open: output=%q error=%v", out.Bytes(), err)
 			}
 			entries, readErr := os.ReadDir(dir)
@@ -243,5 +251,123 @@ func TestServerEnrollmentPreflightCommandReadsExistingIdentityOnly(t *testing.T)
 				}
 			}
 		})
+	}
+}
+
+func TestServerEnrollmentForeignResponderFixture(t *testing.T) {
+	path := os.Getenv("P2PSTREAM_TEST_PREFLIGHT_FOREIGN_SOCKET")
+	if path == "" {
+		t.Skip("subprocess fixture")
+	}
+	id := os.Getenv("P2PSTREAM_TEST_PREFLIGHT_FOREIGN_ID")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	forged := serverupdate.NewEnrollmentPreflight(id, serverupdate.RuntimeStatus{Ready: true, Version: buildinfo.Version, Commit: buildinfo.Commit})
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(forged)
+	})}
+	go func() { _, _ = io.Copy(io.Discard, os.Stdin); _ = srv.Close() }()
+	fmt.Fprintln(os.Stdout, "foreign listener ready")
+	_ = srv.Serve(listener)
+}
+
+func startForeignEnrollmentResponder(t *testing.T, socket, id string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	child := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestServerEnrollmentForeignResponderFixture$")
+	child.Env = append(os.Environ(), "P2PSTREAM_TEST_PREFLIGHT_FOREIGN_SOCKET="+socket, "P2PSTREAM_TEST_PREFLIGHT_FOREIGN_ID="+id)
+	child.Stderr = os.Stderr
+	input, err := child.StdinPipe()
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	output, err := child.StdoutPipe()
+	if err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	if err := child.Start(); err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = input.Close(); _ = child.Wait(); cancel() })
+	line, err := bufio.NewReader(output).ReadString('\n')
+	if err != nil || line != "foreign listener ready\n" {
+		t.Fatalf("foreign fixture failed: %q %v", line, err)
+	}
+}
+
+func TestServerEnrollmentPreflightCommandRejectsForeignReadyResponder(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CONFIG_DIR", dir)
+	id, err := serverupdate.InstallationIdentity(dir, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := serverupdate.EnrollmentPreflightSocket(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// First observe the actual application's missing-database blockers over its
+	// own socket. The forged responder below uses this same release and identity.
+	app := &server.App{Config: &config.Config{ConfigDir: "/data"}, InstallationID: id}
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	if err := app.StartServerUpdateRuntime(ctx); err != nil {
+		t.Fatal(err)
+	}
+	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "unix", path)
+	}}
+	client := &http.Client{Transport: transport, Timeout: time.Second}
+	response, err := client.Post("http://server/enrollment-preflight", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, decodeErr := serverupdate.DecodeEnrollmentPreflight(response.Body)
+	_ = response.Body.Close()
+	transport.CloseIdleConnections()
+	if decodeErr != nil || actual.Ready {
+		t.Fatalf("actual app unexpectedly ready: %+v %v", actual, decodeErr)
+	}
+	missingDB := false
+	for _, blocker := range actual.Blockers {
+		missingDB = missingDB || blocker.Code == "database_schema_unavailable"
+	}
+	if !missingDB {
+		t.Fatalf("actual app lacks missing-DB blocker: %+v", actual)
+	}
+	cancel()
+	deadline := time.Now().Add(time.Second)
+	for {
+		if _, err := os.Lstat(path); os.IsNotExist(err) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("actual app socket did not close")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	startForeignEnrollmentResponder(t, path, id)
+	ctx, cancelForeignStartup := context.WithCancel(context.Background())
+	defer cancelForeignStartup()
+	if err := app.StartServerUpdateRuntime(ctx); err != nil {
+		t.Fatalf("standalone startup should tolerate occupied optional preflight: %v", err)
+	}
+	command, _, err := rootCmd.Find([]string{"server-enrollment-preflight"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	command.SetOut(&out)
+	command.SetContext(context.Background())
+	t.Cleanup(func() { command.SetOut(nil); command.SetContext(nil) })
+	err = command.RunE(command, nil)
+	if err == nil || out.Len() != 0 {
+		t.Fatalf("public CLI accepted a foreign ready responder while actual app lacks its DB: output=%s error=%v", out.Bytes(), err)
 	}
 }
