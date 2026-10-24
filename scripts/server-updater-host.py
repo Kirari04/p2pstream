@@ -495,7 +495,7 @@ def compose_sources(options, container):
         result.append(str(path))
     return result
 
-def source_layout(source_dir, files, project, owned_aliases=None):
+def source_layout(source_dir, files, project, owned_aliases=None, *, env_options=()):
     directory = Path(source_dir)
     defaults = [directory / name for name in ('compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml') if os.path.lexists(directory / name)]
     require(len(defaults) <= 1, 'Multiple default Compose files exist; resolve the default command context before enrollment')
@@ -513,7 +513,7 @@ def source_layout(source_dir, files, project, owned_aliases=None):
     with tempfile.TemporaryDirectory(prefix='p2pstream-compose-project-') as tmp:
         selected = Path(tmp) / 'selected-project.json'
         atomic(selected, {'name': project})
-        environment = docker('compose', *[part for path in files for part in ('-f', path)], '-f', str(selected), 'config', '--environment', cwd=source_dir)
+        environment = docker('compose', *env_options, *[part for path in files for part in ('-f', path)], '-f', str(selected), 'config', '--environment', cwd=source_dir)
     values = {}
     if environment.returncode == 0:
         for line in environment.stdout.decode().splitlines():
@@ -605,7 +605,34 @@ def single_resolved_model(value, *, enrolled=False):
     return value
 
 
-def single_source(options, model, container, *, enrolled=False):
+def single_input_options(project):
+    # Editable inputs are already resolved. An explicit empty env file prevents
+    # later .env interpolation and Compose self-configuration on the host, just
+    # as COMPOSE_DISABLE_ENV_FILE does inside the immutable helper container.
+    return ['--env-file', '/dev/null', '--project-name', project, '--project-directory', str(SINGLE_DIRECTORY), '-f', str(SINGLE_INPUTS)]
+
+
+def single_matching_inputs(model):
+    if not os.path.lexists(SINGLE_INPUTS):
+        return
+    protected_path(SINGLE_INPUTS, forbidden=0o027)
+    inputs = read_state_bytes(SINGLE_INPUTS)
+    single_resolved_model(decode(inputs))
+    editable = single_resolved_model(decode(docker('compose', *single_input_options(model['name']), 'config', '--format', 'json').stdout))
+    require(read_state_bytes(SINGLE_INPUTS) == inputs, 'Editable inputs changed during resolution; restore matching inputs and retry setup')
+    expected = decode(json.dumps(model))
+    # Apply deliberately takes the image from the current managed deployment.
+    # Retained tags/digests may predate pinning or an update; all settings that
+    # apply actually adopts must still match the current standalone deployment.
+    editable['services']['p2pstream']['image'] = expected['services']['p2pstream']['image']
+    for candidate in (editable, expected):
+        service = candidate['services']['p2pstream']
+        if service.get('labels') == {}:
+            del service['labels']  # Removal can leave an empty managed-label map.
+    require(editable == expected, 'Editable inputs differ from the current standalone deployment; reconcile ' + str(SINGLE_INPUTS) + ' with the current settings, or copy the current resolved canonical model from ' + str(SINGLE_DIRECTORY / 'compose.yaml') + ' to that file, then retry setup. Reenrollment was not staged.')
+
+
+def single_source(options, model, container, *, enrolled=False, resolved=False):
     require(Path.cwd() == SINGLE_DIRECTORY, 'single-file-v1 requires running setup from ' + str(SINGLE_DIRECTORY))
     single_paths()
     files = []
@@ -621,7 +648,7 @@ def single_source(options, model, container, *, enrolled=False):
     labels = container['Config'].get('Labels', {})
     recorded = labels.get('com.docker.compose.project.config_files')
     require(not recorded or recorded == str(SINGLE_DIRECTORY / 'compose.yaml'), 'Running server was created from multiple or different Compose inputs')
-    source_layout(str(SINGLE_DIRECTORY), [str(SINGLE_DIRECTORY / 'compose.yaml')], model['name'])
+    source_layout(str(SINGLE_DIRECTORY), [str(SINGLE_DIRECTORY / 'compose.yaml')], model['name'], env_options=['--env-file', '/dev/null'] if resolved else [])
     for mount in container.get('Mounts', []):
         if mount.get('Destination') == '/data' and mount.get('Source'):
             data = Path(mount['Source'])
@@ -836,7 +863,7 @@ class Host:
                 single_resolved_model(decode(inputs))
             except ValueError:
                 raise Failure('Editable inputs must remain the resolved JSON model in compose.inputs.yaml') from None
-            raw = docker('compose', '--project-name', self.config['project'], '--project-directory', str(SINGLE_DIRECTORY), '-f', str(SINGLE_INPUTS), 'config', '--format', 'json').stdout
+            raw = docker('compose', *single_input_options(self.config['project']), 'config', '--format', 'json').stdout
             single_resolved_model(decode(raw))
             require(read_state_bytes(SINGLE_INPUTS) == inputs, 'Editable inputs changed during resolution')
             atomic(self.directory / 'candidate-input.json', raw)
@@ -953,7 +980,7 @@ class Host:
 
     def input_options(self):
         if self.single_file():
-            return ['--project-name', self.config['project'], '--project-directory', str(SINGLE_DIRECTORY), '-f', str(SINGLE_INPUTS)]
+            return single_input_options(self.config['project'])
         return self.journal.get('editable_compose_options', self.journal['compose_options'])
 
     def prepare_deployment_directory(self):
@@ -2300,6 +2327,7 @@ def install_single_file(args, options):
         if key in {'-f', '--file', '--project-directory'}:
             protected_path(Path(value).absolute(), directory=key == '--project-directory')
     raw_source = read_state_bytes(SINGLE_DIRECTORY / 'compose.yaml')
+    resolved_source = False
     try:
         source_document = decode(raw_source)
     except ValueError:
@@ -2310,16 +2338,18 @@ def install_single_file(args, options):
         require(count == expected_count == 1 and masked_source == masked_template, 'Initial single-file-v1 YAML must be the published standalone template; configure its .env or use a fully resolved JSON model without includes')
     else:
         single_resolved_model(source_document, enrolled=isinstance(source_document, dict) and 'p2pstream-server-updater' in source_document.get('services', {}))
+        resolved_source = True
     options = compose_options(options)
+    context = ['--env-file', '/dev/null', *options] if resolved_source else options
     arch = local_engine()
     require(arch == args.expect_arch and str(uuid.UUID(args.expect_installation)) == args.expect_installation and HEX.fullmatch(args.manifest_sha256), 'Invalid selected platform, installation or manifest identity')
-    ids = docker('compose', *options, 'ps', '--quiet', 'p2pstream', cwd=str(SINGLE_DIRECTORY)).stdout.decode().split()
+    ids = docker('compose', *context, 'ps', '--quiet', 'p2pstream', cwd=str(SINGLE_DIRECTORY)).stdout.decode().split()
     require(len(ids) == 1, 'Expected exactly one running server in the standard Compose deployment')
     info = decode(docker('inspect', ids[0]).stdout)[0]
     identity = docker('exec', ids[0], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip()
     require(identity == args.expect_installation, 'Wrong Docker host or Compose deployment: installation identity differs from selected environment')
     image = decode(docker('image', 'inspect', info['Image']).stdout)[0]
-    model_raw = docker('compose', *options, 'config', '--format', 'json', cwd=str(SINGLE_DIRECTORY)).stdout
+    model_raw = docker('compose', *context, 'config', '--format', 'json', cwd=str(SINGLE_DIRECTORY)).stdout
     model = decode(model_raw)
     volume = validate_running(info, model, image, arch, args)  # Stale image guard stays first.
     saved = read_json(STATE / 'host.json') if os.path.lexists(STATE / 'host.json') else None
@@ -2329,10 +2359,11 @@ def install_single_file(args, options):
             require((saved['version'], saved['commit'], saved['before_image_id']) == (args.expect_version, args.expect_commit, info['Image']), 'Running release changed after setup was staged; use the recorded recovery controller before fresh enrollment')
     if not saved and 'p2pstream-server-updater' in model.get('services', {}):
         raise Failure('Canonical deployment is already enrolled but private enrollment history is missing; restore its complete matching private state before recovery')
-    single_source(options, model, info, enrolled=bool(saved and saved['phase'] != 'removed' and (saved['phase'] == 'healthy' or 'p2pstream-server-updater' in model['services'])))
+    single_source(options, model, info, enrolled=bool(saved and saved['phase'] != 'removed' and (saved['phase'] == 'healthy' or 'p2pstream-server-updater' in model['services'])), resolved=resolved_source)
     if saved and saved['phase'] != 'removed':
         manage(argparse.Namespace(action='repair'))
         return
+    single_matching_inputs(model)  # Refuse stale settings before any state writes.
     owner = docker('exec', ids[0], '/bin/sh', '-c', OWNER_ABSENT, check=False)
     require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; restore the complete matching private enrollment history before setup')
     enrollment_preflight(ids[0], info['Image'], identity, args.expect_version, args.expect_commit, canonical=True)
@@ -2351,7 +2382,7 @@ def install_single_file(args, options):
         path = Path(tmp) / 'compose.json'
         path.write_bytes(model_raw)
         path.chmod(0o600)
-        fields = docker('compose', '--project-directory', str(SINGLE_DIRECTORY), '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
+        fields = docker('compose', '--env-file', '/dev/null', '--project-directory', str(SINGLE_DIRECTORY), '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
         require(len(fields) == 2 and fields[1] == info['Config']['Labels'].get('com.docker.compose.config-hash'), 'Compose inputs differ from the running server; apply or revert pending changes before enrollment')
     manifest, desc, server_image, manifest_hash = release_metadata(args.repository, args.expect_version, args.expect_commit, args.expect_channel, args.manifest_sha256)
     check_cancellation_floor(STATE, args, manifest, manifest_hash)
@@ -2370,17 +2401,14 @@ def install_single_file(args, options):
         require(not controller.journal or controller.journal.get('phase') == 'removed', 'Another enrollment was staged during setup; use the stable repair command')
         single_paths()
         require(read_state_bytes(SINGLE_DIRECTORY / 'compose.yaml') == original_source, 'Canonical source changed during dependency downloads')
-        current_ids = docker('compose', *options, 'ps', '--quiet', 'p2pstream', cwd=str(SINGLE_DIRECTORY)).stdout.decode().split()
-        current_raw = docker('compose', *options, 'config', '--format', 'json', cwd=str(SINGLE_DIRECTORY)).stdout
+        current_ids = docker('compose', *context, 'ps', '--quiet', 'p2pstream', cwd=str(SINGLE_DIRECTORY)).stdout.decode().split()
+        current_raw = docker('compose', *context, 'config', '--format', 'json', cwd=str(SINGLE_DIRECTORY)).stdout
         require(current_ids == ids and current_raw == model_raw, 'Running deployment changed during dependency downloads')
         require_data_writers(volume, ids[0])
         check_cancellation_floor(STATE, args, manifest, manifest_hash)
         require(docker('exec', ids[0], '/bin/sh', '-c', OWNER_ABSENT, check=False).returncode == 0, 'Runtime ownership changed before canonical preparation; restore the complete matching private history')
-        # Existing editable settings are never overwritten on reenrollment.
-        if os.path.lexists(SINGLE_INPUTS):
-            single_resolved_model(read_json(SINGLE_INPUTS))
-            editable = docker('compose', '--project-name', model['name'], '--project-directory', str(SINGLE_DIRECTORY), '-f', str(SINGLE_INPUTS), 'config', '--format', 'json').stdout
-            single_resolved_model(decode(editable))
+        # Recheck after dependency downloads, before publishing or archiving.
+        single_matching_inputs(model)
         publish_stable_controller(args.bundle)  # Durable before the first new journal format.
         if controller.journal:
             controller.archive_removed()

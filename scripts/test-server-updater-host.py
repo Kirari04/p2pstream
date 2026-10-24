@@ -2022,7 +2022,7 @@ class SingleFileLifecycle(unittest.TestCase):
                 if outer.failure == 'layout':
                     raise host.Failure('unsupported layout')
                 source = host.read_json(outer.state / 'input.json')
-                source['services']['p2pstream']['image'] = REF
+                source['services']['p2pstream']['image'] = args[args.index('--image') + 1]
                 env = source['services']['p2pstream'].setdefault('environment', {})
                 env.update(SERVER_UPDATE_INSTANCE_ID=ID, SERVER_UPDATE_TOKEN_FILE='/run/p2pstream-server-update/token', SERVER_UPDATE_SOCKET='/run/p2pstream-server-update/control.sock', SERVER_UPDATE_GATE_FILE='/run/p2pstream-server-update/maintenance', SERVER_UPDATE_RUNTIME_PROTOCOL='2', SERVER_UPDATE_GENERATION=ID)
                 source['services']['p2pstream'].setdefault('labels', {})['p2pstream.server-update.instance'] = ID
@@ -2397,6 +2397,140 @@ class SingleFileLifecycle(unittest.TestCase):
             self.install()
         self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['floor'], observed)
         self.assertEqual(host.read_json(self.state / 'config.json')['deployment_file'], str(self.canonical))
+
+    def test_reenrollment_refuses_stale_inputs_before_any_persistent_or_runtime_change(self):
+        self.install()
+        host.manage(argparse.Namespace(action='remove'))
+        changed = host.read_json(self.canonical)
+        server = changed['services']['p2pstream']
+        server['ports'][0]['published'] = '10443'
+        server['environment']['SECRET'] = 'operator-current'
+        server['volumes'].append({'type': 'bind', 'source': '/srv/operator', 'target': '/operator', 'read_only': True})
+        # The native deployment now uses the edited canonical model. The
+        # fixture's native hash matches the running container as on fresh setup.
+        host.atomic(self.canonical, changed, mode=0o640)
+        before = {p.relative_to(self.path): (p.read_bytes(), stat.S_IMODE(p.stat().st_mode)) for p in self.path.rglob('*') if p.is_file()}
+        running, restarts = copy.deepcopy(self.info), self.restart_count
+        self.commands.clear()
+        with self.assertRaisesRegex(host.Failure, 'Editable inputs differ.*copy the current resolved canonical model'):
+            self.install()
+        self.assertEqual({p.relative_to(self.path): (p.read_bytes(), stat.S_IMODE(p.stat().st_mode)) for p in self.path.rglob('*') if p.is_file()}, before)
+        self.assertEqual(self.info, running)
+        self.assertEqual(self.restart_count, restarts)
+        self.assertFalse(any(c[0] in {'binary', 'compose'} or c[0] == 'docker' and c[1][0] in {'pull', 'run', 'stop', 'start', 'rm'} for c in self.commands))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'removed')
+
+    def test_reenrollment_accepts_semantic_inputs_and_preserves_current_updated_image_on_apply(self):
+        self.install()
+        edited = host.read_json(self.inputs)
+        edited['services']['p2pstream']['ports'][0]['published'] = '10443'
+        edited['services']['p2pstream']['environment']['SECRET'] = 'applied-setting'
+        host.atomic(self.inputs, edited, mode=0o640)
+        host.manage(argparse.Namespace(action='apply'))
+        updated = 'ghcr.io/test/repo@sha256:' + 'e' * 64
+        current = host.read_json(self.canonical)
+        current['services']['p2pstream']['image'] = updated
+        host.atomic(self.canonical, current, mode=0o640)
+        self.info['Image'] = self.image['Id'] = 'sha256:updated-image'
+        host.manage(argparse.Namespace(action='remove'))
+        # Formatting, original tag versus current digest, and the empty labels
+        # left after removing the managed label do not change applied settings.
+        retained = json.dumps(edited, separators=(',', ':'), sort_keys=False).encode()
+        host.atomic(self.inputs, retained, mode=0o640)
+        with patch.object(host, 'release_metadata', return_value=(self.manifest, self.descriptor, updated, 'f' * 64)):
+            self.install()
+        host.manage(argparse.Namespace(action='apply'))
+        actual = host.read_json(self.canonical)['services']['p2pstream']
+        self.assertEqual(actual['image'], updated)
+        self.assertEqual(actual['ports'][0]['published'], '10443')
+        self.assertEqual(actual['environment']['SECRET'], 'applied-setting')
+        self.assertEqual(self.inputs.read_bytes(), retained)
+
+    def test_preexisting_input_port_environment_or_mount_drift_refuses_fresh_setup(self):
+        for field, value in [('ports', [{'target': 8081, 'published': '10443'}]),
+                             ('environment', {'CONFIG_DIR': '/data', 'SECRET': 'stale-value'}),
+                             ('volumes', [{'type': 'volume', 'source': 'data', 'target': '/data'}, {'type': 'bind', 'source': '/srv/stale', 'target': '/operator'}])]:
+            with self.subTest(field=field):
+                stale = copy.deepcopy(self.model)
+                stale['services']['p2pstream'][field] = value
+                host.atomic(self.inputs, stale, mode=0o640)
+                before = self.inputs.read_bytes(), self.canonical.read_bytes()
+                with self.assertRaisesRegex(host.Failure, 'Editable inputs differ'):
+                    self.install()
+                self.assertEqual((self.inputs.read_bytes(), self.canonical.read_bytes()), before)
+                self.assertFalse(self.state.exists())
+                self.assertFalse(self.launcher.exists())
+                self.assertEqual(self.restart_count, 0)
+
+    def test_reenrollment_rechecks_inputs_after_downloads_before_archival_or_credentials(self):
+        self.install()
+        host.manage(argparse.Namespace(action='remove'))
+        before = {p: p.read_bytes() for root in (self.state, self.source, self.launcher.parent, self.controller.parent) for p in root.rglob('*') if p.is_file()}
+        def metadata(*args):
+            changed = host.read_json(self.inputs)
+            changed['services']['p2pstream']['environment']['SECRET'] = 'changed-during-downloads'
+            host.atomic(self.inputs, changed, mode=0o640)
+            return self.manifest, self.descriptor, REF, 'f' * 64
+        self.commands.clear()
+        with patch.object(host, 'release_metadata', side_effect=metadata), self.assertRaisesRegex(host.Failure, 'Editable inputs differ'):
+            self.install()
+        self.assertEqual({p: p.read_bytes() for root in (self.state, self.source, self.launcher.parent, self.controller.parent) for p in root.rglob('*') if p.is_file()}, before)
+        self.assertFalse(any(c[0] in {'binary', 'compose'} for c in self.commands))
+
+    def test_apply_ignores_later_dotenv_while_resolving_editable_inputs(self):
+        self.install()
+        host.atomic(self.source / '.env', b'SECRET=from-dotenv\n')
+        original = self.docker
+        resolutions = []
+        def docker(*args, **kwargs):
+            if args[0] == 'compose' and str(self.inputs) in args and 'config' in args:
+                resolutions.append(args)
+                self.assertIn('--env-file', args)
+                self.assertEqual(args[args.index('--env-file') + 1], '/dev/null')
+            return original(*args, **kwargs)
+        with patch.object(host, 'docker', docker):
+            host.manage(argparse.Namespace(action='apply'))
+        self.assertEqual(len(resolutions), 1)
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['environment']['SECRET'], '$$literal')
+
+    def test_resolved_reenrollment_ignores_dotenv_in_every_native_compose_probe(self):
+        self.install()
+        host.manage(argparse.Namespace(action='remove'))
+        host.atomic(self.source / '.env', b'COMPOSE_FILE=/missing/compose.yaml\nCOMPOSE_PROJECT_NAME=other\nSECRET=from-dotenv\n')
+        original = self.docker
+        probes = []
+        def docker(*args, **kwargs):
+            if args[0] == 'compose':
+                probes.append(args)
+                self.assertIn('--env-file', args)
+                self.assertEqual(args[args.index('--env-file') + 1], '/dev/null')
+            return original(*args, **kwargs)
+        with patch.object(host, 'docker', docker):
+            self.install()
+        self.assertTrue(any('--environment' in args for args in probes))
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['environment']['SECRET'], '$$literal')
+
+    def test_initial_yaml_still_uses_dotenv_before_resolved_snapshot(self):
+        import re
+        template = (self.bundle / 'compose.yaml').read_bytes()
+        raw, count = re.subn(rb'(?m)^    image: [^\n]+$', ('    image: ' + REF).encode(), template)
+        self.assertEqual(count, 1)
+        self.model['services']['p2pstream']['image'] = REF
+        self.model['services']['p2pstream']['environment']['SECRET'] = 'initial-dotenv-setting'
+        self.raw = json.dumps(self.model).encode()
+        host.atomic(self.canonical, raw, mode=0o640)
+        host.atomic(self.source / '.env', b'SECRET=initial-dotenv-setting\n')
+        original = self.docker
+        source_resolutions = []
+        def docker(*args, **kwargs):
+            if args[0] == 'compose' and 'config' in args and '--environment' not in args and '--hash' not in args and '-f' not in args:
+                source_resolutions.append(args)
+                self.assertNotIn('--env-file', args)
+            return original(*args, **kwargs)
+        with patch.object(host, 'docker', docker):
+            self.install()
+        self.assertTrue(source_resolutions)
+        self.assertEqual(host.read_json(self.inputs)['services']['p2pstream']['environment']['SECRET'], 'initial-dotenv-setting')
 
     def test_unsafe_paths_overrides_and_multifile_refused_before_mutation(self):
         for kind in ['override', 'directory-mode', 'symlink', 'multiple', 'extra-service']:
