@@ -194,7 +194,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <template v-if="deploymentMigration" #header-extra><NTag size="small" :bordered="false" type="info">One-time migration</NTag></template>
       <NAlert v-if="setupBlockers.length" type="warning" title="Resolve before setup" class="update-blocker" aria-label="Setup prerequisites">
         <ul><li v-for="reason in setupBlockers" :key="reason">{{ reason }}</li></ul>
-        <p>Resolve these conditions, then refresh status. The setup command becomes available when this server reports that it is ready.</p>
+        <p>Automatic setup requires the supported Docker Compose layout. Native installations and custom data paths require manual deployment. For supported deployments, resolve these conditions, then refresh status to recheck setup prerequisites.</p>
       </NAlert>
       <NAlert v-else-if="connectionError" type="info" title="Waiting to confirm setup readiness">Reconnect to {{ environmentLabel }} and refresh status before running setup.</NAlert>
       <template v-else>
@@ -226,7 +226,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       </template>
       <NAlert v-else-if="deploymentMigration" type="warning" title="Migration command unavailable">{{ overview.setupUnavailable || 'This server did not provide a supported verified migration command.' }} Resolve the reported prerequisite, then refresh. Continue using the existing host controller until migration completes.</NAlert>
       <NAlert v-else type="info" title="Manual release upgrade required">{{ overview.setupUnavailable || 'This server does not provide a verified installation bundle and installation identity. Manually deploy a published release with Docker installation support, then refresh this page.' }}</NAlert>
-      <p class="muted-text">Supported: one Linux amd64/arm64 Compose server with a writable named <code>/data</code> volume. Native, rootless, Swarm, custom entrypoints, deployment hooks, external databases, and unsupported data layouts require host deployment procedures. Copied commands are rejected if this server’s identity, release, or deployment changed.</p>
+      <p class="muted-text">Supported: one Linux amd64/arm64 Compose server with a writable named <code>/data</code> volume, running the server directly as PID 1. Preflight verifies the server process and the command have the same UID. Docker <code>init: true</code> / <code>--init</code> and custom process wrappers are unsupported. Native, rootless, Swarm, custom entrypoints, deployment hooks, external databases, and unsupported data layouts require host deployment procedures. Copied commands are rejected if this server’s identity, release, or deployment changed.</p>
       </template>
     </NCard>
 

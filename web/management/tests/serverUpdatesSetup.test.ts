@@ -59,6 +59,22 @@ test("initial enrollment remains gated by observational preflight blockers", asy
   expect(html).toContain("Resolve before setup");
   expect(html).not.toContain("sudo verified-installer");
   expect(html).not.toContain("Copy setup command");
+  expect(html).toContain("Finish active agent updates before updating the server");
+  expect(html).toContain("Automatic setup requires the supported Docker Compose layout");
+  expect(html).toContain("Native installations and custom data paths require manual deployment");
+  expect(html).not.toContain("The setup command becomes available when this server reports that it is ready");
+});
+
+test("supported setup states the fixed process identity and unsupported wrappers", async () => {
+  const ready = fixture(false);
+  ready.overview.blockers = [];
+  const html = await render(ready);
+  expect(html).toContain("Copy setup command");
+  expect(html).toContain("running the server directly as PID 1");
+  expect(html).toContain("the same UID");
+  expect(html).toContain("init: true");
+  expect(html).toContain("--init");
+  expect(html).toContain("custom process wrappers are unsupported");
 });
 
 test("migration command prerequisites stay visible independently of executor blockers", async () => {

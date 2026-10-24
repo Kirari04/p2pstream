@@ -309,7 +309,7 @@ func printServerEnrollmentPreflight(ctx context.Context, out io.Writer, socket, 
 	return printServerEnrollmentPreflightWithPeer(ctx, out, socket, installationID, verifyPeer)
 }
 
-var errServerEnrollmentPreflightPeer = errors.New("server enrollment preflight requires the same-user PID 1 server; run setup in the supported Linux Docker container")
+var errServerEnrollmentPreflightPeer = errors.New("server enrollment preflight socket process could not be verified; resolve a conflicting local listener or use the supported Linux Docker deployment")
 var errServerEnrollmentPreflightPlatform = errors.New("server enrollment preflight peer verification requires Linux; use the supported Linux Docker deployment")
 
 // The public command always selects the platform's fixed PID 1 / current-UID
