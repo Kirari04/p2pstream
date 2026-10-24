@@ -46,6 +46,9 @@ const setupCommand = computed(() => serverSetupCommand(overview.value?.setupComm
 const singleLineSetup = computed(() => Boolean(setupCommand.value && !/[\r\n]/.test(setupCommand.value)));
 const deploymentMigration = computed(() => Boolean(overview.value?.executorConfigured && (overview.value.setupCommand || overview.value.setupUnavailable)));
 const showSetup = computed(() => Boolean(overview.value && !running.value && !pending.value && !blocked.value && (!overview.value.executorConfigured || deploymentMigration.value)));
+// Legacy host migration uses its own deployment validation, not enrollment
+// preflight or the executor's software-update readiness checks.
+const setupBlockers = computed(() => deploymentMigration.value ? [] : overview.value?.blockers ?? []);
 const actionIsCurrent = (revision: number, requestScope: string) => !disposed && revision === actionRevision && requestScope === scope();
 
 function savePending(value: PendingServerUpdate | null) {
@@ -133,7 +136,7 @@ async function start(retry = false) {
 }
 
 async function copySetup() {
-  if (!setupCommand.value || busy.value || running.value || pending.value || blocked.value) return;
+  if (!setupCommand.value || busy.value || running.value || pending.value || blocked.value || setupBlockers.value.length || connectionError.value) return;
   const revision = actionRevision;
   const requestScope = scope();
   const migration = deploymentMigration.value;
@@ -189,6 +192,12 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
 
     <NCard v-if="overview && showSetup" :title="deploymentMigration ? 'Upgrade host updater' : 'Enable server updates'" :class="{ 'update-migration': deploymentMigration }">
       <template v-if="deploymentMigration" #header-extra><NTag size="small" :bordered="false" type="info">One-time migration</NTag></template>
+      <NAlert v-if="setupBlockers.length" type="warning" title="Resolve before setup" class="update-blocker" aria-label="Setup prerequisites">
+        <ul><li v-for="reason in setupBlockers" :key="reason">{{ reason }}</li></ul>
+        <p>Resolve these conditions, then refresh status. The setup command becomes available when this server reports that it is ready.</p>
+      </NAlert>
+      <NAlert v-else-if="connectionError" type="info" title="Waiting to confirm setup readiness">Reconnect to {{ environmentLabel }} and refresh status before running setup.</NAlert>
+      <template v-else>
       <template v-if="deploymentMigration">
         <p>Upgrade <strong>{{ environmentLabel }}</strong>’s pinned host updater and connect its existing Compose deployment to the managed integration. Run the {{ singleLineSetup ? 'migration command' : 'complete migration block' }} on its <strong>Docker host</strong>, from the directory containing the running deployment.</p>
         <div class="update-migration-facts" aria-label="Migration preserves deployment"><div><span>Current image</span><strong>Preserved</strong></div><div><span>Data volume</span><strong>Preserved</strong></div><div><span>Existing token</span><strong>Preserved</strong></div></div>
@@ -218,6 +227,7 @@ onUnmounted(() => { disposed = true; actionRevision += 1; polling.stop(); clearI
       <NAlert v-else-if="deploymentMigration" type="warning" title="Migration command unavailable">{{ overview.setupUnavailable || 'This server did not provide a supported verified migration command.' }} Resolve the reported prerequisite, then refresh. Continue using the existing host controller until migration completes.</NAlert>
       <NAlert v-else type="info" title="Manual release upgrade required">{{ overview.setupUnavailable || 'This server does not provide a verified installation bundle and installation identity. Manually deploy a published release with Docker installation support, then refresh this page.' }}</NAlert>
       <p class="muted-text">Supported: one Linux amd64/arm64 Compose server with a writable named <code>/data</code> volume. Native, rootless, Swarm, custom entrypoints, deployment hooks, external databases, and unsupported data layouts require host deployment procedures. Copied commands are rejected if this server’s identity, release, or deployment changed.</p>
+      </template>
     </NCard>
 
     <NAlert v-if="overview?.executorConfigured" :type="connectionError || !overview.executorAvailable ? 'warning' : operation && operation.phase !== 'succeeded' ? 'info' : 'success'" :title="connectionError ? 'Host updater · last confirmed status' : overview.executorAvailable ? (operation ? 'Host updater connected · operation recorded' : 'Updates enabled · updater verified') : 'Host updater unavailable'">

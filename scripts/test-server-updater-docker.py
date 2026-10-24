@@ -78,6 +78,7 @@ def main():
             "name": project,
             "services": {"p2pstream": {
                 "image": images["baseline"], "restart": "unless-stopped", "read_only": True,
+                "tmpfs": ["/tmp:rw,noexec,nosuid,size=16m"],
                 "environment": {"CONFIG_DIR": "/data", "MANAGEMENT_PORT": "8081",
                     "MANAGEMENT_SETUP_TOKEN": "review-setup-token-0123456789abcdef",
                     "BOOTSTRAP_AGENT_ID": "review-agent", "BOOTSTRAP_AGENT_NAME": "Review Agent",

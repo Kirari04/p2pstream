@@ -170,6 +170,9 @@ func init() {
 	rootCmd.AddCommand(&cobra.Command{Use: "server-deployment-capabilities", Short: "Report immutable deployment capabilities without opening application data", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(serverupdate.DeploymentCapabilities{RuntimeGuard: 2, Version: buildinfo.Version, Commit: buildinfo.Commit})
 	}})
+	rootCmd.AddCommand(&cobra.Command{Use: "server-enrollment-capabilities", Short: "Report immutable enrollment capabilities without opening application data", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(serverupdate.DeploymentCapabilities{RuntimeGuard: 2, EnrollmentPreflight: serverupdate.EnrollmentPreflightAPI, Version: buildinfo.Version, Commit: buildinfo.Commit})
+	}})
 	command.AddCommand(serve, enroll, recover, configure, check)
 	rootCmd.AddCommand(&cobra.Command{Use: "server-installation-identity", Short: "Read the existing data-backed installation identity", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		dir := os.Getenv("CONFIG_DIR")
@@ -234,6 +237,21 @@ func init() {
 		return nil
 	}})
 	rootCmd.AddCommand(command)
+	rootCmd.AddCommand(&cobra.Command{Use: "server-enrollment-preflight", Short: "Read container-local enrollment readiness without changing server state", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		dir := os.Getenv("CONFIG_DIR")
+		if dir == "" {
+			dir = "p2pstream-data"
+		}
+		id, err := serverupdate.InstallationIdentity(dir, false)
+		if err != nil {
+			return errors.New("server enrollment preflight requires an existing installation identity")
+		}
+		socket, err := serverupdate.EnrollmentPreflightSocket(id)
+		if err != nil {
+			return err
+		}
+		return printServerEnrollmentPreflight(cmd.Context(), cmd.OutOrStdout(), socket, id)
+	}})
 	rootCmd.AddCommand(&cobra.Command{Use: "server-update-status [status|prepare]", Short: "Query the container-local server readiness socket", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if args[0] != "status" && args[0] != "prepare" {
 			return errors.New("expected status or prepare")
@@ -341,4 +359,65 @@ func serveServerUpdater(configPath string, retry bool) error {
 	}
 	_ = srv.Close()
 	return nil
+}
+
+func printServerEnrollmentPreflight(ctx context.Context, out io.Writer, socket, installationID string) error {
+	verifyPeer, err := serverEnrollmentPreflightPeerVerifier()
+	if err != nil {
+		return err
+	}
+	return printServerEnrollmentPreflightWithPeer(ctx, out, socket, installationID, verifyPeer)
+}
+
+var errServerEnrollmentPreflightPeer = errors.New("server enrollment preflight requires the same-user PID 1 server; run setup in the supported Linux Docker container")
+var errServerEnrollmentPreflightPlatform = errors.New("server enrollment preflight peer verification requires Linux; use the supported Linux Docker deployment")
+
+// The public command always selects the platform's fixed PID 1 / current-UID
+// verifier. Only internal tests supply a different trusted peer for HTTP/schema
+// controls; installation identity and well-formed JSON cannot authenticate it.
+func printServerEnrollmentPreflightWithPeer(ctx context.Context, out io.Writer, socket, installationID string, verifyPeer func(net.Conn) error) error {
+	t := &http.Transport{Proxy: nil, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		connection, err := (&net.Dialer{}).DialContext(ctx, "unix", socket)
+		if err != nil {
+			return nil, err
+		}
+		if verifyPeer == nil {
+			err = errServerEnrollmentPreflightPeer
+		} else if err = ctx.Err(); err == nil {
+			err = verifyPeer(connection)
+			if err == nil {
+				err = ctx.Err()
+			}
+		}
+		if err != nil {
+			_ = connection.Close()
+			return nil, err
+		}
+		return connection, nil
+	}}
+	defer t.CloseIdleConnections()
+	client := &http.Client{Transport: t, Timeout: 10 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://server/enrollment-preflight", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		if errors.Is(err, errServerEnrollmentPreflightPeer) {
+			return errServerEnrollmentPreflightPeer
+		}
+		return errors.New("server enrollment preflight is unavailable")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("server enrollment preflight is unavailable")
+	}
+	p, err := serverupdate.DecodeEnrollmentPreflight(resp.Body)
+	if err != nil {
+		return err
+	}
+	if p.InstallationID != installationID {
+		return errors.New("server enrollment preflight installation identity does not match")
+	}
+	return json.NewEncoder(out).Encode(p)
 }

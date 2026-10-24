@@ -17,9 +17,10 @@ import (
 // ownership migration is an explicit host transaction with both capabilities
 // checked before it changes the saved deployment.
 type DeploymentCapabilities struct {
-	RuntimeGuard int    `json:"runtime_guard"`
-	Version      string `json:"version"`
-	Commit       string `json:"commit"`
+	EnrollmentPreflight int    `json:"enrollment_preflight,omitempty"`
+	RuntimeGuard        int    `json:"runtime_guard"`
+	Version             string `json:"version"`
+	Commit              string `json:"commit"`
 }
 
 func newRuntimeGeneration() string { return uuid.NewString() }
