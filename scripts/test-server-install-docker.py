@@ -7,6 +7,7 @@ this directly on a deployment host.
 import argparse
 import base64
 import copy
+import errno
 from datetime import datetime, timedelta, timezone
 import hashlib
 import importlib.util
@@ -622,6 +623,27 @@ def removal_recovery_boundaries():
         identity = os.fstat(fd)
         executor_fds.append((fd, (identity.st_dev, identity.st_ino, identity.st_mode)))
         return fd
+    def release_interrupted_executor():
+        # Model process-exit release after an expected in-process interruption.
+        # Never unlock/change the file or close an unknown/reused descriptor.
+        assert len(executor_fds) == 1
+        fd, identity = executor_fds[0]
+        try:
+            current_fd = os.fstat(fd)
+        except OSError as error:
+            raise AssertionError('Interrupted executor fd was unexpectedly closed') from error
+        assert (current_fd.st_dev, current_fd.st_ino, current_fd.st_mode) == identity, 'Interrupted executor fd was reused'
+        os.close(fd)
+        # Check this process only. listdir's own transient fd can already be
+        # closed by the time fstat observes it; matching live fds must fail.
+        for name in os.listdir('/proc/self/fd'):
+            try:
+                other = os.fstat(int(name))
+            except OSError as error:
+                if error.errno == errno.EBADF:
+                    continue
+                raise
+            assert (other.st_dev, other.st_ino) != identity[:2], 'Another descriptor still references interrupted executor lock'
     def interrupt_before_declaration(controller):
         journal = host.read_json(host.STATE / 'host.json')
         assert journal['phase'] == 'removing' and 'detached_continuation' not in journal
@@ -645,16 +667,8 @@ def removal_recovery_boundaries():
     finally:
         host.Host.begin_detached_continuation, host.Host.stop_executor = real_begin, real_stop
         if interrupted:
-            # An in-process KeyboardInterrupt does not release manage's fd as
-            # process exit would. Close only the exact fd returned by real stop.
-            assert len(pre_declaration) == len(executor_fds) == 1
-            fd, identity = executor_fds[0]
-            try:
-                current_fd = os.fstat(fd)
-            except OSError as error:
-                raise AssertionError('Interrupted executor fd was unexpectedly closed') from error
-            assert (current_fd.st_dev, current_fd.st_ino, current_fd.st_mode) == identity, 'Interrupted executor fd was reused'
-            os.close(fd)
+            assert len(pre_declaration) == 1
+            release_interrupted_executor()
     assert len(pre_declaration) == 1
     journal = host.read_json(host.STATE / 'host.json')
     assert journal['phase'] == 'removing' and 'detached_continuation' not in journal
@@ -666,7 +680,8 @@ def removal_recovery_boundaries():
     # At wait_original the declared target has been detached and started. Repair
     # must finish that same target, rather than restore the managed deployment.
     real_wait = host.Host.wait_original
-    detached = []
+    detached, executor_fds = [], []
+    interrupted = False
     def interrupt_after_start(controller):
         journal = host.read_json(host.STATE / 'host.json')
         continuation = journal['detached_continuation']
@@ -679,16 +694,19 @@ def removal_recovery_boundaries():
         assert data['directory'] == pre_declaration[0]
         detached.append(copy.deepcopy(target))
         raise KeyboardInterrupt()
-    host.Host.wait_original = interrupt_after_start
+    host.Host.wait_original, host.Host.stop_executor = interrupt_after_start, observed_stop
     try:
         try:
             host.manage(argparse.Namespace(action='remove'))
         except KeyboardInterrupt:
-            pass
+            interrupted = True
         else:
             raise AssertionError('Post-declaration removal interruption did not occur')
     finally:
-        host.Host.wait_original = real_wait
+        host.Host.wait_original, host.Host.stop_executor = real_wait, real_stop
+        if interrupted:
+            assert len(detached) == 1
+            release_interrupted_executor()
     assert len(detached) == 1
 
     real_compose = host.Host.compose

@@ -5,6 +5,8 @@ import ast
 import base64
 import contextlib
 import copy
+import errno
+import fcntl
 import importlib.util
 import io
 import json
@@ -36,7 +38,7 @@ harness = load('lifecycle_harness', ROOT / 'test-server-lifecycle-docker.py')
 class RemovalRecoveryBoundaries(unittest.TestCase):
     """Execute the installer boundary function with the public controller fixture."""
 
-    def exercise(self, *, fail_health=False):
+    def exercise(self, *, fail_health=False, duplicate_lock=False):
         host = host_tests.host
         production_wait = host.Host.wait_original
         fixture = host_tests.Lifecycle()
@@ -58,6 +60,64 @@ class RemovalRecoveryBoundaries(unittest.TestCase):
         executor_removed = []
         original_compose = host.Host.compose
         original_begin, original_stop = host.Host.begin_detached_continuation, host.Host.stop_executor
+        owned_fds, duplicates = {}, {}
+        self.lock_trace = []
+        stop_calls = 0
+
+        def identity(fd):
+            value = os.fstat(fd)
+            return value.st_dev, value.st_ino, value.st_mode
+
+        def tracked_stop(controller):
+            nonlocal stop_calls
+            fd = original_stop(controller)
+            owned_fds[fd] = identity(fd)
+            stop_calls += 1
+            self.lock_trace.append({'event': 'stop-return', 'fd': fd, 'identity': owned_fds[fd]})
+            if duplicate_lock and stop_calls == 2:
+                duplicate = os.dup(fd)
+                duplicates[duplicate] = identity(duplicate)
+            return fd
+
+        def assert_no_owned_fds():
+            for fd in owned_fds:
+                with self.assertRaises(OSError) as closed:
+                    os.fstat(fd)
+                self.assertEqual(closed.exception.errno, errno.EBADF)
+            for name in os.listdir('/proc/self/fd'):
+                try:
+                    value = os.fstat(int(name))
+                except OSError as error:
+                    if error.errno == errno.EBADF:
+                        continue
+                    raise
+                self.assertNotIn((value.st_dev, value.st_ino), [saved[:2] for saved in owned_fds.values()])
+            self.lock_trace.append({'event': 'no-owned-lock-descriptors'})
+
+        def probe_lock(*, blocked=False):
+            fd = os.open(fixture.state / 'executor.lock', os.O_RDWR | os.O_NOFOLLOW)
+            try:
+                if blocked:
+                    with self.assertRaises(BlockingIOError):
+                        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                else:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.lock_trace.append({'event': 'independent-flock', 'blocked': blocked})
+            finally:
+                os.close(fd)
+
+        def cleanup_owned_fds():
+            # The negative test owns the deliberate dup. Cleanup also keeps a
+            # failed before-source replay from leaking its captured test fd.
+            for fd, saved in (owned_fds | duplicates).items():
+                try:
+                    actual = identity(fd)
+                except OSError as error:
+                    if error.errno == errno.EBADF:
+                        continue
+                    raise
+                self.assertEqual(actual, saved, 'Test-owned descriptor was reused; refusing cleanup')
+                os.close(fd)
 
         def inspect_model():
             # The controller fixture models daemon state. Extend its inspection
@@ -95,32 +155,75 @@ class RemovalRecoveryBoundaries(unittest.TestCase):
         function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'removal_recovery_boundaries')
         namespace = dict(host=host, info=lambda: copy.deepcopy(fixture.info), docker=docker, compose=compose,
                          images={'candidate': server['image']}, installation=host_tests.ID, observer='synthetic-observer',
-                         config=config, argparse=argparse, copy=copy, os=os, checks=[])
+                         config=config, argparse=argparse, copy=copy, errno=errno, os=os, checks=[])
         exec(compile(ast.Module(body=[function], type_ignores=[]), str(ROOT / 'test-server-install-docker.py'), 'exec'), namespace)
         def refused_health(controller):
             raise host.Failure('synthetic health refusal')
         wait = refused_health if fail_health else production_wait
-        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'wait_original', wait):
-            if fail_health:
-                with self.assertRaisesRegex(host.Failure, 'synthetic health refusal'):
+        try:
+            with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'wait_original', wait), patch.object(host.Host, 'stop_executor', tracked_stop):
+                if duplicate_lock:
+                    with self.assertRaisesRegex(AssertionError, 'Another descriptor still references interrupted executor lock'):
+                        namespace['removal_recovery_boundaries']()
+                    self.assertEqual(len(duplicates), 1)
+                    for fd, saved in duplicates.items():
+                        self.assertEqual(identity(fd), saved)  # Harness must not close this fd.
+                    probe_lock(blocked=True)
+                elif fail_health:
+                    with self.assertRaisesRegex(host.Failure, 'synthetic health refusal'):
+                        namespace['removal_recovery_boundaries']()
+                    self.assertFalse(executor_removed)
+                    self.assertIn('detached_continuation', host.read_json(fixture.state / 'host.json'))
+                    assert_no_owned_fds()
+                    probe_lock()
+                else:
                     namespace['removal_recovery_boundaries']()
-                self.assertFalse(executor_removed)
-                self.assertIn('detached_continuation', host.read_json(fixture.state / 'host.json'))
-            else:
-                namespace['removal_recovery_boundaries']()
-                self.assertEqual(len(executor_removed), 1)
-                self.assertEqual(host.read_json(fixture.state / 'host.json')['phase'], 'removed')
-                self.assertIn('removal-rollback-restores-current-image', namespace['checks'])
-            self.assertIs(host.Host.compose, composed)
-            self.assertIs(host.Host.wait_original, wait)
-            self.assertIs(host.Host.begin_detached_continuation, original_begin)
-            self.assertIs(host.Host.stop_executor, original_stop)
+                    self.assertEqual(len(executor_removed), 1)
+                    self.assertEqual(host.read_json(fixture.state / 'host.json')['phase'], 'removed')
+                    self.assertIn('removal-rollback-restores-current-image', namespace['checks'])
+                    assert_no_owned_fds()
+                    probe_lock()
+                    current, commands = copy.deepcopy(fixture.info), len(fixture.commands)
+                    controller = host.Host()
+                    with controller.lock():
+                        deployment = controller.current_model_path()
+                        removed_model = deployment.read_bytes()
+                        data = controller.replacement_data()
+                        source = Path(controller.journal['source_layout']['primary'])
+                        exported = source.read_bytes()
+                        controller.archive_removed()  # Production health and, on #343, real flock.
+                    self.assertFalse((fixture.state / 'host.json').exists())
+                    saved_configs = list((fixture.state / 'history').glob('*/config.json'))
+                    self.assertEqual(len(saved_configs), 1)
+                    self.assertEqual(saved_configs[0].read_bytes(), config)
+                    saved = host.read_json(saved_configs[0])
+                    self.assertEqual(saved['instance_id'], fixture.identity)
+                    self.assertEqual(saved['data_volume'], next(m['Name'] for m in current['Mounts'] if m['Destination'] == '/data'))
+                    self.assertEqual(deployment.read_bytes(), removed_model)
+                    self.assertEqual(source.read_bytes(), exported)
+                    self.assertEqual(fixture.info, current)
+                    self.assertIsNone(data['owner'])
+                    self.assertFalse(any(item[0] == 'compose' and item[1][0] in {'up', 'start', 'stop'} for item in fixture.commands[commands:]))
+                    assert_no_owned_fds()
+                    self.lock_trace.append({'event': 'production-archive-completed', 'config-image-data-preserved': True})
+                self.assertIs(host.Host.compose, composed)
+                self.assertIs(host.Host.wait_original, wait)
+                self.assertIs(host.Host.begin_detached_continuation, original_begin)
+                self.assertIs(host.Host.stop_executor, tracked_stop)
+        finally:
+            cleanup_owned_fds()
+        if duplicate_lock:
+            assert_no_owned_fds()
+            probe_lock()
 
     def test_literal_installer_removal_boundaries(self):
         self.exercise()
 
     def test_failed_health_retains_executor_and_continuation(self):
         self.exercise(fail_health=True)
+
+    def test_extra_lock_descriptor_is_refused_without_closing_it(self):
+        self.exercise(duplicate_lock=True)
 
 
 def inspection():
