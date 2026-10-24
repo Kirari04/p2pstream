@@ -139,8 +139,8 @@ func init() {
 		return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
 	}}
 	check.Flags().StringVar(&configPath, "config", "/etc/p2pstream-server-updater/config.json", "executor configuration")
-	for _, action := range []string{"runtime-block", "runtime-block-staged", "runtime-allow", "runtime-detach", "record-runtime"} {
-		var path, stagedInstallation, stagedImage string
+	for _, action := range []string{"runtime-block", "runtime-block-staged", "runtime-block-rollback", "runtime-allow", "runtime-detach", "record-runtime"} {
+		var path, installation, image, snapshotSHA256 string
 		guard := &cobra.Command{Use: action, Short: "Coordinate deployment ownership (trusted host controller only)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 			if os.Geteuid() != 0 {
 				return errors.New("deployment coordination must run as root")
@@ -165,7 +165,9 @@ func init() {
 			case "runtime-block":
 				return driver.BlockRuntime(cmd.Context())
 			case "runtime-block-staged":
-				return driver.BlockStagedRuntime(cmd.Context(), stagedInstallation, stagedImage)
+				return driver.BlockStagedRuntime(cmd.Context(), installation, image)
+			case "runtime-block-rollback":
+				return driver.BlockRollbackRuntime(cmd.Context(), installation, image, snapshotSHA256)
 			case "runtime-allow":
 				return driver.AllowRuntime(cmd.Context())
 			case "runtime-detach":
@@ -176,8 +178,13 @@ func init() {
 		}}
 		guard.Flags().StringVar(&path, "config", "/etc/p2pstream-server-updater/config.json", "executor configuration")
 		if action == "runtime-block-staged" {
-			guard.Flags().StringVar(&stagedInstallation, "installation", "", "verified installation for initial canonical publication")
-			guard.Flags().StringVar(&stagedImage, "image", "", "verified published image for initial canonical publication")
+			guard.Flags().StringVar(&installation, "installation", "", "verified installation for initial canonical publication")
+			guard.Flags().StringVar(&image, "image", "", "verified published image for initial canonical publication")
+		}
+		if action == "runtime-block-rollback" {
+			guard.Flags().StringVar(&installation, "installation", "", "verified installation for canonical rollback")
+			guard.Flags().StringVar(&image, "image", "", "verified published image for canonical rollback")
+			guard.Flags().StringVar(&snapshotSHA256, "snapshot-sha256", "", "journaled private rollback snapshot SHA-256")
 		}
 		command.AddCommand(guard)
 	}

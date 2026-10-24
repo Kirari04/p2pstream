@@ -1,11 +1,70 @@
 package cmd
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"p2pstream/internal/serverupdate"
 )
+
+func TestServerUpdaterRollbackBlockCommandIsHostOnlyAndFixedSnapshot(t *testing.T) {
+	command, remaining, err := rootCmd.Find([]string{"server-updater", "runtime-block-rollback"})
+	if err != nil || len(remaining) != 0 || command.Name() != "runtime-block-rollback" || command.RunE == nil {
+		t.Fatalf("rollback block command missing: %v", err)
+	}
+	values := map[string]string{
+		"config":          filepath.Join(t.TempDir(), "config.json"),
+		"installation":    "11111111-1111-4111-8111-111111111111",
+		"image":           "ghcr.io/test/repo@sha256:" + strings.Repeat("d", 64),
+		"snapshot-sha256": strings.Repeat("a", 64),
+	}
+	for name, value := range values {
+		flag := command.Flags().Lookup(name)
+		if flag == nil || flag.Value.Type() != "string" {
+			t.Fatalf("missing string flag %s", name)
+		}
+		before := flag.Value.String()
+		changed := flag.Changed
+		t.Cleanup(func() {
+			_ = flag.Value.Set(before)
+			flag.Changed = changed
+		})
+		if err := command.Flags().Set(name, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"snapshot", "compose", "deployment-file"} {
+		if command.Flags().Lookup(name) != nil {
+			t.Fatalf("rollback command accepts arbitrary snapshot path through %s", name)
+		}
+	}
+	staged, _, err := rootCmd.Find([]string{"server-updater", "runtime-block-staged"})
+	if err != nil || staged.Flags().Lookup("snapshot-sha256") != nil {
+		t.Fatal("initial staged command semantics changed")
+	}
+	if err := command.Args(command, []string{"untrusted-snapshot-path"}); err == nil {
+		t.Fatal("rollback command accepted positional snapshot path")
+	}
+	// Neither branch may reach a Docker invocation: non-root refuses immediately;
+	// root must refuse a public configuration before decoding or opening data.
+	if err := os.WriteFile(values["config"], []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	oldContext := command.Context()
+	command.SetContext(context.Background())
+	t.Cleanup(func() { command.SetContext(oldContext) })
+	err = command.RunE(command, nil)
+	want := "deployment coordination must run as root"
+	if os.Geteuid() == 0 {
+		want = "executor configuration must be a private regular file"
+	}
+	if err == nil || err.Error() != want {
+		t.Fatalf("host-only refusal = %v, want %q", err, want)
+	}
+}
 
 func TestValidateServerUpdaterStatus(t *testing.T) {
 	tests := []struct {

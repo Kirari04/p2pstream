@@ -1322,6 +1322,29 @@ class Lifecycle(unittest.TestCase):
         self.assertIn('type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock', args)
         self.assertEqual(args[-4:], ('compose', 'ps', 'literal value', '$(not-executed)'))
 
+    def test_rollback_block_helper_mounts_data_and_classifies_failure(self):
+        self.install()
+        controller = host.Host()
+        base = host.Host.__mro__[1]
+        arguments = ('runtime-block-rollback', '--installation', ID, '--image', REF, '--snapshot-sha256', 'a' * 64)
+        def rejected(*args, **kwargs):
+            if args[0] == 'run':
+                return subprocess.CompletedProcess(args, 1, b'', b'private rollback refusal')
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+        with controller.lock(), patch.object(base, 'run_helper', return_value=subprocess.CompletedProcess([], 0, b'', b'')) as helper:
+            base.command(controller, *arguments)
+        positional, options = helper.call_args
+        self.assertEqual(positional, ('/app/p2pstream', ('server-updater', *arguments)))
+        self.assertEqual(options['mounts'], ['--label', 'p2pstream.server-update.executor=' + ID,
+                                            '--mount', 'type=volume,src=custom-data,dst=/server-data'])
+        self.assertFalse(options['readonly'])
+        with controller.lock(), patch.object(host, 'docker', rejected), self.assertRaisesRegex(host.Failure, 'Host helper failed'):
+            base.command(controller, *arguments)
+        diagnostic = self.state / 'helper-failure.log'
+        self.assertEqual(json.loads(diagnostic.read_bytes().splitlines()[0])['check'], 'server-updater runtime-block-rollback')
+        self.assertEqual(diagnostic.stat().st_mode & 0o777, 0o600)
+        self.assertFalse((self.state / 'helper.json').exists())
+
     def test_timed_out_helper_is_confirmed_stopped_before_return(self):
         self.install()
         controller = host.Host()
@@ -2193,6 +2216,156 @@ class SingleFileLifecycle(unittest.TestCase):
         self.assertEqual(self.canonical.read_bytes(), rollback)
         self.assertEqual(self.inputs.read_bytes(), inputs)
         self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['environment']['SECRET'], '$$literal')
+
+    def prepare_interrupted_remove_after_update(self):
+        self.install()
+        model = host.read_json(self.canonical)
+        model['services']['p2pstream']['image'] = 'ghcr.io/test/repo@sha256:' + 'd' * 64
+        model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(host.uuid.uuid4())
+        model['services']['p2pstream']['environment']['SECRET'] = 'applied-after-update'
+        host.atomic(self.canonical, model, mode=0o640)
+        self.info['Image'] = self.image['Id'] = 'sha256:updated-image'
+        staged = (self.state / 'staged-compose.yaml').read_bytes()
+        self.assertEqual(host.decode(staged)['services']['p2pstream']['image'], REF)
+        inputs, config = self.inputs.read_bytes(), (self.state / 'config.json').read_bytes()
+        original = host.Host.wait_original
+        def interrupted(controller):
+            original(controller)
+            raise KeyboardInterrupt()
+        with patch.object(host.Host, 'wait_original', interrupted), self.assertRaises(KeyboardInterrupt):
+            host.manage(argparse.Namespace(action='remove'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'removing')
+        detached = self.canonical.read_bytes()
+        self.assertTrue(self.info['State']['Running'])
+        self.assertFalse(any(key.startswith('SERVER_UPDATE_') for key in host.decode(detached)['services']['p2pstream']['environment']))
+        return model, detached, staged, inputs, config
+
+    def exercise_detached_rollback(self, action, interruptions=()):
+        before, detached, staged, inputs, config = self.prepare_interrupted_remove_after_update()
+        image = before['services']['p2pstream']['image']
+        old_generation = before['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION']
+        owner = None  # The successful runtime-detach removed managed ownership.
+        events, point = [], [None]
+        command, compose, write_model = host.Host.command, host.Host.compose, host.Host.write_model
+        def interrupt(name):
+            if point[0] == name:
+                point[0] = None
+                raise KeyboardInterrupt()
+        def binary(controller, *args):
+            nonlocal owner
+            if args[0] == 'runtime-block-rollback':
+                journal = host.read_json(self.state / 'host.json')
+                replacement = (self.state / 'rollback-compose.json').read_bytes()
+                self.assertEqual(journal['phase'], 'rolling_back')
+                self.assertEqual(journal['single_rollback_sha256'], host.digest(replacement))
+                self.assertEqual(args, ('runtime-block-rollback', '--config', str(self.state / 'config.json'), '--installation', ID,
+                                        '--image', image, '--snapshot-sha256', journal['single_rollback_sha256']))
+                self.assertEqual(host.decode(replacement)['services']['p2pstream']['image'], image)
+                self.assertIn(self.canonical.read_bytes(), (detached, replacement))
+                interrupt('before-block')
+                if owner is None:
+                    owner = {'generation': host.decode(replacement)['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'],
+                             'version': 'v1.1.0', 'commit': 'd' * 40}
+                owner['allowed'] = False
+                events.append('block')
+                interrupt('after-block')
+            elif args[0] == 'runtime-block':
+                # This models the independently reproduced real Go refusal.
+                # A no-op command fixture previously concealed this regression.
+                if 'SERVER_UPDATE_INSTANCE_ID' not in host.read_json(self.canonical)['services']['p2pstream']['environment']:
+                    raise host.Failure('canonical deployment runtime binding is invalid')
+            elif args[0] == 'runtime-allow':
+                current = host.read_json(self.canonical)['services']['p2pstream']
+                self.assertIsNotNone(owner)
+                self.assertFalse(owner['allowed'])
+                self.assertEqual(current['image'], image)
+                self.assertEqual(current['environment']['SERVER_UPDATE_GENERATION'], owner['generation'])
+                owner['allowed'] = True
+                events.append('allow')
+            return command(controller, *args)
+        def stop(controller, *args, **kwargs):
+            if args[0] == 'stop' and args[-1] == 'p2pstream':
+                self.assertIsNotNone(owner)
+                self.assertFalse(owner['allowed'])
+                events.append('stop')
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'stop' and args[-1] == 'p2pstream' and kwargs.get('model') == 'before-compose.json':
+                interrupt('after-stop')
+            return result
+        def publish(controller, data):
+            self.assertIsNotNone(owner)
+            self.assertFalse(owner['allowed'])
+            self.assertIn('stop', events)
+            self.assertEqual(data, (self.state / 'rollback-compose.json').read_bytes())
+            result = write_model(controller, data)
+            events.append('publish')
+            interrupt('after-publish')
+            return result
+        recorded = None
+        with patch.object(host.Host, 'command', binary), patch.object(host.Host, 'compose', stop), patch.object(host.Host, 'write_model', publish):
+            for checkpoint in interruptions:
+                point[0] = checkpoint
+                with self.assertRaises(KeyboardInterrupt):
+                    host.manage(argparse.Namespace(action=action))
+                self.assertIsNone(point[0])
+                self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolling_back')
+                replacement = (self.state / 'rollback-compose.json').read_bytes()
+                if recorded is None:
+                    recorded = replacement
+                self.assertEqual(replacement, recorded)
+                self.assertEqual(self.inputs.read_bytes(), inputs)
+                self.assertEqual((self.state / 'config.json').read_bytes(), config)
+            host.manage(argparse.Namespace(action=action))
+        current = host.read_json(self.canonical)['services']['p2pstream']
+        self.assertEqual(current['image'], image)
+        self.assertEqual(current['environment']['SECRET'], 'applied-after-update')
+        self.assertNotEqual(current['environment']['SERVER_UPDATE_GENERATION'], old_generation)
+        self.assertTrue(owner['allowed'])
+        self.assertEqual(current['environment']['SERVER_UPDATE_GENERATION'], owner['generation'])
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        if recorded is not None:
+            self.assertEqual(self.canonical.read_bytes(), recorded)
+        self.assertLess(events.index('block'), events.index('stop'))
+        self.assertLess(events.index('stop'), events.index('publish'))
+        self.assertLess(events.index('publish'), events.index('allow'))
+        self.assertEqual((self.state / 'staged-compose.yaml').read_bytes(), staged)
+        self.assertEqual(self.inputs.read_bytes(), inputs)
+        self.assertEqual((self.state / 'config.json').read_bytes(), config)
+
+    def test_public_repair_rolls_back_removed_current_image_before_publication(self):
+        self.exercise_detached_rollback('repair')
+
+    def test_public_rollback_rolls_back_removed_current_image_before_publication(self):
+        self.exercise_detached_rollback('rollback')
+
+    def test_removed_rollback_retries_reuse_snapshot_across_block_stop_and_publish(self):
+        self.exercise_detached_rollback('repair', ('before-block', 'after-block', 'after-stop', 'after-publish'))
+
+    def test_removed_rollback_helper_failure_preserves_phase_snapshot_and_server(self):
+        _, detached, _, inputs, config = self.prepare_interrupted_remove_after_update()
+        command = host.Host.command
+        def rejected(controller, *args):
+            if args[0] == 'runtime-block-rollback':
+                raise host.Failure('fixture rollback block refused')
+            return command(controller, *args)
+        recorded = None
+        with patch.object(host.Host, 'command', rejected):
+            for action, phase in [('repair', 'rolling_back'), ('rollback', 'recovery_required')]:
+                self.commands.clear()
+                with self.assertRaisesRegex(host.Failure, 'fixture rollback block refused'):
+                    host.manage(argparse.Namespace(action=action))
+                journal = host.read_json(self.state / 'host.json')
+                self.assertEqual(journal['phase'], phase)
+                rollback = (self.state / 'rollback-compose.json').read_bytes()
+                if recorded is None:
+                    recorded = rollback
+                self.assertEqual(rollback, recorded)
+                self.assertEqual(host.digest(rollback), journal['single_rollback_sha256'])
+                self.assertEqual(self.canonical.read_bytes(), detached)
+                self.assertTrue(self.info['State']['Running'])
+                self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'start'} or c[0] == 'compose' and c[1][0] == 'stop' and c[1][-1] == 'p2pstream' for c in self.commands))
+        self.assertEqual(self.inputs.read_bytes(), inputs)
+        self.assertEqual((self.state / 'config.json').read_bytes(), config)
 
     def test_launcher_survives_removal_and_history_archival(self):
         self.install()

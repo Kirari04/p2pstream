@@ -2,6 +2,7 @@ package serverupdate
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,12 +65,56 @@ func (d *ComposeDriver) blockStagedRuntime(ctx context.Context, expectedInstalla
 	if err != nil {
 		return err
 	}
+	return d.blockPrivateRuntime(ctx, data, expectedInstallationID, expectedImage, "staged", guardedImage)
+}
+
+// BlockRollbackRuntime blocks admission from the exact private rollback snapshot
+// durably journaled by the host. A completed detach may have removed the owner
+// and left a standalone canonical model, so neither canonical nor enrollment-era
+// staged bytes are authority here. This only blocks: it never takes the writer
+// lease, publishes a model, stops a server or allows a generation.
+func (d *ComposeDriver) BlockRollbackRuntime(ctx context.Context, expectedInstallationID, expectedImage, expectedSnapshotSHA256 string) error {
+	return d.blockRollbackRuntime(ctx, expectedInstallationID, expectedImage, expectedSnapshotSHA256, os.Lstat, d.guardedImage)
+}
+
+func (d *ComposeDriver) blockRollbackRuntime(ctx context.Context, expectedInstallationID, expectedImage, expectedSnapshotSHA256 string, lstat layoutLstat, guardedImage func(context.Context, string) (DeploymentCapabilities, error)) error {
+	if err := d.Config.validate(lstat); err != nil {
+		return err
+	}
+	if d.Config.DeploymentProtocol != 2 || d.Config.DeploymentLayout != DeploymentLayoutSingleFileV1 {
+		return errors.New("rollback runtime block requires protocol 2 single-file-v1")
+	}
+	instance, err := uuid.Parse(expectedInstallationID)
+	if err != nil || instance == uuid.Nil || instance.String() != expectedInstallationID || d.Config.InstanceID != expectedInstallationID {
+		return errors.New("rollback runtime block installation identity does not match")
+	}
+	if !digestPattern.MatchString(expectedSnapshotSHA256) {
+		return errors.New("rollback runtime block snapshot hash is invalid")
+	}
+	path := filepath.Join(d.Config.StateDir, "rollback-compose.json")
+	// Unlike the initial staged leaf, this transaction-local leaf is not part
+	// of Config.validate. Check root ownership here without extending unrelated
+	// healthy configuration validation to historical rollback snapshots.
+	if err := protectedLayoutPath(path, false, false, 0077, lstat); err != nil {
+		return err
+	}
+	data, err := readPrivateDeployment(path, "rollback")
+	if err != nil {
+		return err
+	}
+	if fmt.Sprintf("%x", sha256.Sum256(data)) != expectedSnapshotSHA256 {
+		return errors.New("rollback runtime block snapshot differs from the recorded transaction")
+	}
+	return d.blockPrivateRuntime(ctx, data, expectedInstallationID, expectedImage, "rollback", guardedImage)
+}
+
+func (d *ComposeDriver) blockPrivateRuntime(ctx context.Context, data []byte, expectedInstallationID, expectedImage, kind string, guardedImage func(context.Context, string) (DeploymentCapabilities, error)) error {
 	owner, image, err := d.parseRuntimeBinding(data)
 	if err != nil {
 		return err
 	}
 	if image != expectedImage {
-		return errors.New("staged runtime block image differs from the verified published image")
+		return fmt.Errorf("%s runtime block image differs from the verified published image", kind)
 	}
 	old, err := ReadRuntimeOwner(d.Config.DataDir)
 	if err != nil {
@@ -79,7 +124,7 @@ func (d *ComposeDriver) blockStagedRuntime(ctx context.Context, expectedInstalla
 		if old.InstanceID != expectedInstallationID {
 			return errors.New("data volume belongs to another deployment")
 		}
-		// The staged binding and exact image are checked even on replay. Do not
+		// The private binding and exact image are checked even on replay. Do not
 		// probe again or replace an existing owner's generation/release identity.
 		owner = *old
 	} else {
@@ -100,7 +145,11 @@ func (d *ComposeDriver) blockStagedRuntime(ctx context.Context, expectedInstalla
 // this read. Open the fixed leaf without following links, reject special files,
 // and bound the actual read as well as the initial size check.
 func readStagedDeployment(stateDirectory string) ([]byte, error) {
-	file, err := os.OpenFile(StagedDeploymentFile(stateDirectory), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	return readPrivateDeployment(StagedDeploymentFile(stateDirectory), "staged")
+}
+
+func readPrivateDeployment(path, kind string) ([]byte, error) {
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -112,14 +161,14 @@ func readStagedDeployment(stateDirectory string) ([]byte, error) {
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
 	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() > limit || !ok || stat.Nlink != 1 {
-		return nil, errors.New("unsafe private staged deployment file")
+		return nil, fmt.Errorf("unsafe private %s deployment file", kind)
 	}
 	data, err := io.ReadAll(io.LimitReader(file, limit+1))
 	if err != nil {
 		return nil, err
 	}
 	if len(data) > limit {
-		return nil, errors.New("private staged deployment file exceeds limit")
+		return nil, fmt.Errorf("private %s deployment file exceeds limit", kind)
 	}
 	return data, nil
 }

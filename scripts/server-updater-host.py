@@ -807,7 +807,8 @@ class Host:
             self.single_initial_candidate()
             self.command('runtime-block-staged', '--config', str(self.directory / 'config.json'), '--installation', self.journal['installation'], '--image', self.journal['server_image'])
         else:
-            self.runtime('block')
+            self.command('runtime-block-rollback', '--config', str(self.directory / 'config.json'), '--installation', self.journal['installation'],
+                         '--image', decode(replacement)['services']['p2pstream']['image'], '--snapshot-sha256', self.journal['single_rollback_sha256'])
         self.compose('stop', 'p2pstream', model='before-compose.json')
         self.single_transaction()
         self.write_model(replacement)
@@ -1268,7 +1269,7 @@ class Host:
             if result.returncode:
                 diagnostic = self.directory / 'helper-failure.log'
                 action = 'host helper'
-                if entrypoint == '/app/p2pstream' and len(args) >= 2 and args[0] == 'server-updater' and args[1] in {'check', 'enroll', 'configure', 'recover', 'runtime-block', 'runtime-allow', 'runtime-detach', 'record-runtime'}:
+                if entrypoint == '/app/p2pstream' and len(args) >= 2 and args[0] == 'server-updater' and args[1] in {'check', 'enroll', 'configure', 'recover', 'runtime-block', 'runtime-block-rollback', 'runtime-allow', 'runtime-detach', 'record-runtime'}:
                     action = 'server-updater ' + args[1]
                 elif entrypoint == '/usr/local/bin/docker' and args and args[0] == 'compose':
                     action = 'Docker Compose'
@@ -1296,7 +1297,7 @@ class Host:
 
     def command(self, *args):
         mounts = []
-        if args and args[0] in {'recover', 'runtime-block', 'runtime-block-staged', 'runtime-allow', 'runtime-detach'}:
+        if args and args[0] in {'recover', 'runtime-block', 'runtime-block-staged', 'runtime-block-rollback', 'runtime-allow', 'runtime-detach'}:
             mounts = ['--label', 'p2pstream.server-update.executor=' + self.config['instance_id'],
                       '--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data']
         return self.run_helper('/app/p2pstream', ('server-updater', *args), mounts=mounts, readonly=bool(args and args[0] == 'check'), timeout=900 if args and args[0] == 'recover' else 180)

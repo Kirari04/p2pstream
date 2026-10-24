@@ -3,8 +3,10 @@ package serverupdate
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -655,6 +657,323 @@ func TestStagedRuntimeLeavesLegacyBlockSemanticsUnchanged(t *testing.T) {
 	d.Config.DataDir = "/nonexistent-data"
 	if err := d.BlockRuntime(context.Background()); err != nil {
 		t.Fatal("protocol zero no longer no-ops")
+	}
+}
+
+func rollbackRuntimeFixture(t *testing.T) (*ComposeDriver, string, string, layoutLstat) {
+	t.Helper()
+	d, _, stat := stagedRuntimeFixture(t)
+	raw, err := os.ReadFile(StagedDeploymentFile(d.Config.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var model map[string]any
+	if err := json.Unmarshal(raw, &model); err != nil {
+		t.Fatal(err)
+	}
+	// Enrollment's staged model remains baseline. Rollback after an actual
+	// update must bind the current transaction's image and fresh generation.
+	image := "ghcr.io/test/repo@sha256:" + strings.Repeat("d", 64)
+	server := model["services"].(map[string]any)["p2pstream"].(map[string]any)
+	server["image"] = image
+	server["environment"].(map[string]any)["SERVER_UPDATE_GENERATION"] = uuid.NewString()
+	raw, err = json.MarshalIndent(model, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = append(raw, '\n')
+	if err := AtomicWrite(filepath.Join(d.Config.StateDir, "rollback-compose.json"), raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	return d, image, fmt.Sprintf("%x", sha256.Sum256(raw)), stat
+}
+
+func TestRollbackRuntimeBlocksDetachedCanonicalWithoutWriterLease(t *testing.T) {
+	d, image, hash, stat := rollbackRuntimeFixture(t)
+	canonical := []byte(`{"name":"fixture","services":{"p2pstream":{"environment":{}}}}`)
+	if err := AtomicWrite(d.Config.DeploymentFile, canonical, 0640); err != nil {
+		t.Fatal(err)
+	}
+	canonicalInfo, _ := os.Stat(d.Config.DeploymentFile)
+	staged, _ := os.ReadFile(StagedDeploymentFile(d.Config.StateDir))
+	rollbackPath := filepath.Join(d.Config.StateDir, "rollback-compose.json")
+	rollback, _ := os.ReadFile(rollbackPath)
+	lease, err := AcquireRuntimeLease(context.Background(), d.Config.DataDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close() // A live standalone server keeps this exact inode locked.
+	lockInfo, _ := os.Stat(filepath.Join(d.Config.DataDir, RuntimeLockName))
+	if err := d.BlockRuntime(context.Background()); err == nil || err.Error() != "canonical deployment runtime binding is invalid" {
+		t.Fatalf("original post-detach path did not reproduce: %v", err)
+	}
+	// Real guardedImage uses the existing executable fixture, never Docker.
+	imageFixture, _ := managedRuntimeFixture(t)
+	d.Config.Docker = imageFixture.Config.Docker
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := d.blockRollbackRuntime(ctx, d.Config.InstanceID, image, hash, stat, d.guardedImage); err != nil {
+		t.Fatal(err)
+	}
+	expected, _, err := d.parseRuntimeBinding(rollback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected.Version, expected.Commit = "v1.1.0", strings.Repeat("d", 40)
+	owner, err := ReadRuntimeOwner(d.Config.DataDir)
+	if err != nil || owner == nil || *owner != expected || owner.Allowed || d.runtimeLease != nil {
+		t.Fatalf("incorrect rollback owner: %+v %v", owner, err)
+	}
+	for path, want := range map[string][]byte{d.Config.DeploymentFile: canonical, StagedDeploymentFile(d.Config.StateDir): staged, rollbackPath: rollback} {
+		got, err := os.ReadFile(path)
+		if err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("block changed %s: %v", path, err)
+		}
+	}
+	afterCanonical, _ := os.Stat(d.Config.DeploymentFile)
+	afterLock, _ := os.Stat(filepath.Join(d.Config.DataDir, RuntimeLockName))
+	if !os.SameFile(canonicalInfo, afterCanonical) || !os.SameFile(lockInfo, afterLock) {
+		t.Fatal("block replaced canonical or stable lock inode")
+	}
+	if err := ValidateRuntimeAdmission(owner, RuntimeAdmission{}); err == nil {
+		t.Fatal("blocked rollback admitted a new standalone writer")
+	}
+	if os.Geteuid() != 0 {
+		if err := d.BlockRollbackRuntime(ctx, d.Config.InstanceID, image, hash); err == nil {
+			t.Fatal("public rollback blocker bypassed real ownership checks")
+		}
+	}
+}
+
+func TestRollbackRuntimeReplayPreservesOwnerAndValidatesEverySnapshot(t *testing.T) {
+	d, image, hash, stat := rollbackRuntimeFixture(t)
+	old := RuntimeOwner{API: 2, InstanceID: d.Config.InstanceID, Generation: uuid.NewString(), Allowed: true, Version: "v1.0.0", Commit: strings.Repeat("b", 40)}
+	if err := WriteRuntimeOwner(d.Config.DataDir, old); err != nil {
+		t.Fatal(err)
+	}
+	noProbe := func(context.Context, string) (DeploymentCapabilities, error) {
+		t.Fatal("matching owner replay probed an image")
+		return DeploymentCapabilities{}, nil
+	}
+	for _, badHash := range []string{"", strings.ToUpper(hash), hash[:63], strings.Repeat("0", 64), "../rollback-compose.json"} {
+		if err := d.blockRollbackRuntime(context.Background(), d.Config.InstanceID, image, badHash, stat, noProbe); err == nil {
+			t.Fatalf("accepted replay hash %q", badHash)
+		}
+		got, _ := ReadRuntimeOwner(d.Config.DataDir)
+		if got == nil || *got != old {
+			t.Fatal("failed hash validation changed owner")
+		}
+	}
+	if err := d.blockRollbackRuntime(context.Background(), d.Config.InstanceID, "ghcr.io/test/repo@sha256:"+strings.Repeat("a", 64), hash, stat, noProbe); err == nil {
+		t.Fatal("accepted stale enrollment image on replay")
+	}
+	for range 2 {
+		if err := d.blockRollbackRuntime(context.Background(), d.Config.InstanceID, image, hash, stat, noProbe); err != nil {
+			t.Fatal(err)
+		}
+		old.Allowed = false
+		got, _ := ReadRuntimeOwner(d.Config.DataDir)
+		if got == nil || *got != old {
+			t.Fatal("replay replaced generation or release identity")
+		}
+	}
+	// Even an already-blocked owner does not excuse changed snapshot bytes.
+	path := filepath.Join(d.Config.StateDir, "rollback-compose.json")
+	raw, _ := os.ReadFile(path)
+	if err := AtomicWrite(path, append(raw, ' '), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.blockRollbackRuntime(context.Background(), d.Config.InstanceID, image, hash, stat, noProbe); err == nil {
+		t.Fatal("replay accepted changed snapshot bytes")
+	}
+}
+
+func TestRollbackRuntimeRejectsUnsafeSnapshotAndBindingOnReplay(t *testing.T) {
+	for _, kind := range []string{"absent", "malformed", "oversize", "symlink", "swapped-symlink", "hardlink", "directory", "fifo", "public-mode", "readonly-mode", "foreign-leaf-owner", "wrong-project", "wrong-instance", "wrong-generation", "wrong-protocol", "wrong-token", "wrong-token-file", "wrong-socket", "wrong-gate", "unpinned-image", "foreign-repository"} {
+		t.Run(kind, func(t *testing.T) {
+			d, image, hash, stat := rollbackRuntimeFixture(t)
+			old := RuntimeOwner{API: 2, InstanceID: d.Config.InstanceID, Generation: uuid.NewString(), Allowed: true, Version: "v1.0.0", Commit: strings.Repeat("b", 40)}
+			if err := WriteRuntimeOwner(d.Config.DataDir, old); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(d.Config.StateDir, "rollback-compose.json")
+			raw, _ := os.ReadFile(path)
+			var doc map[string]any
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			server := doc["services"].(map[string]any)["p2pstream"].(map[string]any)
+			env := server["environment"].(map[string]any)
+			switch kind {
+			case "absent", "symlink", "directory", "fifo":
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+				var err error
+				if kind == "symlink" {
+					err = os.Symlink(StagedDeploymentFile(d.Config.StateDir), path)
+				} else if kind == "directory" {
+					err = os.Mkdir(path, 0700)
+				} else if kind == "fifo" {
+					err = syscall.Mkfifo(path, 0600)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+			case "hardlink":
+				if err := os.Link(path, path+"-linked"); err != nil {
+					t.Fatal(err)
+				}
+			case "public-mode", "readonly-mode":
+				mode := os.FileMode(0640)
+				if kind == "readonly-mode" {
+					mode = 0400
+				}
+				if err := os.Chmod(path, mode); err != nil {
+					t.Fatal(err)
+				}
+			case "foreign-leaf-owner", "swapped-symlink":
+				originalStat := stat
+				stat = func(p string) (os.FileInfo, error) {
+					info, err := originalStat(p)
+					if err == nil && p == path {
+						if kind == "foreign-leaf-owner" {
+							return canonicalMetadata{FileInfo: info, mode: info.Mode(), uid: 1000}, nil
+						}
+						if err := os.Remove(path); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.Symlink(StagedDeploymentFile(d.Config.StateDir), path); err != nil {
+							t.Fatal(err)
+						}
+					}
+					return info, err
+				}
+			case "malformed", "oversize":
+				raw = []byte("{")
+				if kind == "oversize" {
+					raw = bytes.Repeat([]byte(" "), (2<<20)+1)
+				}
+			default:
+				switch kind {
+				case "wrong-project":
+					doc["name"] = "foreign"
+				case "wrong-instance":
+					env["SERVER_UPDATE_INSTANCE_ID"] = uuid.NewString()
+				case "wrong-generation":
+					env["SERVER_UPDATE_GENERATION"] = "invalid"
+				case "wrong-protocol":
+					env["SERVER_UPDATE_RUNTIME_PROTOCOL"] = "0"
+				case "wrong-token":
+					env["SERVER_UPDATE_TOKEN"] = "legacy"
+				case "wrong-token-file":
+					env["SERVER_UPDATE_TOKEN_FILE"] = "/foreign/token"
+				case "wrong-socket":
+					env["SERVER_UPDATE_SOCKET"] = "/foreign/socket"
+				case "wrong-gate":
+					env["SERVER_UPDATE_GATE_FILE"] = "/foreign/gate"
+				case "unpinned-image":
+					server["image"] = "ghcr.io/test/repo:latest"
+				case "foreign-repository":
+					server["image"] = "ghcr.io/foreign/repo@sha256:" + strings.Repeat("d", 64)
+				}
+				raw, _ = json.Marshal(doc)
+			}
+			if kind == "malformed" || kind == "oversize" || strings.HasPrefix(kind, "wrong-") || kind == "unpinned-image" || kind == "foreign-repository" {
+				if err := AtomicWrite(path, raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+				hash = fmt.Sprintf("%x", sha256.Sum256(raw))
+			}
+			noProbe := func(context.Context, string) (DeploymentCapabilities, error) {
+				t.Fatal("invalid rollback snapshot probed an image")
+				return DeploymentCapabilities{}, nil
+			}
+			if err := d.blockRollbackRuntime(context.Background(), d.Config.InstanceID, image, hash, stat, noProbe); err == nil {
+				t.Fatal("unsafe rollback snapshot accepted")
+			}
+			owner, err := ReadRuntimeOwner(d.Config.DataDir)
+			if err != nil || owner == nil || *owner != old {
+				t.Fatal("failed block changed owner")
+			}
+		})
+	}
+}
+
+func TestRollbackRuntimeRequiresExplicitInstallationAndValidConfig(t *testing.T) {
+	for _, kind := range []string{"legacy-layout", "legacy-protocol", "invalid-config", "wrong-instance", "invalid-instance", "zero-instance", "noncanonical-instance"} {
+		t.Run(kind, func(t *testing.T) {
+			d, image, hash, stat := rollbackRuntimeFixture(t)
+			instance := d.Config.InstanceID
+			switch kind {
+			case "legacy-layout":
+				d.Config.DeploymentLayout = ""
+			case "legacy-protocol":
+				d.Config.DeploymentProtocol = 0
+			case "invalid-config":
+				d.Config.BootstrapFloor.Sequence = 0
+			case "wrong-instance":
+				instance = uuid.NewString()
+			case "invalid-instance":
+				instance, d.Config.InstanceID = "invalid", "invalid"
+			case "zero-instance":
+				instance, d.Config.InstanceID = uuid.Nil.String(), uuid.Nil.String()
+			case "noncanonical-instance":
+				instance = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
+				d.Config.InstanceID = instance
+			}
+			if err := d.blockRollbackRuntime(context.Background(), instance, image, hash, stat, stagedCapability); err == nil {
+				t.Fatal("invalid rollback authorization accepted")
+			}
+			if owner, err := ReadRuntimeOwner(d.Config.DataDir); err != nil || owner != nil {
+				t.Fatal("invalid authorization created owner")
+			}
+		})
+	}
+}
+
+func TestRollbackRuntimeOwnerProbeAndCancellationFailures(t *testing.T) {
+	for _, kind := range []string{"foreign-owner", "malformed-owner", "probe-failure", "cancelled-absent", "cancelled-replay"} {
+		t.Run(kind, func(t *testing.T) {
+			d, image, hash, stat := rollbackRuntimeFixture(t)
+			ownerPath := filepath.Join(d.Config.DataDir, RuntimeOwnerName)
+			if kind == "foreign-owner" || kind == "cancelled-replay" {
+				owner := RuntimeOwner{API: 2, InstanceID: d.Config.InstanceID, Generation: uuid.NewString(), Allowed: true, Version: "v1.0.0", Commit: strings.Repeat("a", 40)}
+				if kind == "foreign-owner" {
+					owner.InstanceID = uuid.NewString()
+				}
+				if err := WriteRuntimeOwner(d.Config.DataDir, owner); err != nil {
+					t.Fatal(err)
+				}
+			} else if kind == "malformed-owner" {
+				if err := os.WriteFile(ownerPath, []byte("{"), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, _ := os.ReadFile(ownerPath)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if strings.HasPrefix(kind, "cancelled-") {
+				cancel()
+			}
+			probe := func(context.Context, string) (DeploymentCapabilities, error) {
+				if kind == "foreign-owner" || kind == "malformed-owner" || kind == "cancelled-replay" {
+					t.Fatal("owner failure or replay probed an image")
+				}
+				if kind == "probe-failure" {
+					return DeploymentCapabilities{}, errors.New("fixture probe failed")
+				}
+				return DeploymentCapabilities{RuntimeGuard: 2, Version: "v1.1.0", Commit: strings.Repeat("d", 40)}, nil
+			}
+			err := d.blockRollbackRuntime(ctx, d.Config.InstanceID, image, hash, stat, probe)
+			if err == nil || strings.HasPrefix(kind, "cancelled-") && !errors.Is(err, context.Canceled) {
+				t.Fatalf("failure not preserved: %v", err)
+			}
+			after, _ := os.ReadFile(ownerPath)
+			if !bytes.Equal(before, after) {
+				t.Fatal("failed rollback block changed marker bytes")
+			}
+		})
 	}
 }
 
