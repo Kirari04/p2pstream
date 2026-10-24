@@ -145,6 +145,7 @@ jobs:
             tmp/server-updater-tests/run.*/review/installation-evidence.json
             tmp/server-updater-tests/run.*/review/compose-versions.json
             tmp/server-updater-tests/run.*/review/installation-compose-compatibility.json
+            tmp/server-updater-tests/run.*/lifecycle-summary.json
             tmp/server-updater-tests/run.*/review/success/native-runtime-receipt.json
             tmp/server-updater-tests/run.*/review/rollback/native-runtime-receipt.json
             tmp/server-updater-tests/run.*/review/retry-recovery/native-runtime-receipt.json

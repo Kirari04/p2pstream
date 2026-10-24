@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,7 +59,12 @@ func (d *ComposeDriver) guardedImage(ctx context.Context, image string) (Deploym
 	// Probe the immutable local image ID, never a tag that could change mid-call.
 	out, err = d.command(ctx, "run", "--rm", "--network", "none", "--read-only", "--cap-drop", "ALL", "--cap-add", "NET_BIND_SERVICE", "--security-opt", "no-new-privileges", "--entrypoint", "/app/p2pstream", images[0].ID, "server-deployment-capabilities")
 	if err != nil {
-		return capability, errors.New("image lacks coordinated deployment support; update the server and host installer before migration")
+		// A Docker failure or deadline does not establish missing image support.
+		// command deliberately excludes arbitrary subprocess output from errors.
+		if ctx.Err() != nil {
+			return capability, fmt.Errorf("image deployment capability probe interrupted: %w", ctx.Err())
+		}
+		return capability, fmt.Errorf("image deployment capability probe failed: %w", err)
 	}
 	if err := decode(out, &capability); err != nil || capability.RuntimeGuard != 2 ||
 		capability.Version != labels["org.opencontainers.image.version"] || capability.Commit != labels["org.opencontainers.image.revision"] {
