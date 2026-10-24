@@ -1219,6 +1219,64 @@ class Lifecycle(unittest.TestCase):
         host.manage(argparse.Namespace(action=action))
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back' if origin == 'activation' else 'healthy')
 
+    def assert_rollback_publication_create_order(self, origin, existing):
+        original_compose, original_phase = host.Host.compose, host.Host.phase
+        original_prepare = host.Host.prepare_replacement
+        events = []
+        def phase(controller, value, **values):
+            result = original_phase(controller, value, **values)
+            if 'rollback_transition' in values:
+                durable = host.read_json(self.state / 'host.json')
+                self.assertEqual(durable['rollback_transition'], values['rollback_transition'])
+                events.append('declared')
+            return result
+        def compose(controller, *args, **kwargs):
+            if args[0] in {'create', 'up'}:
+                durable = host.read_json(self.state / 'host.json')
+                self.assertNotIn('rollback_transition', durable,
+                                 'Compose creation must wait for replacement intent advancement')
+                if 'declared' in events:
+                    self.assertIn('consumed', events)
+                    self.assertEqual(durable['replacement_intent']['operation'], 'rollback')
+                    events.append('create')
+            return original_compose(controller, *args, **kwargs)
+        def prepare(controller, *args, **kwargs):
+            transition = host.read_json(self.state / 'host.json').get('rollback_transition')
+            result = original_prepare(controller, *args, **kwargs)
+            if transition:
+                durable = host.read_json(self.state / 'host.json')
+                self.assertNotIn('rollback_transition', durable)
+                self.assertEqual(durable['replacement_intent']['operation'], 'rollback')
+                events.append('consumed')
+            return result
+        with patch.object(host.Host, 'phase', phase), patch.object(host.Host, 'compose', compose), patch.object(host.Host, 'prepare_replacement', prepare):
+            # Execute the owned transaction and its automatic rollback through
+            # publication, then resume through the public rollback entry point.
+            self.interrupt_rollback_publication(origin, existing)
+            self.assertEqual(events, ['declared'])
+            host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(events, ['declared', 'consumed'] + ['create'] * (1 if origin == 'activation' else 2))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'],
+                         'rolled_back' if origin == 'activation' else 'healthy')
+
+    def test_activation_missing_target_rollback_creation_follows_intent(self):
+        self.assert_rollback_publication_create_order('activation', existing=False)
+
+    def test_activation_existing_target_rollback_creation_follows_intent(self):
+        self.assert_rollback_publication_create_order('activation', existing=True)
+
+    def test_apply_missing_target_rollback_creation_follows_intent(self):
+        self.assert_rollback_publication_create_order('apply', existing=False)
+
+    def test_apply_existing_target_rollback_creation_follows_intent(self):
+        self.assert_rollback_publication_create_order('apply', existing=True)
+
+    def test_remove_missing_target_rollback_creation_follows_intent(self):
+        self.assert_rollback_publication_create_order('remove', existing=False)
+
+    def test_remove_existing_target_rollback_creation_follows_intent(self):
+        self.assert_rollback_publication_create_order('remove', existing=True)
+
     def test_activation_publication_gap_repairs(self):
         self.assert_publication_retry('activation', 'repair')
 
