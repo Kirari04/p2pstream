@@ -189,6 +189,164 @@ class BoundarySnapshots(unittest.TestCase):
                 self.assertNotIn(name, report)
 
 
+class DefaultYamlFixture(unittest.TestCase):
+    def test_image_pin_changes_only_one_line_of_actual_bundle_source_template(self):
+        template = (ROOT.parent / 'compose.yaml').read_bytes()
+        replacement = harness.pinned_default_yaml(template, 'PRIVATE_PINNED_IMAGE')
+        old_lines, new_lines = template.splitlines(keepends=True), replacement.splitlines(keepends=True)
+        self.assertEqual(len(old_lines), len(new_lines))
+        changed = [(old, new) for old, new in zip(old_lines, new_lines) if old != new]
+        self.assertEqual(len(changed), 1)
+        self.assertTrue(changed[0][0].startswith(b'    image: '))
+        self.assertEqual(changed[0][1], b'    image: PRIVATE_PINNED_IMAGE\n')
+        self.assertNotIn(b'read_only:', replacement)
+        self.assertNotIn(b'tmpfs:', replacement)
+
+    def test_ambiguous_template_is_refused_before_any_replacement(self):
+        for template in (b'services:\n', b'    image: one\n    image: two\n'):
+            with self.subTest(template=template):
+                with self.assertRaisesRegex(harness.CheckFailure, '^default-yaml-template-image-layout$'):
+                    harness.pinned_default_yaml(template, 'PRIVATE_IMAGE')
+
+    def test_stopped_legacy_requires_matching_retained_project_image_data_and_installation(self):
+        config = {'project': 'legacy', 'data_volume': 'PRIVATE_VOLUME', 'instance_id': 'PRIVATE_INSTALLATION'}
+        journal = {'phase': 'removed', 'installation': 'PRIVATE_INSTALLATION', 'before_image_id': 'PRIVATE_IMAGE'}
+        info = inspection()
+        info['Name'] = '/p2pstream'
+        info['State']['Running'] = False
+        info['Config']['Labels'] = {'com.docker.compose.project': 'legacy', 'com.docker.compose.service': 'p2pstream'}
+        harness.prove_stopped_legacy(info, config, journal)
+        mutations = [('running', lambda i, c, j: i['State'].update(Running=True)),
+                     ('paused', lambda i, c, j: i['State'].update(Paused=True)),
+                     ('restarting', lambda i, c, j: i['State'].update(Restarting=True)),
+                     ('name', lambda i, c, j: i.update(Name='/unrelated')),
+                     ('project', lambda i, c, j: i['Config']['Labels'].update({'com.docker.compose.project': 'unrelated'})),
+                     ('image', lambda i, c, j: i.update(Image='unrelated')),
+                     ('data', lambda i, c, j: i['Mounts'][0].update(Name='unrelated')),
+                     ('readonly-data', lambda i, c, j: i['Mounts'][0].update(RW=False)),
+                     ('identity', lambda i, c, j: j.update(installation='unrelated')),
+                     ('phase', lambda i, c, j: j.update(phase='healthy'))]
+        for name, mutate in mutations:
+            with self.subTest(mutation=name):
+                actual, saved_config, saved_journal = copy.deepcopy(info), dict(config), dict(journal)
+                mutate(actual, saved_config, saved_journal)
+                with self.assertRaises(harness.CheckFailure):
+                    harness.prove_stopped_legacy(actual, saved_config, saved_journal)
+
+    def test_default_worker_context_is_explicit_and_does_not_change_original_binding_guard(self):
+        with patch.multiple(harness, ROOT=Path('/private/case'), PROJECT='original', VOLUME='original-volume', CHECKS=[]):
+            with patch.object(harness, 'run', return_value=subprocess.CompletedProcess([], 0, b'', b'')) as run:
+                harness.fresh('rollback', default_yaml=True)
+                self.assertIn('--default-yaml', run.call_args.args[0])
+                self.assertEqual(run.call_args.kwargs['timeout'], 600)
+            harness.default_yaml_context()
+            self.assertEqual(harness.ROOT, Path('/private/case/default-yaml'))
+            self.assertEqual(harness.PROJECT, harness.DEPLOYMENT.name)
+            self.assertEqual(harness.VOLUME, 'p2pstream-data')
+
+
+class ReplacementRecoveryInputs(unittest.TestCase):
+    """Check harness ordering/acceptance only; no product or Docker proof."""
+
+    def run_case(self, operation, action, input_change, *, corrupt_recovery_inputs=False):
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack:
+            path = Path(directory)
+            state = path / 'state'
+            state.mkdir()
+            canonical, inputs = path / 'compose.yaml', path / 'compose.inputs.yaml'
+            model = {'services': {'p2pstream': {'image': 'PRIVATE_CANDIDATE',
+                      'environment': {'APPLIED_SETTING': 'retained', 'SERVER_UPDATE_GENERATION': 'old'}}}}
+            editable_model = copy.deepcopy(model)
+            del editable_model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION']
+            harness.write(canonical, model)
+            # Distinct formatting makes the revert case require exact original
+            # bytes, rather than reconstructing an equivalent JSON object.
+            original = json.dumps(editable_model, separators=(',', ':')).encode() + b'\n\n'
+            inputs.write_bytes(original)
+            (state / 'config.json').write_bytes(b'PRIVATE_CREDENTIALS')
+            before = inspection()
+            before['Config']['Env'] = ['APPLIED_SETTING=retained', 'SERVER_UPDATE_GENERATION=old']
+            before['HostConfig'] = {'PortBindings': {'8081/tcp': [{'HostPort': '18101'}]}}
+            after = copy.deepcopy(before)
+            after['Id'] = 'PRIVATE_REPLACEMENT'
+            after['Config']['Env'] = ['APPLIED_SETTING=retained', 'SERVER_UPDATE_GENERATION=new']
+            calls, staged, recovered, gap_observed = [], None, False, False
+
+            def docker(*args, **kwargs):
+                nonlocal gap_observed
+                if args[:2] == ('volume', 'inspect'):
+                    return json.dumps([{'Name': 'PRIVATE_VOLUME', 'Mountpoint': '/PRIVATE_DATA'}])
+                self.assertEqual(args[:3], ('ps', '--all', '--quiet'))
+                self.assertFalse(recovered)
+                self.assertIsNotNone(staged)
+                self.assertEqual(inputs.read_bytes(), staged)
+                gap_observed = True
+                calls.append('confirmed-missing-server')
+                return ''
+
+            def fresh(actual_action, **kwargs):
+                nonlocal staged, recovered
+                self.assertEqual(kwargs['release'], 'candidate')
+                if kwargs.get('interrupt'):
+                    self.assertEqual((actual_action, kwargs['interrupt']), (operation, 'after-server-removal'))
+                    self.assertEqual(inputs.read_text().count('UNCOMMITTED_SETTING'), 1)
+                    staged = inputs.read_bytes()
+                    harness.write(state / 'host.json', {'phase': 'applying' if operation == 'apply' else 'removing'})
+                    (state / 'before-compose.json').write_bytes(canonical.read_bytes())
+                    calls.append('interrupted-' + operation)
+                    return
+                self.assertEqual(actual_action, action)
+                self.assertTrue(gap_observed)
+                post_removal = inputs.read_bytes()
+                if input_change == 'revert':
+                    self.assertEqual(post_removal, original)
+                elif input_change == 'edit':
+                    self.assertNotEqual(post_removal, staged)
+                    self.assertIn('operator-edited-after-' + operation + '-removal-before-' + action,
+                                  post_removal.decode())
+                else:
+                    self.assertEqual(post_removal, staged)
+                if corrupt_recovery_inputs:
+                    inputs.write_bytes(staged)
+                restored = copy.deepcopy(model)
+                restored['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = 'new'
+                harness.write(canonical, restored)
+                recovered = True
+                calls.append('fresh-' + action)
+
+            stack.enter_context(patch.multiple(harness, STATE=state, CANONICAL=canonical, INPUTS=inputs, CHECKS=[]))
+            stack.enter_context(patch.object(harness, 'docker', side_effect=docker))
+            stack.enter_context(patch.object(harness, 'fresh', side_effect=fresh))
+            stack.enter_context(patch.object(harness, 'server_info', side_effect=lambda: after if recovered else before))
+            stack.enter_context(patch.object(harness, 'assert_binding'))
+            stack.enter_context(patch.object(harness, 'owner_bytes', return_value=b'PRESENT:{"allowed":true,"generation":"new"}'))
+            harness.replacement_recovery({'candidate': 'PRIVATE_CANDIDATE'}, action,
+                                         operation=operation, input_change=input_change)
+            self.assertEqual(calls, ['interrupted-' + operation, 'confirmed-missing-server', 'fresh-' + action])
+            self.assertEqual(len(harness.CHECKS), 1)
+            return harness.CHECKS[0]
+
+    def test_full_matrix_changes_or_reverts_inputs_only_after_confirmed_removal(self):
+        for operation in ('apply', 'remove'):
+            for action in ('repair', 'rollback'):
+                for input_change in ('edit', 'revert'):
+                    with self.subTest(operation=operation, action=action, input_change=input_change):
+                        check = self.run_case(operation, action, input_change)
+                        self.assertIn('preserves-post-removal-' + input_change + '-inputs', check)
+
+    def test_preexisting_apply_cases_and_check_names_remain(self):
+        for action in ('repair', 'rollback'):
+            with self.subTest(action=action):
+                self.assertEqual(self.run_case('apply', action, 'unchanged'),
+                                 'fresh-' + action + '-after-real-owned-apply-removal-preserves-current-software-data-settings')
+
+    def test_recovery_that_restores_staged_inputs_cannot_pass_after_operator_changes(self):
+        for input_change in ('edit', 'revert'):
+            with self.subTest(input_change=input_change):
+                with self.assertRaisesRegex(harness.CheckFailure, '^missing-server-recovery-changed-credentials-or-editable-inputs$'):
+                    self.run_case('remove', 'repair', input_change, corrupt_recovery_inputs=True)
+
+
 class LegacyWorkerTransport(unittest.TestCase):
     def load_functions(self, *names):
         # Importing the real legacy driver would initialize its disposable
@@ -331,6 +489,7 @@ class MainFailureSummary(unittest.TestCase):
             stack.enter_context(patch.object(harness, 'CHECKS', [], create=True))
             stack.enter_context(patch.object(harness, 'STAGE', 'setup', create=True))
             replacements = {'isolated': lambda: None, 'load_host': lambda: None,
+                            'default_yaml_case': lambda *args: None,
                             'read': lambda *a: {'baseline': 'baseline', 'candidate': 'candidate'},
                             'docker': docker, 'compose': lambda *a: 'PRIVATE_MODEL',
                             'server_info': lambda **kw: info, 'owner_bytes': lambda *a: b'PRIVATE_OWNER',
@@ -433,9 +592,9 @@ class WorkerRefusals(unittest.TestCase):
         self.assertFalse(any(item[0] == 'binary' and item[1][0] == 'runtime-block-staged'
                              for item in self.fixture.commands))
 
-    def replacement_worker(self, *, allowed=False):
+    def replacement_worker(self, *, allowed=False, operation='apply'):
         host = host_tests.host
-        self.options.action, self.options.refusal = 'apply', ''
+        self.options.action, self.options.refusal = operation, ''
         self.options.interrupt, self.options.block_after_prepare = 'after-server-removal', False
         info = copy.deepcopy(self.fixture.info)
         info['State']['Running'] = False
@@ -467,14 +626,18 @@ class WorkerRefusals(unittest.TestCase):
         return commands
 
     def test_replacement_interruption_follows_confirmed_removal_without_returning_compose_success(self):
-        commands = self.replacement_worker()
-        self.assertEqual(commands[0], ('rm', self.fixture.info['Id']))
-        self.assertEqual(commands[1][:3], ('ps', '--all', '--quiet'))
-        self.assertEqual(harness.read(self.fixture.path / 'trace-prepared-blocker.json'),
-                         ['actual-owned-server-removed', 'interrupt-after-server-removal'])
+        for operation in ('apply', 'remove'):
+            with self.subTest(operation=operation):
+                commands = self.replacement_worker(operation=operation)
+                self.assertEqual(commands[0], ('rm', self.fixture.info['Id']))
+                self.assertEqual(commands[1][:3], ('ps', '--all', '--quiet'))
+                self.assertEqual(harness.read(self.fixture.path / 'trace-prepared-blocker.json'),
+                                 ['actual-owned-server-removed', 'interrupt-after-server-removal'])
 
     def test_replacement_fault_never_removes_a_server_without_actual_blocked_owner(self):
-        self.assertEqual(self.replacement_worker(allowed=True), [])
+        for operation in ('apply', 'remove'):
+            with self.subTest(operation=operation):
+                self.assertEqual(self.replacement_worker(allowed=True, operation=operation), [])
 
     def test_worker_boundary_failure_retains_stage_passes_and_fields_through_fresh(self):
         original = host_tests.host.enrollment_preflight

@@ -444,7 +444,7 @@ def worker(args):
         return original_docker(*arguments, **kwargs)
 
     def observed_compose(controller, *arguments, **kwargs):
-        if (args.interrupt == 'after-server-removal' and not fired and args.action == 'apply'
+        if (args.interrupt == 'after-server-removal' and not fired and args.action in {'apply', 'remove'}
                 and arguments[:1] == ('up',) and '--no-start' in arguments
                 and arguments[-1] == 'p2pstream'):
             # Model only Compose's remove-old/create-fails boundary. Do not
@@ -574,12 +574,15 @@ def worker(args):
     return 0
 
 
-def fresh(action, *, release='baseline', label=None, refusal='', variant='', interrupt='', block=False):
+def fresh(action, *, release='baseline', label=None, refusal='', variant='', interrupt='', block=False,
+          default_yaml=False):
     label = label or action
     arguments = [sys.executable, '-I', __file__, '--worker', action, '--release', release,
                  '--label', label, '--refusal', refusal, '--variant', variant, '--interrupt', interrupt]
     if block:
         arguments.append('--block-after-prepare')
+    if default_yaml:
+        arguments.append('--default-yaml')
     try:
         run(arguments, timeout=600, expected=INTERRUPTED if interrupt else 0, check='worker-' + label)
     except CheckFailure:
@@ -645,28 +648,50 @@ def assert_native_recreate(images, expected):
             'native-runtime-receipt-not-verified')
 
 
-def replacement_recovery(images, action):
-    stage('apply-missing-server-' + action)
+def replacement_recovery(images, action, *, operation='apply', input_change='unchanged'):
+    require(operation in {'apply', 'remove'} and action in {'repair', 'rollback'}
+            and input_change in {'unchanged', 'edit', 'revert'}, 'invalid-replacement-scenario')
+    suffix = '' if input_change == 'unchanged' else '-' + input_change + '-inputs-after-removal'
+    label = ('missing-server-' + action if operation == 'apply' and not suffix
+             else operation + '-missing-server-' + action + suffix)
+    stage(operation + '-missing-server-' + action + suffix)
     before = server_info()
     config = (STATE / 'config.json').read_bytes()
     canonical = read(CANONICAL)
     volume = json.loads(docker('volume', 'inspect', VOLUME))
+    original_inputs = INPUTS.read_bytes()
     inputs = read(INPUTS)
     inputs['services']['p2pstream']['environment']['UNCOMMITTED_SETTING'] = action
     write(INPUTS, inputs, 0o640)
-    editable = INPUTS.read_bytes()
-    fresh('apply', release='candidate', label='missing-server-' + action,
+    staged_inputs = INPUTS.read_bytes()
+    fresh(operation, release='candidate', label=label,
           interrupt='after-server-removal')
-    require(read(STATE / 'host.json')['phase'] == 'applying', 'missing-server-lost-apply-phase')
+    require(read(STATE / 'host.json')['phase'] == ('applying' if operation == 'apply' else 'removing'),
+            'missing-server-lost-operation-phase')
     require(read(STATE / 'before-compose.json') == canonical, 'missing-server-lost-current-snapshot')
     require(not docker('ps', '--all', '--quiet', '--filter',
                        'label=com.docker.compose.project=' + PROJECT,
                        '--filter', 'label=com.docker.compose.service=p2pstream'),
             'missing-server-gap-not-observed')
+    require(INPUTS.read_bytes() == staged_inputs, 'missing-server-interruption-changed-editable-inputs')
+    # These operator changes intentionally happen only after the real owned
+    # container was removed. Recovery authority must come from the recorded
+    # transaction, independently of later edits or exact source reversion.
+    if input_change == 'edit':
+        inputs['services']['p2pstream']['environment']['UNCOMMITTED_SETTING'] = (
+            'operator-edited-after-' + operation + '-removal-before-' + action)
+        write(INPUTS, inputs, 0o640)
+    elif input_change == 'revert':
+        INPUTS.write_bytes(original_inputs)
+    editable = INPUTS.read_bytes()
+    require(input_change == 'unchanged' or editable != staged_inputs,
+            'post-removal-input-change-not-observed')
+    require(input_change != 'revert' or editable == original_inputs,
+            'post-removal-input-reversion-not-exact')
     # Recovery is a separate interpreter; neither the original Host object nor
     # its in-memory ownership/inspection proof can authorize this replacement.
-    stage('fresh-missing-server-' + action)
-    fresh(action, release='candidate', label='recover-missing-server-' + action)
+    stage('fresh-' + operation + '-missing-server-' + action + suffix)
+    fresh(action, release='candidate', label='recover-' + label)
     assert_binding(images, 'candidate')
     after = server_info()
     require(after['Id'] != before['Id'] and after['Image'] == before['Image'],
@@ -690,7 +715,200 @@ def replacement_recovery(images, action):
     require(owner.startswith(b'PRESENT:') and json.loads(owner[8:])['allowed'] is True
             and json.loads(owner[8:])['generation'] == generation,
             'missing-server-recovery-owner-not-authorized')
-    CHECKS.append('fresh-' + action + '-after-real-owned-apply-removal-preserves-current-software-data-settings')
+    if input_change == 'unchanged':
+        CHECKS.append('fresh-' + action + '-after-real-owned-' + operation + '-removal-preserves-current-software-data-settings')
+    else:
+        CHECKS.append('fresh-' + action + '-after-real-owned-' + operation + '-removal-preserves-post-removal-'
+                      + input_change + '-inputs-and-recorded-software-data-settings')
+
+
+def default_yaml_context():
+    global ROOT, PROJECT, VOLUME
+    ROOT = ROOT / 'default-yaml'
+    PROJECT, VOLUME = DEPLOYMENT.name, 'p2pstream-data'
+
+
+def pinned_default_yaml(template, image):
+    lines = template.splitlines(keepends=True)
+    indexes = [index for index, line in enumerate(lines) if line.startswith(b'    image: ')]
+    require(len(indexes) == 1, 'default-yaml-template-image-layout')
+    index = indexes[0]
+    require(lines[index].endswith(b'\n'), 'default-yaml-template-image-newline')
+    lines[index] = b'    image: ' + image.encode() + b'\n'
+    return b''.join(lines)
+
+
+def prove_stopped_legacy(info, config, journal):
+    require(journal.get('phase') == 'removed' and journal.get('installation') == config.get('instance_id'),
+            'default-yaml-retained-legacy-not-removed')
+    require(info.get('Name') == '/p2pstream' and not info['State']['Running']
+            and not info['State'].get('Paused') and not info['State'].get('Restarting'),
+            'default-yaml-legacy-name-not-stopped')
+    labels = info['Config'].get('Labels', {})
+    require(labels.get('com.docker.compose.project') == config['project']
+            and labels.get('com.docker.compose.service') == 'p2pstream'
+            and info['Image'] == journal['before_image_id'], 'default-yaml-legacy-identity-mismatch')
+    mounts = [mount for mount in info['Mounts'] if mount['Destination'] == '/data']
+    require(len(mounts) == 1 and mounts[0].get('Type') == 'volume'
+            and mounts[0].get('Name') == config['data_volume'] and mounts[0].get('RW') is True
+            and not any(mount['Destination'].startswith('/data/') for mount in info['Mounts']),
+            'default-yaml-legacy-data-mismatch')
+
+
+def default_yaml_case(images, host):
+    """One real bundle YAML initial stop/rollback/repair, before the JSON case."""
+    global ROOT, PROJECT, VOLUME
+    parent_root, parent_project, parent_volume = ROOT, PROJECT, VOLUME
+    retained = parent_root / 'completed-legacy-state'
+    stage('default-yaml-preflight')
+    config, journal = read(retained / 'config.json'), read(retained / 'host.json')
+    ids = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'name=^/p2pstream$', timeout=15).split()
+    require(len(ids) == 1, 'default-yaml-exact-stopped-legacy-required')
+    legacy = json.loads(docker('inspect', ids[0], timeout=15))[0]
+    prove_stopped_legacy(legacy, config, journal)
+    require(legacy['Id'] == ids[0], 'default-yaml-legacy-inspection-mismatch')
+    identity = docker('run', '--rm', '--network', 'none', '--read-only', '--user', '0:0',
+                      '--cap-drop', 'ALL', '--cap-add', 'DAC_READ_SEARCH',
+                      '--security-opt', 'no-new-privileges', '--env', 'CONFIG_DIR=/server-data',
+                      '--mount', 'type=volume,src=' + config['data_volume'] + ',dst=/server-data,readonly',
+                      '--entrypoint', '/app/p2pstream', legacy['Image'], 'server-installation-identity', timeout=30)
+    require(identity == config['instance_id'], 'default-yaml-stopped-legacy-data-identity-mismatch')
+    saved_name = 'review-default-yaml-retained-legacy'
+    require(not docker('ps', '--all', '--quiet', '--filter', 'name=^/' + saved_name + '$', timeout=15),
+            'default-yaml-legacy-saved-name-occupied')
+    require(not STATE.exists() and not DEPLOYMENT.exists() and not INPUTS.exists(),
+            'default-yaml-requires-clean-canonical-paths')
+    # A successful complete inventory proves absence. Never interpret a failed
+    # volume inspect as permission to create or later remove somebody's volume.
+    require('p2pstream-data' not in docker('volume', 'ls', '--quiet', timeout=15).split(),
+            'default-yaml-fixture-volume-already-exists')
+    template = (BUNDLE / 'compose.yaml').read_bytes()
+    source = pinned_default_yaml(template, images['baseline'])
+    env = (BUNDLE / '.env.example').read_bytes()
+    for old, new in ((b'P2PSTREAM_HTTP_PORT=80', b'P2PSTREAM_HTTP_PORT=18110'),
+                     (b'P2PSTREAM_HTTPS_PORT=443', b'P2PSTREAM_HTTPS_PORT=18111'),
+                     (b'P2PSTREAM_MANAGEMENT_PORT=8081', b'P2PSTREAM_MANAGEMENT_PORT=18112'),
+                     (b'MANAGEMENT_PUBLIC_URL=https://your-server:8081',
+                      b'MANAGEMENT_PUBLIC_URL=https://localhost:18112')):
+        require(env.count(old + b'\n') == 1, 'default-yaml-env-template-layout')
+        env = env.replace(old + b'\n', new + b'\n')
+    renamed, completed = False, False
+    try:
+        default_yaml_context()
+        ROOT.mkdir(mode=0o700)
+        docker('rename', legacy['Id'], saved_name, timeout=15)
+        renamed = True
+        DEPLOYMENT.mkdir(parents=True, mode=0o2750)
+        DEPLOYMENT.chmod(0o2750)
+        CANONICAL.write_bytes(source)
+        CANONICAL.chmod(0o640)
+        (DEPLOYMENT / '.env').write_bytes(env)
+        (DEPLOYMENT / '.env').chmod(0o600)
+        resolved = json.loads(compose('config', '--format', 'json'))
+        require(resolved['name'] == PROJECT and set(resolved['services']) == {'p2pstream'}
+                and not resolved['services']['p2pstream'].get('read_only')
+                and not resolved['services']['p2pstream'].get('tmpfs'), 'default-yaml-native-template-changed')
+        compose('up', '-d')
+        wait(health)
+        initial = server_info()
+        require(initial['Name'] == '/p2pstream' and initial['Config']['Image'] == images['baseline']
+                and not initial['HostConfig']['ReadonlyRootfs'], 'default-yaml-original-runtime-mismatch')
+        installation = docker('exec', initial['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15)
+        ca = sha(docker('exec', initial['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15).encode())
+        write(ROOT / 'identity.json', {'installation': installation, 'ca_sha256': ca})
+        fixture_catalog(host, images)
+        volume = json.loads(docker('volume', 'inspect', VOLUME, timeout=15))
+        require(len(volume) == 1 and volume[0]['Name'] == VOLUME
+                and volume[0].get('Labels', {}).get('com.docker.compose.project') == PROJECT
+                and volume[0].get('Labels', {}).get('com.docker.compose.volume') == 'p2pstream-data',
+                'default-yaml-new-volume-ownership-mismatch')
+        original = file_snapshot(CANONICAL)
+        stage('default-yaml-stopped-before-publication')
+        fresh('install', label='stopped-before-publication', interrupt='before-publish', default_yaml=True)
+        stopped = server_info(all_containers=True)
+        require(stopped['Id'] == initial['Id'] and not stopped['State']['Running'],
+                'default-yaml-original-not-stopped-in-place')
+        require(file_snapshot(CANONICAL) == original and CANONICAL.read_bytes() == source,
+                'default-yaml-published-before-interruption')
+        trace = read(ROOT / 'trace-stopped-before-publication.json')
+        require(trace.index('runtime-blocked') < trace.index('server-stopped-before-publish')
+                < trace.index('interrupt-before-publish'), 'default-yaml-block-stop-interrupt-order')
+        private_config = (STATE / 'config.json').read_bytes()
+        editable = INPUTS.read_bytes()
+
+        def restored_identity():
+            wait(health)
+            actual = server_info()
+            require(actual['Image'] == initial['Image'] and actual['Config']['Image'] == images['baseline'],
+                    'default-yaml-recovery-changed-software')
+            require(docker('exec', actual['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15)
+                    == installation, 'default-yaml-recovery-changed-installation')
+            require(sha(docker('exec', actual['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15).encode())
+                    == ca, 'default-yaml-recovery-changed-ca')
+            require(json.loads(docker('volume', 'inspect', VOLUME, timeout=15)) == volume
+                    and [m for m in actual['Mounts'] if m['Destination'] == '/data']
+                    == [m for m in initial['Mounts'] if m['Destination'] == '/data'],
+                    'default-yaml-recovery-changed-data-volume')
+            env_without_binding = lambda info: sorted(value for value in info['Config']['Env']
+                                                     if not value.startswith('SERVER_UPDATE_'))
+            require(env_without_binding(actual) == env_without_binding(initial)
+                    and actual['HostConfig']['PortBindings'] == initial['HostConfig']['PortBindings'],
+                    'default-yaml-recovery-changed-template-settings')
+            require((STATE / 'config.json').read_bytes() == private_config and INPUTS.read_bytes() == editable,
+                    'default-yaml-recovery-changed-credentials-or-inputs')
+            return actual
+
+        stage('default-yaml-public-rollback')
+        fresh('rollback', label='stopped-yaml-rollback', default_yaml=True)
+        restored_identity()
+        require(read(STATE / 'host.json')['phase'] == 'rolled_back' and owner_bytes(images) == b'ABSENT',
+                'default-yaml-rollback-not-standalone')
+        stage('default-yaml-public-repair')
+        fresh('repair', label='rolled-back-yaml-repair', default_yaml=True)
+        enrolled = restored_identity()
+        binding = read(STATE / 'config.json')
+        require(read(STATE / 'host.json')['phase'] == 'healthy'
+                and enrolled['Config']['Labels'].get('p2pstream.server-update.instance') == binding['instance_id']
+                and any(m['Destination'] == '/run/p2pstream-server-update' and not m['RW'] for m in enrolled['Mounts']),
+                'default-yaml-repair-not-enrolled')
+        run([LAUNCHER, 'status'], timeout=30, cwd=DEPLOYMENT, check='default-yaml-authenticated-status')
+        CHECKS.append('default-bundle-yaml-stop-before-publication-fresh-rollback-then-repair')
+        stage('default-yaml-owned-cleanup')
+        fresh('remove', label='default-yaml-cleanup-remove', default_yaml=True)
+        current = restored_identity()
+        require(read(STATE / 'host.json')['phase'] == 'removed', 'default-yaml-cleanup-not-removed')
+        labels = current['Config']['Labels']
+        require(current['Name'] == '/p2pstream' and labels.get('com.docker.compose.project') == PROJECT
+                and labels.get('com.docker.compose.service') == 'p2pstream', 'default-yaml-cleanup-ownership-mismatch')
+        docker('stop', current['Id'], timeout=30)
+        stopped = json.loads(docker('inspect', current['Id'], timeout=15))[0]
+        require(not stopped['State']['Running'] and stopped['Image'] == initial['Image'],
+                'default-yaml-cleanup-stop-not-confirmed')
+        docker('rm', current['Id'], timeout=30)
+        require(not docker('ps', '--all', '--quiet', '--filter', 'volume=' + VOLUME, timeout=15)
+                and json.loads(docker('volume', 'inspect', VOLUME, timeout=15)) == volume,
+                'default-yaml-cleanup-volume-not-exclusively-owned')
+        docker('volume', 'rm', VOLUME, timeout=30)
+        # Preserve this successful case's complete private state and exact YAML
+        # separately. Failed cases never reach cleanup or move their inputs.
+        STATE.rename(ROOT / 'completed-updater-state')
+        INPUTS.rename(ROOT / 'completed-compose.inputs.yaml')
+        DEPLOYMENT.rename(ROOT / 'completed-deployment')
+        completed = True
+    finally:
+        # A failure retains its fixture server/state/data. Restore the old name
+        # only if it is free and the exact saved stopped legacy object is intact.
+        try:
+            if renamed:
+                current = json.loads(docker('inspect', legacy['Id'], timeout=15))[0]
+                require(container_snapshot(current) == container_snapshot(legacy)
+                        and current['Name'] == '/' + saved_name, 'default-yaml-retained-legacy-changed')
+                name_free = not docker('ps', '--all', '--quiet', '--filter', 'name=^/p2pstream$', timeout=15)
+                if name_free:
+                    docker('rename', legacy['Id'], 'p2pstream', timeout=15)
+                require(name_free or not completed, 'default-yaml-cleanup-legacy-name-not-restored')
+        finally:
+            ROOT, PROJECT, VOLUME = parent_root, parent_project, parent_volume
 
 
 def main():
@@ -706,6 +924,8 @@ def main():
     if STATE.exists():
         require(read(STATE / 'host.json')['phase'] == 'removed', 'legacy-fixture-must-finish-removed')
         STATE.rename(ROOT / 'completed-legacy-state')
+    default_yaml_case(images, host)
+    stage('fixture-setup')
     require(not CANONICAL.exists() and not INPUTS.exists(), 'canonical-fixture-requires-clean-paths')
     DEPLOYMENT.mkdir(parents=True, mode=0o2750)
     DEPLOYMENT.chmod(0o2750)
@@ -823,6 +1043,13 @@ def main():
     applied_inputs = INPUTS.read_bytes()
     for action in ('repair', 'rollback'):
         replacement_recovery(images, action)
+    for operation in ('apply', 'remove'):
+        for action in ('repair', 'rollback'):
+            for input_change in ('edit', 'revert'):
+                # Every matrix case starts from the same applied inputs. The
+                # helper verifies its post-removal bytes before we reset them.
+                INPUTS.write_bytes(applied_inputs)
+                replacement_recovery(images, action, operation=operation, input_change=input_change)
     INPUTS.write_bytes(applied_inputs)
     stage('interrupt-remove')
     generation_before = next(value.split('=', 1)[1] for value in server_info()['Config']['Env']
@@ -939,9 +1166,13 @@ if __name__ == '__main__':
     parser.add_argument('--interrupt', choices=['', 'before-publish', 'after-publish', 'after-remove-deploy',
                                                'after-server-removal'], default='')
     parser.add_argument('--block-after-prepare', action='store_true')
+    parser.add_argument('--default-yaml', action='store_true')
     options = parser.parse_args()
     try:
         isolated()
+        if options.default_yaml:
+            require(options.action is not None, 'default-yaml-worker-action-required')
+            default_yaml_context()
         if options.action:
             sys.exit(worker(options))
         main()
