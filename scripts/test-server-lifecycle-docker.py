@@ -208,27 +208,46 @@ def container_snapshot(info):
                                       copy.deepcopy(info['Config']['Labels']), mounts)))
 
 
-def snapshot_boundary(images, *, private=False):
+def private_tree_snapshot(directory):
+    """Exact private inventory in memory, including history and control entries."""
+    result = {}
+    if directory.exists():
+        entries = sorted(directory.rglob('*'))
+        require(len(entries) <= 4096, 'private-inventory-limit')
+        for path in entries:
+            metadata = path.lstat()
+            content = (path.read_bytes() if stat.S_ISREG(metadata.st_mode)
+                       else os.readlink(path) if stat.S_ISLNK(metadata.st_mode) else None)
+            result[str(path.relative_to(directory))] = (
+                metadata.st_mode, metadata.st_uid, metadata.st_gid, content)
+    return result
+
+
+def snapshot_boundary(images, *, private=False, complete=False):
     info = server_info(all_containers=True)
     files = [CANONICAL, INPUTS, STATE / 'installation-receipt.json']
     if private:
         files += [STATE / 'config.json', STATE / 'staged-compose.yaml', STATE / 'host.json',
                   STATE / 'runtime-receipt.json', STATE / 'control/token']
     # Keep full bytes in memory for exact equality. Publish only booleans/hashes.
-    return {'container': container_snapshot(info),
+    result = {'container': container_snapshot(info),
             'model': compose('config', '--format', 'json'),
             'owner': owner_bytes(images),
             'files': {str(path): file_snapshot(path) for path in files}}
+    if complete:
+        result['private_tree'] = private_tree_snapshot(STATE)
+    return result
 
 
-def assert_unchanged(before, images, *, private=False):
-    after = snapshot_boundary(images, private=private)
+def assert_unchanged(before, images, *, private=False, complete=False):
+    after = snapshot_boundary(images, private=private, complete=complete)
     changed = []
     if after['container'] != before['container']:
         changed += ['container.' + field for field in CONTAINER_FIELDS
                     if after['container'][field] != before['container'][field]]
     # Do not expose file paths, arbitrary label/mount keys, or any values.
-    changed += [field for field in ('model', 'owner', 'files') if after[field] != before[field]]
+    changed += [field for field in ('model', 'owner', 'files', 'private_tree')
+                if after.get(field) != before.get(field)]
     if changed:
         raise CheckFailure('refusal-changed-' + changed[0].split('.')[0], changed_fields=changed)
     CHECKS.append(STAGE + '-boundary-unchanged')
@@ -400,6 +419,7 @@ def worker(args):
     host.release_metadata = lambda *unused: (release['manifest'], release['descriptor'],
                                              release['release']['image'], setup.manifest_sha256)
     original_docker, original_command = host.docker, host.Host.command
+    original_compose = host.Host.compose
     original_prepare, original_write = host.Host.prepare_single, host.Host.write_model
     original_canonical, original_owner = file_snapshot(CANONICAL), owner_bytes(images)
     events = []
@@ -422,6 +442,33 @@ def worker(args):
         # Preserve production timeouts, with a bounded upper limit per call.
         kwargs['timeout'] = min(kwargs.get('timeout', 180), 180)
         return original_docker(*arguments, **kwargs)
+
+    def observed_compose(controller, *arguments, **kwargs):
+        if (args.interrupt == 'after-server-removal' and not fired and args.action == 'apply'
+                and arguments[:1] == ('up',) and '--no-start' in arguments
+                and arguments[-1] == 'p2pstream'):
+            # Model only Compose's remove-old/create-fails boundary. Do not
+            # return invented success from Compose or any production helper.
+            info = server_info(all_containers=True)
+            require(not info['State']['Running'], 'replacement-fault-server-not-stopped')
+            require(info['Image'] == controller.journal['before_image_id'],
+                    'replacement-fault-image-not-owned')
+            require(info['Config']['Labels'].get('p2pstream.server-update.instance')
+                    == controller.config['instance_id'], 'replacement-fault-server-not-owned')
+            previous = (STATE / 'before-compose.json').read_bytes()
+            require(sha(previous) == controller.journal['before_sha256'],
+                    'replacement-fault-snapshot-not-durable')
+            owner = owner_bytes(images)
+            require(owner.startswith(b'PRESENT:') and json.loads(owner[8:])['allowed'] is False,
+                    'replacement-fault-owner-not-blocked')
+            docker('rm', info['Id'], timeout=30)
+            require(not docker('ps', '--all', '--quiet', '--filter',
+                               'label=com.docker.compose.project=' + PROJECT,
+                               '--filter', 'label=com.docker.compose.service=p2pstream'),
+                    'replacement-fault-server-not-removed')
+            record('actual-owned-server-removed')
+            interrupt('after-server-removal')
+        return original_compose(controller, *arguments, **kwargs)
 
     def observed_command(controller, *arguments):
         if arguments and arguments[0] == 'runtime-block-staged':
@@ -491,6 +538,7 @@ def worker(args):
         return result
 
     host.docker, host.Host.command = observed_docker, observed_command
+    host.Host.compose = observed_compose
     host.Host.prepare_single, host.Host.write_model = observed_prepare, observed_write
     original_wait = host.Host.wait_original
     def observed_wait(controller):
@@ -508,7 +556,8 @@ def worker(args):
             host.manage(argparse.Namespace(action=args.action))
     except host.Failure as error:
         expected = {'blocker': 'Enrollment blocked:', 'history': 'Missing retained configuration',
-                    'floor': 'retained enrollment floor'}.get(args.refusal)
+                    'floor': 'retained enrollment floor',
+                    'inputs': 'Editable inputs differ from the current standalone deployment'}.get(args.refusal)
         if not expected or expected not in str(error):
             raise CheckFailure(host_refusal_check(host, error)) from None
         if args.block_after_prepare:
@@ -594,6 +643,54 @@ def assert_native_recreate(images, expected):
     helper(images, 'TestDockerReviewRuntimeReceipt')
     require(read(STATE / 'native-runtime-receipt.json')['runtime_receipt_verified_directly'],
             'native-runtime-receipt-not-verified')
+
+
+def replacement_recovery(images, action):
+    stage('apply-missing-server-' + action)
+    before = server_info()
+    config = (STATE / 'config.json').read_bytes()
+    canonical = read(CANONICAL)
+    volume = json.loads(docker('volume', 'inspect', VOLUME))
+    inputs = read(INPUTS)
+    inputs['services']['p2pstream']['environment']['UNCOMMITTED_SETTING'] = action
+    write(INPUTS, inputs, 0o640)
+    editable = INPUTS.read_bytes()
+    fresh('apply', release='candidate', label='missing-server-' + action,
+          interrupt='after-server-removal')
+    require(read(STATE / 'host.json')['phase'] == 'applying', 'missing-server-lost-apply-phase')
+    require(read(STATE / 'before-compose.json') == canonical, 'missing-server-lost-current-snapshot')
+    require(not docker('ps', '--all', '--quiet', '--filter',
+                       'label=com.docker.compose.project=' + PROJECT,
+                       '--filter', 'label=com.docker.compose.service=p2pstream'),
+            'missing-server-gap-not-observed')
+    # Recovery is a separate interpreter; neither the original Host object nor
+    # its in-memory ownership/inspection proof can authorize this replacement.
+    stage('fresh-missing-server-' + action)
+    fresh(action, release='candidate', label='recover-missing-server-' + action)
+    assert_binding(images, 'candidate')
+    after = server_info()
+    require(after['Id'] != before['Id'] and after['Image'] == before['Image'],
+            'missing-server-recovery-changed-current-software')
+    require(container_snapshot(after)['Mounts'] == container_snapshot(before)['Mounts']
+            and json.loads(docker('volume', 'inspect', VOLUME)) == volume,
+            'missing-server-recovery-changed-data-mounts-or-volume')
+    env = lambda info: sorted(value for value in info['Config']['Env']
+                              if not value.startswith('SERVER_UPDATE_GENERATION='))
+    require(env(after) == env(before) and after['HostConfig']['PortBindings'] == before['HostConfig']['PortBindings'],
+            'missing-server-recovery-did-not-restore-current-settings')
+    require((STATE / 'config.json').read_bytes() == config and INPUTS.read_bytes() == editable,
+            'missing-server-recovery-changed-credentials-or-editable-inputs')
+    restored = read(CANONICAL)
+    restored['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = (
+        canonical['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'])
+    require(restored == canonical, 'missing-server-recovery-did-not-restore-current-model')
+    owner = owner_bytes(images)
+    generation = next(value.split('=', 1)[1] for value in after['Config']['Env']
+                      if value.startswith('SERVER_UPDATE_GENERATION='))
+    require(owner.startswith(b'PRESENT:') and json.loads(owner[8:])['allowed'] is True
+            and json.loads(owner[8:])['generation'] == generation,
+            'missing-server-recovery-owner-not-authorized')
+    CHECKS.append('fresh-' + action + '-after-real-owned-apply-removal-preserves-current-software-data-settings')
 
 
 def main():
@@ -723,6 +820,10 @@ def main():
     require('QUALIFICATION_SETTING=applied-after-update' in server_info()['Config']['Env'],
             'apply-did-not-use-editable-inputs')
     checks.append('apply-editable-inputs-retains-updated-image')
+    applied_inputs = INPUTS.read_bytes()
+    for action in ('repair', 'rollback'):
+        replacement_recovery(images, action)
+    INPUTS.write_bytes(applied_inputs)
     stage('interrupt-remove')
     generation_before = next(value.split('=', 1)[1] for value in server_info()['Config']['Env']
                              if value.startswith('SERVER_UPDATE_GENERATION='))
@@ -753,12 +854,32 @@ def main():
             'remove-retained-private-binding')
     receipt = read(STATE / 'installation-receipt.json')
     require(receipt['floor'] == expected_floor, 'remove-dropped-release-floor')
-    # The protected model owns software updates independently of editable
-    # settings. Explicitly reconcile that one stale input before fresh setup;
-    # never ask enrollment to silently adopt a different resolved source model.
-    inputs = read(INPUTS)
-    inputs['services']['p2pstream']['image'] = images['candidate']
-    write(INPUTS, inputs, 0o640)
+    stage('stale-reenrollment-inputs')
+    standalone = read(CANONICAL)
+    server = standalone['services']['p2pstream']
+    server['ports'][0]['published'] = '18102'
+    server['environment'].update(MANAGEMENT_PUBLIC_URL='https://localhost:18102',
+                                 REENROLLMENT_SETTING='native-after-remove')
+    extra_mount = ROOT / 'native-extra'
+    extra_mount.mkdir(mode=0o750)
+    server['volumes'].append({'type': 'bind', 'source': str(extra_mount),
+                              'target': '/qualification', 'read_only': True})
+    write(CANONICAL, standalone, 0o640)
+    previous_id = server_info()['Id']
+    compose('up', '-d', '--force-recreate', 'p2pstream', native=True)
+    wait(health)
+    require(server_info()['Id'] != previous_id, 'stale-input-fixture-not-recreated')
+    require(server_info()['HostConfig']['PortBindings']['8081/tcp'][0]['HostPort'] == '18102'
+            and 'REENROLLMENT_SETTING=native-after-remove' in server_info()['Config']['Env']
+            and any(m['Destination'] == '/qualification' and not m['RW'] for m in server_info()['Mounts']),
+            'stale-input-fixture-not-applied')
+    before = snapshot_boundary(images, private=True, complete=True)
+    fresh('install', release='candidate', label='stale-reenrollment-inputs', refusal='inputs')
+    assert_unchanged(before, images, private=True, complete=True)
+    checks.append('stale-input-reenrollment-refused-before-control-history-owner-lifecycle-mutation')
+    # Reconcile software, ports, environment and mounts explicitly from the
+    # current standalone model before allowing fresh enrollment.
+    write(INPUTS, read(CANONICAL), 0o640)
     require(json.loads(docker('compose', '-f', str(INPUTS), 'config', '--format', 'json', cwd=DEPLOYMENT))
             == json.loads(compose('config', '--format', 'json')), 'reenrollment-input-reconciliation-mismatch')
     for variant in ('sequence', 'epoch', 'minimum', 'identity'):
@@ -771,6 +892,10 @@ def main():
     stage('reenroll')
     fresh('install', release='candidate', label='reenroll')
     assert_binding(images, 'candidate')
+    require(server_info()['HostConfig']['PortBindings']['8081/tcp'][0]['HostPort'] == '18102'
+            and 'REENROLLMENT_SETTING=native-after-remove' in server_info()['Config']['Env']
+            and any(m['Destination'] == '/qualification' and not m['RW'] for m in server_info()['Mounts']),
+            'reconciled-reenrollment-reverted-current-settings')
     require(read(STATE / 'config.json')['bootstrap_floor'] == expected_floor,
             'reenrollment-reset-bootstrap-floor')
     require(read(STATE / 'installation-receipt.json')['floor'] == expected_floor,
@@ -806,12 +931,13 @@ def main():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--worker', dest='action', choices=['install', 'repair', 'apply', 'remove'])
+    parser.add_argument('--worker', dest='action', choices=['install', 'repair', 'rollback', 'apply', 'remove'])
     parser.add_argument('--release', choices=['baseline', 'candidate'], default='baseline')
     parser.add_argument('--label', default='worker')
-    parser.add_argument('--refusal', choices=['', 'blocker', 'floor', 'history'], default='')
+    parser.add_argument('--refusal', choices=['', 'blocker', 'floor', 'history', 'inputs'], default='')
     parser.add_argument('--variant', choices=['', 'sequence', 'epoch', 'minimum', 'identity'], default='')
-    parser.add_argument('--interrupt', choices=['', 'before-publish', 'after-publish', 'after-remove-deploy'], default='')
+    parser.add_argument('--interrupt', choices=['', 'before-publish', 'after-publish', 'after-remove-deploy',
+                                               'after-server-removal'], default='')
     parser.add_argument('--block-after-prepare', action='store_true')
     options = parser.parse_args()
     try:

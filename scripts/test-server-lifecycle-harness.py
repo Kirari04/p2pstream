@@ -2,16 +2,19 @@
 """Focused canonical worker checks with deterministic host fixtures; no Docker."""
 import argparse
 import ast
+import base64
 import contextlib
 import copy
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 from unittest.mock import patch
 
@@ -168,6 +171,135 @@ class BoundarySnapshots(unittest.TestCase):
         self.assertEqual(report['checks'], ['initial-blocker-boundary-unchanged'])
         self.assertEqual(report['changed_fields'], ['container.RestartCount'])
 
+    def test_complete_refusal_snapshot_detects_control_history_and_empty_directory_changes(self):
+        for name in ('control/token', 'history/old/config.json', 'new-archive-directory'):
+            with self.subTest(name=name):
+                before = harness.snapshot_boundary({}, private=True, complete=True)
+                path = self.path / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if name.endswith('directory'):
+                    path.mkdir()
+                else:
+                    path.write_bytes(b'PRIVATE_NEW_CONTENT')
+                with self.assertRaises(harness.CheckFailure) as caught:
+                    harness.assert_unchanged(before, {}, private=True, complete=True)
+                self.assertIn('private_tree', caught.exception.changed_fields)
+                report = json.dumps(harness.failure_report(caught.exception))
+                self.assertNotIn('PRIVATE', report)
+                self.assertNotIn(name, report)
+
+
+class LegacyWorkerTransport(unittest.TestCase):
+    def load_functions(self, *names):
+        # Importing the real legacy driver would initialize its disposable
+        # daemon. Compile only the selected pure harness definitions instead.
+        source = ast.parse((ROOT / 'test-server-install-docker.py').read_bytes())
+        functions = [node for node in source.body
+                     if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in names]
+        self.assertEqual(len(functions), len(names))
+        namespace = {'json': json, 'subprocess': subprocess, 'sys': sys, '__file__': 'legacy-driver.py',
+                     'argparse': argparse, 'base64': base64, 'os': os, 'Path': Path}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), 'legacy-driver.py', 'exec'), namespace)
+        return namespace
+
+    def test_semantic_compose_rerender_preserves_every_field_array_order_and_real_status(self):
+        rerender = self.load_functions('semantic_compose_result')['semantic_compose_result']
+        model = {'z': {'unknown': [3, 1, 3, {'secret': 'PRIVATE_VALUE', 'null': None}]},
+                 'services': {'p2pstream': {'ports': [{'published': '18102'}, {'published': '18101'}]}}}
+        raw = json.dumps(model, separators=(',', ':')).encode()
+        original = subprocess.CompletedProcess(['real', 'compose'], 0, raw, b'PRIVATE_STDERR')
+        result = rerender(original)
+        self.assertEqual(json.loads(result.stdout), model)
+        self.assertNotEqual(result.stdout, raw)
+        self.assertEqual((result.args, result.returncode, result.stderr),
+                         (original.args, original.returncode, original.stderr))
+        self.assertEqual(original.stdout, raw)
+        with self.assertRaises(AssertionError):
+            rerender(subprocess.CompletedProcess(['real', 'compose'], 1, raw, b'PRIVATE_ERROR'))
+
+    def test_fresh_legacy_requires_actual_expected_process_exit_and_bounded_isolated_interpreter(self):
+        namespace = self.load_functions('fresh_legacy')
+        with tempfile.TemporaryDirectory() as directory:
+            result_path = Path(directory) / 'result.json'
+            namespace.update(WORKER_RESULT=result_path, INTERRUPTED=75)
+            calls = []
+
+            def run(arguments, **kwargs):
+                calls.append((arguments, kwargs))
+                result_path.write_text(json.dumps({'result': 'completed', 'events': []}))
+                return subprocess.CompletedProcess(arguments, 0, b'PRIVATE_STDOUT', b'PRIVATE_STDERR')
+
+            with patch.object(subprocess, 'run', side_effect=run):
+                self.assertEqual(namespace['fresh_legacy']('repair')['result'], 'completed')
+            self.assertEqual(calls[0][0][:4], [sys.executable, '-I', 'legacy-driver.py', '--legacy-worker'])
+            self.assertEqual(calls[0][1], {'capture_output': True, 'timeout': 600})
+            with patch.object(subprocess, 'run', return_value=subprocess.CompletedProcess([], 1, b'PRIVATE', b'PRIVATE')):
+                with self.assertRaisesRegex(AssertionError, '^fresh-legacy-repair-exit-1$'):
+                    namespace['fresh_legacy']('repair')
+
+    def test_all_docker_driver_subprocess_calls_have_explicit_deadlines(self):
+        for name in ('test-server-install-docker.py', 'test-server-lifecycle-docker.py'):
+            tree = ast.parse((ROOT / name).read_bytes())
+            for node in ast.walk(tree):
+                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                        and isinstance(node.func.value, ast.Name) and node.func.value.id == 'subprocess'
+                        and node.func.attr in {'run', 'check_output', 'check_call', 'call'}):
+                    self.assertIn('timeout', {item.arg for item in node.keywords}, (name, node.lineno))
+
+    def test_detach_interruption_occurs_after_original_detach_and_never_reaches_start(self):
+        namespace = self.load_functions('legacy_worker', 'DeliberateInterruption')
+        with tempfile.TemporaryDirectory() as directory:
+            path, calls = Path(directory), []
+            context, result_path = path / 'context.json', path / 'result.json'
+            context.write_text(json.dumps({'args': {}, 'manifest': {}, 'files': {}, 'descriptor': {},
+                                           'image': 'PRIVATE_IMAGE', 'source': directory, 'options': []}))
+            target = {'Id': 'PRIVATE_TARGET', 'Image': 'PRIVATE_IMAGE',
+                      'State': {'Running': False, 'Status': 'created'},
+                      'Config': {'Env': []}, 'Mounts': []}
+
+            class Host:
+                journal = {'phase': 'rolling_back', 'before_image_id': 'PRIVATE_IMAGE'}
+                config = {'data_volume': 'PRIVATE_VOLUME'}
+
+                def runtime(self, action):
+                    calls.append(('actual-runtime', action))
+
+                def compose(self, *args, **kwargs):
+                    calls.append(('actual-compose', args))
+                    return subprocess.CompletedProcess(args, 0, b'PRIVATE_TARGET\n', b'')
+
+                def record_runtime(self):
+                    raise AssertionError('unneeded-record-runtime')
+
+                def clear_blocked_initial_owner(self, *args):
+                    raise AssertionError('unneeded-owner-unlink')
+
+            def docker(*args, **kwargs):
+                calls.append(('actual-docker', args))
+                if args[:1] == ('inspect',):
+                    value = [target]
+                else:
+                    self.assertEqual(args[:2], ('volume', 'inspect'))
+                    value = [{'Driver': 'local', 'Mountpoint': directory}]
+                return subprocess.CompletedProcess(args, 0, json.dumps(value).encode(), b'')
+
+            def install(*args):
+                Host().runtime('detach')
+                calls.append(('start-must-not-happen',))
+
+            fake = types.SimpleNamespace(Host=Host, docker=docker, install=install,
+                                         Failure=RuntimeError)
+            namespace.update(host=fake, WORKER_CONTEXT=context, WORKER_RESULT=result_path,
+                             INTERRUPTED=75, REPLACEMENT_FAULT='fixed', RECORD_FAULT='fixed')
+            with patch.object(os, 'chdir'):
+                self.assertEqual(namespace['legacy_worker'](['install', '--interrupt', 'after-runtime-detach']), 75)
+            report = json.loads(result_path.read_bytes())
+            self.assertEqual(report['result'], 'interrupted')
+            self.assertEqual(report['checkpoint']['id'], 'PRIVATE_TARGET')
+            self.assertEqual(calls[0], ('actual-runtime', 'detach'))
+            self.assertEqual(report['events'], ['actual-created-standalone-target-detached-before-start'])
+            self.assertNotIn(('start-must-not-happen',), calls)
+
 
 class MainFailureSummary(unittest.TestCase):
     def test_real_entrypoint_keeps_main_stage_passes_and_fixed_changed_fields(self):
@@ -300,6 +432,49 @@ class WorkerRefusals(unittest.TestCase):
         self.assertEqual(self.fixture.restart_count, 0)
         self.assertFalse(any(item[0] == 'binary' and item[1][0] == 'runtime-block-staged'
                              for item in self.fixture.commands))
+
+    def replacement_worker(self, *, allowed=False):
+        host = host_tests.host
+        self.options.action, self.options.refusal = 'apply', ''
+        self.options.interrupt, self.options.block_after_prepare = 'after-server-removal', False
+        info = copy.deepcopy(self.fixture.info)
+        info['State']['Running'] = False
+        info['Config']['Labels']['p2pstream.server-update.instance'] = host_tests.ID
+        self.fixture.state.mkdir(mode=0o700, exist_ok=True)
+        previous = b'{"fixture":"PRIVATE_SOURCE"}'
+        (self.fixture.state / 'before-compose.json').write_bytes(previous)
+        controller = types.SimpleNamespace(journal={'before_image_id': info['Image'],
+                                                     'before_sha256': harness.sha(previous)},
+                                           config={'instance_id': host_tests.ID})
+        commands = []
+
+        def docker(*args, **kwargs):
+            commands.append(args)
+            return ''
+
+        def manage(*unused):
+            host.Host.compose(controller, 'up', '--no-start', '--no-deps', 'p2pstream')
+
+        with patch.object(harness, 'server_info', return_value=info), \
+                patch.object(harness, 'owner_bytes', return_value=b'PRESENT:' + json.dumps({'allowed': allowed}).encode()), \
+                patch.object(harness, 'docker', side_effect=docker), patch.object(host, 'manage', side_effect=manage):
+            if allowed:
+                with self.assertRaisesRegex(harness.CheckFailure, '^replacement-fault-owner-not-blocked$'):
+                    harness.worker(self.options)
+            else:
+                with self.assertRaises(harness.DeliberateInterruption):
+                    harness.worker(self.options)
+        return commands
+
+    def test_replacement_interruption_follows_confirmed_removal_without_returning_compose_success(self):
+        commands = self.replacement_worker()
+        self.assertEqual(commands[0], ('rm', self.fixture.info['Id']))
+        self.assertEqual(commands[1][:3], ('ps', '--all', '--quiet'))
+        self.assertEqual(harness.read(self.fixture.path / 'trace-prepared-blocker.json'),
+                         ['actual-owned-server-removed', 'interrupt-after-server-removal'])
+
+    def test_replacement_fault_never_removes_a_server_without_actual_blocked_owner(self):
+        self.assertEqual(self.replacement_worker(allowed=True), [])
 
     def test_worker_boundary_failure_retains_stage_passes_and_fields_through_fresh(self):
         original = host_tests.host.enrollment_preflight
