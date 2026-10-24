@@ -596,6 +596,7 @@ class Host:
         if phase in {'healthy', 'rolled_back', 'removed'}:
             self.journal.pop('replacement_intent', None)
             self.journal.pop('rollback_target', None)
+            self.journal.pop('rollback_transition', None)
             self.journal.pop('detached_continuation', None)
         if phase == 'healthy':
             self.journal.pop('recovery_phase', None)
@@ -1563,6 +1564,27 @@ class Host:
                 'project': self.config['project'], 'data_volume': self.config['data_volume'],
                 'source_sha256': self.cancellation_model_hash(docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)}
 
+    def recorded_rollback_transition(self, intent, binding):
+        transition = self.journal.get('rollback_transition')
+        if not transition:
+            return None
+        require(set(transition) == {'api', 'intent_sha256', 'binding', 'previous_model_sha256', 'target_sha256', 'server'} and transition['api'] == 1 and transition['intent_sha256'] == digest(json.dumps(intent, sort_keys=True).encode()) and transition['binding'] == binding == intent['binding'], 'Rollback publication transition binding changed')
+        require(transition['previous_model_sha256'] in {intent['previous_model_sha256'], intent['target_sha256']}, 'Rollback publication prior model differs')
+        model = read_json(self.directory / 'before-compose.json')
+        if 'p2pstream-server-updater' in model['services']:
+            target = self.journal.get('rollback_target')
+            require(target and target['binding'] == binding and isinstance(target['generation'], str) and str(uuid.UUID(target['generation'])) == target['generation'], 'Rollback publication generation differs')
+            model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = target['generation']
+        require(self.cancellation_model_hash(json.dumps(model).encode()) == transition['target_sha256'], 'Rollback publication target differs from the recorded snapshot')
+        return transition
+
+    def replacement_model_hashes(self, intent, binding):
+        hashes = {intent['target_sha256'], intent['previous_model_sha256']}
+        transition = self.recorded_rollback_transition(intent, binding)
+        if transition:
+            hashes.add(transition['target_sha256'])
+        return hashes
+
     def replacement_server(self, info, binding):
         labels = info['Config'].get('Labels', {})
         require(info['Image'] == binding['image_id'], 'Running image changed outside this host transaction; refusing configuration-only rollback')
@@ -1576,7 +1598,15 @@ class Host:
             fields = docker('compose', '--project-directory', self.journal['source_directory'], '-f', str(self.directory / 'input.json'), 'config', '--hash', 'p2pstream').stdout.decode().split()
             require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot verify original replacement settings')
             hashes.add(fields[1])
-        require(labels.get('com.docker.compose.config-hash') in hashes, 'Running settings differ from the recorded replacement transaction')
+        intent = self.journal.get('replacement_intent')
+        recorded_server = False
+        if intent and intent['binding'] == binding:
+            transition = self.recorded_rollback_transition(intent, binding)
+            projection = self.cancellation_stable_server(info)
+            if transition:
+                require(projection == transition['server'], 'Server differs from the declared rollback publication transition')
+            recorded_server = projection == intent.get('previous_server') or transition is not None and projection == transition['server']
+        require(recorded_server or labels.get('com.docker.compose.config-hash') in hashes, 'Running settings differ from the recorded replacement transaction')
         mounts = [m for m in info['Mounts'] if m['Destination'] == '/data']
         require(len(mounts) == 1 and mounts[0].get('Name') == binding['data_volume'] and mounts[0].get('RW') and not any(m['Destination'].startswith('/data/') for m in info['Mounts']), 'Replacement data volume differs')
         identity = docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() if info['State']['Running'] else self.data_identity()
@@ -1593,7 +1623,7 @@ class Host:
         require(self.config.get('deployment_protocol') == 2 and intent and intent.get('api') == 1, 'Missing deployment has no durable blocked replacement proof; refusing to recreate a missing deployment')
         binding = binding or self.replacement_binding()
         require(intent['binding'] == binding, 'Replacement snapshot, configuration or image binding changed')
-        require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in {intent['target_sha256'], intent['previous_model_sha256']}, 'Replacement active model changed')
+        require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
         data = self.replacement_data()
         require(data['directory'] == intent['data_directory'] and self.replacement_owned(data['owner'], intent), 'Replacement runtime owner or data directory changed')
         require(self.data_identity() == binding['installation'], 'Installation identity changed during replacement')
@@ -1608,6 +1638,7 @@ class Host:
         existing = self.journal.get('replacement_intent')
         if existing:
             require(existing.get('api') == 1 and existing['binding'] == binding, 'Replacement snapshot, configuration or image binding changed')
+            require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in self.replacement_model_hashes(existing, binding), 'Replacement active model changed')
         if info is None:
             self.verify_replacement_intent(binding, previous_model)
         elif stopped_from is not None:
@@ -1661,7 +1692,9 @@ class Host:
         if existing and existing['operation'] == operation and existing['target_sha256'] == digest(target_raw):
             return  # Retain exact original authority across retries.
         intent = {'api': 1, 'operation': operation, 'binding': binding, 'container_id': info['Id'] if info else existing['container_id'],
-                  'data_directory': blocked['directory'], 'owner': owner, 'permitted_owner': permitted, 'target_sha256': digest(target_raw), 'previous_model_sha256': self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes())}
+                  'data_directory': blocked['directory'], 'owner': owner, 'permitted_owner': permitted, 'previous_server': self.cancellation_stable_server(info) if info else None, 'target_sha256': digest(target_raw), 'previous_model_sha256': self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes())}
+        # Commit new authority and consume its publication bridge in one write.
+        self.journal.pop('rollback_transition', None)
         self.phase(self.journal['phase'], replacement_intent=intent)
 
     def begin_detached_continuation(self):
@@ -1823,12 +1856,18 @@ class Host:
             self.replacement_server(info, binding)
             data = self.replacement_data()
             if intent:
+                require(self.cancellation_model_hash(previous_model) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
                 require(intent['binding'] == binding and data['directory'] == intent['data_directory'] and self.replacement_owned(data['owner'], intent), 'Replacement runtime owner or data directory changed')
             require(data['owner'] is not None or enrolled or read_json(self.current_model_path())['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2', 'Detached rollback has no blocked runtime authority; restore the verified managed deployment before retrying')
-        # This target declaration is durable before publication, but is never
-        # enough to authorize missing inventory. Only blocked replacement_intent
-        # below the existing publish/block boundary can authorize creation.
-        self.phase('rolling_back', **({'rollback_target': rollback_target} if rollback_target else {}))
+        declaration = {'rollback_target': rollback_target} if rollback_target else {}
+        if intent and intent['operation'] != 'rollback' and not self.journal.get('rollback_transition'):
+            # Preserve the validated old authority while publishing the exact
+            # next model. Neither phase nor a model hash alone grants ownership.
+            declaration['rollback_transition'] = {'api': 1, 'intent_sha256': digest(json.dumps(intent, sort_keys=True).encode()),
+                'binding': intent['binding'], 'previous_model_sha256': self.cancellation_model_hash(previous_model),
+                'target_sha256': self.cancellation_model_hash(json.dumps(model).encode()),
+                'server': self.cancellation_stable_server(info) if info else None}
+        self.phase('rolling_back', **declaration)
         helper_model = 'before-compose.json' if 'p2pstream-server-updater' in before['services'] else 'enrolled-compose.json'
         if (self.directory / helper_model).exists():
             self.compose('stop', 'p2pstream-server-updater', model=helper_model)

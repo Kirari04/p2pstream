@@ -2,6 +2,9 @@
 """Exercise the standalone setup shell and its pinned release download boundary."""
 import base64
 import copy
+import contextlib
+import datetime
+import importlib.util
 import gzip
 import hashlib
 import io
@@ -44,6 +47,104 @@ def archive(entries):
                 member.linkname = '/tmp/unsafe-setup-link'
             stream.addfile(member, io.BytesIO(data))
     return output.getvalue()
+
+
+def cross_layer_wrapper(code, args, responses, result_path, scenario):
+    """Real bootstrap program/parser; mock only transport, Docker and time.
+
+    Keep one actual host lifecycle across two wrapper attempts so the second
+    call must prove its durable API2 receipt, not an always-success stub.
+    """
+    spec = importlib.util.spec_from_file_location('host_lifecycle', ROOT / 'test-server-updater-host.py')
+    lifecycle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lifecycle)
+    case = lifecycle.BlockedInitialOwnerCancellation(methodName='runTest')
+    case.setUp()
+    host = lifecycle.host
+    current_url = 'https://github.com/test/repo/releases/download/v1.0.2/p2pstream_agent_update_manifest.json'
+    current_raw = base64.b64decode(responses[current_url])
+    current = json.loads(current_raw)
+    current_hash = digest(current_raw)
+    case.args.manifest_sha256 = current_hash
+    case.current_floor['manifest_sha256'] = current_hash
+    clock = [datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)]
+    actual_datetime = datetime.datetime
+    class FrozenDateTime(actual_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
+    class Opener:
+        def open(self, url, **kwargs):
+            result = io.BytesIO(base64.b64decode(responses[url]))
+            result.geturl = lambda: url
+            return result
+    def admitted_metadata(repository, version, commit=None, channel=None, expected_manifest=None):
+        host.require((repository, version, commit, channel, expected_manifest) == ('test/repo', current['version'], current['commit'], current['channel'], current_hash), 'Current release binding differs')
+        expiry = actual_datetime.strptime(current['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc)
+        host.require(clock[0] < expiry, 'Release metadata expired; fresh controller admission refused')
+        return case.manifest, case.descriptor, case.current_ref, current_hash
+    actual_run = subprocess.run
+    host_calls, controller_errors = [], []
+    def dispatch(command, **kwargs):
+        if len(command) >= 3 and command[1] == '-I' and Path(command[2]).name == 'server-updater-host.py':
+            assert Path(command[2]).read_bytes() == (ROOT / 'server-updater-host.py').read_bytes()
+            host_calls.append(command[3:])
+            status = 0
+            error = io.StringIO()
+            with patch.object(sys, 'argv', command[2:]), contextlib.redirect_stderr(error):
+                try:
+                    host.main()  # Real argparse, receipt admission and mutation path.
+                except KeyboardInterrupt:
+                    status = 130
+                except SystemExit as exited:
+                    status = exited.code
+            controller_errors.append(error.getvalue())
+            if status and kwargs.get('check'):
+                raise subprocess.CalledProcessError(status, command)
+            return subprocess.CompletedProcess(command, status)
+        return actual_run(command, **kwargs)
+    statuses, wrapper_errors = [], []
+    def attempt(values):
+        status = 0
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', ['-'] + values), contextlib.redirect_stderr(errors):
+            try:
+                exec(compile(code, 'downloaded-setup', 'exec'), {})
+            except SystemExit as exited:
+                status = exited.code
+        statuses.append(status)
+        wrapper_errors.append(errors.getvalue())
+    try:
+        with patch.object(datetime, 'datetime', FrozenDateTime), patch.object(urllib.request, 'build_opener', return_value=Opener()), patch.object(subprocess, 'run', side_effect=dispatch), patch.object(host, 'release_metadata', side_effect=admitted_metadata):
+            retry = scenario not in {'fresh-expired', 'recovery-expired'}
+            if retry:
+                case.cleanup_fault = 'after-unlink'
+                attempt(args)
+                assert statuses == [1] and not case.marker.exists()
+                assert not host.read_json(case.state / host.CANCELLATION)['completed']
+                case.cleanup_fault = None
+            clock[0] = actual_datetime(2030, 1, 3, tzinfo=datetime.timezone.utc)
+            values = list(args)
+            if scenario == 'wrong-installation':
+                values[1] = '22222222-2222-4222-8222-222222222222'
+            elif scenario == 'wrong-arch':
+                values[3] = 'arm64'
+            elif scenario == 'wrong-current-pin':
+                values[-2] = '0' * 64
+            elif scenario == 'wrong-current-commit':
+                changed = dict(current, commit='8' * 40)
+                raw = json.dumps(changed).encode()
+                responses[current_url] = base64.b64encode(raw).decode()
+                values[-2] = digest(raw)
+            attempt(values)
+        receipt_path = case.state / host.CANCELLATION
+        receipt = host.read_json(receipt_path) if receipt_path.exists() else None
+        result = {'statuses': statuses, 'host_calls': len(host_calls), 'controller_errors': controller_errors,
+                  'wrapper_errors': wrapper_errors, 'completed': receipt and receipt['completed'],
+                  'marker_exists': case.marker.exists()}
+        Path(result_path).write_text(json.dumps(result))
+    finally:
+        case.tearDown()
 
 
 class Bootstrap(unittest.TestCase):
@@ -97,6 +198,63 @@ class Bootstrap(unittest.TestCase):
         raw = json.dumps(current).encode()
         self.current_files['https://github.com/test/repo/releases/download/v1.0.0/p2pstream_agent_update_manifest.json'] = raw
         return self.args[:4] + ['--cancel-enrollment', '--upgraded-deployment', 'v1.0.0', digest(raw), '--']
+
+    def shell_controller_expiry(self, scenario):
+        # The recovery bundle is real controller source; no success-only host
+        # fixture can admit an expired fresh cancellation in this test.
+        source = (ROOT / 'server-updater-host.py').read_bytes()
+        self.entries = [(name, source if name == 'server-updater-host.py' else data, kind) for name, data, kind in self.entries]
+        if scenario == 'recovery-expired':
+            self.manifest['expires_at'] = '2030-01-02T00:00:00Z'
+        self.publish()
+        current = dict(self.manifest, version='v1.0.2', commit='9' * 40, expires_at='2030-01-02T00:00:00Z')
+        raw = json.dumps(current).encode()
+        self.current_files['https://github.com/test/repo/releases/download/v1.0.2/p2pstream_agent_update_manifest.json'] = raw
+        args = self.args[:3] + ['amd64', '--cancel-enrollment', '--upgraded-deployment', 'v1.0.2', digest(raw), '--']
+        responses = {BASE + name: base64.b64encode(data).decode() for name, data in self.files.items()}
+        responses.update({url: base64.b64encode(data).decode() for url, data in self.current_files.items()})
+        runner = self.path / 'controller-runner.py'
+        runner.write_text('import importlib.util, sys\nsys.dont_write_bytecode = True\n'
+            'spec = importlib.util.spec_from_file_location("wrapper_tests", ' + repr(str(Path(__file__).resolve())) + ')\n'
+            'module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)\n'
+            'module.cross_layer_wrapper(sys.stdin.read(), sys.argv[3:], ' + repr(responses) + ', ' + repr(str(self.receipt)) + ', ' + repr(scenario) + ')\n')
+        python = self.path / 'python3'
+        python.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' -I ' + shlex.quote(str(runner)) + ' "$@"\n')
+        python.chmod(0o700)
+        env = dict(os.environ, PATH=str(self.path) + ':' + os.environ['PATH'])
+        result = subprocess.run(['sh', '-s', '--'] + args, input=SCRIPT, text=True, capture_output=True, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(self.receipt.read_text())
+
+    def test_shell_current_expiry_retry_uses_real_controller_receipt(self):
+        result = self.shell_controller_expiry('admitted')
+        self.assertEqual(result['statuses'], [1, 0], result)
+        self.assertEqual(result['host_calls'], 2)
+        self.assertTrue(result['completed'])
+        self.assertFalse(result['marker_exists'])
+
+    def test_shell_expired_fresh_cancellation_is_refused_by_controller(self):
+        result = self.shell_controller_expiry('fresh-expired')
+        self.assertEqual(result['statuses'], [1], result)
+        self.assertEqual(result['host_calls'], 1)
+        self.assertIn('fresh controller admission refused', result['controller_errors'][0])
+        self.assertIsNone(result['completed'])
+        self.assertTrue(result['marker_exists'])
+
+    def test_shell_retry_preserves_current_identity_and_pin_checks(self):
+        for scenario in ('wrong-installation', 'wrong-arch', 'wrong-current-pin', 'wrong-current-commit'):
+            with self.subTest(scenario=scenario):
+                result = self.shell_controller_expiry(scenario)
+                self.assertEqual(result['statuses'], [1, 1], result)
+                self.assertEqual(result['host_calls'], 1 if scenario == 'wrong-current-pin' else 2)
+                self.assertFalse(result['completed'])
+
+    def test_shell_expired_recovery_bundle_never_reaches_controller(self):
+        result = self.shell_controller_expiry('recovery-expired')
+        self.assertEqual(result['statuses'], [1], result)
+        self.assertEqual(result['host_calls'], 0)
+        self.assertIn('Release metadata expired', result['wrapper_errors'][0])
+        self.assertTrue(result['marker_exists'])
 
     def test_verified_host_receives_exact_bindings_and_compose_arguments(self):
         hostile = "project ' $(touch " + str(self.path / 'injected') + "); *"
@@ -171,7 +329,7 @@ class Bootstrap(unittest.TestCase):
 
     def test_upgraded_cancellation_rejects_current_manifest_discrepancies_before_extraction(self):
         for changes in ({'version': 'v2.0.0'}, {'channel': 'staging'}, {'commit': 'bad'},
-                        {'schema_version': 2}, {'expires_at': '2000-01-01T00:00:00Z'}):
+                        {'schema_version': 2}, {'expires_at': 'invalid-timestamp'}):
             with self.subTest(changes=changes):
                 args = self.upgraded_args(**changes)
                 with patch.object(bootstrap.tempfile, 'TemporaryDirectory', side_effect=AssertionError('premature extraction')):
@@ -234,6 +392,15 @@ class Bootstrap(unittest.TestCase):
                     self.invoke()
                 self.assertFalse(self.receipt.exists())
                 self.descriptor[field] = original
+
+    def test_expired_recovery_manifest_refuses_all_ordinary_modes(self):
+        self.manifest['expires_at'] = '2000-01-01T00:00:00Z'
+        self.publish()
+        for mode in ([], ['--migrate-deployment'], ['--cancel-enrollment']):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(ValueError, 'Release metadata expired'):
+                    self.invoke(self.args[:4] + mode + ['--'])
+                self.assertFalse(self.receipt.exists())
 
     def test_manifest_identity_expiry_asset_duplicates_and_bounds(self):
         for field, value in [('commit', 'bad'), ('channel', 'staging'), ('version', 'v2.0.0'), ('expires_at', '2000-01-01T00:00:00Z')]:

@@ -55,14 +55,15 @@ def download(url, maximum):
     return raw
 
 
-def release_manifest(repository, version, manifest_hash):
+def release_manifest(repository, version, manifest_hash, *, allow_expired_identity=False):
     base = 'https://github.com/' + repository + '/releases/download/' + version + '/'
     raw = download(base + 'p2pstream_agent_update_manifest.json', 65536)
     require(hashlib.sha256(raw).hexdigest() == manifest_hash, 'Release changed since this command was copied; refresh the selected server')
     manifest = json.loads(raw)
     channel = 'staging' if '-staging.' in version else 'stable'
     require(manifest['schema_version'] == 1 and manifest['version'] == version and manifest['channel'] == channel and re.fullmatch(r'[0-9a-f]{40}', manifest['commit']), 'Manifest identity mismatch')
-    require(datetime.datetime.strptime(manifest['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc) > datetime.datetime.now(datetime.timezone.utc), 'Release metadata expired; manually upgrade to a current published release')
+    expiry = datetime.datetime.strptime(manifest['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc)
+    require(allow_expired_identity or expiry > datetime.datetime.now(datetime.timezone.utc), 'Release metadata expired; manually upgrade to a current published release')
     return base, manifest, channel
 
 
@@ -93,7 +94,11 @@ def main(args):
     base, manifest, channel = release_manifest(repository, version, manifest_hash)
     current_manifest = None
     if current_version is not None:
-        _, current_manifest, _ = release_manifest(repository, current_version, current_hash)
+        # Only explicit upgraded cancellation may pass an expired, pinned
+        # current identity to the freshly verified recovery controller. Its
+        # exact API2 receipt decides whether this is an admitted retry; without
+        # that proof the controller still performs fresh expiry validation.
+        _, current_manifest, _ = release_manifest(repository, current_version, current_hash, allow_expired_identity=True)
     assets = manifest['release_assets']
     require(isinstance(assets, list) and len(assets) <= 64, 'Invalid release assets')
     inventory = {}

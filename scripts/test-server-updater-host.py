@@ -1166,6 +1166,139 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
         self.assertEqual(self.runtime_owner, intent['permitted_owner'])
 
+    def interrupt_rollback_publication(self, origin, existing=False, after_intent=False):
+        self.managed = True
+        original_compose, original_write, original_phase = host.Host.compose, host.Host.write_model, host.Host.phase
+        def native_hash(controller, name):
+            return host.digest(json.dumps(host.read_json(controller.model_path(name)), sort_keys=True).encode())
+        def compose(controller, *args, **kwargs):
+            model = kwargs.get('model', 'compose.json')
+            if args[0] == 'config' and '--hash' in args:
+                return subprocess.CompletedProcess(args, 0, ('p2pstream ' + native_hash(controller, model) + '\n').encode(), b'')
+            result = original_compose(controller, *args, **kwargs)
+            if args[0] == 'up' and args[-1] == 'p2pstream':
+                value = native_hash(controller, model)
+                self.info['Config']['Labels']['com.docker.compose.config-hash'] = value
+                self.accepted_native_hash = value
+            return result
+        self.stack.enter_context(patch.object(host.Host, 'compose', compose))
+        if origin != 'activation':
+            self.install()
+            self.model['services']['p2pstream']['environment']['CHANGED'] = 'candidate'
+            self.raw = json.dumps(self.model).encode()
+        def failed_create(controller, *args, **kwargs):
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream' and controller.journal['phase'] != 'rolling_back':
+                if existing:
+                    compose(controller, *args, **kwargs)
+                else:
+                    self.server_inventory = b''  # Old target really disappeared.
+                raise host.Failure('Replacement interrupted at create boundary')
+            return compose(controller, *args, **kwargs)
+        def published(controller, data):
+            result = original_write(controller, data)
+            if controller.journal['phase'] == 'rolling_back' and not after_intent:
+                raise KeyboardInterrupt()  # Disk has rollback bytes; old intent is still durable.
+            return result
+        def advanced(controller, phase, **values):
+            result = original_phase(controller, phase, **values)
+            if after_intent and values.get('replacement_intent', {}).get('operation') == 'rollback':
+                raise KeyboardInterrupt()
+            return result
+        with patch.object(host.Host, 'compose', failed_create), patch.object(host.Host, 'write_model', published), patch.object(host.Host, 'phase', advanced):
+            with self.assertRaises(KeyboardInterrupt):
+                self.install() if origin == 'activation' else host.manage(argparse.Namespace(action=origin))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolling_back')
+        self.assertEqual(self.server_inventory, None if existing else b'')
+
+    def assert_publication_retry(self, origin, action, existing=False):
+        self.interrupt_rollback_publication(origin, existing)
+        host.manage(argparse.Namespace(action=action))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back' if origin == 'activation' else 'healthy')
+
+    def test_activation_publication_gap_repairs(self):
+        self.assert_publication_retry('activation', 'repair')
+
+    def test_activation_publication_gap_rolls_back(self):
+        self.assert_publication_retry('activation', 'rollback')
+
+    def test_apply_publication_gap_repairs(self):
+        self.assert_publication_retry('apply', 'repair')
+
+    def test_apply_publication_gap_rolls_back(self):
+        self.assert_publication_retry('apply', 'rollback')
+
+    def test_remove_publication_gap_repairs(self):
+        self.assert_publication_retry('remove', 'repair')
+
+    def test_remove_publication_gap_rolls_back(self):
+        self.assert_publication_retry('remove', 'rollback')
+
+    def test_existing_apply_target_publication_gap_repairs(self):
+        self.assert_publication_retry('apply', 'repair', existing=True)
+
+    def test_existing_apply_target_publication_gap_rolls_back(self):
+        self.assert_publication_retry('apply', 'rollback', existing=True)
+
+    def test_existing_activation_target_publication_gap_repairs(self):
+        self.assert_publication_retry('activation', 'repair', existing=True)
+
+    def test_existing_activation_target_publication_gap_rolls_back(self):
+        self.assert_publication_retry('activation', 'rollback', existing=True)
+
+    def test_existing_remove_target_publication_gap_repairs(self):
+        self.assert_publication_retry('remove', 'repair', existing=True)
+
+    def test_existing_remove_target_publication_gap_rolls_back(self):
+        self.assert_publication_retry('remove', 'rollback', existing=True)
+
+    def test_publication_intent_advance_retains_exact_existing_target_settings(self):
+        self.interrupt_rollback_publication('apply', existing=True, after_intent=True)
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['replacement_intent']['operation'], 'rollback')
+        self.assertNotIn('rollback_transition', journal)
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_publication_intent_advance_retains_missing_target_authority(self):
+        self.interrupt_rollback_publication('remove', after_intent=True)
+        self.assertNotIn('rollback_transition', host.read_json(self.state / 'host.json'))
+        host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_publication_transition_refuses_changed_models_generation_and_binding(self):
+        self.interrupt_rollback_publication('apply')
+        journal = host.read_json(self.state / 'host.json')
+        path = Path(host.read_json(self.state / 'config.json')['deployment_file'])
+        model = path.read_bytes()
+        for change in ('prior', 'next', 'intent', 'binding', 'generation', 'active-model'):
+            with self.subTest(change=change):
+                altered = copy.deepcopy(journal)
+                host.atomic(path, model)
+                if change in {'prior', 'next', 'intent'}:
+                    key = {'prior': 'previous_model_sha256', 'next': 'target_sha256', 'intent': 'intent_sha256'}[change]
+                    altered['rollback_transition'][key] = '0' * 64
+                elif change == 'binding':
+                    altered['rollback_transition']['binding']['data_volume'] = 'foreign'
+                elif change == 'generation':
+                    altered['rollback_target']['generation'] = '22222222-2222-4222-8222-222222222222'
+                else:
+                    changed = host.decode(model)
+                    changed['services']['p2pstream']['environment']['UNDECLARED'] = 'changed'
+                    host.atomic(path, changed)
+                host.atomic(self.state / 'host.json', altered)
+                before = len(self.commands)
+                with self.assertRaises(host.Failure):
+                    host.manage(argparse.Namespace(action='repair'))
+                self.assert_no_server_lifecycle(self.commands[before:])
+
+    def test_publication_transition_refuses_foreign_existing_target(self):
+        self.interrupt_rollback_publication('apply', existing=True)
+        self.info['Id'] = 'foreign-existing'
+        before = len(self.commands)
+        with self.assertRaisesRegex(host.Failure, 'differs from the declared rollback publication transition'):
+            host.manage(argparse.Namespace(action='rollback'))
+        self.assert_no_server_lifecycle(self.commands[before:])
+
     def test_rollback_generation_is_durable_before_model_publication(self):
         self.managed = True
         self.install()
