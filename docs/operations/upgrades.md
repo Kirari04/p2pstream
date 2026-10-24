@@ -44,7 +44,7 @@ fixed published image with the same restored Compose configuration and named dat
 volume, refresh the Updates page, and enroll again using its fresh setup command.
 Do not delete updater state or use an old copied setup command to bypass recovery.
 
-If the server was manually upgraded **before** cancellation, leave it running.
+If the server was manually upgraded **before** cancellation, leave it running. A blocked startup marker can prevent it from starting again; avoid container restarts and host reboots until verified recovery completes.
 The saved enrollment still belongs to the old image; repeating `repair` or
 `rollback` cannot adopt the upgrade. Use the explicit
 [upgraded-deployment recovery](./server-updates#if-the-server-was-already-manually-upgraded)

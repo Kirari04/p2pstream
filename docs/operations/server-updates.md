@@ -143,6 +143,8 @@ After cancellation succeeds, manually deploy the fixed published server image us
 
 A manual server upgrade can leave an older failed enrollment behind. For example, the running server can be `.106` while `host.json` still records `.103`. Ordinary `.106` setup tries the saved enrollment and can leave `recovery_required` with `Running image changed after setup was staged`. Repeating its `repair` or `rollback` does not adopt the new release. Keep the current server running and use a published recovery release with `--upgraded-deployment` support; `.106` does not contain that recovery mode.
 
+**Keep the server running until verified cancellation completes.** A blocked startup-owner marker can coexist with the current standalone process, but the startup guard rejects a replacement process while that marker remains. A restart, recreation, or host reboot before marker retirement can therefore leave the server unavailable. If it has already stopped, preserve the private state and diagnose recovery; do not delete the marker or force an older image to start.
+
 The recovery bundle and the running server have separate release bindings. Download the bootstrap from the exact recovery release and add the **currently running** version and its manifest SHA-256:
 
 ```bash
@@ -155,6 +157,8 @@ sudo sh ./setup-server-updater.sh 'Kirari04/p2pstream@<exact-recovery-release>' 
 This accepts only an initial enrollment that never succeeded, with no update/preview history, maintenance or active executor. It independently verifies the installed image against the current published release, the installation and named data volume, health, and the complete Compose configuration. Only the server image may have changed. The repository and channel must match, and saved release floors remain enforced. Unknown deployment changes are refused.
 
 Recovery restores only verified setup-owned Compose entry points if the old repair left them pointing at its saved deployment. If that repair also wrote a blocked startup-owner marker, recovery can archive and retire only the exact marker belonging to the failed initial generation, after proving the current standalone server holds the stable lifetime lock. Allowed, foreign or unproven ownership is refused; the lock file is never removed or replaced. Recovery archives failed enrollment state privately, retains the current release floor, and leaves the running server and application data unchanged. Retry the same verified recovery command if interrupted. After success, refresh the current server's Updates page and run its fresh setup command. That separate enrollment restarts the server once; cancellation itself does not enable updates.
+
+Blocked-owner recovery requires a locally accessible named Docker volume and a provable lifetime lock held by the running server. Btrfs recovery has not been qualified; a filesystem-specific lease-proof refusal must be diagnosed without bypassing the lock check. Successful cancellation retains the saved `.p2pstream-input-…` copies as recovery backups. Automatic cleanup of these copies is not implemented; they can contain deployment settings and must retain restricted access.
 
 Newer ordinary setup refuses a stale image or release binding before retrying activation. Host rollback also refuses a missing server instead of recreating an old enrollment image. Do not delete or edit the journal to bypass either check.
 
