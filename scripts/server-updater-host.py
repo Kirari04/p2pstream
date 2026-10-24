@@ -887,6 +887,21 @@ class Host:
         self.settle_helper()
         self.idle()
         phase = self.journal['phase']
+        if phase == 'recovery_required':
+            recovery = self.journal.get('recovery_phase')
+            require(recovery != 'recovering_update' and not self.journal.get('recovery_operation'), 'Data recovery was interrupted; run the recorded recover-update command instead of canonical repair')
+            if recovery == 'healthy':
+                # Read-only diagnostics also use journaled helpers. Losing the
+                # daemon while settling one must not make the installation-era
+                # before model a rollback target for a completed enrollment.
+                require(isinstance(self.journal.get('verified_version'), str) and VERSION.fullmatch(self.journal['verified_version']) and isinstance(self.journal.get('verified_commit'), str) and re.fullmatch('[0-9a-f]{40}', self.journal['verified_commit']), 'Recorded healthy diagnostic recovery lacks completed enrollment provenance; restore the matching private history')
+                self.phase('healthy', error='')
+                phase = 'healthy'
+            else:
+                require(recovery is None or isinstance(recovery, str) and recovery in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'rolled_back'}, 'Unsupported recorded canonical recovery phase; restore the matching operation history before repair')
+                # A helper's saved activating phase is not permission to
+                # recreate a missing server. Keep recovery_required and use the
+                # existing transaction rollback's presence/hash/identity guards.
         if phase == 'healthy':
             try:
                 self.healthy()
@@ -1453,9 +1468,23 @@ class Host:
             else:
                 require(stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == item['original_sha256'], 'Original Compose source changed after rollback')
         source = decode(docker('compose', *self.journal['compose_options'], 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)
-        # Enrollment replaces only the input image reference with its publisher-
-        # verified digest; source files may retain their equivalent release tag.
-        require(source['services']['p2pstream'].get('image') == read_json(self.directory / 'input.json')['services']['p2pstream'].get('image'), 'Original Compose image input changed')
+        # Legacy sources retain their original tag. The single-file controller
+        # instead publishes its recorded digest-normalized rollback model at the
+        # source path. Admit only those exact bytes and that one normalization,
+        # bound to the original private inputs and initial publication history.
+        if self.single_file():
+            candidate = decode(self.single_initial_candidate())
+            transaction = self.single_transaction()
+            initial = self.journal['single_initial']
+            require(transaction['kind'] == 'initial' and transaction['from_sha256'] == initial['source_sha256'] and transaction['to_sha256'] == initial['candidate_sha256'], 'Cancellation is not the recorded initial canonical transaction')
+            rollback = read_state_bytes(self.directory / 'rollback-compose.json')
+            require(digest(rollback) == self.journal.get('single_rollback_sha256') and read_state_bytes(self.current_model_path()) == rollback, 'Canonical source differs from the recorded controller rollback')
+            normalized = read_json(self.directory / 'input.json')
+            normalized['services']['p2pstream']['image'] = self.journal['server_image']
+            require(normalized == original and server['image'] == self.journal['server_image'] == candidate['services']['p2pstream']['image'], 'Canonical rollback differs from the recorded image-only normalization')
+            require(source['services']['p2pstream'].get('image') == server['image'], 'Resolved canonical image differs from the recorded controller rollback')
+        else:
+            require(source['services']['p2pstream'].get('image') == read_json(self.directory / 'input.json')['services']['p2pstream'].get('image'), 'Original Compose image input changed')
         source['services']['p2pstream']['image'] = server['image']
         require(source == original, 'Resolved original Compose inputs changed after rollback')
         info = self.server_container()

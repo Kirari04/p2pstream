@@ -2465,6 +2465,219 @@ class SingleFileLifecycle(unittest.TestCase):
         self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'stop', 'start', 'up'} for c in self.commands))
 
 
+    def test_diagnostic_daemon_loss_repairs_healthy_without_transaction_rollback(self):
+        self.install()
+        before = {path: path.read_bytes() for path in (self.canonical, self.inputs, self.state / 'config.json')}
+        restarts = self.restart_count
+        real_host = host.Host.__mro__[2]
+        def unavailable(*args, **kwargs):
+            raise host.Failure('daemon unavailable')
+        # Exercise public inspection and the real helper journal/settlement path,
+        # not a fabricated phase or a direct call to the recovery method.
+        with contextlib.redirect_stdout(io.TextIOWrapper(io.BytesIO())), patch.object(host.Host, 'compose', real_host.compose), patch.object(host, 'docker', unavailable):
+            with self.assertRaises(host.UnsettledHelper):
+                host.manage(argparse.Namespace(action='inspect', compose_args=['config', '--format', 'json']))
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'healthy'))
+        pending = host.read_json(self.state / 'helper.json')
+        self.assertTrue(pending['readonly'])
+        self.assertEqual(pending['phase'], 'healthy')
+        self.commands.clear()
+        host.manage(argparse.Namespace(action='repair'))
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        self.assertEqual(self.restart_count, restarts)
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'healthy')
+        self.assertNotIn('recovery_phase', journal)
+        self.assertFalse((self.state / 'helper.json').exists())
+        self.assertFalse(any(c[0] == 'binary' and c[1][0].startswith('runtime-') or c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} and c[1][-1] == 'p2pstream' for c in self.commands))
+
+    def cancel_single_public(self):
+        # Fixture native Compose reports the standalone model's hash after the
+        # actual controller rollback. All cancellation validation remains real.
+        original = host.Host.compose
+        def compose(controller, *args, **kwargs):
+            result = original(controller, *args, **kwargs)
+            if '--hash' in args and kwargs.get('model') == 'before-compose.json':
+                return subprocess.CompletedProcess(args, 0, ('p2pstream ' + 'a' * 64 + '\n').encode(), b'')
+            return result
+        argv = ['server-updater-host.py', 'cancel-enrollment', '--expect-installation', ID,
+                '--expect-channel', 'stable', '--repository', 'test/repo', '--bundle', str(self.bundle)]
+        with patch.object(host.Host, 'compose', compose), patch.object(sys, 'argv', argv), patch.object(host.signal, 'signal'):
+            host.main()
+
+    def failed_tag_enrollment(self):
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['image'], 'ghcr.io/test/repo:v1.0.1')
+        self.failure = 'health'
+        with self.assertRaisesRegex(host.Failure, 'health failure'):
+            self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        self.assertEqual(host.read_json(self.canonical)['services']['p2pstream']['image'], REF)
+        self.assertEqual(host.read_json(self.state / 'input.json')['services']['p2pstream']['image'], 'ghcr.io/test/repo:v1.0.1')
+
+    def test_tag_input_failed_enrollment_rollback_can_cancel_publicly(self):
+        self.failed_tag_enrollment()
+        before = {path: path.read_bytes() for path in (self.canonical, self.inputs, self.launcher, self.controller)}
+        info = copy.deepcopy(self.info)
+        restarts = self.restart_count
+        floor = host.read_json(self.state / 'config.json')['bootstrap_floor']
+        self.cancel_single_public()
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        self.assertEqual(self.info, info)
+        self.assertEqual(self.restart_count, restarts)
+        receipt = host.read_json(self.state / host.CANCELLATION)
+        self.assertTrue(receipt['completed'])
+        self.assertEqual(receipt['floor'], floor)
+        self.assertEqual(host.read_json(self.state / host.INSTALLATION_RECEIPT)['floor'], floor)
+        self.assertFalse((self.state / 'host.json').exists())
+
+
+    def lose_daemon_during_single_inspection(self):
+        real_host = host.Host.__mro__[2]
+        def unavailable(*args, **kwargs):
+            raise host.Failure('daemon unavailable')
+        with contextlib.redirect_stdout(io.TextIOWrapper(io.BytesIO())), patch.object(host.Host, 'compose', real_host.compose), patch.object(host, 'docker', unavailable):
+            with self.assertRaises(host.UnsettledHelper):
+                host.manage(argparse.Namespace(action='inspect', compose_args=['config']))
+
+    def test_diagnostic_recovery_does_not_fabricate_missing_initial_activation(self):
+        def removed(controller, *args, **kwargs):
+            self.server_inventory = b''
+            raise KeyboardInterrupt()
+        with patch.object(host.Host, 'deploy_server', removed), self.assertRaises(KeyboardInterrupt):
+            self.install()
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'activating')
+        self.lose_daemon_during_single_inspection()
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'activating'))
+        canonical = self.canonical.read_bytes()
+        self.commands.clear()
+        with patch.object(host.Host, 'data_identity', side_effect=AssertionError('must not infer initial recovery')), self.assertRaisesRegex(host.MissingRollbackServer, 'refusing to recreate a missing deployment'):
+            host.manage(argparse.Namespace(action='repair'))
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'activating'))
+        self.assertEqual(self.canonical.read_bytes(), canonical)
+        self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
+
+    def test_diagnostic_loss_during_apply_still_uses_recorded_transaction_rollback(self):
+        self.install()
+        before = host.read_json(self.canonical)
+        edited = host.read_json(self.inputs)
+        edited['services']['p2pstream']['environment']['SECRET'] = 'pending apply'
+        host.atomic(self.inputs, edited, mode=0o640)
+        with patch.object(host.Host, 'deploy_server', side_effect=KeyboardInterrupt()), self.assertRaises(KeyboardInterrupt):
+            host.manage(argparse.Namespace(action='apply'))
+        self.lose_daemon_during_single_inspection()
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual((journal['phase'], journal['recovery_phase']), ('recovery_required', 'applying'))
+        host.manage(argparse.Namespace(action='repair'))
+        current = host.read_json(self.canonical)
+        self.assertEqual(current['services']['p2pstream']['environment']['SECRET'], before['services']['p2pstream']['environment']['SECRET'])
+        self.assertEqual(current['services']['p2pstream']['image'], before['services']['p2pstream']['image'])
+        self.assertIn('p2pstream-server-updater', current['services'])
+        self.assertEqual(host.read_json(self.inputs), edited)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+
+    def test_unrelated_recovery_routes_refuse_without_rollback_or_phase_fabrication(self):
+        self.install()
+        original = host.read_json(self.state / 'host.json')
+        canonical = self.canonical.read_bytes()
+        changes = [
+            {'recovery_phase': 'recovering_update', 'recovery_operation': 'paused-update'},
+            {'recovery_phase': 'healthy', 'recovery_operation': 'paused-update'},
+            {'recovery_phase': 'removed'}, {'recovery_phase': 'recreating'},
+            {'recovery_phase': 'migrating_deployment'}, {'recovery_phase': 'unknown'},
+            {'recovery_phase': 'healthy', 'verified_version': ''},
+        ]
+        for change in changes:
+            with self.subTest(change=change):
+                host.atomic(self.state / 'host.json', dict(original, phase='recovery_required', **change))
+                before = (self.state / 'host.json').read_bytes()
+                self.commands.clear()
+                with self.assertRaises(host.Failure):
+                    host.manage(argparse.Namespace(action='repair'))
+                self.assertEqual((self.state / 'host.json').read_bytes(), before)
+                self.assertEqual(self.canonical.read_bytes(), canonical)
+                self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
+
+    def test_tag_normalization_cancellation_refuses_changed_models_and_provenance(self):
+        self.failed_tag_enrollment()
+        paths = [self.canonical, self.inputs, self.state / 'host.json', self.state / 'config.json',
+                 self.state / 'input.json', self.state / 'original-source.yaml', self.state / 'staged-compose.yaml',
+                 self.state / 'before-compose.json', self.state / 'rollback-compose.json']
+        original = {path: (path.read_bytes(), stat.S_IMODE(path.stat().st_mode)) for path in paths}
+        original_info = copy.deepcopy(self.info)
+        changes = ['canonical-settings', 'canonical-image', 'canonical-format', 'private-input', 'private-source',
+                   'private-candidate', 'wrong-transaction', 'changed-running-image', 'unrelated-normalization']
+        for change in changes:
+            with self.subTest(change=change):
+                for path, (data, mode) in original.items():
+                    host.atomic(path, data, mode=mode)
+                self.info = copy.deepcopy(original_info)
+                if change in {'canonical-settings', 'canonical-image'}:
+                    model = host.read_json(self.canonical)
+                    if change == 'canonical-settings':
+                        model['services']['p2pstream']['environment']['SECRET'] = 'unrelated edit'
+                    else:
+                        model['services']['p2pstream']['image'] = 'ghcr.io/test/repo@sha256:' + '0' * 64
+                    host.atomic(self.canonical, model, mode=0o640)
+                elif change == 'canonical-format':
+                    host.atomic(self.canonical, self.canonical.read_bytes() + b'\n', mode=0o640)
+                elif change == 'private-input':
+                    value = host.read_json(self.state / 'input.json')
+                    value['services']['p2pstream']['image'] = 'ghcr.io/test/repo:v9.0.0'
+                    host.atomic(self.state / 'input.json', value)
+                elif change in {'private-source', 'private-candidate'}:
+                    path = self.state / ('original-source.yaml' if change == 'private-source' else 'staged-compose.yaml')
+                    host.atomic(path, path.read_bytes() + b'\n')
+                elif change == 'wrong-transaction':
+                    journal = host.read_json(self.state / 'host.json')
+                    journal['canonical_transaction']['kind'] = 'apply'
+                    host.atomic(self.state / 'host.json', journal)
+                elif change == 'changed-running-image':
+                    self.info['Image'] = 'sha256:foreign'
+                else:
+                    # Even mutually matching before/rollback/current models do
+                    # not authorize a change beyond the original image pin.
+                    model = host.read_json(self.canonical)
+                    model['services']['p2pstream']['environment']['SECRET'] = 'unrecorded normalization'
+                    raw = (json.dumps(model, indent=2) + '\n').encode()
+                    for path in (self.canonical, self.state / 'before-compose.json', self.state / 'rollback-compose.json'):
+                        host.atomic(path, raw, mode=original[path][1])
+                    journal = host.read_json(self.state / 'host.json')
+                    journal.update(before_sha256=host.digest(raw), single_rollback_sha256=host.digest(raw))
+                    host.atomic(self.state / 'host.json', journal)
+                before = {path: path.read_bytes() for path in paths}
+                self.commands.clear()
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as refused:
+                    self.cancel_single_public()
+                self.assertEqual(refused.exception.code, 1)
+                self.assertEqual({path: path.read_bytes() for path in paths}, before)
+                self.assertFalse((self.state / host.CANCELLATION).exists())
+                self.assertFalse((self.state / 'archive.json').exists())
+                self.assertFalse(any(c[0] == 'binary' or c[0] == 'docker' and c[1][0] == 'rm' or c[0] == 'compose' and c[1][0] in {'stop', 'start', 'up'} for c in self.commands))
+
+    def test_tag_normalization_cancellation_refuses_different_native_resolution(self):
+        self.failed_tag_enrollment()
+        original = self.docker
+        for field in ['image', 'settings']:
+            def changed(*args, **kwargs):
+                result = original(*args, **kwargs)
+                if args[0] == 'compose' and 'config' in args and '--format' in args:
+                    value = host.decode(result.stdout)
+                    if field == 'image':
+                        value['services']['p2pstream']['image'] = 'ghcr.io/test/repo:v1.0.1'
+                    else:
+                        value['services']['p2pstream']['environment']['SECRET'] = 'different native settings'
+                    return subprocess.CompletedProcess(args, 0, json.dumps(value).encode(), b'')
+                return result
+            before = self.canonical.read_bytes()
+            with self.subTest(field=field), patch.object(host, 'docker', changed), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                self.cancel_single_public()
+            self.assertEqual(self.canonical.read_bytes(), before)
+            self.assertFalse((self.state / host.CANCELLATION).exists())
+
+
 class Metadata(unittest.TestCase):
     def test_duplicate_keys_and_restricted_compose_options(self):
         with self.assertRaisesRegex(host.Failure, 'Duplicate'):
