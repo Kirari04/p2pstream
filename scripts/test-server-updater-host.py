@@ -28,7 +28,320 @@ REF = 'ghcr.io/test/repo@sha256:' + 'a' * 64
 HELPER = 'ghcr.io/test/repo-updater@sha256:' + 'd' * 64
 EXECUTOR_ID = 'e' * 64
 
-class Lifecycle(unittest.TestCase):
+class DetachedStartResources:
+    """Replay Docker 28.3.3's measured false -> null resource revalidation."""
+
+    def interrupt_resource_start(self, operation, point):
+        self.managed = True
+        if operation == 'remove':
+            self.install()
+        else:
+            self.failure = 'health'
+        self.info['HostConfig'] = {'OomKillDisable': None, 'Memory': 67108864, 'NanoCpus': 250000000, 'AutoRemove': False}
+        compose, runtime, wait = host.Host.compose, host.Host.runtime, host.Host.wait_original
+        events = []
+        def composed(controller, *args, **kwargs):
+            detached = args[0] == 'start' and args[-1] == 'p2pstream' and controller.journal.get('detached_continuation')
+            if detached:
+                self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation']['stage'], 'starting')
+                if point == 'before-start':
+                    raise KeyboardInterrupt()
+                if point == 'stopped-result-lost':
+                    # Docker verifies/mutates resources before a later start failure.
+                    self.info['HostConfig']['OomKillDisable'] = None
+                    events.append('stopped-resource-revalidation')
+                    raise host.Failure('start result lost')
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
+                self.info['HostConfig']['OomKillDisable'] = False
+            if detached:
+                self.info['HostConfig']['OomKillDisable'] = None
+                events.append('running-resource-revalidation')
+                if point == 'result-lost':
+                    raise host.Failure('start result lost')
+                if point == 'interrupted':
+                    raise KeyboardInterrupt()
+            return result
+        def runtime_command(controller, action):
+            if action == 'detach' and point == 'before-detach':
+                raise KeyboardInterrupt()
+            return runtime(controller, action)
+        def waited(controller):
+            # The old literals fail before reaching this consumer boundary.
+            self.assertIs(controller.journal['detached_continuation']['server']['HostConfig']['OomKillDisable'], False)
+            self.assertIs(self.info['HostConfig']['OomKillDisable'], None)
+            wait(controller)
+            events.append('wait-original')
+            raise KeyboardInterrupt()
+        expected = host.Failure if point in {'result-lost', 'stopped-result-lost'} else KeyboardInterrupt
+        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'runtime', runtime_command), patch.object(host.Host, 'wait_original', waited):
+            with self.assertRaises(expected) as caught:
+                host.manage(argparse.Namespace(action='remove')) if operation == 'remove' else self.install()
+        if expected is host.Failure:
+            self.assertIn('start result lost' if operation == 'remove' else 'health failure', str(caught.exception))
+        journal = host.read_json(self.state / 'host.json')
+        continuation = journal['detached_continuation']
+        self.assertEqual(continuation['stage'], 'detaching' if point == 'before-detach' else 'starting')
+        self.assertIs(continuation['server']['HostConfig']['OomKillDisable'], False)
+        self.assertEqual(events, {'after-check': ['running-resource-revalidation', 'wait-original'],
+                                 'result-lost': ['running-resource-revalidation'],
+                                 'interrupted': ['running-resource-revalidation'],
+                                 'stopped-result-lost': ['stopped-resource-revalidation'],
+                                 'before-start': [], 'before-detach': []}[point])
+        return copy.deepcopy(continuation['server'])
+
+    def assert_resource_start_retry(self, operation, point, action):
+        saved = self.interrupt_resource_start(operation, point)
+        target, restarts = self.info['Id'], self.restart_count
+        running, before = self.info['State']['Running'], len(self.commands)
+        compose, wait = host.Host.compose, host.Host.wait_original
+        def composed(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'start' and args[-1] == 'p2pstream':
+                self.info['HostConfig']['OomKillDisable'] = None
+            return result
+        def waited(controller):
+            self.assertEqual(controller.journal['detached_continuation']['server'], saved)
+            self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation']['server'], saved)
+            self.assertNotEqual(controller.cancellation_stable_server(self.info), saved)
+            return wait(controller)
+        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'wait_original', waited):
+            host.manage(argparse.Namespace(action=action))  # A fresh public Host/lock/journal.
+        journal = host.read_json(self.state / 'host.json')
+        self.assertEqual(journal['phase'], 'removed' if operation == 'remove' else 'rolled_back')
+        self.assertNotIn('detached_continuation', journal)
+        self.assertEqual((self.info['Id'], self.restart_count), (target, restarts))
+        commands = self.commands[before:]
+        self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'stop'} and c[1][-1] == 'p2pstream' for c in commands))
+        self.assertEqual(sum(c[0] == 'compose' and c[1][:2] == ('start', 'p2pstream') for c in commands), 0 if running else 1)
+        self.assertTrue(self.info['State']['Running'])
+        self.assertIsNone(self.runtime_owner)
+
+    @contextlib.contextmanager
+    def replay_all_start_resource_revalidation(self):
+        self.info['HostConfig'] = {'OomKillDisable': None}
+        compose = host.Host.compose
+        def composed(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream':
+                self.info['HostConfig']['OomKillDisable'] = False
+            if args[0] == 'start' and args[-1] == 'p2pstream':
+                self.info['HostConfig']['OomKillDisable'] = None
+            return result
+        # The new allowance must never be called by managed replacement paths.
+        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'detached_server_matches', side_effect=AssertionError('detached allowance leaked'), create=True):
+            yield
+
+    def test_resource_managed_apply_keeps_raw_previous_server(self):
+        self.managed = True
+        phase = host.Host.phase
+        previous = []
+        def phased(controller, name, **values):
+            intent = values.get('replacement_intent')
+            if intent:
+                projection = controller.cancellation_stable_server(self.info)
+                self.assertEqual(intent['previous_server'], projection)
+                self.assertIs(intent['previous_server']['HostConfig']['OomKillDisable'], None)
+                previous.append(copy.deepcopy(intent['previous_server']))
+            return phase(controller, name, **values)
+        with self.replay_all_start_resource_revalidation(), patch.object(host.Host, 'phase', phased):
+            self.install()
+            host.manage(argparse.Namespace(action='apply'))
+        self.assertTrue(previous)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertIs(self.info['HostConfig']['OomKillDisable'], None)
+
+    def interrupt_resource_publication(self):
+        self.managed = True
+        self.install()
+        compose, phase = host.Host.compose, host.Host.phase
+        def composed(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'up' and '--no-start' in args and args[-1] == 'p2pstream' and controller.journal['phase'] != 'rolling_back':
+                raise host.Failure('replacement created but not started')
+            return result
+        def phased(controller, name, **values):
+            result = phase(controller, name, **values)
+            if 'rollback_transition' in values:
+                raise KeyboardInterrupt()  # Interrupt before either adapter consumes it.
+            return result
+        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'phase', phased):
+            with self.assertRaises(KeyboardInterrupt):
+                host.manage(argparse.Namespace(action='apply'))
+        transition = host.read_json(self.state / 'host.json')['rollback_transition']
+        self.assertIs(transition['server']['HostConfig']['OomKillDisable'], False)
+        return transition
+
+    def test_resource_publication_transition_consumed_before_start(self):
+        with self.replay_all_start_resource_revalidation():
+            transition = self.interrupt_resource_publication()
+            compose = host.Host.compose
+            events = []
+            def composed(controller, *args, **kwargs):
+                if args[0] == 'up' and args[-1] == 'p2pstream':
+                    durable = host.read_json(self.state / 'host.json')
+                    self.assertNotIn('rollback_transition', durable)
+                    self.assertEqual(durable['replacement_intent']['operation'], 'rollback')
+                    self.assertIs(durable['replacement_intent']['previous_server']['HostConfig']['OomKillDisable'], False)
+                    events.append('create-after-consumption')
+                return compose(controller, *args, **kwargs)
+            with patch.object(host.Host, 'compose', composed):
+                host.manage(argparse.Namespace(action='rollback'))
+        self.assertTrue(events)
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'healthy')
+        self.assertIs(transition['server']['HostConfig']['OomKillDisable'], False)
+        self.assertIs(self.info['HostConfig']['OomKillDisable'], None)
+
+    def test_resource_transition_server_keeps_strict_projection(self):
+        with self.replay_all_start_resource_revalidation():
+            transition = self.interrupt_resource_publication()
+            self.info['HostConfig']['OomKillDisable'] = None
+            before = len(self.commands)
+            with self.assertRaisesRegex(host.Failure, 'Server differs from the declared rollback publication transition'):
+                host.manage(argparse.Namespace(action='rollback'))
+        Lifecycle.assert_no_server_lifecycle(self, self.commands[before:])
+        self.assertEqual(host.read_json(self.state / 'host.json')['rollback_transition'], transition)
+
+    def test_resource_remove_post_start_check_and_repair(self):
+        self.assert_resource_start_retry('remove', 'after-check', 'repair')
+
+    def test_resource_rollback_post_start_check_and_rollback(self):
+        self.assert_resource_start_retry('rollback', 'after-check', 'rollback')
+
+    def test_resource_remove_lost_start_result_public_repair(self):
+        self.assert_resource_start_retry('remove', 'result-lost', 'repair')
+
+    def test_resource_rollback_lost_start_result_public_rollback(self):
+        self.assert_resource_start_retry('rollback', 'result-lost', 'rollback')
+
+    def test_resource_remove_interrupted_start_public_rollback(self):
+        self.assert_resource_start_retry('remove', 'interrupted', 'rollback')
+
+    def test_resource_rollback_interrupted_start_public_repair(self):
+        self.assert_resource_start_retry('rollback', 'interrupted', 'repair')
+
+    def test_resource_remove_stopped_start_mutation_public_repair(self):
+        self.assert_resource_start_retry('remove', 'stopped-result-lost', 'repair')
+
+    def test_resource_rollback_stopped_start_mutation_public_rollback(self):
+        self.assert_resource_start_retry('rollback', 'stopped-result-lost', 'rollback')
+
+    def test_resource_detaching_refuses_false_to_null(self):
+        self.interrupt_resource_start('remove', 'before-detach')
+        self.info['HostConfig']['OomKillDisable'] = None
+        for action in ('repair', 'rollback'):
+            before = len(self.commands)
+            with self.assertRaisesRegex(host.Failure, 'Declared detached target is missing or changed'):
+                host.manage(argparse.Namespace(action=action))
+            Lifecycle.assert_no_server_lifecycle(self, self.commands[before:])
+            self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation']['stage'], 'detaching')
+
+    def test_resource_invalid_or_changed_oom_boundary_refuses(self):
+        self.interrupt_resource_start('remove', 'before-start')
+        original, journal = copy.deepcopy(self.info), host.read_json(self.state / 'host.json')
+        missing = object()
+        cases = [(None, False), (True, None), (False, True), (False, missing), (missing, None),
+                 (missing, False), (None, missing), (False, 0), (0, None), (0, False), (0, 0), (1, True),
+                 (True, 1), ('', ''), ([], []), ({}, {}), (None, 'null')]
+        for saved, actual in cases:
+            with self.subTest(saved=saved, actual=actual):
+                self.info = copy.deepcopy(original)
+                current = copy.deepcopy(journal)
+                for config, value in ((current['detached_continuation']['server']['HostConfig'], saved), (self.info['HostConfig'], actual)):
+                    if value is missing:
+                        config.pop('OomKillDisable')
+                    else:
+                        config['OomKillDisable'] = value
+                host.atomic(self.state / 'host.json', current)
+                for action in ('repair', 'rollback'):
+                    before = len(self.commands)
+                    with self.assertRaisesRegex(host.Failure, 'Declared detached target is missing or changed'):
+                        host.manage(argparse.Namespace(action=action))
+                    Lifecycle.assert_no_server_lifecycle(self, self.commands[before:])
+                    self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation'], current['detached_continuation'])
+
+    def test_resource_allowance_preserves_other_gates(self):
+        self.interrupt_resource_start('remove', 'before-start')
+        original, journal = copy.deepcopy(self.info), host.read_json(self.state / 'host.json')
+        changes = ('missing', 'id', 'image', 'config', 'memory', 'cpu', 'restart-policy', 'oom-score',
+                   'security', 'other-false-null', 'mount', 'mount-duplicate', 'owner', 'directory', 'writer', 'restart', 'started-at', 'paused', 'restarting', 'model', 'identity')
+        for change in changes:
+            with self.subTest(change=change):
+                self.info = copy.deepcopy(original)
+                self.info['HostConfig']['OomKillDisable'] = None
+                self.runtime_owner, self.server_inventory = None, None
+                self.foreign_writer, self.data_directory, self.identity = False, '7:11', ID
+                host.atomic(self.state / 'host.json', journal)
+                if change == 'missing': self.server_inventory = b''
+                elif change == 'id': self.info['Id'] = 'foreign-container'
+                elif change == 'image': self.info['Image'] = 'sha256:external'
+                elif change == 'config': self.info['Config']['Env'] = ['NEW=value']
+                elif change == 'memory': self.info['HostConfig']['Memory'] += 1
+                elif change == 'cpu': self.info['HostConfig']['NanoCpus'] += 1
+                elif change == 'restart-policy': self.info['HostConfig']['RestartPolicy'] = {'Name': 'always'}
+                elif change == 'oom-score': self.info['HostConfig']['OomScoreAdj'] = 1
+                elif change == 'security': self.info['HostConfig']['Privileged'] = True
+                elif change == 'other-false-null': self.info['HostConfig']['AutoRemove'] = None
+                elif change == 'mount': self.info['Mounts'][0]['RW'] = False
+                elif change == 'mount-duplicate': self.info['Mounts'] *= 2
+                elif change == 'owner': self.runtime_owner = {'allowed': False}
+                elif change == 'directory': self.data_directory = '7:22'
+                elif change == 'writer': self.foreign_writer = True
+                elif change == 'restart': self.info['RestartCount'] = 1
+                elif change == 'started-at': self.info['State']['StartedAt'] = '2026-10-24T12:00:00Z'
+                elif change == 'paused': self.info['State']['Paused'] = True
+                elif change == 'restarting': self.info['State']['Restarting'] = True
+                elif change == 'identity': self.identity = '22222222-2222-4222-8222-222222222222'
+                model = Path(host.read_json(self.state / 'config.json')['deployment_file'])
+                raw = model.read_bytes()
+                if change == 'model':
+                    value = host.decode(raw)
+                    value['services']['p2pstream']['environment']['NEW'] = 'changed'
+                    host.atomic(model, value)
+                try:
+                    for action in ('repair', 'rollback'):
+                        before = len(self.commands)
+                        with self.assertRaises(host.Failure):
+                            host.manage(argparse.Namespace(action=action))
+                        Lifecycle.assert_no_server_lifecycle(self, self.commands[before:])
+                        self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation'], journal['detached_continuation'])
+                finally:
+                    if change == 'model': host.atomic(model, raw)
+
+    def test_resource_equal_values_and_cancellation_hashes_remain_exact(self):
+        self.interrupt_resource_start('remove', 'before-start')
+        original, journal = copy.deepcopy(self.info), host.read_json(self.state / 'host.json')
+        missing = object()
+        for value in (False, None, True, missing):
+            with self.subTest(value=value):
+                self.info = copy.deepcopy(original)
+                current = copy.deepcopy(journal)
+                for config in (self.info['HostConfig'], current['detached_continuation']['server']['HostConfig']):
+                    if value is missing: config.pop('OomKillDisable')
+                    else: config['OomKillDisable'] = value
+                host.atomic(self.state / 'host.json', current)
+                controller = host.Host()
+                with controller.lock():
+                    controller.detached_target()
+                self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation'], current['detached_continuation'])
+        # No normalization in the shared projection or durable server hash.
+        info = copy.deepcopy(original)
+        info['Mounts'].append({'Destination': '/scratch', 'Type': 'tmpfs', 'RW': True})
+        info['Mounts'].reverse()
+        expected = {key: copy.deepcopy(info.get(key)) for key in ('Id', 'Image', 'Config', 'HostConfig', 'Mounts')}
+        expected['Mounts'].sort(key=lambda mount: json.dumps(mount, sort_keys=True, separators=(',', ':')))
+        projection = host.Host.cancellation_stable_server(info)
+        self.assertEqual(projection, expected)
+        before_hash = host.digest(json.dumps(expected, sort_keys=True).encode())
+        self.assertEqual(host.digest(json.dumps(projection, sort_keys=True).encode()), before_hash)
+        info = copy.deepcopy(info)
+        info['HostConfig']['OomKillDisable'] = None
+        after = host.Host.cancellation_stable_server(info)
+        self.assertIs(after['HostConfig']['OomKillDisable'], None)
+        self.assertNotEqual(host.digest(json.dumps(after, sort_keys=True).encode()), before_hash)
+
+
+class Lifecycle(DetachedStartResources, unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.path = Path(self.temp.name)
@@ -1590,6 +1903,28 @@ class Lifecycle(unittest.TestCase):
         self.assertFalse(any(item[0] == 'compose' and item[1][0] in {'up', 'stop'} and item[1][-1] == 'p2pstream' for item in self.commands[before:]))
         self.assertEqual(sum(item[0] == 'compose' and item[1][:2] == ('start', 'p2pstream') for item in self.commands[before:]), 1)
 
+    def test_resource_reused_stopped_target_completes_without_recreation(self):
+        self.info['HostConfig'] = {'OomKillDisable': False}
+        self.interrupted_reused_standalone_target()
+        saved = host.read_json(self.state / 'host.json')['detached_continuation']['server']
+        self.assertIs(saved['HostConfig']['OomKillDisable'], False)
+        compose, wait = host.Host.compose, host.Host.wait_original
+        def composed(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'start' and args[-1] == 'p2pstream':
+                self.info['HostConfig']['OomKillDisable'] = None
+            return result
+        def waited(controller):
+            self.assertEqual(controller.journal['detached_continuation']['server'], saved)
+            return wait(controller)
+        before = len(self.commands)
+        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'wait_original', waited):
+            host.manage(argparse.Namespace(action='rollback'))
+        self.assertEqual(host.read_json(self.state / 'host.json')['phase'], 'rolled_back')
+        self.assertEqual((self.info['Id'], self.info['RestartCount']), ('container', 3))
+        self.assertFalse(any(c[0] == 'compose' and c[1][0] in {'up', 'stop'} and c[1][-1] == 'p2pstream' for c in self.commands[before:]))
+        self.assertEqual(sum(c[0] == 'compose' and c[1][:2] == ('start', 'p2pstream') for c in self.commands[before:]), 1)
+
     def test_reused_stopped_target_refuses_external_lifetime_change(self):
         self.interrupted_reused_standalone_target()
         self.info['State']['StartedAt'] = '2026-10-24T12:00:00Z'
@@ -2570,7 +2905,7 @@ class EnrollmentPreflight(unittest.TestCase):
         self.assertFalse(any(c[0] == 'binary' or c[0] == 'compose' and c[1][0] in {'up', 'stop', 'start'} for c in self.commands))
 
 
-class SingleFileLifecycle(unittest.TestCase):
+class SingleFileLifecycle(DetachedStartResources, unittest.TestCase):
     tearDown = Lifecycle.tearDown
     install = Lifecycle.install
     # Exercise the frozen portable publication/create interruption matrix through
@@ -5503,6 +5838,22 @@ class BlockedInitialOwnerCancellation(unittest.TestCase):
                 with self.assertRaisesRegex(host.Failure, 'archive or retained floor differs'):
                     self.cancel()
         self.assertEqual(self.cleanup_calls, 1)
+
+    def test_resource_cancellation_provenance_does_not_normalize_oom(self):
+        self.info['HostConfig'] = {'OomKillDisable': False}
+        with patch.object(host.Host, 'detached_server_matches', side_effect=AssertionError('detached allowance leaked into cancellation'), create=True):
+            self.interrupted_cleanup('after-unlink')
+            record = host.read_json(self.state / host.BLOCKED_INITIAL_OWNER)
+            self.assertEqual(record['provenance']['server_sha256'],
+                             host.digest(json.dumps(host.Host.cancellation_stable_server(self.info), sort_keys=True).encode()))
+            self.info['HostConfig']['OomKillDisable'] = None
+            before = len(self.commands)
+            with self.assertRaisesRegex(host.Failure, 'archive or retained floor differs'):
+                self.cancel()
+        Lifecycle.assert_no_server_lifecycle(self, self.commands[before:])
+        self.assertEqual(host.read_json(self.state / host.BLOCKED_INITIAL_OWNER), record)
+        self.assertEqual(self.cleanup_calls, 1)
+        self.assert_data_preserved()
 
     def test_admitted_retry_lease_timestamps_are_not_durable_identity(self):
         self.interrupted_cleanup('after-unlink')

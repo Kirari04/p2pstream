@@ -2455,6 +2455,23 @@ class Host:
                         'data_directory': data['directory'], 'owner': data['owner']}
         self.phase(self.journal['phase'], detached_continuation=continuation)
 
+    def detached_server_matches(self, info, continuation):
+        observed = self.cancellation_stable_server(info)
+        recorded = continuation['server']
+        actual, saved = observed.get('HostConfig'), recorded.get('HostConfig')
+        key = 'OomKillDisable'
+        if isinstance(actual, dict) and isinstance(saved, dict) and (key in actual or key in saved):
+            if key not in actual or key not in saved:
+                return False
+            if any(value is not None and type(value) is not bool for value in (actual[key], saved[key])):
+                return False
+            # Docker start revalidates resources and can clear default false to
+            # null when OOM-disable is unsupported. Only the declared start may
+            # do this; keep the saved projection and cancellation hashes exact.
+            if continuation['stage'] == 'starting' and saved[key] is False and actual[key] is None:
+                observed = dict(observed, HostConfig=dict(actual, OomKillDisable=False))
+        return observed == recorded
+
     def detached_target(self):
         continuation = self.journal.get('detached_continuation')
         intent = self.journal.get('replacement_intent')
@@ -2465,7 +2482,7 @@ class Host:
         # This is completion of one already-created target, never authority to
         # recreate an absent target or return to a historical image.
         info = self.server_container(allow_missing=True)
-        require(info is not None and self.cancellation_stable_server(info) == continuation['server'], 'Declared detached target is missing or changed; no recreation is authorized')
+        require(info is not None and self.detached_server_matches(info, continuation), 'Declared detached target is missing or changed; no recreation is authorized')
         require(not info['State'].get('Paused') and not info['State'].get('Restarting') and info.get('RestartCount') == continuation['restart_count'], 'Detached target runtime changed')
         if info['State']['Running']:
             require(continuation['stage'] == 'starting', 'Detached target started before its declared start transition')
