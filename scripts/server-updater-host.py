@@ -1867,6 +1867,9 @@ class Host:
                 'binding': intent['binding'], 'previous_model_sha256': self.cancellation_model_hash(previous_model),
                 'target_sha256': self.cancellation_model_hash(json.dumps(model).encode()),
                 'server': self.cancellation_stable_server(info) if info else None}
+        # No Compose create/up may run while rollback_transition is durable.
+        # prepare_replacement below must atomically advance replacement_intent
+        # and consume the transition before deploy_server may create a target.
         self.phase('rolling_back', **declaration)
         helper_model = 'before-compose.json' if 'p2pstream-server-updater' in before['services'] else 'enrolled-compose.json'
         if (self.directory / helper_model).exists():

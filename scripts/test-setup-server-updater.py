@@ -58,6 +58,7 @@ def cross_layer_wrapper(code, args, responses, result_path, scenario):
     spec = importlib.util.spec_from_file_location('host_lifecycle', ROOT / 'test-server-updater-host.py')
     lifecycle = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(lifecycle)
+    production_release_metadata = lifecycle.host.release_metadata
     case = lifecycle.BlockedInitialOwnerCancellation(methodName='runTest')
     case.setUp()
     host = lifecycle.host
@@ -78,11 +79,27 @@ def cross_layer_wrapper(code, args, responses, result_path, scenario):
             result = io.BytesIO(base64.b64decode(responses[url]))
             result.geturl = lambda: url
             return result
-    def admitted_metadata(repository, version, commit=None, channel=None, expected_manifest=None):
-        host.require((repository, version, commit, channel, expected_manifest) == ('test/repo', current['version'], current['commit'], current['channel'], current_hash), 'Current release binding differs')
-        expiry = actual_datetime.strptime(current['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc)
-        host.require(clock[0] < expiry, 'Release metadata expired; fresh controller admission refused')
-        return case.manifest, case.descriptor, case.current_ref, current_hash
+    def fetch(url, limit):
+        raw = base64.b64decode(responses[url])
+        assert len(raw) <= limit
+        return raw
+    def snapshot():
+        # Exact fixture contents and inode/ownership/mode/timestamp metadata,
+        # including control, journal, sources, receipts, owner and lease files.
+        # Downloads live outside case.path; omit read-atime from metadata.
+        files = {}
+        for path in [case.path, *sorted(case.path.rglob('*'))]:
+            info = path.lstat()
+            metadata = tuple(getattr(info, field) for field in (
+                'st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_nlink',
+                'st_size', 'st_mtime_ns', 'st_ctime_ns'))
+            contents = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else None
+            files[str(path.relative_to(case.path))] = (metadata, contents)
+        return {'filesystem': files, 'server': copy.deepcopy(case.info),
+                'model': copy.deepcopy(case.model), 'source_bytes': case.raw,
+                'owner': copy.deepcopy(case.runtime_owner),
+                'executor': copy.deepcopy(case.executor),
+                'restarts': case.restart_count, 'inventory': case.server_inventory}
     actual_run = subprocess.run
     host_calls, controller_errors = [], []
     def dispatch(command, **kwargs):
@@ -115,7 +132,7 @@ def cross_layer_wrapper(code, args, responses, result_path, scenario):
         statuses.append(status)
         wrapper_errors.append(errors.getvalue())
     try:
-        with patch.object(datetime, 'datetime', FrozenDateTime), patch.object(urllib.request, 'build_opener', return_value=Opener()), patch.object(subprocess, 'run', side_effect=dispatch), patch.object(host, 'release_metadata', side_effect=admitted_metadata):
+        with patch.object(datetime, 'datetime', FrozenDateTime), patch.object(urllib.request, 'build_opener', return_value=Opener()), patch.object(subprocess, 'run', side_effect=dispatch), patch.object(host, 'release_metadata', production_release_metadata), patch.object(host, 'fetch', side_effect=fetch), patch.object(host.time, 'time', side_effect=lambda: clock[0].timestamp()):
             retry = scenario not in {'fresh-expired', 'recovery-expired'}
             if retry:
                 case.cleanup_fault = 'after-unlink'
@@ -136,12 +153,18 @@ def cross_layer_wrapper(code, args, responses, result_path, scenario):
                 raw = json.dumps(changed).encode()
                 responses[current_url] = base64.b64encode(raw).decode()
                 values[-2] = digest(raw)
+            before = snapshot() if scenario == 'fresh-expired' else None
             attempt(values)
+            after = snapshot() if before is not None else None
         receipt_path = case.state / host.CANCELLATION
         receipt = host.read_json(receipt_path) if receipt_path.exists() else None
         result = {'statuses': statuses, 'host_calls': len(host_calls), 'controller_errors': controller_errors,
                   'wrapper_errors': wrapper_errors, 'completed': receipt and receipt['completed'],
                   'marker_exists': case.marker.exists()}
+        if before is not None:
+            result['state_unchanged'] = before == after
+            result['snapshot_categories'] = sorted(before)
+            result['changed_categories'] = [key for key in before if before[key] != after[key]]
         Path(result_path).write_text(json.dumps(result))
     finally:
         case.tearDown()
@@ -207,9 +230,25 @@ class Bootstrap(unittest.TestCase):
         if scenario == 'recovery-expired':
             self.manifest['expires_at'] = '2030-01-02T00:00:00Z'
         self.publish()
-        current = dict(self.manifest, version='v1.0.2', commit='9' * 40, expires_at='2030-01-02T00:00:00Z')
+        current = dict(self.manifest, version='v1.0.2', commit='9' * 40, expires_at='2030-01-02T00:00:00Z',
+                       sequence=13, security_epoch=2, minimum_safe_version='v1.0.0',
+                       oci_images=[{'repository': 'ghcr.io/test/repo', 'digest': 'sha256:' + '9' * 64,
+                                    'platforms': [{'os': 'linux', 'arch': arch} for arch in ('amd64', 'arm64')]}])
+        current_bundle = 'p2pstream_v1.0.2_docker.tar.gz'
+        descriptor = dict(self.descriptor, version=current['version'], commit=current['commit'], bundle=current_bundle)
+        # Exercise production release_metadata with hash-bound release assets;
+        # only HTTPS response bytes and the clock are supplied by this fixture.
+        current_assets = {'p2pstream_install.json': json.dumps(descriptor).encode(),
+                          'p2pstream_server_update.json': json.dumps({'api': 1, 'version': current['version']}).encode(),
+                          current_bundle: b'current bundle is not downloaded during cancellation'}
+        current['release_assets'] = [{'name': name, 'size': len(data), 'sha256': digest(data)}
+                                    for name, data in current_assets.items()]
         raw = json.dumps(current).encode()
-        self.current_files['https://github.com/test/repo/releases/download/v1.0.2/p2pstream_agent_update_manifest.json'] = raw
+        current_assets['p2pstream_agent_update_manifest.json'] = raw
+        self.current_files.update({'https://github.com/test/repo/releases/download/v1.0.2/' + name: data
+                                   for name, data in current_assets.items()})
+        self.current_files['https://api.github.com/repos/test/repo/releases/tags/v1.0.2'] = json.dumps(
+            {'tag_name': current['version'], 'draft': False, 'prerelease': False}).encode()
         args = self.args[:3] + ['amd64', '--cancel-enrollment', '--upgraded-deployment', 'v1.0.2', digest(raw), '--']
         responses = {BASE + name: base64.b64encode(data).decode() for name, data in self.files.items()}
         responses.update({url: base64.b64encode(data).decode() for url, data in self.current_files.items()})
@@ -237,7 +276,11 @@ class Bootstrap(unittest.TestCase):
         result = self.shell_controller_expiry('fresh-expired')
         self.assertEqual(result['statuses'], [1], result)
         self.assertEqual(result['host_calls'], 1)
-        self.assertIn('fresh controller admission refused', result['controller_errors'][0])
+        self.assertIn('Release metadata expired; manually upgrade', result['controller_errors'][0])
+        self.assertTrue(result['state_unchanged'], result)
+        self.assertEqual(result['changed_categories'], [])
+        self.assertEqual(result['snapshot_categories'],
+                         ['executor', 'filesystem', 'inventory', 'model', 'owner', 'restarts', 'server', 'source_bytes'])
         self.assertIsNone(result['completed'])
         self.assertTrue(result['marker_exists'])
 
