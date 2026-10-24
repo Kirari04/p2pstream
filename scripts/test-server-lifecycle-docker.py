@@ -47,10 +47,19 @@ SETUP_TOKEN = 'review-lifecycle-setup-0123456789abcdef'
 PASSWORD = 'Review-lifecycle-only-password-123!'
 INTERRUPTED = 75
 READINESS_DEADLINE = None
+STAGE = 'setup'
+CHECKS = []
+CONTAINER_FIELDS = ('Id', 'Image', 'Running', 'StartedAt', 'RestartCount', 'Labels', 'Mounts')
 
 
 class CheckFailure(RuntimeError):
     """Fixed, safe diagnostics; never attach captured command output."""
+
+    def __init__(self, check, *, changed_fields=(), worker_stage=None, worker_checks=()):
+        super().__init__(check)
+        self.changed_fields = list(changed_fields)
+        self.worker_stage = worker_stage
+        self.worker_checks = list(worker_checks)
 
 
 class DeliberateInterruption(BaseException):
@@ -60,6 +69,23 @@ class DeliberateInterruption(BaseException):
 def require(value, check):
     if not value:
         raise CheckFailure(check)
+
+
+def stage(name):
+    # Callers supply only fixed harness stage names, never inspected values.
+    global STAGE
+    STAGE = name
+
+
+def failure_report(error):
+    code = str(error) if isinstance(error, CheckFailure) else type(error).__name__
+    report = {'result': 'failed', 'check': code, 'stage': STAGE, 'checks': list(CHECKS),
+              'qualification': 'source-built-real-docker', 'published_pair_gate': 'pending'}
+    if isinstance(error, CheckFailure):
+        report['changed_fields'] = error.changed_fields
+        if error.worker_stage is not None:
+            report.update(worker_stage=error.worker_stage, worker_checks=error.worker_checks)
+    return report
 
 
 def isolated():
@@ -170,6 +196,18 @@ def file_snapshot(path):
     return (item.read_bytes(), metadata.st_mode, metadata.st_uid, metadata.st_gid)
 
 
+def container_snapshot(info):
+    # Docker 28.3.3 GetMountPoints builds the inspect array from a map; array
+    # order is not mount configuration. Sort complete canonical objects, keeping
+    # every field and duplicate. Never key/deduplicate by destination or name.
+    # https://github.com/moby/moby/blob/v28.3.3/container/container_unix.go#L396-L412
+    mounts = sorted(json.dumps(mount, sort_keys=True, separators=(',', ':'), allow_nan=False)
+                    for mount in info['Mounts'])
+    return dict(zip(CONTAINER_FIELDS, (info['Id'], info['Image'], info['State']['Running'],
+                                      info['State']['StartedAt'], info['RestartCount'],
+                                      copy.deepcopy(info['Config']['Labels']), mounts)))
+
+
 def snapshot_boundary(images, *, private=False):
     info = server_info(all_containers=True)
     files = [CANONICAL, INPUTS, STATE / 'installation-receipt.json']
@@ -177,9 +215,7 @@ def snapshot_boundary(images, *, private=False):
         files += [STATE / 'config.json', STATE / 'staged-compose.yaml', STATE / 'host.json',
                   STATE / 'runtime-receipt.json', STATE / 'control/token']
     # Keep full bytes in memory for exact equality. Publish only booleans/hashes.
-    return {'container': (info['Id'], info['Image'], info['State']['Running'],
-                          info['State']['StartedAt'], info['RestartCount'],
-                          info['Config']['Labels'], info['Mounts']),
+    return {'container': container_snapshot(info),
             'model': compose('config', '--format', 'json'),
             'owner': owner_bytes(images),
             'files': {str(path): file_snapshot(path) for path in files}}
@@ -187,8 +223,15 @@ def snapshot_boundary(images, *, private=False):
 
 def assert_unchanged(before, images, *, private=False):
     after = snapshot_boundary(images, private=private)
-    for key in before:
-        require(after[key] == before[key], 'refusal-changed-' + key)
+    changed = []
+    if after['container'] != before['container']:
+        changed += ['container.' + field for field in CONTAINER_FIELDS
+                    if after['container'][field] != before['container'][field]]
+    # Do not expose file paths, arbitrary label/mount keys, or any values.
+    changed += [field for field in ('model', 'owner', 'files') if after[field] != before[field]]
+    if changed:
+        raise CheckFailure('refusal-changed-' + changed[0].split('.')[0], changed_fields=changed)
+    CHECKS.append(STAGE + '-boundary-unchanged')
 
 
 class Management:
@@ -349,6 +392,7 @@ def host_refusal_check(host, error):
 
 
 def worker(args):
+    stage('worker-setup')
     host, images = load_host(), read('/review/images.json')
     catalog, installation = read(ROOT / 'catalog.json'), read(ROOT / 'identity.json')['installation']
     setup, release = install_arguments(catalog, args.release, installation, args.variant)
@@ -364,6 +408,7 @@ def worker(args):
 
     def record(event):
         events.append(event)
+        CHECKS.append(event)
         write(ROOT / ('trace-' + args.label + '.json'), events)
 
     def interrupt(point):
@@ -422,6 +467,7 @@ def worker(args):
     # readiness response still comes from the real server observation socket.
     def observed_prepare(controller):
         nonlocal refusal_snapshot
+        stage('private-preparation')
         result = original_prepare(controller)
         require(file_snapshot(CANONICAL) == original_canonical,
                 'go-enrollment-changed-standalone-canonical')
@@ -434,6 +480,7 @@ def worker(args):
         require(owner_bytes(images) == original_owner, 'go-enrollment-changed-owner')
         record('private-prepared')
         if args.block_after_prepare:
+            stage('after-private-preparation-blocker')
             manager = Management()
             manager.login()
             manager.stage()
@@ -453,6 +500,7 @@ def worker(args):
         return result
     host.Host.wait_original = observed_wait
     os.chdir(DEPLOYMENT)
+    stage('host-' + args.action)
     try:
         if args.action == 'install':
             host.install(setup, [])
@@ -464,6 +512,7 @@ def worker(args):
         if not expected or expected not in str(error):
             raise CheckFailure(host_refusal_check(host, error)) from None
         if args.block_after_prepare:
+            stage('after-private-preparation-boundary')
             require(refusal_snapshot is not None, 'after-prepare-checkpoint-not-reached')
             assert_unchanged(refusal_snapshot, images, private=True)
             require('published' not in events and 'runtime-blocked' not in events,
@@ -487,8 +536,13 @@ def fresh(action, *, release='baseline', label=None, refusal='', variant='', int
     except CheckFailure:
         report = ROOT / ('failure-' + label + '.json')
         if report.is_file():
-            raise CheckFailure('worker-' + label + '-' + read(report)['check']) from None
+            failure = read(report)
+            raise CheckFailure('worker-' + label + '-' + failure['check'],
+                               changed_fields=failure.get('changed_fields', ()),
+                               worker_stage=failure.get('stage'),
+                               worker_checks=failure.get('checks', ())) from None
         raise
+    CHECKS.append('worker-' + label + '-expected-exit')
 
 
 def helper(images, test, *, update=False):
@@ -543,6 +597,8 @@ def assert_native_recreate(images, expected):
 
 
 def main():
+    CHECKS.clear()
+    stage('fixture-setup')
     isolated()
     ROOT.mkdir(mode=0o700)
     images, host = read('/review/images.json'), load_host()
@@ -571,11 +627,12 @@ def main():
     write(ROOT / 'identity.json', {'installation': installation, 'ca_sha256': sha(ca.encode())})
     original = file_snapshot(CANONICAL)
     catalog = fixture_catalog(host, images)
-    checks = []
+    checks = CHECKS
     manager = Management()
     manager.rpc('SetupAdmin', {'username': 'reviewadmin', 'password': PASSWORD, 'setupToken': SETUP_TOKEN})
     manager.login()
     for key in ('baseline', 'candidate'):
+        stage('capabilities-' + key)
         old = json.loads(docker('run', '--rm', '--entrypoint', '/app/p2pstream', images[key],
                                 'server-deployment-capabilities'))
         new = json.loads(docker('run', '--rm', '--entrypoint', '/app/p2pstream', images[key],
@@ -585,6 +642,7 @@ def main():
                 and old['version'] == catalog[key]['release']['version']
                 and old['commit'] == catalog[key]['release']['commit'], 'new-capability-mismatch')
     checks.append('old-and-new-capability-contracts')
+    stage('initial-blocker')
     manager.stage()
     require(not preflight()['ready'], 'initial-real-blocker-not-observed')
     before = snapshot_boundary(images)
@@ -594,13 +652,17 @@ def main():
     manager.clear()
     wait(lambda: preflight()['ready'])
     checks.append('real-blocker-before-staging-exact-no-mutation')
+    stage('prepared-blocker')
     fresh('install', label='prepared-blocker', refusal='blocker', block=True)
     manager.clear()
     wait(lambda: preflight()['ready'])
     checks.append('real-blocker-after-private-preparation-exact-no-mutation')
+    stage('before-publication')
     fresh('repair', label='before-publication', interrupt='before-publish')
     require(file_snapshot(CANONICAL) == original, 'interrupted-before-publication-changed-canonical')
+    stage('after-publication')
     fresh('repair', label='after-publication', interrupt='after-publish')
+    stage('resume-publication')
     fresh('repair', label='resume-publication')
     assert_binding(images, 'baseline')
     trace = read(ROOT / 'trace-after-publication.json')
@@ -608,16 +670,19 @@ def main():
             < trace.index('server-stopped-before-publish') < trace.index('published'),
             'journal-block-stop-publish-order')
     checks.append('fresh-process-publication-interruptions-and-order')
+    stage('healthy-setup-snapshot')
     before = snapshot_boundary(images, private=True)
     executor = compose('ps', '-q', 'p2pstream-server-updater')
     executor_before = json.loads(docker('inspect', executor))[0]
     for number in range(2):
+        stage('idempotent-' + str(number))
         fresh('install', label='idempotent-' + str(number))
         assert_unchanged(before, images, private=True)
         current = json.loads(docker('inspect', executor))[0]
         require(current['State']['StartedAt'] == executor_before['State']['StartedAt']
                 and current['RestartCount'] == executor_before['RestartCount'], 'healthy-setup-restarted-executor')
     checks.append('repeated-healthy-setup-no-restart')
+    stage('healthy-stopped-executor')
     # A healthy host journal with a deliberately stopped executor is an
     # executor-only repair, not an unfinished publication or server rollback.
     before = snapshot_boundary(images, private=True)
@@ -629,8 +694,10 @@ def main():
     require(json.loads(docker('inspect', compose('ps', '-q', 'p2pstream-server-updater')))[0]['State']['Running'],
             'healthy-repair-did-not-restart-executor')
     checks.append('healthy-stopped-executor-repair-preserves-server-model-owner')
+    stage('native-recreate-baseline')
     assert_native_recreate(images, 'baseline')
     checks.append('native-default-compose-baseline-binding-no-orphan-and-direct-receipt')
+    stage('engine-update')
     compose('stop', 'p2pstream-server-updater')
     helper(images, 'TestDockerReviewHostUpdate', update=True)
     result = read(STATE / 'host-update-result.json')
@@ -640,8 +707,10 @@ def main():
             and result['floor'] == expected_floor, 'actual-engine-update-floor-mismatch')
     compose('up', '-d', 'p2pstream-server-updater')
     wait(lambda: (STATE / 'control/control.sock').exists())
+    stage('native-recreate-candidate')
     assert_native_recreate(images, 'candidate')
     checks.append('actual-engine-update-and-native-recreation-retain-candidate')
+    stage('apply-editable-inputs')
     config = (STATE / 'config.json').read_bytes()
     inputs = read(INPUTS)
     require(not inputs.get('include') and set(inputs['services']) == {'p2pstream'},
@@ -654,11 +723,13 @@ def main():
     require('QUALIFICATION_SETTING=applied-after-update' in server_info()['Config']['Env'],
             'apply-did-not-use-editable-inputs')
     checks.append('apply-editable-inputs-retains-updated-image')
+    stage('interrupt-remove')
     generation_before = next(value.split('=', 1)[1] for value in server_info()['Config']['Env']
                              if value.startswith('SERVER_UPDATE_GENERATION='))
     inputs_before_remove = INPUTS.read_bytes()
     fresh('remove', release='candidate', label='interrupt-remove', interrupt='after-remove-deploy')
     require(read(STATE / 'host.json')['phase'] == 'removing', 'interrupted-remove-lost-phase')
+    stage('rollback-interrupted-remove')
     fresh('repair', release='candidate', label='rollback-interrupted-remove')
     assert_binding(images, 'candidate')
     generation_after = next(value.split('=', 1)[1] for value in server_info()['Config']['Env']
@@ -672,6 +743,7 @@ def main():
     require(CANONICAL.read_bytes().endswith(b'\n') and b'\n  "' in CANONICAL.read_bytes(),
             'rollback-model-not-readable-json')
     checks.append('interrupted-removal-rollback-fresh-generation-and-readable-model')
+    stage('complete-remove')
     fresh('remove', release='candidate', label='complete-remove')
     require(read(STATE / 'host.json')['phase'] == 'removed', 'remove-not-committed')
     require(server_info()['Config']['Image'] == images['candidate'], 'remove-downgraded-image')
@@ -690,10 +762,13 @@ def main():
     require(json.loads(docker('compose', '-f', str(INPUTS), 'config', '--format', 'json', cwd=DEPLOYMENT))
             == json.loads(compose('config', '--format', 'json')), 'reenrollment-input-reconciliation-mismatch')
     for variant in ('sequence', 'epoch', 'minimum', 'identity'):
+        stage('floor-' + variant)
         before = snapshot_boundary(images, private=True)
         fresh('install', release='candidate', label='floor-' + variant, refusal='floor', variant=variant)
         assert_unchanged(before, images, private=True)
+        checks.append('floor-' + variant + '-exact-no-mutation')
     checks.append('remove-retains-floor-and-rejects-four-floor-regressions')
+    stage('reenroll')
     fresh('install', release='candidate', label='reenroll')
     assert_binding(images, 'candidate')
     require(read(STATE / 'config.json')['bootstrap_floor'] == expected_floor,
@@ -701,12 +776,14 @@ def main():
     require(read(STATE / 'installation-receipt.json')['floor'] == expected_floor,
             'reenrollment-reset-retained-floor')
     checks.append('reenrollment-preserves-installation-and-candidate-floor')
+    stage('remove-before-lost-history')
     fresh('remove', release='candidate', label='remove-before-lost-history')
     history = next((STATE / 'history').iterdir())
     missing = history / 'config.json'
     saved, saved_mode = missing.read_bytes(), stat.S_IMODE(missing.stat().st_mode)
     missing.unlink()  # Deliberate loss of this run's disposable private history.
     try:
+        stage('lost-history')
         before = snapshot_boundary(images, private=True)
         fresh('install', release='candidate', label='lost-history', refusal='history')
         assert_unchanged(before, images, private=True)
@@ -716,6 +793,7 @@ def main():
         missing.chmod(saved_mode)
     checks.append('lost-private-history-diagnosed-without-current-image-adoption')
     # Cleanup is explicit and precedes the sanitized success summary.
+    stage('cleanup')
     compose('stop', 'p2pstream')
     write(ROOT / 'summary.json', {'result': 'passed', 'qualification': 'source-built-real-docker',
                                  'published_pair_gate': 'pending-future-feature-bearing-releases',
@@ -746,12 +824,12 @@ if __name__ == '__main__':
     except Exception as error:
         # No traceback or exception body from Docker, the controller or RPCs can
         # leak credentials/model/database data into the wrapper's public log.
-        code = str(error) if isinstance(error, CheckFailure) else type(error).__name__
+        report = failure_report(error)
+        code = report['check']
         if ROOT.exists():
             if options.action:
-                write(ROOT / ('failure-' + options.label + '.json'), {'check': code})
+                write(ROOT / ('failure-' + options.label + '.json'), report)
             else:
-                write(ROOT / 'summary.json', {'result': 'failed', 'check': code,
-                                             'qualification': 'source-built-real-docker', 'published_pair_gate': 'pending'})
-        print('FAIL source-built canonical lifecycle: ' + code, file=sys.stderr)
+                write(ROOT / 'summary.json', report)
+        print('FAIL source-built canonical lifecycle: ' + code + ' stage=' + report['stage'], file=sys.stderr)
         sys.exit(1)
