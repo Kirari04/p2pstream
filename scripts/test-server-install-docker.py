@@ -33,6 +33,8 @@ env = source / '.env'
 env.write_text('PUBLIC_URL=https://localhost:18091\n')
 env.chmod(0o600)
 model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True, 'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'}, 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}, 'observer': {'image': images['baseline'], 'command': ['/bin/sh', '-c', 'sleep infinity'], 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/read-only-data', 'read_only': True}]}}, 'volumes': {'data': {'name': project + '-data'}}}
+# Standalone enrollment observes readiness through its container-local /tmp socket.
+model['services']['p2pstream']['tmpfs'] = ['/tmp']
 base.write_text(json.dumps(model))
 extra = {'services': {'p2pstream': {'environment': {'MANAGEMENT_PUBLIC_URL': '${PUBLIC_URL}', 'SECRET': 'literal-$$HOME-$${SECRET}-$$$$'}, 'ports': [{'target': 8081, 'published': '18091', 'host_ip': '127.0.0.1'}]}}}
 override.write_text(json.dumps(extra))
@@ -453,6 +455,7 @@ model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name
                                   'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'},
                                   'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
          'volumes': {'data': {'name': project + '-data'}}}
+model['services']['p2pstream']['tmpfs'] = ['/tmp']
 base.write_text(json.dumps(model))
 os.chdir(source)
 compose('up', '-d')

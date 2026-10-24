@@ -14,9 +14,11 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/rs/zerolog/log"
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/serverupdate"
@@ -46,6 +48,9 @@ func (a *App) GetServerUpdateOverview(ctx context.Context, req *connect.Request[
 	}
 	out := &p2pstreamv1.GetServerUpdateOverviewResponse{Version: buildinfo.Version, Commit: buildinfo.Commit, Channel: buildinfo.Channel, InstallationId: a.InstallationID, Architecture: runtime.GOARCH, Repository: buildinfo.RepositorySlug()}
 	if a.Config == nil || a.Config.ServerUpdateSocket == "" {
+		for _, blocker := range a.serverEnrollmentPreflight(ctx).Blockers {
+			out.Blockers = append(out.Blockers, blocker.Message)
+		}
 		out.SetupCommand, out.SetupUnavailable = a.serverInstallationCommand(ctx)
 		return connect.NewResponse(out), nil
 	}
@@ -208,33 +213,89 @@ func (a *App) serverUpdateAdmission(next http.Handler) http.Handler {
 	})
 }
 
-// StartServerUpdateRuntime provides readiness only over a container-local Unix
-// socket. The executor invokes the fixed status command via Docker exec.
+// StartServerUpdateRuntime exposes a read-only enrollment observation on every
+// server. Existing enrolled readiness/preparation is still private to enrollment.
 func (a *App) StartServerUpdateRuntime(ctx context.Context) error {
-	if a.Config == nil || a.Config.ServerUpdateSocket == "" {
+	if a.Config != nil && a.Config.ServerUpdateSocket != "" {
+		if err := a.listenServerUpdateRuntime(ctx, serverupdate.RuntimeSocket, false); err != nil {
+			return err
+		}
+	}
+	socket, err := serverupdate.EnrollmentPreflightSocket(a.InstallationID)
+	if err != nil {
+		log.Warn().Msg("Enrollment preflight unavailable: an existing installation identity is required")
 		return nil
 	}
-	if info, err := os.Lstat(serverupdate.RuntimeSocket); err == nil {
-		if info.Mode()&os.ModeSocket == 0 {
+	return a.startServerUpdateRuntime(ctx, socket)
+}
+
+func (a *App) startServerUpdateRuntime(ctx context.Context, socket string) error {
+	err := a.listenServerUpdateRuntime(ctx, socket, true)
+	// Older standalone read-only deployments need not have writable /tmp. Keep
+	// serving normally, but leave preflight unavailable: setup must fail closed
+	// rather than recreate a container to acquire readiness. Enrolled deployments
+	// retain the existing requirement for their executor's readiness socket.
+	if (a.Config == nil || a.Config.ServerUpdateSocket == "") && (errors.Is(err, syscall.EROFS) || errors.Is(err, os.ErrPermission)) {
+		log.Warn().Msg("Enrollment preflight unavailable: the local readiness socket directory is not writable; provide writable /tmp before enrollment")
+		return nil
+	}
+	return err
+}
+
+func (a *App) listenServerUpdateRuntime(ctx context.Context, socket string, enrollmentOnly bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if info, err := os.Lstat(socket); err == nil {
+		owner, ok := info.Sys().(*syscall.Stat_t)
+		if info.Mode()&os.ModeSocket == 0 || !ok || owner.Uid != uint32(os.Geteuid()) {
 			return errors.New("unsafe server status socket")
 		}
-		if err := os.Remove(serverupdate.RuntimeSocket); err != nil {
+		connection, err := (&net.Dialer{Timeout: time.Second}).DialContext(ctx, "unix", socket)
+		if err == nil {
+			_ = connection.Close()
+			return errors.New("server status socket is already in use")
+		}
+		if !errors.Is(err, syscall.ECONNREFUSED) {
+			return fmt.Errorf("server status socket is unavailable: %w", err)
+		}
+		if err := os.Remove(socket); err != nil {
 			return err
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	l, err := net.Listen("unix", serverupdate.RuntimeSocket)
+	l, err := net.ListenUnix("unix", &net.UnixAddr{Name: socket, Net: "unix"})
 	if err != nil {
 		return err
 	}
-	if err := os.Chmod(serverupdate.RuntimeSocket, 0600); err != nil {
-		l.Close()
+	// Shutdown must not unlink a replacement server's socket.
+	l.SetUnlinkOnClose(false)
+	info, err := os.Lstat(socket)
+	if err != nil {
+		_ = l.Close()
+		return err
+	}
+	cleanup := func() {
+		_ = l.Close()
+		if current, err := os.Lstat(socket); err == nil && os.SameFile(info, current) {
+			_ = os.Remove(socket)
+		}
+	}
+	if err := os.Chmod(socket, 0600); err != nil {
+		cleanup()
 		return err
 	}
 	srv := &http.Server{ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 30 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || (r.URL.Path != "/status" && r.URL.Path != "/prepare") {
+		enrolled := !enrollmentOnly && a.Config != nil && a.Config.ServerUpdateSocket != ""
+		preflight := enrollmentOnly && r.URL.Path == "/enrollment-preflight"
+		if r.Method != http.MethodPost || (!preflight && (!enrolled || (r.URL.Path != "/status" && r.URL.Path != "/prepare"))) {
 			http.NotFound(w, r)
+			return
+		}
+		if preflight {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(a.serverEnrollmentPreflight(r.Context()))
 			return
 		}
 		if r.URL.Path == "/prepare" {
@@ -249,9 +310,24 @@ func (a *App) StartServerUpdateRuntime(ctx context.Context) error {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(a.serverUpdateRuntimeStatus(r.Context()))
 	})}
-	go func() { <-ctx.Done(); _ = srv.Close(); _ = os.Remove(serverupdate.RuntimeSocket) }()
-	go func() { _ = srv.Serve(l) }()
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = srv.Close()
+		case <-done:
+		}
+	}()
+	go func() {
+		defer close(done)
+		defer cleanup()
+		_ = srv.Serve(l)
+	}()
 	return nil
+}
+
+func (a *App) serverEnrollmentPreflight(ctx context.Context) serverupdate.EnrollmentPreflight {
+	return serverupdate.NewEnrollmentPreflight(a.InstallationID, a.serverUpdateRuntimeStatus(ctx))
 }
 
 // A canceled preparation must not leave a queued RWMutex writer behind: that
@@ -277,14 +353,25 @@ func (a *App) lockServerUpdatePreparation(ctx context.Context) error {
 }
 
 func (a *App) serverUpdateRuntimeStatus(ctx context.Context) serverupdate.RuntimeStatus {
-	s := serverupdate.RuntimeStatus{API: serverupdate.API, InstanceID: a.Config.ServerUpdateInstanceID, Version: buildinfo.Version, Commit: buildinfo.Commit, Ready: true, Maintenance: a.serverUpdateGated(), Agents: []string{}, Listeners: []int64{}, Blocked: []string{}}
-	if err := a.DB.QueryRowContext(ctx, "SELECT COALESCE(MAX(version_id),0) FROM goose_db_version WHERE is_applied=1").Scan(&s.Schema); err != nil {
+	s := serverupdate.RuntimeStatus{API: serverupdate.API, Version: buildinfo.Version, Commit: buildinfo.Commit, Ready: true, Maintenance: a.serverUpdateGated(), Agents: []string{}, Listeners: []int64{}, Blocked: []string{}}
+	if a.Config != nil {
+		s.InstanceID = a.Config.ServerUpdateInstanceID
+	} else {
 		s.Ready = false
-		s.Blocked = append(s.Blocked, "Database schema is unavailable")
+		s.Blocked = append(s.Blocked, serverupdate.EnrollmentBlockerForCode("configuration_unavailable").Message)
 	}
-	var active int
-	if err := a.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM agent_update_assignments WHERE state NOT IN ('succeeded','failed','cancelled') OR (state='failed' AND desired_action='rollback')").Scan(&active); err != nil || active > 0 {
-		s.Blocked = append(s.Blocked, "Finish or cancel active agent updates before updating the server")
+	if a.DB == nil || a.DB.DB == nil {
+		s.Ready = false
+		s.Blocked = append(s.Blocked, "Database schema is unavailable", "Finish or cancel active agent updates before updating the server")
+	} else {
+		if err := a.DB.QueryRowContext(ctx, "SELECT COALESCE(MAX(version_id),0) FROM goose_db_version WHERE is_applied=1").Scan(&s.Schema); err != nil {
+			s.Ready = false
+			s.Blocked = append(s.Blocked, "Database schema is unavailable")
+		}
+		var active int
+		if err := a.DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM agent_update_assignments WHERE state NOT IN ('succeeded','failed','cancelled') OR desired_action='rollback'").Scan(&active); err != nil || active > 0 {
+			s.Blocked = append(s.Blocked, "Finish or cancel active agent updates before updating the server")
+		}
 	}
 	if a.ManagementTLS != nil {
 		a.ManagementTLS.mu.RLock()
@@ -303,10 +390,15 @@ func (a *App) serverUpdateRuntimeStatus(ctx context.Context) serverupdate.Runtim
 			s.Listeners = append(s.Listeners, listener.ListenerId)
 		}
 	}
-	for _, agent := range a.AgentHub.connectedIDs() {
-		s.Agents = append(s.Agents, agent.PublicID)
+	if a.AgentHub != nil {
+		for _, agent := range a.AgentHub.connectedIDs() {
+			s.Agents = append(s.Agents, agent.PublicID)
+		}
 	}
 	sort.Strings(s.Agents)
+	if a.Config == nil {
+		return s
+	}
 	if a.Config.ConfigDir != "/data" || os.Getenv("DATABASE_URL") != "" {
 		s.Blocked = append(s.Blocked, "Automatic backups require the standard /data database; use a manual deployment for custom database paths")
 	}

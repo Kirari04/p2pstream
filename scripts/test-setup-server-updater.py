@@ -23,6 +23,8 @@ SCRIPT = (ROOT / 'setup-server-updater.sh').read_text()
 CODE = SCRIPT.split("    python3 -I - \"$@\" <<'PY'\n", 1)[1].rsplit('\nPY\n}', 1)[0]
 bootstrap = types.ModuleType('setup_bootstrap')
 exec(compile(CODE.split('\ntry:\n    main(sys.argv[1:])', 1)[0], 'setup-server-updater.sh', 'exec'), bootstrap.__dict__)
+downloader = types.ModuleType('download_docker')
+exec(compile((ROOT / 'download-docker-release.py').read_text(), 'download-docker-release.py', 'exec'), downloader.__dict__)
 ID = '11111111-1111-4111-8111-111111111111'
 VERSION = 'v1.0.1'
 BASE = 'https://github.com/test/repo/releases/download/' + VERSION + '/'
@@ -62,6 +64,7 @@ class Bootstrap(unittest.TestCase):
         self.manifest = {'schema_version': 1, 'version': VERSION, 'commit': 'b' * 40, 'channel': 'stable', 'expires_at': '2099-01-01T00:00:00Z'}
         self.publish()
         self.calls = []
+        self.current_files = {}
 
     def tearDown(self):
         self.temp.cleanup()
@@ -77,8 +80,11 @@ class Bootstrap(unittest.TestCase):
 
     def fetch(self, url, maximum):
         self.calls.append((url, maximum))
-        self.assertTrue(url.startswith(BASE))
-        data = self.files[url[len(BASE):]]
+        if url in self.current_files:
+            data = self.current_files[url]
+        else:
+            self.assertTrue(url.startswith(BASE))
+            data = self.files[url[len(BASE):]]
         self.assertLessEqual(len(data), maximum)
         return data
 
@@ -87,12 +93,19 @@ class Bootstrap(unittest.TestCase):
             bootstrap.main(args or self.args)
         return json.loads(self.receipt.read_text())
 
+    def upgraded_args(self, **changes):
+        current = dict(self.manifest, version='v1.0.0', commit='a' * 40)
+        current.update(changes)
+        raw = json.dumps(current).encode()
+        self.current_files['https://github.com/test/repo/releases/download/v1.0.0/p2pstream_agent_update_manifest.json'] = raw
+        return self.args[:4] + ['--cancel-enrollment', '--upgraded-deployment', 'v1.0.0', digest(raw), '--']
+
     def test_verified_host_receives_exact_bindings_and_compose_arguments(self):
         hostile = "project ' $(touch " + str(self.path / 'injected') + "); *"
         options = ['-p', hostile, '-f', 'relative compose.yaml', '--env-file', 'literal\tfile']
-        for migrate in (False, True):
-            with self.subTest(migrate=migrate):
-                args = self.args[:4] + (['--migrate-deployment'] if migrate else []) + ['--'] + options
+        for mode in (None, '--migrate-deployment', '--single-file-deployment'):
+            with self.subTest(mode=mode):
+                args = self.args[:4] + ([mode] if mode else []) + ['--'] + options
                 receipt = self.invoke(args)
                 command = receipt['args']
                 bundle_dir = command[command.index('--bundle') + 1]
@@ -100,10 +113,33 @@ class Bootstrap(unittest.TestCase):
                 expected = ['install', '--bundle', bundle_dir, '--expect-installation', ID, '--expect-version', VERSION,
                             '--expect-commit', 'b' * 40, '--expect-channel', 'stable', '--expect-arch', 'arm64',
                             '--manifest-sha256', digest(self.raw), '--repository', 'test/repo']
-                self.assertEqual(command, expected + (['--migrate-deployment'] if migrate else []) + ['--'] + options)
+                forwarded = ['--deployment-layout', 'single-file-v1'] if mode == '--single-file-deployment' else ([mode] if mode else [])
+                self.assertEqual(command, expected + forwarded + ['--'] + options)
                 self.assertEqual(receipt['files'], sorted(bootstrap.NAMES))
                 self.assertEqual(receipt['mode'], 0o700)
                 self.assertFalse((self.path / 'injected').exists())
+
+    def test_release_downloader_selects_standard_layout_without_starting_server(self):
+        args = ['download', '--repository', 'test/repo', '--release', VERSION, '--deployment-layout', 'single-file-v1']
+        with patch.object(downloader, 'download', side_effect=self.fetch), patch.object(sys, 'argv', args):
+            downloader.main()
+        command = json.loads(self.receipt.read_text())['args']
+        self.assertEqual(command, ['deploy', '--release', VERSION, '--repository', 'test/repo', '--directory',
+                                   '/opt/p2pstream/deployment', '--deployment-layout', 'single-file-v1'])
+
+    def test_release_downloader_preserves_legacy_destination(self):
+        destination = self.path / 'operator project'
+        args = ['download', '--repository', 'test/repo', '--release', VERSION, '--directory', str(destination)]
+        with patch.object(downloader, 'download', side_effect=self.fetch), patch.object(sys, 'argv', args):
+            downloader.main()
+        self.assertEqual(json.loads(self.receipt.read_text())['args'],
+                         ['deploy', '--release', VERSION, '--repository', 'test/repo', '--directory', str(destination)])
+
+    def test_release_downloader_refuses_arbitrary_standard_destination_before_download(self):
+        args = ['download', '--release', VERSION, '--deployment-layout', 'single-file-v1', '--directory', str(self.path)]
+        with patch.object(downloader, 'download', side_effect=AssertionError('premature download')), patch.object(sys, 'argv', args):
+            with self.assertRaisesRegex(ValueError, 'requires /opt/p2pstream/deployment'):
+                downloader.main()
 
     def test_cancel_enrollment_uses_verified_new_release_without_running_version_binding(self):
         receipt = self.invoke(self.args[:4] + ['--cancel-enrollment', '--'])
@@ -130,6 +166,57 @@ class Bootstrap(unittest.TestCase):
                     self.invoke(self.args[:4] + options)
                 self.assertEqual(self.calls, [])
                 self.assertFalse(self.receipt.exists())
+
+    def test_single_file_mode_refuses_duplicates_and_conflicting_operations_before_download(self):
+        for other in ('--single-file-deployment', '--migrate-deployment', '--cancel-enrollment'):
+            for flags in (['--single-file-deployment', other], [other, '--single-file-deployment']):
+                with self.subTest(flags=flags):
+                    with self.assertRaises(ValueError):
+                        self.invoke(self.args[:4] + flags + ['--'])
+                    self.assertEqual(self.calls, [])
+                    self.assertFalse(self.receipt.exists())
+
+    def test_upgraded_cancellation_binds_current_release_separately_from_recovery_code(self):
+        args = self.upgraded_args()
+        receipt = self.invoke(args)
+        command = receipt['args']
+        bundle_dir = command[command.index('--bundle') + 1]
+        self.assertEqual(command, ['cancel-enrollment', '--expect-installation', ID, '--repository', 'test/repo',
+                                  '--expect-channel', 'stable', '--bundle', bundle_dir, '--upgraded-deployment',
+                                  '--expect-version', 'v1.0.0', '--expect-commit', 'a' * 40, '--expect-arch', 'arm64',
+                                  '--manifest-sha256', args[-2]])
+        self.assertFalse(Path(bundle_dir).exists())
+        self.assertEqual([url for url, _ in self.calls], [BASE + 'p2pstream_agent_update_manifest.json',
+                         next(iter(self.current_files)), BASE + 'p2pstream_install.json', BASE + BUNDLE])
+
+    def test_upgraded_cancellation_requires_explicit_complete_current_binding_before_download(self):
+        valid = ['--cancel-enrollment', '--upgraded-deployment', 'v1.0.0', 'a' * 64, '--']
+        cases = [valid[1:], ['--migrate-deployment'] + valid[1:], valid[:2] + ['--'],
+                 valid[:3] + ['--'], valid[:-1] + ['--upgraded-deployment', 'v1.0.0', 'a' * 64, '--'],
+                 valid + ['-p', 'project'], valid[:2] + ['v1.0.0-staging.1'] + valid[3:],
+                 valid[:2] + ['v1.0.0/../../latest'] + valid[3:], valid[:3] + ['bad-hash', '--'],
+                 valid[:-1] + ['--migrate-deployment', '--']]
+        for options in cases:
+            with self.subTest(options=options):
+                with self.assertRaises(ValueError):
+                    self.invoke(self.args[:4] + options)
+                self.assertEqual(self.calls, [])
+                self.assertFalse(self.receipt.exists())
+
+    def test_upgraded_cancellation_rejects_current_manifest_discrepancies_before_extraction(self):
+        for changes in ({'version': 'v2.0.0'}, {'channel': 'staging'}, {'commit': 'bad'},
+                        {'schema_version': 2}, {'expires_at': '2000-01-01T00:00:00Z'}):
+            with self.subTest(changes=changes):
+                args = self.upgraded_args(**changes)
+                with patch.object(bootstrap.tempfile, 'TemporaryDirectory', side_effect=AssertionError('premature extraction')):
+                    with self.assertRaises(ValueError):
+                        self.invoke(args)
+                self.assertFalse(self.receipt.exists())
+        args = self.upgraded_args()
+        self.current_files[next(iter(self.current_files))] = b'not JSON'
+        with self.assertRaisesRegex(ValueError, 'Release changed'):
+            self.invoke(args)
+        self.assertFalse(self.receipt.exists())
 
     def test_cancel_enrollment_keeps_manifest_descriptor_and_bundle_verification(self):
         for name in ('p2pstream_agent_update_manifest.json', 'p2pstream_install.json', BUNDLE):
@@ -258,9 +345,11 @@ class Bootstrap(unittest.TestCase):
 
     def test_real_shell_wrapper_runs_verified_fixture_and_never_partial_source(self):
         runner = self.path / 'runner.py'
+        upgraded_args = self.upgraded_args()
         # Mock just the HTTPS transport; execute the unmodified embedded program
         # through sh -> python3 -I -> real verified host fixture subprocess.
         responses = {BASE + name: base64.b64encode(data).decode() for name, data in self.files.items()}
+        responses.update({url: base64.b64encode(data).decode() for url, data in self.current_files.items()})
         runner.write_text('import base64, io, sys, urllib.request\n'
                           'responses = ' + repr(responses) + '\n'
                           'class Opener:\n'
@@ -275,15 +364,19 @@ class Bootstrap(unittest.TestCase):
         python.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' -I ' + shlex.quote(str(runner)) + ' "$@"\n')
         python.chmod(0o700)
         env = dict(os.environ, PATH=str(self.path) + ':' + os.environ['PATH'])
-        for mode in ('install', '--migrate-deployment', '--cancel-enrollment'):
-            options = [] if mode == '--cancel-enrollment' else ['-p', "project ' $(false); *"]
-            args = self.args[:4] + ([] if mode == 'install' else [mode]) + ['--'] + options
+        for mode in ('install', '--migrate-deployment', '--cancel-enrollment', '--upgraded-deployment'):
+            cancel = mode in {'--cancel-enrollment', '--upgraded-deployment'}
+            options = [] if cancel else ['-p', "project ' $(false); *"]
+            args = upgraded_args if mode == '--upgraded-deployment' else self.args[:4] + ([] if mode == 'install' else [mode]) + ['--'] + options
             result = subprocess.run(['sh', '-s', '--'] + args, input=SCRIPT, text=True, capture_output=True, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             receipt = json.loads(self.receipt.read_text())
-            if mode == '--cancel-enrollment':
+            if cancel:
                 self.assertEqual(receipt['args'][0], 'cancel-enrollment')
-                self.assertNotIn('--expect-version', receipt['args'])
+                self.assertEqual('--expect-version' in receipt['args'], mode == '--upgraded-deployment')
+                if mode == '--upgraded-deployment':
+                    self.assertIn('v1.0.0', receipt['args'])
+                    self.assertNotIn(VERSION, receipt['args'])
                 self.assertNotIn('--', receipt['args'])
             else:
                 self.assertEqual(receipt['args'][-3:], ['--'] + options)

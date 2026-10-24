@@ -16,13 +16,41 @@ The one-liner executes the selected release's bootstrap script from GitHub over 
 
 Before activation, setup checks the selected installation ID, actual immutable running image ID and platform, release labels, real project/data volume and resolved Compose configuration hash. It repeats deployment checks after downloads, rejects pending Compose/.env changes and other data writers, then validates the supported layout. Identical version/commit on a different installation cannot satisfy the ID check. The ID lives in `/data/server-installation-id` before enrollment and survives container recreation and restore. A copied data volume intentionally retains that identity: do not run concurrent writable clones.
 
-The updater receives **host-level Docker authority**. The management container receives only a read-only private control directory and random credential; no public updater port is added. State and recovery information live in the root-owned private `/etc/p2pstream-server-updater`, outside application data. Enrollment preserves ports, settings, volume and other services, uses the executor's pinned Compose version, starts and authenticates the private executor first, then recreates the server **once**. It reports enabled only after both server health/configuration identity and authenticated updater reachability are verified. Public traffic and agent tunnels reconnect during this restart; setup is not zero downtime.
+Releases with enrollment preflight check the running server's readiness before staging setup and again before activation. Pending agent updates or rollback recovery, unfinished management certificate rotation, unavailable enabled listeners, maintenance, and unsupported backup paths block setup before it replaces the server or publishes runtime ownership. A cancelled agent campaign can still need rollback recovery; finish that recovery on **Agent → Updates**. The Server updates page lists these prerequisites before offering its setup command. Resolve the reported condition and refresh the page.
+
+The host calls the fixed read-only `server-enrollment-preflight` command inside the selected container. It verifies the response against that container's installation and release; this check does not grant preparation or mutation authority. An older server without preflight support needs a published release that includes it before using the new setup workflow. A standalone server whose filesystem cannot provide the local preflight socket continues serving, but setup reports preflight as unavailable. A blocker arising after activation starts can still require normal rollback.
+
+Enrollment capabilities use the separate `server-enrollment-capabilities` command. The original `server-deployment-capabilities` response remains unchanged so existing pinned protocol-2 executors can still check and update to new server images.
+
+The updater receives **host-level Docker authority**. The management container receives only a read-only private control directory and random credential; no public updater port is added. State and recovery information live in the root-owned private `/etc/p2pstream-server-updater`, outside application data. Enrollment preserves supported ports, settings and data, uses the executor's pinned Compose version, and recreates the server **once** with its private connection. It reports enabled only after both server health/configuration identity and authenticated updater reachability are verified. Public traffic and agent tunnels reconnect during this restart; setup is not zero downtime.
 
 Repeated setup confirms healthy enrollment without a restart or credential reset; it does **not** upgrade the host updater. If a legacy enrollment lost its private connection after ordinary Compose recreation, the verified setup helper can repair that exact saved deployment even when the installed controller predates the repair. It first proves the current image, settings, installation and data volume, then recreates the server with its saved binding; changed inputs or another data writer are refused. This repair preserves the pinned executor and credentials. Refresh the Updates page afterward to migrate the deployment integration. Interrupted setup resumes the same protected inputs and credentials. A host lock and durable phases prevent duplicate controllers and reject new updates while a host transaction is incomplete. Existing `config.json` alone never indicates success.
 
 ## Apply settings and operate the host
 
-New enrollment uses one canonical deployment at `/etc/p2pstream-server-deployment/compose.json`. The original Compose entry points become small `include` files pointing there, so ordinary commands retain the updater, private connection and current software image. Setup preserves editable copies beside the originals with `.p2pstream-input-…` suffixes and records their ordered paths, project and environment-file options. Edit those saved inputs and the same `.env`, then apply supported settings through the installed controller:
+### Standard single-file deployment
+
+Releases supporting `single-file-v1` can prepare a new deployment at `/opt/p2pstream/deployment`. Run the verified Docker release downloader with `sudo` and `--deployment-layout single-file-v1` instead of a custom `--directory`. Edit its `.env` and start the server from that directory. After login, run the normal setup one-liner there; the protected layout declaration selects this workflow. Existing enrollments retain their recorded layout and are not converted by repeating setup.
+
+The applied `compose.yaml` stays in that deployment directory. It contains the complete current model, including the pinned server image and updater connection, so `sudo docker compose up -d --force-recreate` uses the same file as the updater. It is readable JSON, which is also valid YAML, with no include bridge into `/etc`. Setup stages its replacement privately and journals recovery before blocking admission, stopping the original server, and atomically publishing it.
+
+After enrollment, edit `/opt/p2pstream/compose.inputs.yaml` and use the stable host command:
+
+```bash
+sudo p2pstream-server-update apply
+sudo p2pstream-server-update status
+sudo p2pstream-server-update logs
+```
+
+The editable file contains resolved settings; later `.env` edits do not change it. `apply` validates those settings while retaining the current software image and updater binding. The executor can write the dedicated deployment directory but cannot write this editable input or the installed controller. The applied model and editable input can contain application secrets and require restricted host permissions.
+
+Removal publishes the current standalone model at the same `compose.yaml` path. The lifecycle command remains installed, and private history and release limits remain available for reenrollment. Deleting private state is not an uninstall procedure: the controller diagnoses missing history and does not silently adopt a remaining runtime owner.
+
+This layout supports the standard single-file deployment. Moving an existing enrollment or a multi-file project into it requires a separate supported migration; copying files or changing a layout field does not perform one.
+
+### Existing and custom Compose layouts
+
+Other supported enrollment uses one canonical deployment at `/etc/p2pstream-server-deployment/compose.json`. The original Compose entry points become small `include` files pointing there, so ordinary commands retain the updater, private connection and current software image. Setup preserves editable copies beside the originals with `.p2pstream-input-…` suffixes and records their ordered paths, project and environment-file options. Edit those saved inputs and the same `.env`, then apply supported settings through the installed controller:
 
 ```bash
 sudo /etc/p2pstream-server-updater/manage apply
@@ -73,7 +101,11 @@ sudo /etc/p2pstream-server-updater/manage rollback
 
 Host helpers have durable container identities. If the controller is interrupted, read-only inspection refuses to terminate a surviving helper. Explicit `repair` settles an abandoned setup/settings helper; interrupted data recovery resumes through `recover-update`, bound to the same saved update operation. When Docker access fails during helper cleanup, restore it before running that explicit recovery command. A timeout never permits competing rollback until helper termination is confirmed.
 
-Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed.
+If initial activation fails while Compose replaces the server and the journal still records `activating`, run `manage repair` to resume that activation. Repair rechecks the saved inputs, image, installation and data writers before creating the replacement. Configuration rollback continues to refuse a missing server; an unrelated `recovery_required` journal does not authorize recreation.
+
+Failed helper output is retained in the root-private `/etc/p2pstream-server-updater/helper-failure.log`, with its time and check name. It can include resolved settings or secrets; inspect it locally with sudo when the reported helper diagnostic is needed. Verification timeouts identify the last failed stage and reference a helper log only when that attempt produced it.
+
+Final enrollment verification checks server readiness as well as management reachability. Active agent updates, unfinished management certificate rotation, an enabled public listener that is not running, or unsupported backup paths can block it. The updater check reports the known blocker; finish the indicated operation or correct the reported configuration before retrying. Older executors, including `.106`, report only `server is not healthy`. A successful rollback restores the original deployment, so checking it afterward does not reproduce the failed enrolled state.
 
 If layout validation rejects preparation before `config.json` exists, the original server has not been changed. Run `sudo /etc/p2pstream-server-updater/manage discard-preparation`, correct and apply the original Compose inputs, then copy a fresh setup block. This command first confirms helper termination and refuses any enrollment configuration, update state, maintenance marker or executor. It archives staging privately without changing containers or data. Once configuration exists, use `repair` or `rollback` to preserve credentials, or the narrowly scoped failed-enrollment cancellation below when applicable.
 
@@ -86,6 +118,8 @@ sudo /etc/p2pstream-server-updater/manage remove
 ```
 
 Removal strips updater credentials, control mount, executor service and managed startup ownership from the **current** deployment, retaining the latest pinned image, settings, ports, data and other services. It verifies server health before removing the stopped executor. For migrated deployments it replaces the original entry point with that current standalone model and clears its companion overrides; saved editable inputs remain available. It also exports `/etc/p2pstream-server-updater/detached-compose.json` and prints the applicable command. Recovery tools and the prior model remain available after interruption. Use the exported current model when enrolling again; completed removal state is archived privately.
+
+Removal and failed-enrollment cancellation retain `installation-receipt.json` in the private updater directory. It binds the installation, publisher and channel to both activated and observed release limits, with source digests. Reenrollment checks these limits, including matching legacy archived state, before staging a new executor. Removing an updater does not permit an older release or a different manifest at an already accepted sequence. Interrupted archival keeps the receipt available while preserving the original history. Keep this directory and its backups; a running image or restored Compose file cannot reconstruct deleted release history.
 
 ### Cancel a never-completed enrollment
 
@@ -104,6 +138,25 @@ sudo sh ./setup-server-updater.sh 'Kirari04/p2pstream@<exact-fixed-release>' \
 Cancellation accepts no Compose options and cannot be combined with `--migrate-deployment`. It uses the saved deployment context, so the fixed bundle can recover an older restored server without requiring that server to run the bundle's version. A refusal leaves the saved recovery state available; diagnose the reported condition before continuing.
 
 After cancellation succeeds, manually deploy the fixed published server image using the restored original Compose files, project and named data volume. Preserve the settings and data; follow [Upgrades](./upgrades) for applicable database and backup requirements. Then refresh the selected server's Updates page and run its fresh setup command to enroll the matching fixed executor. Cancellation alone does not install an updater, and server-only upgrades do not refresh a pinned host updater.
+
+### If the server was already manually upgraded
+
+A manual server upgrade can leave an older failed enrollment behind. For example, the running server can be `.106` while `host.json` still records `.103`. Ordinary `.106` setup tries the saved enrollment and can leave `recovery_required` with `Running image changed after setup was staged`. Repeating its `repair` or `rollback` does not adopt the new release. Keep the current server running and use a published recovery release with `--upgraded-deployment` support; `.106` does not contain that recovery mode.
+
+The recovery bundle and the running server have separate release bindings. Download the bootstrap from the exact recovery release and add the **currently running** version and its manifest SHA-256:
+
+```bash
+sudo sh ./setup-server-updater.sh 'Kirari04/p2pstream@<exact-recovery-release>' \
+  '<installation-id>' '<recovery-release-manifest-sha256>' '<amd64-or-arm64>' \
+  --cancel-enrollment --upgraded-deployment \
+  '<current-server-version>' '<current-server-manifest-sha256>' --
+```
+
+This accepts only an initial enrollment that never succeeded, with no update/preview history, maintenance or active executor. It independently verifies the installed image against the current published release, the installation and named data volume, health, and the complete Compose configuration. Only the server image may have changed. The repository and channel must match, and saved release floors remain enforced. Unknown deployment changes are refused.
+
+Recovery restores only verified setup-owned Compose entry points if the old repair left them pointing at its saved deployment. If that repair also wrote a blocked startup-owner marker, recovery can archive and retire only the exact marker belonging to the failed initial generation, after proving the current standalone server holds the stable lifetime lock. Allowed, foreign or unproven ownership is refused; the lock file is never removed or replaced. Recovery archives failed enrollment state privately, retains the current release floor, and leaves the running server and application data unchanged. Retry the same verified recovery command if interrupted. After success, refresh the current server's Updates page and run its fresh setup command. That separate enrollment restarts the server once; cancellation itself does not enable updates.
+
+Newer ordinary setup refuses a stale image or release binding before retrying activation. Host rollback also refuses a missing server instead of recreating an old enrollment image. Do not delete or edit the journal to bypass either check.
 
 ## Preview and update
 
