@@ -262,9 +262,12 @@ def fixture_catalog(host, images):
                  'p2pstream_install.json': encode(descriptor)}
         assets = dict(files, **{descriptor['bundle']: bundle})
         digest = images[key].split('@')[1]
+        # ParseManifest byte-compares against the Go Manifest struct's JSON
+        # encoding. Preserve its field order, including the release floor.
         manifest = {'schema_version': 1, 'channel': 'staging', 'version': version, 'commit': commit,
-                    'sequence': number, 'security_epoch': epoch, 'minimum_safe_version': minimum,
+                    'sequence': number,
                     'published_at': stamp(now - timedelta(hours=1)), 'expires_at': stamp(now + timedelta(days=1)),
+                    'minimum_safe_version': minimum, 'security_epoch': epoch,
                     'compatibility': {'server': {'min': 'v0.1.51', 'max': 'v0.1.54'},
                                       'protocol': {'min': 1, 'max': 1},
                                       'updater': {'min': 'v0.1.53-staging.9000', 'max': 'v0.1.53-staging.9001'}},
