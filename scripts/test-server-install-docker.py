@@ -586,31 +586,158 @@ assert info()['HostConfig']['PortBindings']['8081/tcp'][0]['HostPort'] == '18092
 assert compose('ps', '-q', 'observer') == observer
 checks += ['apply-after-software-change-retains-current-image', 'ports-env-applied', 'private-token-preserved']
 
-# Crash after saving the removal model, then rollback via pre-transition services.
-real_wait_original = host.Host.wait_original
-def interrupt_original(self):
-    raise KeyboardInterrupt()
-host.Host.wait_original = interrupt_original
-try:
-    host.manage(argparse.Namespace(action='remove'))
-except KeyboardInterrupt:
-    pass
-else:
-    raise AssertionError('Removal interruption did not occur')
-host.Host.wait_original = real_wait_original
-assert host.read_json(host.STATE / 'host.json')['phase'] == 'removing'
-host.manage(argparse.Namespace(action='repair'))
-assert host.read_json(host.STATE / 'host.json')['phase'] == 'healthy'
-assert info()['Config']['Image'] == images['candidate']
-assert (host.STATE / 'config.json').read_bytes() == config
-checks += ['interrupted-removal-durable-phase', 'removal-rollback-restores-current-image']
+def removal_recovery_boundaries():
+    """Exercise rollback before declaration and exact-target completion afterward."""
+    before = info()
+    controller = host.Host()
+    with controller.lock():
+        before_model = host.read_json(controller.current_model_path())
+    def preserved(*, removed=False):
+        current = info()
+        controller = host.Host()
+        with controller.lock():
+            actual_model = host.read_json(controller.current_model_path())
+        expected_model = host.decode(host.remove_model(before_model)) if removed else copy.deepcopy(before_model)
+        if not removed:
+            for model in (actual_model, expected_model):
+                model['services']['p2pstream']['environment'].pop('SERVER_UPDATE_GENERATION', None)
+        assert actual_model == expected_model
+        assert current['Config']['Image'] == before['Config']['Image'] == images['candidate']
+        assert current['Image'] == before['Image']
+        settings = lambda value: dict(item.split('=', 1) for item in value['Config']['Env'] if not item.startswith('SERVER_UPDATE_'))
+        assert settings(current) == settings(before)
+        assert current['HostConfig']['PortBindings'] == before['HostConfig']['PortBindings']
+        assert [mount for mount in current['Mounts'] if mount['Destination'] == '/data'] == [mount for mount in before['Mounts'] if mount['Destination'] == '/data']
+        assert docker('exec', current['Id'], '/app/p2pstream', 'server-installation-identity') == installation
+        assert (host.STATE / 'config.json').read_bytes() == config
+        assert compose('ps', '-q', 'observer') == observer
 
-host.manage(argparse.Namespace(action='remove'))
-assert host.read_json(host.STATE / 'host.json')['phase'] == 'removed'
-assert info()['Config']['Image'] == images['candidate']
-assert not any(v.startswith('SERVER_UPDATE_') for v in info()['Config']['Env'])
-assert compose('ps', '-q', 'observer') == observer
-checks += ['successful-removal-keeps-latest-image-settings-data']
+    # This seam precedes the declaration, not merely runtime detach: a persisted
+    # detaching-stage continuation already requires forward-only completion.
+    real_begin, real_stop = host.Host.begin_detached_continuation, host.Host.stop_executor
+    pre_declaration, executor_fds = [], []
+    interrupted = False
+    def observed_stop(controller):
+        fd = real_stop(controller)
+        identity = os.fstat(fd)
+        executor_fds.append((fd, (identity.st_dev, identity.st_ino, identity.st_mode)))
+        return fd
+    def interrupt_before_declaration(controller):
+        journal = host.read_json(host.STATE / 'host.json')
+        assert journal['phase'] == 'removing' and 'detached_continuation' not in journal
+        target = controller.server_container()
+        assert not target['State']['Running'] and not target['State'].get('Paused') and not target['State'].get('Restarting')
+        intent = controller.verify_replacement_intent()
+        controller.replacement_server(target, intent['binding'])
+        data = controller.replacement_data()
+        assert data['owner'] is not None and data['owner']['allowed'] is False
+        assert controller.replacement_owned(data['owner'], intent)
+        pre_declaration.append(data['directory'])
+        raise KeyboardInterrupt()
+    host.Host.begin_detached_continuation, host.Host.stop_executor = interrupt_before_declaration, observed_stop
+    try:
+        try:
+            host.manage(argparse.Namespace(action='remove'))
+        except KeyboardInterrupt:
+            interrupted = True
+        else:
+            raise AssertionError('Pre-declaration removal interruption did not occur')
+    finally:
+        host.Host.begin_detached_continuation, host.Host.stop_executor = real_begin, real_stop
+        if interrupted:
+            # An in-process KeyboardInterrupt does not release manage's fd as
+            # process exit would. Close only the exact fd returned by real stop.
+            assert len(pre_declaration) == len(executor_fds) == 1
+            fd, identity = executor_fds[0]
+            try:
+                current_fd = os.fstat(fd)
+            except OSError as error:
+                raise AssertionError('Interrupted executor fd was unexpectedly closed') from error
+            assert (current_fd.st_dev, current_fd.st_ino, current_fd.st_mode) == identity, 'Interrupted executor fd was reused'
+            os.close(fd)
+    assert len(pre_declaration) == 1
+    journal = host.read_json(host.STATE / 'host.json')
+    assert journal['phase'] == 'removing' and 'detached_continuation' not in journal
+    host.manage(argparse.Namespace(action='repair'))
+    assert host.read_json(host.STATE / 'host.json')['phase'] == 'healthy'
+    preserved()
+    checks.extend(['pre-declaration-interrupted-removal-rolls-back', 'removal-rollback-restores-current-image'])
+
+    # At wait_original the declared target has been detached and started. Repair
+    # must finish that same target, rather than restore the managed deployment.
+    real_wait = host.Host.wait_original
+    detached = []
+    def interrupt_after_start(controller):
+        journal = host.read_json(host.STATE / 'host.json')
+        continuation = journal['detached_continuation']
+        assert journal['phase'] == 'removing'
+        assert continuation['operation'] == 'remove' and continuation['stage'] == 'starting'
+        target, data = controller.detached_target()  # Keep every production identity/runtime gate.
+        assert target['State']['Running'] and data['owner'] is None
+        assert target['Id'] == continuation['server']['Id']
+        assert target.get('RestartCount') == continuation['restart_count']
+        assert data['directory'] == pre_declaration[0]
+        detached.append(copy.deepcopy(target))
+        raise KeyboardInterrupt()
+    host.Host.wait_original = interrupt_after_start
+    try:
+        try:
+            host.manage(argparse.Namespace(action='remove'))
+        except KeyboardInterrupt:
+            pass
+        else:
+            raise AssertionError('Post-declaration removal interruption did not occur')
+    finally:
+        host.Host.wait_original = real_wait
+    assert len(detached) == 1
+
+    real_compose = host.Host.compose
+    events = []
+    def verified_health(controller):
+        result = real_wait(controller)
+        events.append('healthy')
+        return result
+    def observed_compose(controller, *arguments, **kwargs):
+        if arguments[0] in {'start', 'stop', 'up'}:
+            events.append(arguments[0])
+        if arguments[0] == 'rm' and 'p2pstream-server-updater' in arguments:
+            assert events and events[-1] == 'healthy', 'Executor removal preceded confirmed server health'
+            target, data = controller.detached_target()
+            assert target['Id'] == detached[0]['Id'] and target['State']['Running'] and data['owner'] is None
+        result = real_compose(controller, *arguments, **kwargs)
+        if arguments[0] == 'rm' and 'p2pstream-server-updater' in arguments:
+            events.append('executor-removed')
+        return result
+    host.Host.wait_original, host.Host.compose = verified_health, observed_compose
+    try:
+        host.manage(argparse.Namespace(action='repair'))
+    finally:
+        host.Host.wait_original, host.Host.compose = real_wait, real_compose
+    assert events and events[-1] == 'executor-removed'
+    assert not any(event in {'start', 'stop', 'up'} for event in events)
+    journal = host.read_json(host.STATE / 'host.json')
+    assert journal['phase'] == 'removed'
+    assert 'detached_continuation' not in journal and 'replacement_intent' not in journal
+    current = info()
+    assert current['Id'] == detached[0]['Id'] and current['State']['Running']
+    assert current['State'].get('StartedAt') == detached[0]['State'].get('StartedAt')
+    assert current.get('RestartCount') == detached[0].get('RestartCount')
+    assert not any(value.startswith('SERVER_UPDATE_') for value in current['Config']['Env'])
+    assert not any(mount['Destination'] == '/run/p2pstream-server-update' for mount in current['Mounts'])
+    assert 'p2pstream.server-update.instance' not in current['Config'].get('Labels', {})
+    controller = host.Host()
+    with controller.lock():
+        assert 'p2pstream-server-updater' not in host.read_json(controller.current_model_path())['services']
+        assert not controller.compose('ps', '--all', '--quiet', 'p2pstream-server-updater', model='before-compose.json').stdout.strip()
+        assert controller.replacement_data() == {'directory': pre_declaration[0], 'owner': None}
+    assert not docker('ps', '-aq', '--filter', 'label=p2pstream.server-update.executor=' + installation)
+    preserved(removed=True)
+    checks.extend(['post-declaration-interrupted-removal-completes-recorded-target',
+                   'removal-completion-confirms-health-before-executor-removal',
+                   'completed-removal-keeps-latest-image-settings-data'])
+
+
+removal_recovery_boundaries()
 
 # Re-enroll from the supported exported current model using a newly verified
 # recipe, archiving removal state without moving away the editable input.

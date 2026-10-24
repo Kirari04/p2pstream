@@ -33,6 +33,96 @@ host_tests = load('lifecycle_host_fixtures', ROOT / 'test-server-updater-host.py
 harness = load('lifecycle_harness', ROOT / 'test-server-lifecycle-docker.py')
 
 
+class RemovalRecoveryBoundaries(unittest.TestCase):
+    """Execute the installer boundary function with the public controller fixture."""
+
+    def exercise(self, *, fail_health=False):
+        host = host_tests.host
+        production_wait = host.Host.wait_original
+        fixture = host_tests.Lifecycle()
+        fixture.setUp()
+        self.addCleanup(fixture.tearDown)
+        fixture.managed = True
+        fixture.install()
+        controller = host.Host()
+        with controller.lock():
+            model = host.read_json(controller.current_model_path())
+            server = model['services']['p2pstream']
+            server['image'] = 'ghcr.io/test/repo@sha256:' + 'e' * 64
+            server['environment']['SECRET'] = 'current-synthetic-setting'
+            server['ports'][0]['published'] = '10443'
+            server['volumes'].append({'type': 'bind', 'source': controller.config['control_dir'],
+                                      'target': '/run/p2pstream-server-update', 'read_only': True})
+            controller.write_model(model)
+        config = (fixture.state / 'config.json').read_bytes()
+        executor_removed = []
+        original_compose = host.Host.compose
+        original_begin, original_stop = host.Host.begin_detached_continuation, host.Host.stop_executor
+
+        def inspect_model():
+            # The controller fixture models daemon state. Extend its inspection
+            # from the active model for the real harness's preservation checks.
+            config = host.read_json(fixture.state / 'config.json')
+            model = host.read_json(Path(config['deployment_file']))
+            server = model['services']['p2pstream']
+            fixture.info['Config'].update(Image=server['image'], Env=[key + '=' + str(value) for key, value in server['environment'].items()])
+            fixture.info['HostConfig'] = {'PortBindings': {str(port['target']) + '/tcp': [
+                {'HostIp': port.get('host_ip', ''), 'HostPort': str(port['published'])}] for port in server.get('ports', [])}}
+            fixture.info['Mounts'] = [{'Type': volume['type'], 'Destination': volume['target'],
+                'Name': model['volumes'][volume['source']]['name'] if volume['type'] == 'volume' else '',
+                'Source': '/synthetic-data' if volume['type'] == 'volume' else volume['source'],
+                'RW': not volume.get('read_only', False)} for volume in server['volumes']]
+
+        def composed(controller, *args, **kwargs):
+            result = original_compose(controller, *args, **kwargs)
+            if args[0] == 'up' and args[-1] == 'p2pstream':
+                inspect_model()
+            if args[0] == 'rm' and 'p2pstream-server-updater' in args:
+                executor_removed.append(True)
+            if args[0] == 'ps' and args[-1] == 'p2pstream-server-updater':
+                return subprocess.CompletedProcess(args, 0, b'' if executor_removed else b'synthetic-executor\n', b'')
+            return result
+
+        def docker(*args):
+            return fixture.docker(*args).stdout.decode().strip()
+
+        def compose(*args):
+            self.assertEqual(args, ('ps', '-q', 'observer'))
+            return 'synthetic-observer'
+
+        inspect_model()
+        tree = ast.parse((ROOT / 'test-server-install-docker.py').read_text())
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'removal_recovery_boundaries')
+        namespace = dict(host=host, info=lambda: copy.deepcopy(fixture.info), docker=docker, compose=compose,
+                         images={'candidate': server['image']}, installation=host_tests.ID, observer='synthetic-observer',
+                         config=config, argparse=argparse, copy=copy, os=os, checks=[])
+        exec(compile(ast.Module(body=[function], type_ignores=[]), str(ROOT / 'test-server-install-docker.py'), 'exec'), namespace)
+        def refused_health(controller):
+            raise host.Failure('synthetic health refusal')
+        wait = refused_health if fail_health else production_wait
+        with patch.object(host.Host, 'compose', composed), patch.object(host.Host, 'wait_original', wait):
+            if fail_health:
+                with self.assertRaisesRegex(host.Failure, 'synthetic health refusal'):
+                    namespace['removal_recovery_boundaries']()
+                self.assertFalse(executor_removed)
+                self.assertIn('detached_continuation', host.read_json(fixture.state / 'host.json'))
+            else:
+                namespace['removal_recovery_boundaries']()
+                self.assertEqual(len(executor_removed), 1)
+                self.assertEqual(host.read_json(fixture.state / 'host.json')['phase'], 'removed')
+                self.assertIn('removal-rollback-restores-current-image', namespace['checks'])
+            self.assertIs(host.Host.compose, composed)
+            self.assertIs(host.Host.wait_original, wait)
+            self.assertIs(host.Host.begin_detached_continuation, original_begin)
+            self.assertIs(host.Host.stop_executor, original_stop)
+
+    def test_literal_installer_removal_boundaries(self):
+        self.exercise()
+
+    def test_failed_health_retains_executor_and_continuation(self):
+        self.exercise(fail_health=True)
+
+
 def inspection():
     # Full objects, including an unknown field, catch accidental projection or
     # deduplication. Duplicate destinations are deliberately retained in tests.
