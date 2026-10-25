@@ -440,7 +440,7 @@ func (ctx *publicProxyContext) runCleanup() {
 func rejectGloballyInvalidPublicPathStage(ctx *publicProxyContext) publicProxyStageResult {
 	ctx.PathIssues = classifyPublicRequestPath(ctx.Request)
 	if !ctx.PathIssues.DecodedDotSegment && !ctx.PathIssues.RawBackslash &&
-		!ctx.PathIssues.DuplicateSlash && !ctx.PathIssues.PathParameter && !ctx.PathIssues.DecodeLimit && !ctx.PathIssues.NestedEncoding {
+		!ctx.PathIssues.NUL && !ctx.PathIssues.DecodeLimit && !ctx.PathIssues.NestedEncoding {
 		return publicProxyStageContinue
 	}
 	return rejectInvalidPublicRequestTarget(ctx)
@@ -450,7 +450,9 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.App == nil {
 		return publicProxyStageContinue
 	}
-	if !ctx.PathIssues.hasEncodedSeparator() {
+	// Parser discrepancies require an explicitly selected compatibility route.
+	// A strict match is rejected here, never retried against a fallback route.
+	if !ctx.PathIssues.hasEncodedSeparator() && !ctx.PathIssues.DuplicateSlash && !ctx.PathIssues.PathParameter {
 		match, err := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 		if err != nil {
 			match.Err = err
@@ -472,7 +474,7 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 	ctx.RouteMatch = match
 	ctx.HasRouteMatch = true
 	if publicRouteAllowsEncodedPathSeparators(match.Route) {
-		ctx.EncodedPathSeparatorsAllowed = true
+		ctx.EncodedPathSeparatorsAllowed = ctx.PathIssues.hasEncodedSeparator()
 		return publicProxyStageContinue
 	}
 	return rejectInvalidPublicRequestTarget(ctx)
@@ -510,6 +512,7 @@ func rejectInvalidPublicRequestTarget(ctx *publicProxyContext) publicProxyStageR
 type publicPathIssueSet struct {
 	DecodedDotSegment bool
 	RawBackslash      bool
+	NUL               bool
 	EncodedSlash      bool
 	EncodedBackslash  bool
 	DuplicateSlash    bool
@@ -560,6 +563,17 @@ func inspectPublicPathLayers(path string, issues *publicPathIssueSet) {
 		// mode. Never permit dot traversal using either kind of separator.
 		separated := strings.ReplaceAll(path, `\`, "/")
 		issues.DecodedDotSegment = issues.DecodedDotSegment || containsPublicPathDotSegment(separated)
+		// Compatibility accepts servlet parameters, but not traversal hidden
+		// by them at an origin that strips each segment's parameter suffix.
+		if !issues.DecodedDotSegment && strings.Contains(separated, ";") {
+			for segment := range strings.SplitSeq(separated, "/") {
+				if strings.HasPrefix(segment, ".;") || strings.HasPrefix(segment, "..;") {
+					issues.DecodedDotSegment = true
+					break
+				}
+			}
+		}
+		issues.NUL = issues.NUL || strings.IndexByte(path, 0) >= 0
 		issues.DuplicateSlash = issues.DuplicateSlash || strings.Contains(separated, "//")
 		issues.PathParameter = issues.PathParameter || strings.Contains(path, ";")
 		issues.EncodedSlash = issues.EncodedSlash || containsEncodedPublicPathSlash(path)
