@@ -250,7 +250,9 @@ class CanonicalRemovalBoundaries(unittest.TestCase):
         model = host.read_json(f.canonical)
         server = model['services']['p2pstream']
         self.candidate = 'ghcr.io/test/repo@sha256:' + 'e' * 64
-        server['image'], server['read_only'] = self.candidate, True
+        server.update(image=self.candidate, read_only=True, cap_drop=['ALL'],
+                      cap_add=['NET_BIND_SERVICE'], security_opt=['no-new-privileges:true'],
+                      tmpfs=['/tmp:rw,nosuid,nodev,mode=1777'])
         server['environment'].update(QUALIFICATION_SETTING='applied-after-update',
                                      REENROLLMENT_SETTING='native-after-remove')
         server['ports'][0]['published'] = '18102'
@@ -285,6 +287,9 @@ class CanonicalRemovalBoundaries(unittest.TestCase):
             m = host.read_json(f.canonical); s = m['services']['p2pstream']
             f.info['Config'].update(Image=s['image'], Env=[k + '=' + str(v) for k, v in s['environment'].items()])
             f.info['HostConfig'] = {'ReadonlyRootfs': s.get('read_only', False),
+                'CapDrop': s.get('cap_drop'), 'CapAdd': s.get('cap_add'),
+                'SecurityOpt': s.get('security_opt'),
+                'Tmpfs': dict(value.split(':', 1) for value in s.get('tmpfs', [])),
                 'PortBindings': {str(p['target']) + '/tcp': [{'HostPort': str(p['published'])}] for p in s['ports']}}
             f.info['Mounts'] = [{'Type': v['type'], 'Destination': v['target'],
                 'Name': m['volumes'][v['source']]['name'] if v['type'] == 'volume' else '',
