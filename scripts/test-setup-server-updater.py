@@ -2,6 +2,9 @@
 """Exercise the standalone setup shell and its pinned release download boundary."""
 import base64
 import copy
+import contextlib
+import datetime
+import importlib.util
 import gzip
 import hashlib
 import io
@@ -46,6 +49,127 @@ def archive(entries):
     return output.getvalue()
 
 
+def cross_layer_wrapper(code, args, responses, result_path, scenario):
+    """Real bootstrap program/parser; mock only transport, Docker and time.
+
+    Keep one actual host lifecycle across two wrapper attempts so the second
+    call must prove its durable API2 receipt, not an always-success stub.
+    """
+    spec = importlib.util.spec_from_file_location('host_lifecycle', ROOT / 'test-server-updater-host.py')
+    lifecycle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lifecycle)
+    production_release_metadata = lifecycle.host.release_metadata
+    case = lifecycle.BlockedInitialOwnerCancellation(methodName='runTest')
+    case.setUp()
+    host = lifecycle.host
+    current_url = 'https://github.com/test/repo/releases/download/v1.0.2/p2pstream_agent_update_manifest.json'
+    current_raw = base64.b64decode(responses[current_url])
+    current = json.loads(current_raw)
+    current_hash = digest(current_raw)
+    case.args.manifest_sha256 = current_hash
+    case.current_floor['manifest_sha256'] = current_hash
+    clock = [datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)]
+    actual_datetime = datetime.datetime
+    class FrozenDateTime(actual_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock[0].astimezone(tz) if tz else clock[0].replace(tzinfo=None)
+    class Opener:
+        def open(self, url, **kwargs):
+            result = io.BytesIO(base64.b64decode(responses[url]))
+            result.geturl = lambda: url
+            return result
+    def fetch(url, limit):
+        raw = base64.b64decode(responses[url])
+        assert len(raw) <= limit
+        return raw
+    def snapshot():
+        # Exact fixture contents and inode/ownership/mode/timestamp metadata,
+        # including control, journal, sources, receipts, owner and lease files.
+        # Downloads live outside case.path; omit read-atime from metadata.
+        files = {}
+        for path in [case.path, *sorted(case.path.rglob('*'))]:
+            info = path.lstat()
+            metadata = tuple(getattr(info, field) for field in (
+                'st_dev', 'st_ino', 'st_mode', 'st_uid', 'st_gid', 'st_nlink',
+                'st_size', 'st_mtime_ns', 'st_ctime_ns'))
+            contents = os.readlink(path) if path.is_symlink() else path.read_bytes() if path.is_file() else None
+            files[str(path.relative_to(case.path))] = (metadata, contents)
+        return {'filesystem': files, 'server': copy.deepcopy(case.info),
+                'model': copy.deepcopy(case.model), 'source_bytes': case.raw,
+                'owner': copy.deepcopy(case.runtime_owner),
+                'executor': copy.deepcopy(case.executor),
+                'restarts': case.restart_count, 'inventory': case.server_inventory}
+    actual_run = subprocess.run
+    host_calls, controller_errors = [], []
+    def dispatch(command, **kwargs):
+        if len(command) >= 3 and command[1] == '-I' and Path(command[2]).name == 'server-updater-host.py':
+            assert Path(command[2]).read_bytes() == (ROOT / 'server-updater-host.py').read_bytes()
+            host_calls.append(command[3:])
+            status = 0
+            error = io.StringIO()
+            with patch.object(sys, 'argv', command[2:]), contextlib.redirect_stderr(error):
+                try:
+                    host.main()  # Real argparse, receipt admission and mutation path.
+                except KeyboardInterrupt:
+                    status = 130
+                except SystemExit as exited:
+                    status = exited.code
+            controller_errors.append(error.getvalue())
+            if status and kwargs.get('check'):
+                raise subprocess.CalledProcessError(status, command)
+            return subprocess.CompletedProcess(command, status)
+        return actual_run(command, **kwargs)
+    statuses, wrapper_errors = [], []
+    def attempt(values):
+        status = 0
+        errors = io.StringIO()
+        with patch.object(sys, 'argv', ['-'] + values), contextlib.redirect_stderr(errors):
+            try:
+                exec(compile(code, 'downloaded-setup', 'exec'), {})
+            except SystemExit as exited:
+                status = exited.code
+        statuses.append(status)
+        wrapper_errors.append(errors.getvalue())
+    try:
+        with patch.object(datetime, 'datetime', FrozenDateTime), patch.object(urllib.request, 'build_opener', return_value=Opener()), patch.object(subprocess, 'run', side_effect=dispatch), patch.object(host, 'release_metadata', production_release_metadata), patch.object(host, 'fetch', side_effect=fetch), patch.object(host.time, 'time', side_effect=lambda: clock[0].timestamp()):
+            retry = scenario not in {'fresh-expired', 'recovery-expired'}
+            if retry:
+                case.cleanup_fault = 'after-unlink'
+                attempt(args)
+                assert statuses == [1] and not case.marker.exists()
+                assert not host.read_json(case.state / host.CANCELLATION)['completed']
+                case.cleanup_fault = None
+            clock[0] = actual_datetime(2030, 1, 3, tzinfo=datetime.timezone.utc)
+            values = list(args)
+            if scenario == 'wrong-installation':
+                values[1] = '22222222-2222-4222-8222-222222222222'
+            elif scenario == 'wrong-arch':
+                values[3] = 'arm64'
+            elif scenario == 'wrong-current-pin':
+                values[-2] = '0' * 64
+            elif scenario == 'wrong-current-commit':
+                changed = dict(current, commit='8' * 40)
+                raw = json.dumps(changed).encode()
+                responses[current_url] = base64.b64encode(raw).decode()
+                values[-2] = digest(raw)
+            before = snapshot() if scenario == 'fresh-expired' else None
+            attempt(values)
+            after = snapshot() if before is not None else None
+        receipt_path = case.state / host.CANCELLATION
+        receipt = host.read_json(receipt_path) if receipt_path.exists() else None
+        result = {'statuses': statuses, 'host_calls': len(host_calls), 'controller_errors': controller_errors,
+                  'wrapper_errors': wrapper_errors, 'completed': receipt and receipt['completed'],
+                  'marker_exists': case.marker.exists()}
+        if before is not None:
+            result['state_unchanged'] = before == after
+            result['snapshot_categories'] = sorted(before)
+            result['changed_categories'] = [key for key in before if before[key] != after[key]]
+        Path(result_path).write_text(json.dumps(result))
+    finally:
+        case.tearDown()
+
+
 class Bootstrap(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -62,6 +186,7 @@ class Bootstrap(unittest.TestCase):
         self.manifest = {'schema_version': 1, 'version': VERSION, 'commit': 'b' * 40, 'channel': 'stable', 'expires_at': '2099-01-01T00:00:00Z'}
         self.publish()
         self.calls = []
+        self.current_files = {}
 
     def tearDown(self):
         self.temp.cleanup()
@@ -77,8 +202,11 @@ class Bootstrap(unittest.TestCase):
 
     def fetch(self, url, maximum):
         self.calls.append((url, maximum))
-        self.assertTrue(url.startswith(BASE))
-        data = self.files[url[len(BASE):]]
+        if url in self.current_files:
+            data = self.current_files[url]
+        else:
+            self.assertTrue(url.startswith(BASE))
+            data = self.files[url[len(BASE):]]
         self.assertLessEqual(len(data), maximum)
         return data
 
@@ -86,6 +214,90 @@ class Bootstrap(unittest.TestCase):
         with patch.object(bootstrap, 'download', side_effect=self.fetch):
             bootstrap.main(args or self.args)
         return json.loads(self.receipt.read_text())
+
+    def upgraded_args(self, **changes):
+        current = dict(self.manifest, version='v1.0.0', commit='a' * 40)
+        current.update(changes)
+        raw = json.dumps(current).encode()
+        self.current_files['https://github.com/test/repo/releases/download/v1.0.0/p2pstream_agent_update_manifest.json'] = raw
+        return self.args[:4] + ['--cancel-enrollment', '--upgraded-deployment', 'v1.0.0', digest(raw), '--']
+
+    def shell_controller_expiry(self, scenario):
+        # The recovery bundle is real controller source; no success-only host
+        # fixture can admit an expired fresh cancellation in this test.
+        source = (ROOT / 'server-updater-host.py').read_bytes()
+        self.entries = [(name, source if name == 'server-updater-host.py' else data, kind) for name, data, kind in self.entries]
+        if scenario == 'recovery-expired':
+            self.manifest['expires_at'] = '2030-01-02T00:00:00Z'
+        self.publish()
+        current = dict(self.manifest, version='v1.0.2', commit='9' * 40, expires_at='2030-01-02T00:00:00Z',
+                       sequence=13, security_epoch=2, minimum_safe_version='v1.0.0',
+                       oci_images=[{'repository': 'ghcr.io/test/repo', 'digest': 'sha256:' + '9' * 64,
+                                    'platforms': [{'os': 'linux', 'arch': arch} for arch in ('amd64', 'arm64')]}])
+        current_bundle = 'p2pstream_v1.0.2_docker.tar.gz'
+        descriptor = dict(self.descriptor, version=current['version'], commit=current['commit'], bundle=current_bundle)
+        # Exercise production release_metadata with hash-bound release assets;
+        # only HTTPS response bytes and the clock are supplied by this fixture.
+        current_assets = {'p2pstream_install.json': json.dumps(descriptor).encode(),
+                          'p2pstream_server_update.json': json.dumps({'api': 1, 'version': current['version']}).encode(),
+                          current_bundle: b'current bundle is not downloaded during cancellation'}
+        current['release_assets'] = [{'name': name, 'size': len(data), 'sha256': digest(data)}
+                                    for name, data in current_assets.items()]
+        raw = json.dumps(current).encode()
+        current_assets['p2pstream_agent_update_manifest.json'] = raw
+        self.current_files.update({'https://github.com/test/repo/releases/download/v1.0.2/' + name: data
+                                   for name, data in current_assets.items()})
+        self.current_files['https://api.github.com/repos/test/repo/releases/tags/v1.0.2'] = json.dumps(
+            {'tag_name': current['version'], 'draft': False, 'prerelease': False}).encode()
+        args = self.args[:3] + ['amd64', '--cancel-enrollment', '--upgraded-deployment', 'v1.0.2', digest(raw), '--']
+        responses = {BASE + name: base64.b64encode(data).decode() for name, data in self.files.items()}
+        responses.update({url: base64.b64encode(data).decode() for url, data in self.current_files.items()})
+        runner = self.path / 'controller-runner.py'
+        runner.write_text('import importlib.util, sys\nsys.dont_write_bytecode = True\n'
+            'spec = importlib.util.spec_from_file_location("wrapper_tests", ' + repr(str(Path(__file__).resolve())) + ')\n'
+            'module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)\n'
+            'module.cross_layer_wrapper(sys.stdin.read(), sys.argv[3:], ' + repr(responses) + ', ' + repr(str(self.receipt)) + ', ' + repr(scenario) + ')\n')
+        python = self.path / 'python3'
+        python.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' -I ' + shlex.quote(str(runner)) + ' "$@"\n')
+        python.chmod(0o700)
+        env = dict(os.environ, PATH=str(self.path) + ':' + os.environ['PATH'])
+        result = subprocess.run(['sh', '-s', '--'] + args, input=SCRIPT, text=True, capture_output=True, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(self.receipt.read_text())
+
+    def test_shell_current_expiry_retry_uses_real_controller_receipt(self):
+        result = self.shell_controller_expiry('admitted')
+        self.assertEqual(result['statuses'], [1, 0], result)
+        self.assertEqual(result['host_calls'], 2)
+        self.assertTrue(result['completed'])
+        self.assertFalse(result['marker_exists'])
+
+    def test_shell_expired_fresh_cancellation_is_refused_by_controller(self):
+        result = self.shell_controller_expiry('fresh-expired')
+        self.assertEqual(result['statuses'], [1], result)
+        self.assertEqual(result['host_calls'], 1)
+        self.assertIn('Release metadata expired; manually upgrade', result['controller_errors'][0])
+        self.assertTrue(result['state_unchanged'], result)
+        self.assertEqual(result['changed_categories'], [])
+        self.assertEqual(result['snapshot_categories'],
+                         ['executor', 'filesystem', 'inventory', 'model', 'owner', 'restarts', 'server', 'source_bytes'])
+        self.assertIsNone(result['completed'])
+        self.assertTrue(result['marker_exists'])
+
+    def test_shell_retry_preserves_current_identity_and_pin_checks(self):
+        for scenario in ('wrong-installation', 'wrong-arch', 'wrong-current-pin', 'wrong-current-commit'):
+            with self.subTest(scenario=scenario):
+                result = self.shell_controller_expiry(scenario)
+                self.assertEqual(result['statuses'], [1, 1], result)
+                self.assertEqual(result['host_calls'], 1 if scenario == 'wrong-current-pin' else 2)
+                self.assertFalse(result['completed'])
+
+    def test_shell_expired_recovery_bundle_never_reaches_controller(self):
+        result = self.shell_controller_expiry('recovery-expired')
+        self.assertEqual(result['statuses'], [1], result)
+        self.assertEqual(result['host_calls'], 0)
+        self.assertIn('Release metadata expired', result['wrapper_errors'][0])
+        self.assertTrue(result['marker_exists'])
 
     def test_verified_host_receives_exact_bindings_and_compose_arguments(self):
         hostile = "project ' $(touch " + str(self.path / 'injected') + "); *"
@@ -130,6 +342,48 @@ class Bootstrap(unittest.TestCase):
                     self.invoke(self.args[:4] + options)
                 self.assertEqual(self.calls, [])
                 self.assertFalse(self.receipt.exists())
+
+    def test_upgraded_cancellation_binds_current_release_separately_from_recovery_code(self):
+        args = self.upgraded_args()
+        receipt = self.invoke(args)
+        command = receipt['args']
+        bundle_dir = command[command.index('--bundle') + 1]
+        self.assertEqual(command, ['cancel-enrollment', '--expect-installation', ID, '--repository', 'test/repo',
+                                  '--expect-channel', 'stable', '--bundle', bundle_dir, '--upgraded-deployment',
+                                  '--expect-version', 'v1.0.0', '--expect-commit', 'a' * 40, '--expect-arch', 'arm64',
+                                  '--manifest-sha256', args[-2]])
+        self.assertFalse(Path(bundle_dir).exists())
+        self.assertEqual([url for url, _ in self.calls], [BASE + 'p2pstream_agent_update_manifest.json',
+                         next(iter(self.current_files)), BASE + 'p2pstream_install.json', BASE + BUNDLE])
+
+    def test_upgraded_cancellation_requires_explicit_complete_current_binding_before_download(self):
+        valid = ['--cancel-enrollment', '--upgraded-deployment', 'v1.0.0', 'a' * 64, '--']
+        cases = [valid[1:], ['--migrate-deployment'] + valid[1:], valid[:2] + ['--'],
+                 valid[:3] + ['--'], valid[:-1] + ['--upgraded-deployment', 'v1.0.0', 'a' * 64, '--'],
+                 valid + ['-p', 'project'], valid[:2] + ['v1.0.0-staging.1'] + valid[3:],
+                 valid[:2] + ['v1.0.0/../../latest'] + valid[3:], valid[:3] + ['bad-hash', '--'],
+                 valid[:-1] + ['--migrate-deployment', '--']]
+        for options in cases:
+            with self.subTest(options=options):
+                with self.assertRaises(ValueError):
+                    self.invoke(self.args[:4] + options)
+                self.assertEqual(self.calls, [])
+                self.assertFalse(self.receipt.exists())
+
+    def test_upgraded_cancellation_rejects_current_manifest_discrepancies_before_extraction(self):
+        for changes in ({'version': 'v2.0.0'}, {'channel': 'staging'}, {'commit': 'bad'},
+                        {'schema_version': 2}, {'expires_at': 'invalid-timestamp'}):
+            with self.subTest(changes=changes):
+                args = self.upgraded_args(**changes)
+                with patch.object(bootstrap.tempfile, 'TemporaryDirectory', side_effect=AssertionError('premature extraction')):
+                    with self.assertRaises(ValueError):
+                        self.invoke(args)
+                self.assertFalse(self.receipt.exists())
+        args = self.upgraded_args()
+        self.current_files[next(iter(self.current_files))] = b'not JSON'
+        with self.assertRaisesRegex(ValueError, 'Release changed'):
+            self.invoke(args)
+        self.assertFalse(self.receipt.exists())
 
     def test_cancel_enrollment_keeps_manifest_descriptor_and_bundle_verification(self):
         for name in ('p2pstream_agent_update_manifest.json', 'p2pstream_install.json', BUNDLE):
@@ -181,6 +435,15 @@ class Bootstrap(unittest.TestCase):
                     self.invoke()
                 self.assertFalse(self.receipt.exists())
                 self.descriptor[field] = original
+
+    def test_expired_recovery_manifest_refuses_all_ordinary_modes(self):
+        self.manifest['expires_at'] = '2000-01-01T00:00:00Z'
+        self.publish()
+        for mode in ([], ['--migrate-deployment'], ['--cancel-enrollment']):
+            with self.subTest(mode=mode):
+                with self.assertRaisesRegex(ValueError, 'Release metadata expired'):
+                    self.invoke(self.args[:4] + mode + ['--'])
+                self.assertFalse(self.receipt.exists())
 
     def test_manifest_identity_expiry_asset_duplicates_and_bounds(self):
         for field, value in [('commit', 'bad'), ('channel', 'staging'), ('version', 'v2.0.0'), ('expires_at', '2000-01-01T00:00:00Z')]:
@@ -258,9 +521,11 @@ class Bootstrap(unittest.TestCase):
 
     def test_real_shell_wrapper_runs_verified_fixture_and_never_partial_source(self):
         runner = self.path / 'runner.py'
+        upgraded_args = self.upgraded_args()
         # Mock just the HTTPS transport; execute the unmodified embedded program
         # through sh -> python3 -I -> real verified host fixture subprocess.
         responses = {BASE + name: base64.b64encode(data).decode() for name, data in self.files.items()}
+        responses.update({url: base64.b64encode(data).decode() for url, data in self.current_files.items()})
         runner.write_text('import base64, io, sys, urllib.request\n'
                           'responses = ' + repr(responses) + '\n'
                           'class Opener:\n'
@@ -275,15 +540,19 @@ class Bootstrap(unittest.TestCase):
         python.write_text('#!/bin/sh\nexec ' + shlex.quote(sys.executable) + ' -I ' + shlex.quote(str(runner)) + ' "$@"\n')
         python.chmod(0o700)
         env = dict(os.environ, PATH=str(self.path) + ':' + os.environ['PATH'])
-        for mode in ('install', '--migrate-deployment', '--cancel-enrollment'):
-            options = [] if mode == '--cancel-enrollment' else ['-p', "project ' $(false); *"]
-            args = self.args[:4] + ([] if mode == 'install' else [mode]) + ['--'] + options
+        for mode in ('install', '--migrate-deployment', '--cancel-enrollment', '--upgraded-deployment'):
+            cancel = mode in {'--cancel-enrollment', '--upgraded-deployment'}
+            options = [] if cancel else ['-p', "project ' $(false); *"]
+            args = upgraded_args if mode == '--upgraded-deployment' else self.args[:4] + ([] if mode == 'install' else [mode]) + ['--'] + options
             result = subprocess.run(['sh', '-s', '--'] + args, input=SCRIPT, text=True, capture_output=True, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
             receipt = json.loads(self.receipt.read_text())
-            if mode == '--cancel-enrollment':
+            if cancel:
                 self.assertEqual(receipt['args'][0], 'cancel-enrollment')
-                self.assertNotIn('--expect-version', receipt['args'])
+                self.assertEqual('--expect-version' in receipt['args'], mode == '--upgraded-deployment')
+                if mode == '--upgraded-deployment':
+                    self.assertIn('v1.0.0', receipt['args'])
+                    self.assertNotIn(VERSION, receipt['args'])
                 self.assertNotIn('--', receipt['args'])
             else:
                 self.assertEqual(receipt['args'][-3:], ['--'] + options)
