@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, statSync } from "fs";
 import { resolve } from "path";
 import { authenticate } from "../e2e/helpers/auth";
 import { connectRPC } from "../e2e/helpers/connect";
+import { fixtureCredential } from "../playwright.credentials";
 import { repoDir } from "../playwright.shared";
 import {
   seedDocsFixture,
@@ -11,9 +12,9 @@ import {
   type FixtureUpstream,
 } from "./fixtures";
 
-const setupToken = "docs-screenshot-setup-token-not-for-production";
+const setupToken = fixtureCredential("PLAYWRIGHT_SETUP_TOKEN");
 const username = "admin";
-const password = "docs-screenshot-password";
+const password = fixtureCredential("PLAYWRIGHT_ADMIN_PASSWORD");
 const managementPort = process.env.DOCS_SCREENSHOT_MANAGEMENT_PORT ?? "19091";
 const frontendPort = process.env.DOCS_SCREENSHOT_FRONTEND_PORT ?? "5173";
 const httpPort = process.env.DOCS_SCREENSHOT_HTTP_PORT ?? "19080";

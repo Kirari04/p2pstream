@@ -1,3 +1,4 @@
+import { fixtureCredential } from "./playwright.credentials";
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,10 +12,8 @@ export type ManagementWebServerOptions = {
   dataDir: string;
   cacheDir: string;
   binaryPath: string;
-  setupToken: string;
   agentId: string;
   agentName: string;
-  agentToken: string;
   managementPublicURL?: string;
   cleanupPorts?: string[];
   timeout?: number;
@@ -47,6 +46,7 @@ export function createManagementWebServer(options: ManagementWebServerOptions): 
     `cd ${shellQuote(repoDir)}`,
     "make frontend-install generate-proto",
     `go build -o ${shellQuote(options.binaryPath)} .`,
+    `go run ./scripts/browser-fixture-db ${shellQuote(resolve(options.dataDir, "p2pstream.db"))}`,
     `cleanup() { trap - INT TERM EXIT; kill \${FRONTEND_PID:-} \${AGENT_PID:-} \${SERVER_PID:-} 2>/dev/null || true; for pid in \${FRONTEND_PID:-} \${AGENT_PID:-} \${SERVER_PID:-}; do if [ -n "$pid" ]; then wait "$pid" 2>/dev/null || true; fi; done; }`,
     `trap "cleanup; exit 0" INT TERM`,
     `trap "cleanup" EXIT`,
@@ -54,11 +54,12 @@ export function createManagementWebServer(options: ManagementWebServerOptions): 
       `CONFIG_DIR=${shellQuote(options.dataDir)}`,
       `DATABASE_URL=${shellQuote(databaseURL)}`,
       `PUBLIC_CACHE_DIR=${shellQuote(options.cacheDir)}`,
+      "MANAGEMENT_BIND_ADDRESS=127.0.0.1",
       `MANAGEMENT_PORT=${options.managementPort}`,
-      `MANAGEMENT_SETUP_TOKEN=${shellQuote(options.setupToken)}`,
+      'MANAGEMENT_SETUP_TOKEN="$PLAYWRIGHT_SETUP_TOKEN"',
       `BOOTSTRAP_AGENT_ID=${shellQuote(options.agentId)}`,
       `BOOTSTRAP_AGENT_NAME=${shellQuote(options.agentName)}`,
-      `BOOTSTRAP_AGENT_TOKEN=${shellQuote(options.agentToken)}`,
+      'BOOTSTRAP_AGENT_TOKEN="$PLAYWRIGHT_AGENT_TOKEN"',
       `MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:${options.frontendPort}`,
       ...publicURLPart,
       "ENV=development",
@@ -68,7 +69,7 @@ export function createManagementWebServer(options: ManagementWebServerOptions): 
     `ready=0; for i in $(seq 1 100); do if [ -s "$CA_FILE" ] && curl --cacert "$CA_FILE" -fsS -H 'Content-Type: application/json' --data '{}' https://127.0.0.1:${options.managementPort}/p2pstream.v1.AgentManagementService/GetSetupState >/dev/null 2>&1; then ready=1; break; fi; sleep 0.2; done; if [ "$ready" != 1 ]; then echo "management server did not become ready"; exit 1; fi`,
     [
       `AGENT_ID=${shellQuote(options.agentId)}`,
-      `AGENT_TOKEN=${shellQuote(options.agentToken)}`,
+      'AGENT_TOKEN="$PLAYWRIGHT_AGENT_TOKEN"',
       `MANAGEMENT_URL=https://127.0.0.1:${options.managementPort}`,
       `MANAGEMENT_CA_FILE="$CA_FILE"`,
       `${shellQuote(options.binaryPath)} agent & AGENT_PID=$!`,
@@ -95,6 +96,10 @@ export function createManagementWebServer(options: ManagementWebServerOptions): 
     {
       name: "management",
       command: backendCommand,
+      env: {
+        PLAYWRIGHT_SETUP_TOKEN: fixtureCredential("PLAYWRIGHT_SETUP_TOKEN"),
+        PLAYWRIGHT_AGENT_TOKEN: fixtureCredential("PLAYWRIGHT_AGENT_TOKEN"),
+      },
       port: Number(options.managementPort),
       timeout: options.timeout ?? 120_000,
       reuseExistingServer: false,

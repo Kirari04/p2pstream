@@ -9,9 +9,6 @@ ifneq (,$(wildcard ./.env))
 endif
 endif
 
-# Deliberately static: this fallback is only used by the local development stack.
-DEV_AGENT_TOKEN := local-development-agent-token-not-for-production
-
 all: build
 
 generate-proto: frontend-install
@@ -55,22 +52,19 @@ backend-build:
 build: frontend-build backend-build
 
 dev-token-check:
-	@token="$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)}"; \
-	if [ "$${#token}" -lt 32 ]; then \
-		echo "AGENT_TOKEN must contain at least 32 characters" >&2; \
-		exit 1; \
-	fi
+	@. ./scripts/local-dev-env.sh
 
 dev: dev-token-check frontend-install generate-proto kill
 	@echo "Starting p2pstream development mode..."
 	@mkdir -p tmp
 	@go build -o ./tmp/p2pstream-agent-dev .
-	@cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false bun run dev & FRONTEND_PID=$$!; \
-	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
+	@. ./scripts/local-dev-env.sh; \
+	cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false bun run dev & FRONTEND_PID=$$!; \
+	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_BIND_ADDRESS="$$MANAGEMENT_BIND_ADDRESS" MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
 	MGMT_PORT=$${MANAGEMENT_PORT:-8081}; \
 	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
 	cleanup() { \
 		trap - INT TERM EXIT; \
@@ -86,13 +80,14 @@ dev: dev-token-check frontend-install generate-proto kill
 	trap "cleanup" EXIT; \
 	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
 
-run: build kill
+run: dev-token-check build kill
 	@echo "Starting server and agent..."
-	@BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} ./bin/p2pstream server & SERVER_PID=$$!; \
+	@. ./scripts/local-dev-env.sh; \
+	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_BIND_ADDRESS="$$MANAGEMENT_BIND_ADDRESS" ./bin/p2pstream server & SERVER_PID=$$!; \
 	MGMT_PORT=$${MANAGEMENT_PORT:-8081}; \
 	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./bin/p2pstream agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./bin/p2pstream agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
 	cleanup() { \
 		trap - INT TERM EXIT; \

@@ -1,3 +1,4 @@
+import { fixtureCredential } from "../../playwright.credentials";
 import { expect, type Page } from "@playwright/test";
 import { connectRPC, connectRPCResponse } from "./connect";
 
@@ -15,8 +16,8 @@ export type AuthenticateOptions = {
 };
 
 export const defaultUsername = "admin";
-export const defaultPassword = "playwright-password";
-export const defaultSetupToken = "playwright-setup-token-not-for-production";
+export const defaultPassword = fixtureCredential("PLAYWRIGHT_ADMIN_PASSWORD");
+export const defaultSetupToken = fixtureCredential("PLAYWRIGHT_SETUP_TOKEN");
 
 export async function authenticate(page: Page, appBaseURL: string, options: AuthenticateOptions = {}) {
   const managementPort = options.managementPort ?? process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19081";

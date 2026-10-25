@@ -2,6 +2,12 @@
 # Isolated, test-runner-owned fixture. Serves the built UI without a dev server.
 set -euo pipefail
 
+# Credentials are generated once by the runner and inherited by browser workers.
+if [[ ! "${PLAYWRIGHT_SETUP_TOKEN:-}" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "PLAYWRIGHT_SETUP_TOKEN must be supplied by the Playwright runner config" >&2
+  exit 1
+fi
+
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 management_port="${PLAYWRIGHT_MANAGEMENT_PORT:-19481}"
 if [[ ! "$management_port" =~ ^[0-9]+$ ]] || (( management_port < 1024 || management_port > 65535 )); then
@@ -29,8 +35,11 @@ trap 'exit 143' TERM
 
 cd "$repo_dir"
 go build -o "$fixture_dir/p2pstream" .
+go run ./scripts/browser-fixture-db "$fixture_dir/config/p2pstream.db"
 # A private cwd prevents config.Load from reading the developer's repository .env.
 cd "$fixture_dir"
+# Read the token from stdin after clearing the environment, keeping it out of
+# env(1)'s argument list as well as the logged Playwright command.
 env -i \
   PATH="$PATH" \
   HOME="$HOME" \
@@ -39,11 +48,11 @@ env -i \
   PUBLIC_CACHE_DIR="$fixture_dir/cache" \
   MANAGEMENT_BIND_ADDRESS=127.0.0.1 \
   MANAGEMENT_PORT="$management_port" \
-  MANAGEMENT_SETUP_TOKEN=playwright-setup-token-not-for-production \
   MANAGEMENT_UI_DIST_DIR="$repo_dir/web/management/dist" \
   MANAGEMENT_UI_DEV_PROXY= \
   AGENT_UPDATES_ENABLED=false \
   ENV=development \
-  "$fixture_dir/p2pstream" server &
+  bash -c 'IFS= read -r MANAGEMENT_SETUP_TOKEN; export MANAGEMENT_SETUP_TOKEN; exec "$@"' \
+  -- "$fixture_dir/p2pstream" server <<< "$PLAYWRIGHT_SETUP_TOKEN" &
 server_pid=$!
 wait "$server_pid"
