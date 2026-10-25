@@ -52,6 +52,7 @@ import {
 import {
   PublicListenerProtocol,
   PublicRouteAction,
+  PublicRouteTargetType,
   PublicSiteHostBehavior,
   PublicSiteListenerBehavior,
   PublicSiteReadinessSeverity,
@@ -1042,6 +1043,12 @@ defineExpose({ openCreate, openEdit, close });
                   :title="routeTargetSummary(route)"
                   >{{ routeTargetSummary(route) }}</span
                 >
+                <NTag
+                  v-if="route.action !== PublicRouteAction.REDIRECT && route.targets.some(target => target.targetType === PublicRouteTargetType.PROXY && target.tlsSkipVerify)"
+                  size="small"
+                  :bordered="false"
+                  type="error"
+                >TLS verification off</NTag>
               </div>
               <button
                 type="button"

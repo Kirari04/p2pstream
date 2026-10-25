@@ -37,7 +37,7 @@ Forward routes require at least one enabled target.
 | `priority_group` | Lowest available group is selected; higher groups are failover. |
 | `weight` | `1` to `1000000`; defaults to `100`. |
 | `agent_load_balancing` | Agent selection policy for agent targets. |
-| `tls_skip_verify` | Disables upstream certificate verification for a deliberately trusted private origin. |
+| `tls_skip_verify` | Defaults off. Disables certificate-chain, hostname, and expiry checks, allowing origin impersonation even on a private network. Use only temporarily for diagnosis; restore verification with a trusted certificate. |
 | `upstream_response_header_timeout_millis` | Defaults to `60000`. |
 | `upstream_request_headers` | Ordered headers added to upstream requests. Sensitive values are write-only and returned as saved-state metadata. |
 | `upstream_basic_auth` | Optional upstream username and write-only password. |

@@ -11,6 +11,7 @@ import {
   NDrawerContent,
   NInput,
   NInputNumber,
+  NTag,
 } from "naive-ui";
 import {
   isBusyKey,
@@ -1288,7 +1289,15 @@ defineExpose({
             class="route-target"
           >
             <div class="route-target__header">
-              <span class="copy-xs weight-semibold base-text">Target {{ index + 1 }}</span>
+              <div class="layout-row align-center space-sm wrap-items">
+                <span class="copy-xs weight-semibold base-text">Target {{ index + 1 }}</span>
+                <NTag
+                  v-if="target.targetType === PublicRouteTargetType.PROXY && target.tlsSkipVerify"
+                  size="small"
+                  :bordered="false"
+                  type="error"
+                >TLS verification off</NTag>
+              </div>
               <NButton
                 type="error"
                 secondary

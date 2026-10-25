@@ -60,6 +60,9 @@ The client CA applies to agent authentication. The shared HTTPS listener accepts
 connections without client certificates so browsers can reach setup and login.
 When a client CA is configured, agent stats and tunnel authentication require a
 verified certificate whose identity matches the agent, in addition to its token.
+Updater Enroll, Check, and Report RPCs use their Ed25519 authentication protocol
+and do not require a client certificate; configuring the client CA does not add
+mTLS enforcement to those RPCs.
 Administrator UI/API authentication remains session- or API-token-based; setting
 the client CA does not turn it into administrator mTLS.
 
