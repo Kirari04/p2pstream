@@ -33,7 +33,7 @@ override = source / 'production.json'
 env = source / '.env'
 env.write_text('PUBLIC_URL=https://localhost:18091\n')
 env.chmod(0o600)
-model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True, 'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'}, 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}, 'observer': {'image': images['baseline'], 'command': ['/bin/sh', '-c', 'sleep infinity'], 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/read-only-data', 'read_only': True}]}}, 'volumes': {'data': {'name': project + '-data'}}}
+model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True, 'tmpfs': ['/tmp:rw,noexec,nosuid,size=16m'], 'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'}, 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}, 'observer': {'image': images['baseline'], 'command': ['/bin/sh', '-c', 'sleep infinity'], 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/read-only-data', 'read_only': True}]}}, 'volumes': {'data': {'name': project + '-data'}}}
 base.write_text(json.dumps(model))
 extra = {'services': {'p2pstream': {'environment': {'MANAGEMENT_PUBLIC_URL': '${PUBLIC_URL}', 'SECRET': 'literal-$$HOME-$${SECRET}-$$$$'}, 'ports': [{'target': 8081, 'published': '18091', 'host_ip': '127.0.0.1'}]}}}
 override.write_text(json.dumps(extra))
@@ -82,6 +82,15 @@ def wait(fn, seconds=90):
 compose('up', '-d')
 wait(lambda: docker('exec', info()['Id'], '/app/p2pstream', 'server-health'))
 installation = docker('exec', info()['Id'], '/app/p2pstream', 'server-installation-identity')
+# Verify the public CLI against the actual production server's Linux PID-1 peer.
+# No injected verifier or forged responder is involved in this Docker check.
+preflight_before = info()
+preflight = json.loads(docker('exec', preflight_before['Id'], '/app/p2pstream', 'server-enrollment-preflight'))
+assert preflight['api'] == 1 and preflight['installation_id'] == installation
+assert preflight['ready'] is True and preflight['blockers'] == []
+preflight_after = info()
+assert (preflight_after['Id'], preflight_after['Image'], preflight_after['State']['StartedAt'], preflight_after['RestartCount']) == (preflight_before['Id'], preflight_before['Image'], preflight_before['State']['StartedAt'], preflight_before['RestartCount'])
+docker('exec', preflight_before['Id'], '/bin/sh', '-c', 'test ! -e /data/.p2pstream-runtime-owner.json')
 observer = compose('ps', '-q', 'observer')
 initial_container = info()['Id']
 assert_runtime_aliases('original-compose')
@@ -111,7 +120,7 @@ def fixture(version, commit, server_ref, updater_ref):
 
 args = fixture('v0.1.53-staging.9000', 'a' * 40, images['baseline'], images['updater'])
 os.chdir(source)
-checks = ['container-name-matches-service-produces-duplicate-docker-aliases']
+checks = ['public-preflight-authenticates-real-pid1-without-lifecycle-or-owner-mutation', 'container-name-matches-service-produces-duplicate-docker-aliases']
 
 def rejected(fn, text):
     try:
@@ -594,7 +603,7 @@ source.mkdir(mode=0o700)
 project = 'review-failed-install-recovery'
 base = source / 'compose.json'
 options = ['-p', project, '-f', str(base)]
-model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True,
+model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True, 'tmpfs': ['/tmp:rw,noexec,nosuid,size=16m'],
                                   'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'},
                                   'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
          'volumes': {'data': {'name': project + '-data'}}}
