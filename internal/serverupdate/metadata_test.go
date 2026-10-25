@@ -64,6 +64,34 @@ func TestServerMetadataBindsImageSchemaAndRecovery(t *testing.T) {
 	}
 }
 
+func TestServerMetadataUsesCatalogSequencePin(t *testing.T) {
+	manifest, metadata, current := releaseFixture(t, "v1.0.1", "stable")
+	for _, test := range []struct {
+		name  string
+		floor Floor
+		want  string
+	}{
+		{"bootstrap", Floor{}, ""},
+		{"exact equal sequence", Floor{Sequence: 12, ManifestSHA256: hash(manifest)}, ""},
+		{"missing equal sequence pin", Floor{Sequence: 12}, "valid trusted manifest SHA-256"},
+		{"invalid equal sequence pin", Floor{Sequence: 12, ManifestSHA256: "invalid"}, "valid trusted manifest SHA-256"},
+		{"changed equal sequence", Floor{Sequence: 12, ManifestSHA256: strings.Repeat("f", 64)}, "manifest changed"},
+		{"strictly newer", Floor{Sequence: 11, ManifestSHA256: strings.Repeat("f", 64)}, ""},
+		{"rollback", Floor{Sequence: 13, ManifestSHA256: hash(manifest)}, "sequence floor"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := VerifyRelease(manifest, metadata, "ghcr.io/test/repo", "stable", "v1.0.1", "amd64", current, test.floor, time.Now())
+			if test.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error=%v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestStagingCatalogDiscoversNextPublishedRelease(t *testing.T) {
 	manifest, metadata, current := releaseFixture(t, "v1.0.1-staging.10", "staging")
 	current.Version = "v1.0.1-staging.8"

@@ -88,11 +88,12 @@ func verifyRelease(manifest, metadata []byte, repository, channel, version, arch
 	v, err := agentupdate.VerifyCatalog(manifest, agentupdate.CatalogVerifyPolicy{
 		Now: now, RequiredChannel: channel, ServerVersion: current.Version, ProtocolVersion: 1,
 		CurrentSequence: floor.Sequence, CurrentSecurityEpoch: floor.SecurityEpoch, CurrentMinimumSafeVersion: floor.MinimumSafeVersion,
+		CurrentManifestSHA256: floor.ManifestSHA256,
 	})
 	if err != nil {
 		return Release{}, err
 	}
-	if v.Manifest.Version != version || (floor.Sequence == v.Manifest.Sequence && floor.ManifestSHA256 != "" && floor.ManifestSHA256 != v.ManifestSHA256) {
+	if v.Manifest.Version != version {
 		return Release{}, errors.New("release identity changed")
 	}
 	asset, err := v.Manifest.ReleaseAssetFor(MetadataAsset)

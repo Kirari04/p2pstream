@@ -164,6 +164,53 @@ func TestCatalogRejectsRollbackAcrossRestartAndInvalidLatestTag(t *testing.T) {
 	}
 }
 
+func TestCatalogPinsEqualSequenceAcrossRestart(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	bundle := newCatalogBundle(t, now, "v1.2.3", 10203)
+	server := newCatalogServer(t, bundle)
+	defer server.Close()
+	options := Options{
+		Repository: "owner/repo", StatePath: filepath.Join(t.TempDir(), "catalog-state.json"),
+		RefreshInterval: 10 * time.Second, HTTPClient: server.Client(), ServerVersion: "v1.2.0", ProtocolVersion: 1,
+		Now: func() time.Time { return now }, APIBaseURL: server.URL, DownloadBaseURL: server.URL,
+	}
+	load := func() *Catalog {
+		t.Helper()
+		catalog, err := New(options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return catalog
+	}
+	first, err := load().Latest(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if exact, err := load().Latest(context.Background()); err != nil || exact.ManifestSHA256 != first.ManifestSHA256 {
+		t.Fatalf("exact refresh after restart: %+v, %v", exact, err)
+	}
+	manifest, err := agentupdate.ParseManifest(bundle.manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Artifacts[0].SHA256 = strings.Repeat("b", 64)
+	changed, err := agentupdate.CanonicalManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.setManifest(changed)
+	if _, err := load().Latest(context.Background()); err == nil || !strings.Contains(err.Error(), "manifest changed") {
+		t.Fatalf("changed equal-sequence refresh: %v", err)
+	}
+	if floor, err := readFloor(options.StatePath); err != nil || floor.ManifestSHA256 != first.ManifestSHA256 {
+		t.Fatalf("rejected manifest changed floor: %+v, %v", floor, err)
+	}
+	server.setBundle(newCatalogBundle(t, now, "v1.2.4", 10204))
+	if newer, err := load().Latest(context.Background()); err != nil || newer.Manifest.Sequence != 10204 {
+		t.Fatalf("strictly newer release: %+v, %v", newer, err)
+	}
+}
+
 func TestCatalogRejectsOversizedMetadataAndNonLoopbackOverride(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	bundle := newCatalogBundle(t, now, "v1.2.3", 10203)
