@@ -21,7 +21,7 @@
     "@codemirror/language": "^6.12.3",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.8",
-    "@connectrpc/connect": "^2.1.1",
+    "@connectrpc/connect": "^2.2.0",
     "@connectrpc/connect-web": "^2.1.1",
     "@emmetio/codemirror6-plugin": "^0.4.0",
     "@fontsource/ibm-plex-mono": "^5.2.7",
