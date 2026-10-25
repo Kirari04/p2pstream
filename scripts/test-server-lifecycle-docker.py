@@ -476,6 +476,8 @@ def worker(args):
                                              release['release']['image'], setup.manifest_sha256)
     original_docker, original_command = host.docker, host.Host.command
     original_compose = host.Host.compose
+    original_begin = host.Host.begin_detached_continuation
+    original_target = host.Host.detached_target
     original_prepare, original_write = host.Host.prepare_single, host.Host.write_model
     original_canonical, original_owner = file_snapshot(CANONICAL), owner_bytes(images)
     events = []
@@ -500,6 +502,16 @@ def worker(args):
         return original_docker(*arguments, **kwargs)
 
     def observed_compose(controller, *arguments, **kwargs):
+        completing_remove = (args.action in {'repair', 'rollback'}
+                             and controller.journal.get('detached_continuation', {}).get('operation') == 'remove')
+        if completing_remove and arguments[:1] in {('up',), ('start',), ('stop',)} and arguments[-1] == 'p2pstream':
+            record('remove-recovery-server-lifecycle')
+        removing_executor = (completing_remove and arguments[:1] == ('rm',)
+                             and arguments[-1] == 'p2pstream-server-updater')
+        if removing_executor:
+            require(events and events[-1] == 'remove-health-confirmed',
+                    'remove-executor-removal-before-health')
+            observed_target(controller)  # Recheck the production gates before forwarding rm.
         if (args.interrupt == 'after-server-removal' and not fired and args.action in {'apply', 'remove'}
                 and arguments[:1] == ('up',) and '--no-start' in arguments
                 and arguments[-1] == 'p2pstream'):
@@ -524,7 +536,21 @@ def worker(args):
                     'replacement-fault-server-not-removed')
             record('actual-owned-server-removed')
             interrupt('after-server-removal')
-        return original_compose(controller, *arguments, **kwargs)
+        result = original_compose(controller, *arguments, **kwargs)
+        if removing_executor:
+            record('remove-executor-removed-after-health-and-target-check')
+        return result
+
+    def observed_begin(controller):
+        if args.action == 'remove':
+            interrupt('before-remove-continuation')
+        return original_begin(controller)
+
+    def observed_target(controller):
+        result = original_target(controller)
+        if args.action in {'repair', 'rollback'} and controller.journal['detached_continuation']['operation'] == 'remove':
+            record('remove-declared-target-rechecked')
+        return result
 
     def observed_command(controller, *arguments):
         if arguments and arguments[0] == 'runtime-block-staged':
@@ -595,12 +621,16 @@ def worker(args):
 
     host.docker, host.Host.command = observed_docker, observed_command
     host.Host.compose = observed_compose
+    host.Host.begin_detached_continuation = observed_begin
+    host.Host.detached_target = observed_target
     host.Host.prepare_single, host.Host.write_model = observed_prepare, observed_write
     original_wait = host.Host.wait_original
     def observed_wait(controller):
         result = original_wait(controller)
         if args.action == 'remove':
             interrupt('after-remove-deploy')
+        elif args.action in {'repair', 'rollback'} and controller.journal.get('detached_continuation', {}).get('operation') == 'remove':
+            record('remove-health-confirmed')
         return result
     host.Host.wait_original = observed_wait
     os.chdir(DEPLOYMENT)
@@ -624,6 +654,11 @@ def worker(args):
                     'blocker-crossed-mutation-boundary')
         record('expected-' + args.refusal + '-refusal')
         return 0
+    finally:
+        host.docker, host.Host.command = original_docker, original_command
+        host.Host.compose, host.Host.prepare_single, host.Host.write_model = original_compose, original_prepare, original_write
+        host.Host.wait_original = original_wait
+        host.Host.begin_detached_continuation, host.Host.detached_target = original_begin, original_target
     require(not args.refusal, 'expected-refusal-did-not-happen')
     require(not args.interrupt, 'interruption-checkpoint-not-reached')
     record('completed')
@@ -704,6 +739,89 @@ def assert_native_recreate(images, expected):
     helper(images, 'TestDockerReviewRuntimeReceipt')
     require(read(STATE / 'native-runtime-receipt.json')['runtime_receipt_verified_directly'],
             'native-runtime-receipt-not-verified')
+
+
+def removal_forward_recovery(images, expected_floor, *, action='repair'):
+    require(action in {'repair', 'rollback'}, 'invalid-remove-completion-action')
+    host = load_host()
+    label = 'post-declaration-remove-' + action
+    stage(label)
+    config, inputs = file_snapshot(STATE / 'config.json'), file_snapshot(INPUTS)
+    model = read(CANONICAL)
+    volume = json.loads(docker('volume', 'inspect', VOLUME))
+    identity = read(ROOT / 'identity.json')
+    history = sorted(path.name for path in (STATE / 'history').iterdir())
+
+    def runtime(info):
+        return dict(container_snapshot(info), Config=copy.deepcopy(info['Config']),
+                    HostConfig=copy.deepcopy(info['HostConfig']))
+
+    def other_services():
+        result = {}
+        for service in sorted(set(model['services']) - {'p2pstream', 'p2pstream-server-updater'}):
+            ids = compose('ps', '--all', '--quiet', service).split()
+            result[service] = [runtime(info) for info in json.loads(docker('inspect', *ids))] if ids else []
+        return result
+
+    others = other_services()
+    fresh('remove', release='candidate', label=label, interrupt='after-remove-deploy')
+    journal, target = read(STATE / 'host.json'), server_info()
+    continuation, intent = journal['detached_continuation'], journal['replacement_intent']
+    require(journal['phase'] == 'removing' and continuation['operation'] == 'remove'
+            and continuation['stage'] == 'starting' and target['State']['Running'],
+            'remove-continuation-not-running-and-declared')
+    require(host.Host().detached_server_matches(target, continuation)
+            and continuation['intent_sha256'] == sha(json.dumps(intent, sort_keys=True).encode())
+            and continuation['target_sha256'] == intent['target_sha256']
+            == host.Host.cancellation_model_hash(CANONICAL.read_bytes()), 'remove-declared-target-differs')
+    require(read(CANONICAL) == json.loads(host.remove_model(model)), 'remove-changed-standalone-model')
+    require(target['Config']['Image'] == images['candidate']
+            and 'QUALIFICATION_SETTING=applied-after-update' in target['Config']['Env'],
+            'remove-changed-current-software-or-settings')
+    require(not any(value.startswith('SERVER_UPDATE_') for value in target['Config']['Env'])
+            and 'p2pstream.server-update.instance' not in target['Config']['Labels']
+            and not any(m['Destination'] in {'/run/p2pstream-server-update', '/var/run/docker.sock'}
+                        for m in target['Mounts']) and target['HostConfig']['ReadonlyRootfs'],
+            'remove-retained-private-binding-or-writable-root')
+    data = [mount for mount in target['Mounts'] if mount['Destination'] == '/data']
+    require(len(data) == 1 and data[0]['Name'] == VOLUME and data[0]['RW'], 'remove-changed-data-volume')
+    require(owner_bytes(images) == b'ABSENT', 'remove-retained-runtime-owner')
+    require(docker('exec', target['Id'], '/app/p2pstream', 'server-installation-identity')
+            == identity['installation']
+            and sha(docker('exec', target['Id'], 'cat', '/data/certs/management/ca.crt.pem').encode())
+            == identity['ca_sha256'], 'remove-changed-installation-or-ca')
+    require(file_snapshot(STATE / 'config.json') == config and file_snapshot(INPUTS) == inputs
+            and read(STATE / 'installation-receipt.json')['floor'] == expected_floor,
+            'remove-changed-config-inputs-or-floor')
+    declared_runtime, standalone = runtime(target), file_snapshot(CANONICAL)
+    fresh(action, release='candidate', label='complete-' + label)
+    final = read(STATE / 'host.json')
+    require(final['phase'] == 'removed' and not final.get('detached_continuation')
+            and not final.get('replacement_intent'), 'remove-completion-not-committed')
+    require(runtime(server_info()) == declared_runtime and file_snapshot(CANONICAL) == standalone
+            and file_snapshot(STATE / 'config.json') == config and file_snapshot(INPUTS) == inputs,
+            'remove-completion-changed-declared-target-or-files')
+    require(owner_bytes(images) == b'ABSENT' and other_services() == others
+            and json.loads(docker('volume', 'inspect', VOLUME)) == volume
+            and read(STATE / 'installation-receipt.json')['floor'] == expected_floor
+            and sorted(path.name for path in (STATE / 'history').iterdir()) == history,
+            'remove-completion-changed-owner-services-data-floor-or-history')
+    require(docker('exec', target['Id'], '/app/p2pstream', 'server-installation-identity')
+            == identity['installation']
+            and sha(docker('exec', target['Id'], 'cat', '/data/certs/management/ca.crt.pem').encode())
+            == identity['ca_sha256'], 'remove-completion-changed-installation-or-ca')
+    trace = read(ROOT / ('trace-complete-' + label + '.json'))
+    require('remove-recovery-server-lifecycle' not in trace and trace.count('remove-declared-target-rechecked') >= 4
+            and trace.count('remove-executor-removed-after-health-and-target-check') == 1,
+            'remove-completion-lifecycle-or-target-gates')
+    removed = trace.index('remove-executor-removed-after-health-and-target-check')
+    require(trace[removed - 2:removed] == ['remove-health-confirmed', 'remove-declared-target-rechecked'],
+            'remove-completion-health-target-executor-order')
+    # The standalone canonical model no longer declares the executor service.
+    require(not docker('ps', '--all', '--quiet', '--filter', 'label=com.docker.compose.project=' + PROJECT,
+                       '--filter', 'label=com.docker.compose.service=p2pstream-server-updater'),
+            'remove-executor-still-present')
+    CHECKS.append('post-declaration-' + action + '-completes-removal-on-declared-healthy-target')
 
 
 def replacement_recovery(images, action, *, operation='apply', input_change='unchanged'):
@@ -1139,14 +1257,17 @@ def main():
                 INPUTS.write_bytes(applied_inputs)
                 replacement_recovery(images, action, operation=operation, input_change=input_change)
     INPUTS.write_bytes(applied_inputs)
-    stage('interrupt-remove')
+    stage('pre-declaration-interrupt-remove')
     generation_before = next(value.split('=', 1)[1] for value in server_info()['Config']['Env']
                              if value.startswith('SERVER_UPDATE_GENERATION='))
     inputs_before_remove = INPUTS.read_bytes()
-    fresh('remove', release='candidate', label='interrupt-remove', interrupt='after-remove-deploy')
+    config_before_remove, model_before_remove = file_snapshot(STATE / 'config.json'), read(CANONICAL)
+    volume_before_remove = json.loads(docker('volume', 'inspect', VOLUME))
+    fresh('remove', release='candidate', label='pre-declaration-interrupt-remove', interrupt='before-remove-continuation')
     require(read(STATE / 'host.json')['phase'] == 'removing', 'interrupted-remove-lost-phase')
-    stage('rollback-interrupted-remove')
-    fresh('repair', release='candidate', label='rollback-interrupted-remove')
+    require(not read(STATE / 'host.json').get('detached_continuation'), 'pre-declaration-remove-crossed-declaration')
+    stage('rollback-pre-declaration-remove')
+    fresh('repair', release='candidate', label='rollback-pre-declaration-remove')
     assert_binding(images, 'candidate')
     generation_after = next(value.split('=', 1)[1] for value in server_info()['Config']['Env']
                             if value.startswith('SERVER_UPDATE_GENERATION='))
@@ -1156,6 +1277,10 @@ def main():
             and json.loads(owner[8:])['allowed'] is True, 'rollback-did-not-authorize-fresh-generation')
     require(read(STATE / 'host.json')['phase'] == 'healthy' and INPUTS.read_bytes() == inputs_before_remove,
             'rollback-phase-or-editable-inputs-changed')
+    model_before_remove['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = generation_after
+    require(read(CANONICAL) == model_before_remove and file_snapshot(STATE / 'config.json') == config_before_remove
+            and json.loads(docker('volume', 'inspect', VOLUME)) == volume_before_remove,
+            'pre-declaration-rollback-changed-current-model-config-or-data')
     require(CANONICAL.read_bytes().endswith(b'\n') and b'\n  "' in CANONICAL.read_bytes(),
             'rollback-model-not-readable-json')
     checks.append('interrupted-removal-rollback-fresh-generation-and-readable-model')
@@ -1216,8 +1341,7 @@ def main():
     require(read(STATE / 'installation-receipt.json')['floor'] == expected_floor,
             'reenrollment-reset-retained-floor')
     checks.append('reenrollment-preserves-installation-and-candidate-floor')
-    stage('remove-before-lost-history')
-    fresh('remove', release='candidate', label='remove-before-lost-history')
+    removal_forward_recovery(images, expected_floor)
     history = next((STATE / 'history').iterdir())
     missing = history / 'config.json'
     saved, saved_mode = missing.read_bytes(), stat.S_IMODE(missing.stat().st_mode)
@@ -1251,7 +1375,7 @@ if __name__ == '__main__':
     parser.add_argument('--label', default='worker')
     parser.add_argument('--refusal', choices=['', 'blocker', 'floor', 'history', 'inputs'], default='')
     parser.add_argument('--variant', choices=['', 'sequence', 'epoch', 'minimum', 'identity'], default='')
-    parser.add_argument('--interrupt', choices=['', 'before-publish', 'after-publish', 'after-remove-deploy',
+    parser.add_argument('--interrupt', choices=['', 'before-publish', 'after-publish', 'before-remove-continuation', 'after-remove-deploy',
                                                'after-server-removal'], default='')
     parser.add_argument('--block-after-prepare', action='store_true')
     parser.add_argument('--default-yaml', action='store_true')

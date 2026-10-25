@@ -24,6 +24,15 @@ sys.dont_write_bytecode = True
 ROOT = Path(__file__).resolve().parent
 
 
+def setUpModule():
+    # Install before any fixture setup. Tests may substitute an in-memory run
+    # response; an escaped transport still cannot reach a real child process.
+    stack = contextlib.ExitStack()
+    unittest.addModuleCleanup(stack.close)
+    for name in ('Popen', 'run', 'call', 'check_call', 'check_output', 'getoutput', 'getstatusoutput'):
+        stack.enter_context(patch.object(subprocess, name, side_effect=AssertionError('Real subprocess transport forbidden')))
+
+
 def load(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
@@ -224,6 +233,351 @@ class RemovalRecoveryBoundaries(unittest.TestCase):
 
     def test_extra_lock_descriptor_is_refused_without_closing_it(self):
         self.exercise(duplicate_lock=True)
+
+
+class CanonicalRemovalBoundaries(unittest.TestCase):
+    """Real driver orchestration/public controller; mocked Docker, real locks/files."""
+
+    def setUp(self):
+        self.host = host = host_tests.host
+        self.production_wait = host.Host.wait_original
+        self.fixture = f = host_tests.SingleFileLifecycle()
+        f.setUp()
+        self.addCleanup(f.tearDown)
+        self.stack = stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        f.install()
+        model = host.read_json(f.canonical)
+        server = model['services']['p2pstream']
+        self.candidate = 'ghcr.io/test/repo@sha256:' + 'e' * 64
+        server['image'], server['read_only'] = self.candidate, True
+        server['environment'].update(QUALIFICATION_SETTING='applied-after-update',
+                                     REENROLLMENT_SETTING='native-after-remove')
+        server['ports'][0]['published'] = '18102'
+        server['volumes'] += [{'type': 'bind', 'source': str(f.state / 'control'),
+                              'target': '/run/p2pstream-server-update', 'read_only': True},
+                             {'type': 'bind', 'source': str(f.source),
+                              'target': '/qualification', 'read_only': True}]
+        model['services']['observer'] = {'image': 'synthetic-observer'}
+        host.atomic(f.canonical, model, mode=0o640)
+        f.info['Image'] = f.image['Id'] = 'sha256:current-candidate'
+        f.info['RestartCount'] = 0
+        f.info['State']['StartedAt'] = 'synthetic-start'
+        self.observer = inspection()
+        self.observer.update(Id='synthetic-observer')
+        self.observer['HostConfig'] = {'ReadonlyRootfs': True}
+        (f.state / 'history').mkdir()
+        self.floor = host.read_json(f.state / 'config.json')['bootstrap_floor']
+        self.pending, self.duplicates = [], []
+        self.fail_health = False
+        self.worker_calls, self.executor_removals, self.gates = [], [], []
+        self.addCleanup(self.cleanup_fds)
+        self.volume = [{'Name': 'custom-data', 'Mountpoint': '/synthetic-data'}]
+        self.ca = 'synthetic-ca'
+        harness.write(f.path / 'identity.json', {'installation': host_tests.ID,
+                                               'ca_sha256': harness.sha(self.ca.encode())})
+        compose, stop, target = host.Host.compose, host.Host.stop_executor, host.Host.detached_target
+        docker, read = host.docker, harness.read
+        release = {'manifest': f.manifest, 'descriptor': f.descriptor,
+                   'release': {'image': self.candidate}}
+
+        def projected():
+            m = host.read_json(f.canonical); s = m['services']['p2pstream']
+            f.info['Config'].update(Image=s['image'], Env=[k + '=' + str(v) for k, v in s['environment'].items()])
+            f.info['HostConfig'] = {'ReadonlyRootfs': s.get('read_only', False),
+                'PortBindings': {str(p['target']) + '/tcp': [{'HostPort': str(p['published'])}] for p in s['ports']}}
+            f.info['Mounts'] = [{'Type': v['type'], 'Destination': v['target'],
+                'Name': m['volumes'][v['source']]['name'] if v['type'] == 'volume' else '',
+                'Source': '/synthetic-data' if v['type'] == 'volume' else v['source'],
+                'RW': not v.get('read_only', False)} for v in s['volumes']]
+
+        def composed(controller, *args, **kwargs):
+            result = compose(controller, *args, **kwargs)
+            if args[0] == 'up' and args[-1] == 'p2pstream':
+                projected()
+                f.info['State']['StartedAt'] = '0001-01-01T00:00:00Z'
+            if args[0] == 'start' and args[-1] == 'p2pstream':
+                f.info['State']['StartedAt'] = 'synthetic-start-' + f.info['Id']
+            if args[0] == 'rm' and args[-1] == 'p2pstream-server-updater':
+                self.assertTrue(self.gates and self.gates[-1] in {'health', 'target'})
+                if self.gates[-1] == 'target': self.assertEqual(self.gates[-2:], ['health', 'target'])
+                self.executor_removals.append(True)
+            return result
+
+        def checked_target(controller):
+            result = target(controller); self.gates.append('target'); return result
+
+        def waited(controller):
+            if self.fail_health:
+                with patch.object(host.time, 'monotonic', side_effect=[0, 0, 91]), patch.object(host.time, 'sleep'):
+                    self.production_wait(controller)
+            else:
+                self.production_wait(controller)
+            self.gates.append('health')
+
+        def stopped(controller):
+            fd = stop(controller)
+            self.pending.append((fd, self.fd_identity(fd)))
+            return fd
+
+        def observed_docker(*args, **kwargs):
+            if args[0] == 'exec' and args[-1] == 'server-health' and self.fail_health:
+                return subprocess.CompletedProcess(args, 1, b'', b'')
+            return docker(*args, **kwargs)
+
+        def harness_docker(*args, **kwargs):
+            if args[:3] == ('ps', '--all', '--quiet') and args[-1] == 'label=com.docker.compose.service=p2pstream-server-updater':
+                return '' if self.executor_removals else 'synthetic-executor'
+            if args[:2] == ('volume', 'inspect'):
+                return json.dumps(self.volume)
+            if args[0] == 'inspect' and args[1:] == ('synthetic-observer',):
+                return json.dumps([self.observer])
+            if args[0] == 'exec' and args[-1] == '/data/certs/management/ca.crt.pem':
+                return self.ca
+            return observed_docker(*args, **kwargs).stdout.decode().strip()
+
+        def harness_compose(*args, **kwargs):
+            if args[-1] == 'observer':
+                return 'synthetic-observer'
+            self.assertEqual(args, ('ps', '--all', '--quiet', 'p2pstream-server-updater'))
+            return '' if self.executor_removals else 'synthetic-executor'
+
+        def metadata(path):
+            if str(path) == '/review/images.json': return {'candidate': self.candidate}
+            if path == f.path / 'catalog.json': return {'candidate': release}
+            return read(path)
+
+        def launcher(args, **kwargs):
+            self.assertEqual(args, [harness.LAUNCHER, 'status'])
+            return subprocess.CompletedProcess(args, 0, b'', b'')
+
+        projected()
+        stack.enter_context(patch.multiple(host.Host, compose=composed, stop_executor=stopped,
+                                           wait_original=waited, detached_target=checked_target))
+        stack.enter_context(patch.object(host, 'docker', observed_docker))
+        stack.enter_context(patch.multiple(harness, ROOT=f.path, STATE=f.state, DEPLOYMENT=f.source,
+                                           CANONICAL=f.canonical, INPUTS=f.inputs, VOLUME='custom-data',
+                                           PROJECT='custom-project', CHECKS=[], STAGE='setup'))
+        for name, replacement in [('read', metadata), ('load_host', lambda: host),
+                ('install_arguments', lambda *unused: (f.args, release)),
+                ('server_info', lambda **unused: copy.deepcopy(f.info)), ('docker', harness_docker),
+                ('compose', harness_compose), ('owner_bytes', lambda *unused: b'ABSENT' if f.runtime_owner is None
+                 else b'PRESENT:' + json.dumps(f.runtime_owner).encode()),
+                ('fresh', self.fresh), ('health', lambda: True), ('run', launcher)]:
+            stack.enter_context(patch.object(harness, name, replacement))
+
+    @staticmethod
+    def fd_identity(fd):
+        value = os.fstat(fd)
+        return value.st_dev, value.st_ino, value.st_mode
+
+    def cleanup_fds(self):
+        for fd, saved in self.pending + self.duplicates:
+            try: actual = self.fd_identity(fd)
+            except OSError as error:
+                self.assertEqual(error.errno, errno.EBADF); continue
+            self.assertEqual(actual, saved, 'Test-owned fd reused; refusing close')
+            os.close(fd)
+
+    def probe_lock(self, *, blocked=False):
+        fd = os.open(self.fixture.state / 'executor.lock', os.O_RDWR | os.O_NOFOLLOW)
+        try:
+            if blocked:
+                with self.assertRaises(BlockingIOError): fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            else:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally: os.close(fd)
+
+    def release_interrupted(self):
+        self.assertEqual(len(self.pending), 1)
+        fd, saved = self.pending[0]
+        self.assertEqual(self.fd_identity(fd), saved)
+        os.close(fd)
+        for name in os.listdir('/proc/self/fd'):
+            try: info = os.fstat(int(name))
+            except OSError as error:
+                self.assertEqual(error.errno, errno.EBADF); continue
+            self.assertNotEqual((info.st_dev, info.st_ino), saved[:2],
+                                'Unknown duplicate still references interrupted executor lock')
+        self.probe_lock()
+        self.pending.clear()
+
+    def fresh(self, action, **kwargs):
+        self.worker_calls.append((action, kwargs))
+        options = argparse.Namespace(action=action, release='candidate', variant='', refusal='',
+            block_after_prepare=False, interrupt=kwargs.get('interrupt', ''), label=kwargs['label'])
+        originals = {name: getattr(self.host.Host, name) for name in
+                     ('compose', 'command', 'prepare_single', 'write_model', 'wait_original',
+                      'begin_detached_continuation', 'detached_target')}
+        with patch.multiple(harness, CHECKS=[], STAGE='worker-test'):
+            if options.interrupt:
+                with self.assertRaises(harness.DeliberateInterruption): harness.worker(options)
+                self.probe_lock(blocked=True)
+                self.release_interrupted()  # Model process exit; never part of the real worker.
+            else:
+                harness.worker(options)
+                for fd, _ in self.pending:
+                    with self.assertRaises(OSError) as caught: os.fstat(fd)
+                    self.assertEqual(caught.exception.errno, errno.EBADF)
+                self.pending.clear()
+        for name, original in originals.items(): self.assertIs(getattr(self.host.Host, name), original)
+        harness.CHECKS.append('worker-' + options.label + '-expected-exit')
+
+    def pre_and_uninterrupted(self):
+        tree = ast.parse(Path(harness.__file__).read_bytes())
+        body = next(n.body for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'main')
+        def stage_name(n):
+            if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call) and isinstance(n.value.func, ast.Name) and n.value.func.id == 'stage':
+                return n.value.args[0].value
+        start = next(i for i, n in enumerate(body) if stage_name(n) == 'pre-declaration-interrupt-remove')
+        end = next(i for i, n in enumerate(body) if stage_name(n) == 'stale-reenrollment-inputs')
+        namespace = dict(vars(harness), images={'candidate': self.candidate},
+                         expected_floor=self.floor, checks=harness.CHECKS)
+        exec(compile(ast.Module(body=body[start:end], type_ignores=[]), harness.__file__, 'exec'), namespace)
+
+    def test_real_predeclaration_worker_rollback_and_uninterrupted_removal(self):
+        self.pre_and_uninterrupted()
+        self.assertEqual([action for action, _ in self.worker_calls], ['remove', 'repair', 'remove'])
+        self.assertEqual(self.worker_calls[0][1]['interrupt'], 'before-remove-continuation')
+        self.assertNotIn('interrupt', self.worker_calls[-1][1])
+        self.assertEqual(harness.read(self.fixture.path / 'trace-pre-declaration-interrupt-remove.json'),
+                         ['interrupt-before-remove-continuation'])
+        self.assertIn('interrupted-removal-rollback-fresh-generation-and-readable-model', harness.CHECKS)
+        self.assertEqual(harness.read(self.fixture.state / 'host.json')['phase'], 'removed')
+        self.assertEqual(len(list((self.fixture.state / 'history').iterdir())), 0)
+        self.probe_lock()
+
+    def assert_uninterrupted_guard(self, change, check):
+        fresh = harness.fresh
+        def corrupted(action, **kwargs):
+            result = fresh(action, **kwargs)
+            if kwargs['label'] == 'complete-remove': change()
+            return result
+        with patch.object(harness, 'fresh', corrupted), self.assertRaisesRegex(harness.CheckFailure, '^' + check + '$'):
+            self.pre_and_uninterrupted()
+
+    def test_uninterrupted_image_guard_is_preserved(self):
+        self.assert_uninterrupted_guard(lambda: self.fixture.info['Config'].update(Image='foreign-image'),
+                                        'remove-downgraded-image')
+
+    def test_uninterrupted_applied_setting_guard_is_preserved(self):
+        def change():
+            self.fixture.info['Config']['Env'].remove('QUALIFICATION_SETTING=applied-after-update')
+        self.assert_uninterrupted_guard(change, 'remove-dropped-applied-settings')
+
+    def test_uninterrupted_binding_guard_is_preserved(self):
+        self.assert_uninterrupted_guard(lambda: self.fixture.info['Config']['Env'].append('SERVER_UPDATE_TOKEN=foreign'),
+                                        'remove-retained-private-binding')
+
+    def test_uninterrupted_floor_guard_is_preserved(self):
+        def change():
+            path = self.fixture.state / 'installation-receipt.json'
+            receipt = harness.read(path)
+            receipt['floor']['sequence'] -= 1
+            harness.write(path, receipt)
+        self.assert_uninterrupted_guard(change, 'remove-dropped-release-floor')
+
+    def test_real_postdeclaration_public_repair(self):
+        harness.removal_forward_recovery({'candidate': self.candidate}, self.floor)
+        self.assertEqual([a for a, _ in self.worker_calls], ['remove', 'repair'])
+        self.assertEqual(len(self.executor_removals), 1)
+        self.probe_lock()
+        # Test-only archival proves no in-process interruption fd can block the
+        # next real archive flock; the Docker driver's schedule adds no archive.
+        config = (self.fixture.state / 'config.json').read_bytes()
+        current = self.fixture.canonical.read_bytes(), self.fixture.inputs.read_bytes(), copy.deepcopy(self.fixture.info)
+        controller = self.host.Host()
+        with controller.lock(): controller.archive_removed()
+        archives = list((self.fixture.state / 'history').iterdir())
+        self.assertEqual(len(archives), 1)
+        self.assertEqual((archives[0] / 'config.json').read_bytes(), config)
+        self.assertEqual((self.fixture.canonical.read_bytes(), self.fixture.inputs.read_bytes(), self.fixture.info), current)
+        self.assertFalse((self.fixture.state / 'host.json').exists())
+
+    def test_real_postdeclaration_public_rollback(self):
+        harness.removal_forward_recovery({'candidate': self.candidate}, self.floor, action='rollback')
+        self.assertEqual([a for a, _ in self.worker_calls], ['remove', 'rollback'])
+        self.probe_lock()
+
+    def test_failed_production_health_retains_continuation_executor_and_target(self):
+        original = harness.fresh
+        def fresh(action, **kwargs):
+            if action == 'repair': self.fail_health = True
+            return original(action, **kwargs)
+        with patch.object(harness, 'fresh', fresh), self.assertRaises(harness.CheckFailure):
+            harness.removal_forward_recovery({'candidate': self.candidate}, self.floor)
+        self.assertFalse(self.executor_removals)
+        journal = harness.read(self.fixture.state / 'host.json')
+        self.assertIn('detached_continuation', journal)
+        target, model = copy.deepcopy(self.fixture.info), self.fixture.canonical.read_bytes()
+        self.fail_health = False
+        self.fresh('rollback', label='retry-unhealthy-remove')
+        self.assertEqual(self.fixture.info, target)
+        self.assertEqual(self.fixture.canonical.read_bytes(), model)
+        self.assertEqual(harness.read(self.fixture.state / 'host.json')['phase'], 'removed')
+        self.probe_lock()
+
+    def test_changed_target_owner_data_and_runtime_refuse_both_commands(self):
+        self.fresh('remove', label='drift-remove', interrupt='after-remove-deploy')
+        f = self.fixture
+        original = copy.deepcopy(f.info)
+        for drift in ('missing', 'id', 'image', 'settings', 'mount', 'restart', 'owner', 'directory'):
+            for action in ('repair', 'rollback'):
+                with self.subTest(drift=drift, action=action):
+                    f.info, f.server_inventory = copy.deepcopy(original), None
+                    f.runtime_owner, f.data_directory = None, '7:11'
+                    if drift == 'missing': f.server_inventory = b''
+                    elif drift == 'id': f.info['Id'] = 'foreign-target'
+                    elif drift == 'image': f.info['Image'] = 'foreign-image'
+                    elif drift == 'settings': f.info['Config']['Labels']['com.docker.compose.config-hash'] = 'f' * 64
+                    elif drift == 'mount': f.info['Mounts'] *= 2
+                    elif drift == 'restart': f.info['RestartCount'] = 2
+                    elif drift == 'owner': f.runtime_owner = {'allowed': False}
+                    else: f.data_directory = '7:22'
+                    commands = len(f.commands)
+                    with self.assertRaises(harness.CheckFailure): self.fresh(action, label='refuse-drift')
+                    host_tests.Lifecycle.assert_no_server_lifecycle(self, f.commands[commands:])
+                    self.assertFalse(self.executor_removals)
+                    self.assertIn('detached_continuation', harness.read(f.state / 'host.json'))
+        self.probe_lock()
+
+    def test_unknown_duplicate_lock_is_refused_and_not_closed(self):
+        stopped = self.host.Host.stop_executor
+        def duplicate(controller):
+            fd = stopped(controller); extra = os.dup(fd)
+            self.duplicates.append((extra, self.fd_identity(extra)))
+            return fd
+        with patch.object(self.host.Host, 'stop_executor', duplicate):
+            with self.assertRaisesRegex(AssertionError, 'Unknown duplicate still references'):
+                self.fresh('remove', label='duplicate-remove', interrupt='after-remove-deploy')
+        for fd, saved in self.duplicates: self.assertEqual(self.fd_identity(fd), saved)
+        self.probe_lock(blocked=True)
+        self.cleanup_fds(); self.pending.clear(); self.duplicates.clear()
+        self.probe_lock()
+
+    def test_downstream_schedule_and_history_selection_remain(self):
+        main = next(n for n in ast.parse(Path(harness.__file__).read_bytes()).body
+                    if isinstance(n, ast.FunctionDef) and n.name == 'main')
+        calls = [n.value for n in main.body if isinstance(n, ast.Expr) and isinstance(n.value, ast.Call)]
+        names = [n.func.id if isinstance(n.func, ast.Name) else '' for n in calls]
+        forward = names.index('removal_forward_recovery')
+        self.assertEqual(names.count('removal_forward_recovery'), 1)
+        self.assertEqual([name for name in names[forward + 1:] if name], ['stage', 'compose', 'write', 'print'])
+        labels = [next((k.value.value for k in n.keywords if k.arg == 'label'), None)
+                  for n in calls if isinstance(n.func, ast.Name) and n.func.id == 'fresh']
+        self.assertEqual(labels[-3:], ['complete-remove', 'stale-reenrollment-inputs', 'reenroll'])
+        floors = next(n for n in main.body if isinstance(n, ast.For) and isinstance(n.target, ast.Name) and n.target.id == 'variant')
+        self.assertEqual(ast.literal_eval(floors.iter), ('sequence', 'epoch', 'minimum', 'identity'))
+        self.assertEqual(sum(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'fresh'
+                             and any(k.arg == 'label' and isinstance(k.value, ast.Constant) and k.value.value == 'lost-history'
+                                     for k in n.keywords) for n in ast.walk(main)), 1)
+
+
+class OfflineTransport(unittest.TestCase):
+    def test_every_process_transport_is_blocked_before_fixture_setup(self):
+        for name in ('Popen', 'run', 'call', 'check_call', 'check_output', 'getoutput', 'getstatusoutput'):
+            with self.subTest(transport=name), self.assertRaisesRegex(AssertionError, '^Real subprocess transport forbidden$'):
+                getattr(subprocess, name)(['unused-synthetic-command'])
 
 
 def inspection():
