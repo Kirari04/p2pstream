@@ -29,7 +29,7 @@ func TestParseArtifactDigestRequiresExactSHA256(t *testing.T) {
 	}
 }
 
-func TestPersistHealthyActivationRejectsInvalidReceiptDigestBeforeWrites(t *testing.T) {
+func TestPersistHealthyActivationRejectsMalformedReceiptBeforeWrites(t *testing.T) {
 	for _, value := range []string{"", strings.Repeat("a", 62), strings.Repeat("a", 66), strings.Repeat("a", 63) + "g"} {
 		t.Run(value, func(t *testing.T) {
 			f := newFixture(t)
@@ -41,6 +41,8 @@ func TestPersistHealthyActivationRejectsInvalidReceiptDigestBeforeWrites(t *test
 			if err != nil {
 				t.Fatal(err)
 			}
+			// Mutating the signed receipt makes it malformed: receipt validation
+			// rejects it before parseArtifactDigest, which is tested directly above.
 			receipt.Receipt.ResultArtifactSHA256 = value
 			journal := activationJournal{Phase: journalHealthy, Authorization: f.authorization, Receipt: &receipt,
 				Version: f.release.Version, Sequence: f.release.Sequence, SecurityEpoch: f.release.SecurityEpoch,
@@ -58,8 +60,8 @@ func TestPersistHealthyActivationRejectsInvalidReceiptDigestBeforeWrites(t *test
 					before[path] = data
 				}
 			}
-			if err := persistHealthyActivation(f.paths, journal, f.paths.readyPath(), nil); err == nil {
-				t.Fatal("invalid receipt artifact digest was persisted")
+			if err := persistHealthyActivation(f.paths, journal, f.paths.readyPath(), nil); err == nil || err.Error() != "artifact is invalid" {
+				t.Fatalf("malformed receipt: got %v, want artifact is invalid", err)
 			}
 			for _, path := range paths {
 				data, err := os.ReadFile(path)

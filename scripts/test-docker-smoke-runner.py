@@ -46,12 +46,14 @@ sys.exit(int(os.environ.get('SMOKE_TEST_UP_STATUS', '0')) if 'up' in sys.argv el
         return [json.loads(line) for line in self.calls.read_text().splitlines()]
 
     def test_credentials_are_shared_per_run_and_fresh_between_runs(self):
+        results = []
         for _ in range(2):
             result = self.run_target()
             self.assertEqual(result.returncode, 0, result.stderr)
+            results.append(result)
         calls = self.read_calls()
         self.assertEqual(len(calls), 6)
-        for batch in (calls[:3], calls[3:]):
+        for result, batch in zip(results, (calls[:3], calls[3:])):
             self.assertTrue(all(call["credentials"] == batch[0]["credentials"] for call in batch))
             values = list(batch[0]["credentials"].values())
             self.assertEqual(len(set(values)), 3)
