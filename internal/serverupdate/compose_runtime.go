@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,9 +18,11 @@ import (
 // ownership migration is an explicit host transaction with both capabilities
 // checked before it changes the saved deployment.
 type DeploymentCapabilities struct {
-	RuntimeGuard int    `json:"runtime_guard"`
-	Version      string `json:"version"`
-	Commit       string `json:"commit"`
+	CanonicalCompose    int    `json:"canonical_compose,omitempty"`
+	EnrollmentPreflight int    `json:"enrollment_preflight,omitempty"`
+	RuntimeGuard        int    `json:"runtime_guard"`
+	Version             string `json:"version"`
+	Commit              string `json:"commit"`
 }
 
 func newRuntimeGeneration() string { return uuid.NewString() }
@@ -56,7 +59,12 @@ func (d *ComposeDriver) guardedImage(ctx context.Context, image string) (Deploym
 	// Probe the immutable local image ID, never a tag that could change mid-call.
 	out, err = d.command(ctx, "run", "--rm", "--network", "none", "--read-only", "--cap-drop", "ALL", "--cap-add", "NET_BIND_SERVICE", "--security-opt", "no-new-privileges", "--entrypoint", "/app/p2pstream", images[0].ID, "server-deployment-capabilities")
 	if err != nil {
-		return capability, errors.New("image lacks coordinated deployment support; update the server and host installer before migration")
+		// A Docker failure or deadline does not establish missing image support.
+		// command deliberately excludes arbitrary subprocess output from errors.
+		if ctx.Err() != nil {
+			return capability, fmt.Errorf("image deployment capability probe interrupted: %w", ctx.Err())
+		}
+		return capability, fmt.Errorf("image deployment capability probe failed: %w", err)
 	}
 	if err := decode(out, &capability); err != nil || capability.RuntimeGuard != 2 ||
 		capability.Version != labels["org.opencontainers.image.version"] || capability.Commit != labels["org.opencontainers.image.revision"] {
@@ -66,11 +74,26 @@ func (d *ComposeDriver) guardedImage(ctx context.Context, image string) (Deploym
 }
 
 func (d *ComposeDriver) modelRuntimeOwner(ctx context.Context) (RuntimeOwner, error) {
-	var owner RuntimeOwner
 	data, err := readProtected(d.Config.DeploymentFile, 2<<20)
+	if err != nil {
+		return RuntimeOwner{}, err
+	}
+	owner, image, err := d.parseRuntimeBinding(data)
 	if err != nil {
 		return owner, err
 	}
+	capability, err := d.guardedImage(ctx, image)
+	if err != nil {
+		return RuntimeOwner{}, err
+	}
+	owner.Version, owner.Commit = capability.Version, capability.Commit
+	return owner, nil
+}
+
+// parseRuntimeBinding checks model identity without probing images or reading
+// deployment paths. Callers select the canonical or private staged authority.
+func (d *ComposeDriver) parseRuntimeBinding(data []byte) (RuntimeOwner, string, error) {
+	var owner RuntimeOwner
 	var doc struct {
 		Name     string `json:"name"`
 		Services map[string]struct {
@@ -79,7 +102,7 @@ func (d *ComposeDriver) modelRuntimeOwner(ctx context.Context) (RuntimeOwner, er
 		} `json:"services"`
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return owner, err
+		return owner, "", err
 	}
 	service, ok := doc.Services["p2pstream"]
 	env := service.Environment
@@ -88,21 +111,17 @@ func (d *ComposeDriver) modelRuntimeOwner(ctx context.Context) (RuntimeOwner, er
 		env["SERVER_UPDATE_TOKEN_FILE"] != "/run/p2pstream-server-update/token" ||
 		env["SERVER_UPDATE_SOCKET"] != "/run/p2pstream-server-update/control.sock" ||
 		env["SERVER_UPDATE_GATE_FILE"] != "/run/p2pstream-server-update/maintenance" {
-		return owner, errors.New("canonical deployment runtime binding is invalid")
+		return owner, "", errors.New("canonical deployment runtime binding is invalid")
 	}
 	if _, err := uuid.Parse(env["SERVER_UPDATE_GENERATION"]); err != nil {
-		return owner, errors.New("canonical deployment generation is invalid")
+		return owner, "", errors.New("canonical deployment generation is invalid")
 	}
 	prefix := "ghcr.io/" + strings.ToLower(d.Config.Repository) + "@sha256:"
 	if !strings.HasPrefix(service.Image, prefix) || !digestPattern.MatchString(strings.TrimPrefix(service.Image, prefix)) {
-		return owner, errors.New("canonical deployment image is not a pinned release")
+		return owner, "", errors.New("canonical deployment image is not a pinned release")
 	}
-	capability, err := d.guardedImage(ctx, service.Image)
-	if err != nil {
-		return owner, err
-	}
-	owner = RuntimeOwner{API: 2, InstanceID: d.Config.InstanceID, Generation: env["SERVER_UPDATE_GENERATION"], Version: capability.Version, Commit: capability.Commit}
-	return owner, nil
+	owner = RuntimeOwner{API: 2, InstanceID: d.Config.InstanceID, Generation: env["SERVER_UPDATE_GENERATION"]}
+	return owner, service.Image, nil
 }
 
 // BlockRuntime is durable before stopping the existing writer. It deliberately

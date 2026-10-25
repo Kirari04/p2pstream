@@ -99,6 +99,40 @@ test('legacy servers show a prerequisite and never a UI-derived command', async 
  await expect(page.getByText('Updates enabled · updater verified', {exact:true})).toHaveCount(0);
 });
 
+test('setup shows blockers before offering a command and recovers after a fresh ready response', async ({ page }, testInfo) => {
+ await page.setViewportSize({width:390,height:844});
+ await page.goto(url+'?setup&setup-blocked&clear-blockers');
+ const prerequisites = page.getByLabel('Setup prerequisites');
+ await expect(prerequisites).toContainText('Finish pending agent update recovery');
+ await expect(prerequisites).toContainText('Finish management certificate rotation');
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('Host updater command')).toHaveCount(0);
+ await expect(page.getByText('Manual release upgrade required',{exact:true})).toHaveCount(0);
+ await page.screenshot({path:testInfo.outputPath('setup-prerequisites-mobile.png'),fullPage:true,animations:'disabled'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await expect(prerequisites).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toBeVisible();
+});
+
+test('setup prerequisites belong to the selected environment', async ({ page }) => {
+ await page.goto(url+'?setup&setup-blocked');
+ await expect(page.getByLabel('Setup prerequisites')).toBeVisible();
+ await page.locator('#switch').click();
+ await expect(page.getByText('Installed on Local')).toBeVisible();
+ await expect(page.getByLabel('Setup prerequisites')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toBeVisible();
+});
+
+test('a stale setup response cannot offer a command after management disconnects', async ({ page }) => {
+ await page.goto(url+'?setup&disconnect');
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Refresh status',exact:true}).click();
+ await expect(page.getByText('Waiting to confirm setup readiness',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toHaveCount(0);
+ await expect(page.getByLabel('Host updater command')).toHaveCount(0);
+});
+
 test('setup page reconnects and shows enabled only after verified updater response', async ({ page }) => {
  await page.goto(url+'?enroll');
  await expect(page.getByRole('button',{name:'Copy setup command',exact:true})).toBeVisible();

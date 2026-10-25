@@ -7,6 +7,7 @@ set -Eeuo pipefail
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_dir"
 command -v docker >/dev/null
+command -v timeout >/dev/null
 [[ $(docker info --format '{{.OSType}}') == linux ]] || {
   echo "The server updater rehearsal requires a Linux Docker engine." >&2
   exit 1
@@ -52,6 +53,9 @@ cleanup() {
       [[ $result -ne 0 ]] || result=1
     }
     docker cp "$daemon:/etc/p2pstream-server-updater/helper-failure.log" "$artifact_dir/helper-failure.log" >>"$artifact_dir/collect.log" 2>&1 || true
+    # This small summary is safe for handoff. The existing full guest diagnostics
+    # remain private and are not a sanitized qualification report.
+    docker cp "$daemon:/review/lifecycle/summary.json" "$artifact_dir/lifecycle-summary.json" >>"$artifact_dir/collect.log" 2>&1 || true
     docker rm --force --volumes "$daemon" >"$artifact_dir/cleanup.log" 2>&1 || {
       echo "Could not remove disposable daemon $daemon; remove it manually." >&2
       [[ $result -ne 0 ]] || result=1
@@ -200,11 +204,20 @@ for source in scripts/server-updater-host.py scripts/install-server-updater.sh s
   docker cp "$source" "$daemon:/review/install-bundle/$(basename "$source")"
 done
 docker cp scripts/test-server-install-docker.py "$daemon:/review/test-server-install-docker.py"
+docker cp scripts/test-server-lifecycle-docker.py "$daemon:/review/test-server-lifecycle-docker.py"
 echo "Running release-based installation and host management boundary rehearsal."
 guest python3 -I /review/test-server-install-docker.py 2>&1 | tee "$artifact_dir/installation.log"
 
+# This is source-built qualification against the isolated registry, not the
+# published-pair release gate. Keep that gate pending until two feature-bearing
+# published releases and their verified installation bundles are available.
+echo "Running source-built canonical single-file host lifecycle qualification."
+timeout --signal=TERM --kill-after=30s 45m docker exec -i "$daemon" \
+  python3 -I /review/test-server-lifecycle-docker.py 2>&1 | tee "$artifact_dir/lifecycle.log"
+docker cp "$daemon:/review/lifecycle/summary.json" "$artifact_dir/lifecycle-summary.json"
+
 if [[ ${SERVER_UPDATER_TEST_INSTALL_ONLY:-0} == 1 ]]; then
-  echo "PASS isolated release installation and host management rehearsal."
+  echo "PASS isolated legacy installation and source-built canonical host lifecycle rehearsal."
   exit 0
 fi
 
