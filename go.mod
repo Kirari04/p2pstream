@@ -6,10 +6,10 @@ go 1.26.6
 replace github.com/hashicorp/yamux => ./third_party/yamux
 
 require (
+	cel.dev/cel-go v0.32.0
 	connectrpc.com/connect v1.20.0
 	github.com/andybalholm/brotli v1.2.2
 	github.com/caarlos0/env/v10 v10.0.0
-	github.com/google/cel-go v0.31.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/joho/godotenv v1.5.1
@@ -82,6 +82,7 @@ require (
 	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/gohugoio/hashstructure v0.6.0 // indirect
 	github.com/gohugoio/hugo v0.163.3 // indirect
+	github.com/google/cel-go v0.31.0 // indirect
 	github.com/google/go-containerregistry v0.21.5 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
