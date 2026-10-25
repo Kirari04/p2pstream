@@ -56,11 +56,21 @@ Hostname selection happens before path routing:
 1. An exact hostname site is selected when one owns the request hostname.
 2. Otherwise, a matching one-label wildcard site is selected.
 3. Otherwise, the listener's default site is selected, if one exists.
-4. With no enabled selected site, the request receives `404`.
+4. A selected but disabled site returns `404`. With no selected site, a migrated
+   or new listener returns `404`; an upgraded listener that still has standalone
+   routes evaluates those legacy routes.
 
 After p2pstream selects a site, it evaluates only that site's routes. A Site's default route handles unmatched paths inside that site. It is different from the listener's default site, which handles hostnames not owned by a named site.
 
 A missing path or disabled named site never falls through to the listener's default site. This keeps hostname ownership isolated from unrelated backends.
+
+Creating a site does not isolate an entire legacy listener. An unclaimed hostname
+can still match a standalone catch-all route until migration removes standalone
+eligibility. Do not use a protected site and a weaker standalone catch-all to
+expose the same protected origin. Migrate the listener, remove the catch-all, or
+apply equivalent access controls before relying on site-level protection for
+that origin. Claimed hostnames remain exclusively owned by their site even
+during coexistence.
 
 ## Routes in a Site
 

@@ -746,6 +746,10 @@ function handleTrustModalUpdate(show: boolean) {
       @update:show="handleTrustModalUpdate"
     >
       <div class="layout-grid space-xl">
+        <p class="copy-sm line-normal muted-text">
+          Compare this SHA-256 fingerprint with the certificate on the remote server through a trusted channel
+          before approving it. Discovery alone does not verify the server's identity.
+        </p>
         <div class="round-md framed frame-standard muted-bg pad-lg">
           <div class="layout-grid space-lg">
             <div class="layout-grid space-2xs">

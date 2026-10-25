@@ -46,13 +46,36 @@ Use this before exposing management beyond a private network, after adding agent
 
    - Use ACME or trusted manual certificates for public hostnames.
    - Avoid relying on fallback self-signed public HTTPS certificates.
-   - Avoid target `tls_skip_verify` except for controlled internal services while fixing the upstream certificate.
+   - Leave target and forward-auth `tls_skip_verify` off. It disables certificate-chain, hostname, and expiry checks; a network attacker can impersonate an upstream or an authentication provider. A private network alone does not authenticate the endpoint.
    - Back up `/data/certs/management` so agents can continue trusting the same management CA after restore.
+   - Before trusting a remote environment's discovered certificate, compare its full SHA-256 fingerprint with the remote server over an independently trusted channel.
 
 5. Scope WAF, rate-limit, shaper, and cache rules by host/path/method so broad policies do not catch unrelated traffic. Manage each policy type from its own tab under **Traffic policy**.
 6. Under **Traffic policy → Visitor identity**, leave trusted-proxy sources disabled unless that source actually connects to the public listener. When enabling one, firewall the origin to the provider's published ranges for a preset or to the administrator-configured peer CIDRs for a custom proxy, so clients cannot bypass the trusted hop.
 7. In the same section, prefer a dedicated single-IP header for custom proxies when the last trusted proxy overwrites it. Use chain parsing only when every trusted hop and its CIDRs are understood.
 8. For geo allow-only rules, keep unknown-country handling on **Apply rule** unless an intentional fail-open path is required.
+
+## Destination and hostname trust
+
+Administrators can configure private, loopback, and public upstreams and
+forward-auth services. This is required for private service publishing; URL
+validation is not a server egress allowlist. Treat management credentials as
+authority to reach the server's network. Use network egress controls where that
+authority must be constrained, and keep agent destination allowlists narrow.
+DNS names can resolve to new addresses during normal rotation and failover;
+direct upstream connections do not pin an address observed during configuration.
+
+The proxy removes incoming forwarding headers and regenerates them from the
+request and trusted connection context. `X-Forwarded-Host` still represents a
+client-selected hostname. Origins must validate accepted hostnames and trust
+forwarding headers only from p2pstream. Configure explicit Site hostnames and
+review any remaining standalone catch-all routes during migration; creating one
+Site does not remove the other routes on a legacy listener.
+
+An unknown TLS SNI can receive a self-signed fallback certificate. That certificate
+does not grant access to a route and is not trusted by ordinary clients. Provision
+certificates for the intended names and enforce routing and access policy
+independently of certificate selection.
 
 ## Verification
 

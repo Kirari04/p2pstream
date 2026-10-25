@@ -85,11 +85,18 @@ Forward-auth response bodies and headers are size-limited. Redirects are not fol
 | Name | Unique management name. |
 | Forward-auth URL | Absolute HTTP(S) URL without embedded credentials or a fragment. HTTPS is recommended. |
 | Timeout | `100` through `30000` milliseconds; default `5000`. |
-| Skip TLS verification | Disables certificate verification for the auth endpoint. Use only for a deliberately trusted private endpoint. |
+| Skip TLS verification | Disables certificate-chain, hostname, and expiry checks for the auth endpoint. A network attacker can read browser credentials and forge successful authentication responses. Keep it off in production and install a trusted certificate. |
 | Subject, user, email, groups headers | Header names read from a successful auth response. Groups are comma-separated. |
 | Forwarded identity headers | Explicit allowlist copied from the successful auth response to the protected upstream. Maximum 16. |
 
 Authorization, cookie, request-framing, hop-by-hop, `Forwarded`, `X-Forwarded-*`, and `X-Real-IP` headers cannot be configured as forwarded identity headers.
+
+Forward-auth URLs may name private or loopback services because internal identity
+providers are supported. Only administrators can choose the destination; public
+requests cannot replace it, and the client does not follow provider redirects.
+Protect access to configuration and restrict the server's network egress when
+the deployment needs a narrower destination boundary. A private address alone
+does not make an unverified TLS connection trustworthy.
 
 ## Policy Fields
 
