@@ -22,16 +22,26 @@ Use this page after the quickstart when you need to change ports, understand wha
        image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"
        container_name: p2pstream
        restart: unless-stopped
+       read_only: true
+       security_opt:
+         - no-new-privileges:true
+       cap_drop:
+         - ALL
+       cap_add:
+         - NET_BIND_SERVICE
+       tmpfs:
+         - /tmp:rw,nosuid,nodev,mode=1777
        environment:
          CONFIG_DIR: /data
          MANAGEMENT_PORT: "8081"
+         MANAGEMENT_BIND_ADDRESS: "${MANAGEMENT_BIND_ADDRESS:-0.0.0.0}"
          MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
          MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
          MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
        ports:
          - "${P2PSTREAM_HTTP_PORT:-80}:80"
          - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-         - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
+         - "${P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS:-}:${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
        volumes:
          - p2pstream-data:/data
 
@@ -60,6 +70,16 @@ Use this page after the quickstart when you need to change ports, understand wha
    P2PSTREAM_MANAGEMENT_PORT=9443
    MANAGEMENT_PUBLIC_URL=https://proxy.example.com:9443
    ```
+
+   Management publishing defaults to all available host interfaces to support remote
+   agents. To accept management connections only through a local reverse proxy or
+   SSH tunnel, set `P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS=127.0.0.1`. Ensure agents
+   can still reach management HTTPS through that proxy or tunnel. Keep
+   the default `MANAGEMENT_BIND_ADDRESS=0.0.0.0` **inside** the container so Docker
+   forwarding works. Existing explicit overrides remain supported: a container
+   loopback bind prevents Docker forwarding and remote agent access. The container
+   listener is separate from the host publish address. Restrict public management
+   access with host firewall rules when remote access is required.
 
 5. Start the container before updater enrollment:
 
@@ -93,7 +113,14 @@ Read-only inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `ma
 | `MANAGEMENT_PORT=8081` | Makes the management UI/API and agent tunnel listener bind inside the container. Agents connect to this port for request forwarding. |
 | `MANAGEMENT_PUBLIC_URL` | Controls generated links, agent snippets, and management certificate naming. |
 | `MANAGEMENT_UI_DISABLED=true` | Stops serving the browser UI; ConnectRPC APIs and the agent Yamux tunnel remain available. |
+| `P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS` | Selects the host address for management publishing; unset preserves all host interfaces, optionally use `127.0.0.1`. |
 | `P2PSTREAM_*_PORT` | Changes host-side publishing only; listener ports are still configured in p2pstream. |
+
+The server runs as its existing non-root user with a read-only root filesystem,
+a writable `/data` volume and temporary `/tmp`. It drops all capabilities except
+`NET_BIND_SERVICE` for ports such as `80` and `443`, and prevents privilege gain
+with `no-new-privileges`. Store persistent files under `/data`; custom cache,
+certificate or other output paths need an explicit writable mount.
 
 :::warning New listeners must be published explicitly
 Docker only exposes ports listed under `ports`. While enrolled, apply port changes with `manage apply`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
@@ -102,7 +129,7 @@ Docker only exposes ports listed under `ports`. While enrolled, apply port chang
 ports:
   - "${P2PSTREAM_HTTP_PORT:-80}:80"
   - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-  - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
+  - "${P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS:-}:${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
   - "8088:8088"
 ```
 :::

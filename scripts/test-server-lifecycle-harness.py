@@ -250,7 +250,9 @@ class CanonicalRemovalBoundaries(unittest.TestCase):
         model = host.read_json(f.canonical)
         server = model['services']['p2pstream']
         self.candidate = 'ghcr.io/test/repo@sha256:' + 'e' * 64
-        server['image'], server['read_only'] = self.candidate, True
+        server.update(image=self.candidate, read_only=True, cap_drop=['ALL'],
+                      cap_add=['NET_BIND_SERVICE'], security_opt=['no-new-privileges:true'],
+                      tmpfs=['/tmp:rw,nosuid,nodev,mode=1777'])
         server['environment'].update(QUALIFICATION_SETTING='applied-after-update',
                                      REENROLLMENT_SETTING='native-after-remove')
         server['ports'][0]['published'] = '18102'
@@ -285,6 +287,9 @@ class CanonicalRemovalBoundaries(unittest.TestCase):
             m = host.read_json(f.canonical); s = m['services']['p2pstream']
             f.info['Config'].update(Image=s['image'], Env=[k + '=' + str(v) for k, v in s['environment'].items()])
             f.info['HostConfig'] = {'ReadonlyRootfs': s.get('read_only', False),
+                'CapDrop': s.get('cap_drop'), 'CapAdd': s.get('cap_add'),
+                'SecurityOpt': s.get('security_opt'),
+                'Tmpfs': dict(value.split(':', 1) for value in s.get('tmpfs', [])),
                 'PortBindings': {str(p['target']) + '/tcp': [{'HostPort': str(p['published'])}] for p in s['ports']}}
             f.info['Mounts'] = [{'Type': v['type'], 'Destination': v['target'],
                 'Name': m['volumes'][v['source']]['name'] if v['type'] == 'volume' else '',
@@ -804,8 +809,40 @@ class DefaultYamlFixture(unittest.TestCase):
         self.assertEqual(len(changed), 1)
         self.assertTrue(changed[0][0].startswith(b'    image: '))
         self.assertEqual(changed[0][1], b'    image: PRIVATE_PINNED_IMAGE\n')
-        self.assertNotIn(b'read_only:', replacement)
-        self.assertNotIn(b'tmpfs:', replacement)
+        for setting in (b'read_only: true', b'tmpfs:', b'/tmp:rw,nosuid,nodev,mode=1777',
+                        b'cap_drop:', b'ALL', b'cap_add:', b'NET_BIND_SERVICE',
+                        b'security_opt:', b'no-new-privileges:true'):
+            self.assertIn(setting, replacement)
+
+    def test_hardening_checks_require_each_model_and_runtime_control(self):
+        model = {'read_only': True, 'cap_drop': ['ALL'], 'cap_add': ['NET_BIND_SERVICE'],
+                 'security_opt': ['no-new-privileges:true'],
+                 'tmpfs': ['/tmp:rw,nosuid,nodev,mode=1777']}
+        runtime = {'HostConfig': {'ReadonlyRootfs': True, 'CapDrop': ['ALL'],
+                                 'CapAdd': ['CAP_NET_BIND_SERVICE'],
+                                 'SecurityOpt': ['no-new-privileges:true'],
+                                 'Tmpfs': {'/tmp': 'rw,nosuid,nodev,mode=1777'}}}
+        harness.assert_hardened_model(model)
+        harness.assert_hardened_runtime(runtime)
+        for field in model:
+            with self.subTest(model_control=field):
+                changed = copy.deepcopy(model)
+                del changed[field]
+                with self.assertRaises(harness.CheckFailure):
+                    harness.assert_hardened_model(changed)
+        for field in runtime['HostConfig']:
+            with self.subTest(runtime_control=field):
+                changed = copy.deepcopy(runtime)
+                changed['HostConfig'][field] = False if field == 'ReadonlyRootfs' else None
+                with self.assertRaises(harness.CheckFailure):
+                    harness.assert_hardened_runtime(changed)
+        for option in ('rw', 'nosuid', 'nodev', 'mode=1777'):
+            with self.subTest(tmpfs_option=option):
+                changed = copy.deepcopy(runtime)
+                changed['HostConfig']['Tmpfs']['/tmp'] = ','.join(
+                    value for value in runtime['HostConfig']['Tmpfs']['/tmp'].split(',') if value != option)
+                with self.assertRaises(harness.CheckFailure):
+                    harness.assert_hardened_runtime(changed)
 
     def test_ambiguous_template_is_refused_before_any_replacement(self):
         for template in (b'services:\n', b'    image: one\n    image: two\n'):

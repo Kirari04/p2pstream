@@ -40,6 +40,24 @@ func TestActivationKeepsFloorReadableByWorker(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// Go's private build directory is not traversable by the worker UID.
+	// Copy only this executable into the test-owned fixture rather than changing
+	// permissions on Go's build directory or any shared temporary root.
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	executableBytes, err := os.ReadFile(executable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workerExecutable := filepath.Join(fixtureRoot, "updater.test")
+	if err := os.WriteFile(workerExecutable, executableBytes, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(workerExecutable, 0755); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.Chown(f.paths.StateDir, 0, workerID); err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +69,7 @@ func TestActivationKeepsFloorReadableByWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 	readAsWorker := func() ([]byte, error) {
-		cmd := exec.Command(os.Args[0], "-test.run=^TestActivationKeepsFloorReadableByWorker$")
+		cmd := exec.Command(workerExecutable, "-test.run=^TestActivationKeepsFloorReadableByWorker$")
 		cmd.Env = append(os.Environ(), "P2PSTREAM_DEEP_REVIEW_READ_FLOOR="+f.paths.floorPath())
 		cmd.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: workerID, Gid: workerID}}
 		return cmd.CombinedOutput()

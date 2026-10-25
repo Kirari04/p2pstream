@@ -36,7 +36,7 @@ func newAgentUpdateRateLimiter(limit int, window time.Duration, burst, maxEntrie
 
 func (l *agentUpdateRateLimiter) allow(key string, now time.Time) bool {
 	if l == nil {
-		return true
+		return false
 	}
 	if key == "" {
 		key = "unknown"

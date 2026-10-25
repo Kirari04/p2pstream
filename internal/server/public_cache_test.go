@@ -12,10 +12,12 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -416,6 +418,56 @@ func TestPublicCacheConfiguredVaryHeadersAlwaysIncludeAcceptEncoding(t *testing.
 	}
 	if !contains("Accept-Encoding") || !contains("Accept-Language") {
 		t.Fatalf("vary headers = %#v, want Accept-Encoding and Accept-Language", vary)
+	}
+}
+
+func TestPublicCacheResponseVaryRejectsMalformedDimensions(t *testing.T) {
+	rule := publicCacheRuleConfig{TTL: time.Minute, CacheStatusCodes: []int64{http.StatusOK}}
+	for _, value := range []string{
+		"X Variant", "Accept-Language, X=Variant", "X/Variant", "\"X-Variant\"",
+		"Accept-Language, X:Variant", "X-Variant;param", "\vAccept-Language", "Accept-Language\u00a0",
+	} {
+		t.Run(value, func(t *testing.T) {
+			resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Vary": {"Accept-Encoding", value}}}
+			if _, _, ok := publicCacheResponseEligibility(rule, resp); ok {
+				t.Fatalf("malformed Vary %q was cacheable", value)
+			}
+		})
+	}
+	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Vary": {", \t,", " accept-language\t, , ACCEPT-ENCODING,"}}}
+	_, vary, ok := publicCacheResponseEligibility(rule, resp)
+	if !ok || !reflect.DeepEqual(vary, []string{"Accept-Encoding", "Accept-Language"}) {
+		t.Fatalf("ordinary Vary with OWS/empty list members = %v %v", vary, ok)
+	}
+}
+
+func TestPublicCacheMalformedResponseVaryNeverStoresOrHits(t *testing.T) {
+	app, resolution, closeDB := newTestPublicCacheApp(t)
+	defer closeDB()
+	var originHits atomic.Int64
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		originHits.Add(1)
+		w.Header().Add("Vary", "Accept-Language")
+		w.Header().Add("Vary", "X Variant")
+		_, _ = w.Write([]byte(r.Header.Get("X-Variant")))
+	}))
+	defer upstream.Close()
+	resolution.Target.ParsedURL = mustParsePublicAccessTestURL(t, upstream.URL)
+	for _, variant := range []string{"first", "second", "first"} {
+		req := httptest.NewRequest(http.MethodGet, "http://assets.example.test/assets/app.txt", nil)
+		req.Header.Set("X-Variant", variant)
+		decision := app.checkPublicCache(req, resolution)
+		if decision.Status != publicCacheStatusMiss {
+			t.Fatalf("lookup = %q, want miss", decision.Status)
+		}
+		rec := httptest.NewRecorder()
+		app.proxyDirectTargetRequest(rec, req, resolution, nil, nil, &decision, proxyRequestObservability{})
+		if rec.Code != http.StatusOK || rec.Body.String() != variant || decision.Status != publicCacheStatusMiss {
+			t.Fatalf("response = %d %q, decision = %q", rec.Code, rec.Body.String(), decision.Status)
+		}
+	}
+	if got := originHits.Load(); got != 3 {
+		t.Fatalf("origin hits = %d, want 3", got)
 	}
 }
 

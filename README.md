@@ -163,6 +163,12 @@ make docker-build
 make docker-smoke
 ```
 
+`make dev` and `make run` bind management to `127.0.0.1` by default; Vite also binds loopback. Explicit `MANAGEMENT_BIND_ADDRESS` settings in the environment or `.env` are preserved for intentional remote access. Existing database-configured public listeners are unchanged.
+
+Without an explicit `AGENT_TOKEN`, these targets use Python 3 to generate a random 256-bit token once at `${CONFIG_DIR:-p2pstream-data}/.local-dev/agent-token`. Its directory is private (`0700`) and the token file is `0600`, ignored by Git, and published atomically without printing the credential. Keep this file with your development database: bootstrap startup updates the stored agent token hash, so deleting the file or changing from an explicit token to the generated default changes that agent's credential on the next start. The first upgrade from the old public development fallback intentionally replaces that insecure token once. An explicit `AGENT_TOKEN` (at least 32 characters) always takes precedence and is never written to this file. Unsafe or malformed saved files cause an error rather than silent replacement.
+
+Browser test and documentation screenshot runners generate separate setup, agent, and administrator credentials per invocation and share them through the runner environment with their backend and workers. Helpers require those values and have no static fallback. Fixture listeners bind loopback; disposable databases keep the production welcome seed but disable its default public listeners before any socket opens. Tests explicitly enable their own loopback listeners. `bun run e2e:sites` uses only a built UI and a disposable Go server in a private temporary directory; run `bun run build` first. The default E2E and screenshot configurations also start Vite. Treat retained traces and test reports as private: they can contain credentials from that disposable run.
+
 `make verify` is a clean-tree CI-style gate: run it with no staged, unstaged, or untracked files. It regenerates code and fails if generation leaves any tracked diff or untracked generated file, then runs installer syntax and lifecycle checks, Go tests and vet, management UI unit tests, typecheck, and production build. GitHub Actions runs those checks and also builds the runtime Docker image.
 
 For benchmark packets, validation receipts, and investigation handoffs, follow

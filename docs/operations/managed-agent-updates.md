@@ -21,7 +21,12 @@ assets, mutable channel tags, cross-channel releases, digest mismatches,
 incompatible builds, expired metadata, and rollback below persisted floors.
 
 There is no release signing key, threshold signature, or separate root
-metadata. The remaining Ed25519 identities protect privileged host actions:
+metadata. Someone able to publish arbitrary releases in the configured repository
+can supply an update that passes these checks. SHA-256 hashes detect changed
+content relative to trusted metadata; they do not provide an independent
+publisher identity. Protect publisher accounts and release workflows, and disable
+managed updates if this distribution trust is unsuitable for the deployment.
+The remaining Ed25519 identities protect privileged host actions:
 
 - the existing agent bearer opens the tunnel but cannot request, report, or
   approve an update;
@@ -63,6 +68,11 @@ is not involved in publishing releases. Back up the database and key file as
 one recovery unit. A missing, replaced, permissive, or mismatched key disables
 managed enrollment and campaign progression instead of silently generating a
 new identity for existing state.
+
+If the first startup stops after writing the key but before pinning it in the
+database, the next startup may adopt that protected key only while managed-update
+state is pristine. This recovery trusts the administrator-controlled local
+filesystem. Existing enrolled state cannot silently adopt a replacement identity.
 
 ## Remote environments
 
@@ -137,6 +147,13 @@ waits for tracked streams to drain, and rechecks route quorum. Each discrete
 wave must complete before the next begins. Success requires the privileged
 activation receipt, a fresh tunnel carrying the exact target version and
 commit, a worker health report, and the configured healthy dwell.
+
+The signed receipt proves the privileged helper's installation result. Tunnel
+build identity and worker health are reports from the host, not independent
+attestation of the running process. A compromised agent can lie about its build;
+campaign success does not prove that the host is uncompromised. Revoke a suspected
+host's access and investigate it separately instead of treating an update as
+incident recovery.
 
 Pause stops new activation work while preserving durable state. Cancel removes
 work that has not activated and requests local rollback for activated

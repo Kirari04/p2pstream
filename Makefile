@@ -1,13 +1,13 @@
 .PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-server-updater-test docker-test docs-screenshots frontend-build frontend-e2e frontend-sites-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
 
+# Docker smoke owns its disposable credentials and never loads application .env.
+ifeq (,$(filter docker-smoke docker-smoke-clean,$(MAKECMDGOALS)))
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
     include .env
     export
 endif
-
-# Deliberately static: this fallback is only used by the local development stack.
-DEV_AGENT_TOKEN := local-development-agent-token-not-for-production
+endif
 
 all: build
 
@@ -52,22 +52,19 @@ backend-build:
 build: frontend-build backend-build
 
 dev-token-check:
-	@token="$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)}"; \
-	if [ "$${#token}" -lt 32 ]; then \
-		echo "AGENT_TOKEN must contain at least 32 characters" >&2; \
-		exit 1; \
-	fi
+	@. ./scripts/local-dev-env.sh
 
 dev: dev-token-check frontend-install generate-proto kill
 	@echo "Starting p2pstream development mode..."
 	@mkdir -p tmp
 	@go build -o ./tmp/p2pstream-agent-dev .
-	@cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false bun run dev & FRONTEND_PID=$$!; \
-	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)} MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
+	@. ./scripts/local-dev-env.sh; \
+	cd web/management && VITE_MANAGEMENT_PROXY_TARGET=https://127.0.0.1:$${MANAGEMENT_PORT:-8081} VITE_MANAGEMENT_PROXY_SECURE=false bun run dev & FRONTEND_PID=$$!; \
+	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_BIND_ADDRESS="$$MANAGEMENT_BIND_ADDRESS" MANAGEMENT_UI_DEV_PROXY=http://127.0.0.1:5173 ENV=development go tool air -c .air.toml & SERVER_PID=$$!; \
 	MGMT_PORT=$${MANAGEMENT_PORT:-8081}; \
 	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-$(DEV_AGENT_TOKEN)} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./tmp/p2pstream-agent-dev agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
 	cleanup() { \
 		trap - INT TERM EXIT; \
@@ -83,13 +80,14 @@ dev: dev-token-check frontend-install generate-proto kill
 	trap "cleanup" EXIT; \
 	wait $$FRONTEND_PID $$SERVER_PID $$AGENT_PID
 
-run: build kill
+run: dev-token-check build kill
 	@echo "Starting server and agent..."
-	@BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} ./bin/p2pstream server & SERVER_PID=$$!; \
+	@. ./scripts/local-dev-env.sh; \
+	BOOTSTRAP_AGENT_ID=$${AGENT_ID:-local-agent} BOOTSTRAP_AGENT_NAME="$${AGENT_NAME:-Local Agent}" BOOTSTRAP_AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_BIND_ADDRESS="$$MANAGEMENT_BIND_ADDRESS" ./bin/p2pstream server & SERVER_PID=$$!; \
 	MGMT_PORT=$${MANAGEMENT_PORT:-8081}; \
 	CA_FILE=$${CONFIG_DIR:-p2pstream-data}/certs/management/ca.crt.pem; \
 	for i in $$(seq 1 75); do [ -s "$$CA_FILE" ] && curl --cacert "$$CA_FILE" -fsS https://127.0.0.1:$$MGMT_PORT/ >/dev/null 2>&1 && break; sleep 0.2; done; \
-	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN=$${AGENT_TOKEN:-local-agent-token} MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./bin/p2pstream agent & AGENT_PID=$$!; \
+	AGENT_ID=$${AGENT_ID:-local-agent} AGENT_TOKEN="$$AGENT_TOKEN" MANAGEMENT_URL=https://127.0.0.1:$$MGMT_PORT MANAGEMENT_CA_FILE=$$CA_FILE ./bin/p2pstream agent & AGENT_PID=$$!; \
 	echo "Management UI: https://localhost:$$MGMT_PORT"; \
 	cleanup() { \
 		trap - INT TERM EXIT; \
@@ -113,15 +111,13 @@ docker-race-test:
 	@docker build --target race-test -t p2pstream:race-test .
 
 docker-smoke:
-	@echo "Starting Docker smoke test. Dynamic listener ports must be published explicitly; this test publishes 18080, 18081, 18088, 18089, and 18443 on the host."
-	@docker compose -f docker-compose.test.yml down -v --remove-orphans
-	@docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from smoke
+	@scripts/run-docker-smoke.sh
 
 docker-server-updater-test:
 	@scripts/test-server-updater.sh
 
 docker-smoke-clean:
-	@docker compose -f docker-compose.test.yml down -v --remove-orphans
+	@scripts/run-docker-smoke.sh clean
 
 test:
 	@go test ./...
@@ -140,13 +136,16 @@ verify: verify-clean-tree
 	@$(MAKE) generate
 	@$(MAKE) verify-clean-tree
 	@sh -n scripts/setup-server-updater.sh
-	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh; do \
+	@sh -n scripts/local-dev-env.sh
+	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do \
 		bash -n "$$script" || exit 1; \
 	done
 	@scripts/test-agent-lifecycle.sh
 	@python3 -I scripts/test-server-updater-host.py
 	@python3 -I scripts/test-server-lifecycle-harness.py
 	@python3 -I scripts/test-setup-server-updater.py
+	@python3 -I scripts/test-docker-smoke-runner.py
+	@python3 -I scripts/test-local-fixtures.py
 	@go test ./...
 	@cd third_party/yamux && go test ./... && go test -race -short ./...
 	@go vet ./...

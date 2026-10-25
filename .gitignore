@@ -14,3 +14,4 @@ docs/.plans/
 SECURITY_AUDIT.md
 SECURITY_CONTEXT.md
 AGENTS.md
+.local-dev/

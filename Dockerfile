@@ -5,7 +5,9 @@ ARG RELEASE_CHANNEL=development
 ARG VITE_RELEASE_REPOSITORY=""
 ARG VITE_RELEASE_REF=""
 
-FROM oven/bun:1.2.18 AS frontend
+FROM oven/bun:1.2.18@sha256:2cdd9c93006af1b433c214016d72a3c60d7aa2c75691cb44dfd5250aa379986b AS bun
+
+FROM bun AS frontend
 WORKDIR /app/web/management
 ARG VITE_RELEASE_REF
 ARG VITE_RELEASE_REPOSITORY=""
@@ -18,7 +20,7 @@ RUN bun install --frozen-lockfile
 COPY web/management/ ./
 RUN bun run build
 
-FROM golang:1.26.6-bookworm AS backend
+FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS backend
 WORKDIR /src
 ARG VERSION
 ARG COMMIT
@@ -33,7 +35,7 @@ RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=$
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
 
-FROM golang:1.26.6-bookworm AS test-base
+FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS test-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -44,10 +46,10 @@ RUN apt-get update \
         sqlite3 \
         unzip \
     && rm -rf /var/lib/apt/lists/*
-ENV BUN_INSTALL=/usr/local/bun
-ENV PATH=/usr/local/bun/bin:$PATH
+# Reuse the verified Bun image rather than executing a network installer.
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+RUN ln -s bun /usr/local/bin/bunx
 WORKDIR /src
-RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.2.18"
 COPY go.mod go.sum ./
 COPY third_party/yamux ./third_party/yamux
 RUN go mod download
@@ -69,7 +71,7 @@ RUN cd third_party/yamux && go test ./... && go test -race -short ./...
 
 FROM test-base AS smoke
 
-FROM golang:1.26.6-bookworm AS smoke-upstream-build
+FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS smoke-upstream-build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY third_party/yamux ./third_party/yamux
@@ -88,7 +90,7 @@ ARG COMMIT
 ARG SOURCE_REPOSITORY
 RUN VERSION="${VERSION}" COMMIT="${COMMIT}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8 AS runtime
 WORKDIR /app
 ARG VERSION
 ARG COMMIT

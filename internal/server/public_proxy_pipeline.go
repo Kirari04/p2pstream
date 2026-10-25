@@ -439,7 +439,8 @@ func (ctx *publicProxyContext) runCleanup() {
 
 func rejectGloballyInvalidPublicPathStage(ctx *publicProxyContext) publicProxyStageResult {
 	ctx.PathIssues = classifyPublicRequestPath(ctx.Request)
-	if !ctx.PathIssues.DecodedDotSegment && !ctx.PathIssues.RawBackslash {
+	if !ctx.PathIssues.DecodedDotSegment && !ctx.PathIssues.RawBackslash &&
+		!ctx.PathIssues.NUL && !ctx.PathIssues.DecodeLimit && !ctx.PathIssues.NestedEncoding {
 		return publicProxyStageContinue
 	}
 	return rejectInvalidPublicRequestTarget(ctx)
@@ -449,7 +450,9 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 	if ctx.App == nil {
 		return publicProxyStageContinue
 	}
-	if !ctx.PathIssues.hasEncodedSeparator() {
+	// Parser discrepancies require an explicitly selected compatibility route.
+	// A strict match is rejected here, never retried against a fallback route.
+	if !ctx.PathIssues.hasEncodedSeparator() && !ctx.PathIssues.DuplicateSlash && !ctx.PathIssues.PathParameter {
 		match, err := ctx.App.matchPublicRouteInSnapshot(ctx.Snapshot, ctx.ListenerID, ctx.Request)
 		if err != nil {
 			match.Err = err
@@ -471,7 +474,7 @@ func routePathSecurityStage(ctx *publicProxyContext) publicProxyStageResult {
 	ctx.RouteMatch = match
 	ctx.HasRouteMatch = true
 	if publicRouteAllowsEncodedPathSeparators(match.Route) {
-		ctx.EncodedPathSeparatorsAllowed = true
+		ctx.EncodedPathSeparatorsAllowed = ctx.PathIssues.hasEncodedSeparator()
 		return publicProxyStageContinue
 	}
 	return rejectInvalidPublicRequestTarget(ctx)
@@ -509,8 +512,13 @@ func rejectInvalidPublicRequestTarget(ctx *publicProxyContext) publicProxyStageR
 type publicPathIssueSet struct {
 	DecodedDotSegment bool
 	RawBackslash      bool
+	NUL               bool
 	EncodedSlash      bool
 	EncodedBackslash  bool
+	DuplicateSlash    bool
+	PathParameter     bool
+	DecodeLimit       bool
+	NestedEncoding    bool
 }
 
 func (s publicPathIssueSet) hasEncodedSeparator() bool {
@@ -522,18 +530,119 @@ func classifyPublicRequestPath(r *http.Request) publicPathIssueSet {
 	if r == nil || r.URL == nil {
 		return issues
 	}
-	issues.DecodedDotSegment = containsPublicPathDotSegment(r.URL.Path)
 	rawTargetPath := requestTargetPathForPublicValidation(r)
 	issues.RawBackslash = containsRawPublicPathBackslash(rawTargetPath) || containsRawPublicPathBackslash(r.URL.RawPath)
-	for _, path := range []string{r.URL.RawPath, r.URL.EscapedPath(), rawTargetPath} {
-		if containsEncodedPublicPathSlash(path) {
-			issues.EncodedSlash = true
+	// A residual escape in Go's decoded path can also hide ordinary prefix
+	// characters (/%2561dmin -> /admin). The separator compatibility exception
+	// is for singly encoded opaque IDs, not arbitrary nested path aliases.
+	issues.NestedEncoding = hasPublicPathEscape(r.URL.Path)
+	paths := [...]string{rawTargetPath, r.URL.EscapedPath(), r.URL.RawPath, r.URL.Path}
+	for i, path := range paths {
+		if path == "" {
+			continue
 		}
-		if containsEncodedPublicPathBackslash(path) {
-			issues.EncodedBackslash = true
+		duplicate := false
+		for _, previous := range paths[:i] {
+			duplicate = duplicate || path == previous
+		}
+		if !duplicate {
+			inspectPublicPathLayers(path, &issues)
 		}
 	}
 	return issues
+}
+
+// Inspect only: routing and forwarding must retain the same original path.
+// A fixed limit bounds work to O(path length), even for a single percent escape
+// wrapped in thousands of %25 layers. Reject unresolved nesting at the limit.
+const maxPublicPathDecodeLayers = 8
+
+func inspectPublicPathLayers(path string, issues *publicPathIssueSet) {
+	for layer := 0; ; layer++ {
+		// Backslashes can be separators at an origin, including in compatibility
+		// mode. Never permit dot traversal using either kind of separator.
+		separated := strings.ReplaceAll(path, `\`, "/")
+		issues.DecodedDotSegment = issues.DecodedDotSegment || containsPublicPathDotSegment(separated)
+		// Compatibility accepts servlet parameters, but not traversal hidden
+		// by them at an origin that strips each segment's parameter suffix.
+		if !issues.DecodedDotSegment && strings.Contains(separated, ";") {
+			for segment := range strings.SplitSeq(separated, "/") {
+				if strings.HasPrefix(segment, ".;") || strings.HasPrefix(segment, "..;") {
+					issues.DecodedDotSegment = true
+					break
+				}
+			}
+		}
+		issues.NUL = issues.NUL || strings.IndexByte(path, 0) >= 0
+		issues.DuplicateSlash = issues.DuplicateSlash || strings.Contains(separated, "//")
+		issues.PathParameter = issues.PathParameter || strings.Contains(path, ";")
+		issues.EncodedSlash = issues.EncodedSlash || containsEncodedPublicPathSlash(path)
+		issues.EncodedBackslash = issues.EncodedBackslash || containsEncodedPublicPathBackslash(path)
+		if layer == maxPublicPathDecodeLayers {
+			issues.DecodeLimit = issues.DecodeLimit || hasPublicPathEscape(path)
+			return
+		}
+		next, changed := decodePublicPathLayer(path)
+		if !changed {
+			return
+		}
+		path = next
+	}
+}
+
+func hasPublicPathEscape(path string) bool {
+	for i := 0; i+2 < len(path); i++ {
+		if path[i] == '%' {
+			_, hiOK := publicPathHexDigit(path[i+1])
+			_, loOK := publicPathHexDigit(path[i+2])
+			if hiOK && loOK {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Decode valid triplets independently: a literal percent (for example %25 in
+// a filename) must not hide a later nested escape by failing the entire pass.
+// Unlike query decoding, '+' remains a literal path byte.
+func decodePublicPathLayer(path string) (string, bool) {
+	var decoded []byte
+	for i := 0; i < len(path); i++ {
+		if path[i] == '%' && i+2 < len(path) {
+			hi, hiOK := publicPathHexDigit(path[i+1])
+			lo, loOK := publicPathHexDigit(path[i+2])
+			if hiOK && loOK {
+				if decoded == nil {
+					decoded = make([]byte, 0, len(path))
+					decoded = append(decoded, path[:i]...)
+				}
+				decoded = append(decoded, hi<<4|lo)
+				i += 2
+				continue
+			}
+		}
+		if decoded != nil {
+			decoded = append(decoded, path[i])
+		}
+	}
+	if decoded == nil {
+		return path, false
+	}
+	return string(decoded), true
+}
+
+func publicPathHexDigit(c byte) (byte, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0', true
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10, true
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10, true
+	default:
+		return 0, false
+	}
 }
 
 func containsPublicPathDotSegment(path string) bool {

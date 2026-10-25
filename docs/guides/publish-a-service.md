@@ -51,7 +51,7 @@ Example:
    | URL | `https://app.internal:8443` |
    | Priority group | `0` |
    | Weight | `100` |
-   | Skip TLS verify | Off unless this is a controlled internal certificate exception |
+   | Skip TLS verify | Keep off. Temporarily enabling it for diagnosis permits origin impersonation, including on private networks; restore verification after fixing the certificate. |
    | Enabled | On |
 
    Expand **Advanced target settings** to configure upstream request headers, upstream basic authentication, and target health checks. These settings stay with the target when its site is assigned to another listener.

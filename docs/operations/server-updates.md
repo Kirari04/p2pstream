@@ -30,6 +30,14 @@ Enrollment capabilities use the separate `server-enrollment-capabilities` comman
 
 The updater receives **host-level Docker authority**. The management container receives only a read-only private control directory and random credential; no public updater port is added. State and recovery information live in the root-owned private `/etc/p2pstream-server-updater`, outside application data. Enrollment preserves supported ports, settings and data, uses the executor's pinned Compose version, and recreates the server **once** with its private connection. It reports enabled only after both server health/configuration identity and authenticated updater reachability are verified. Public traffic and agent tunnels reconnect during this restart; setup is not zero downtime.
 
+The executor runs as root and mounts the rootful Docker socket. Compromising it
+therefore permits host-level control; a non-root user with the same unrestricted
+socket would retain that authority. Its private state is writable so it can
+persist journals, snapshots, and recovery progress. The management container's
+read-only control mount is a separate boundary. Install only the trusted,
+digest-pinned executor and restrict access to its credentials and host state.
+Container capability restrictions do not remove Docker daemon authority.
+
 Repeated setup confirms healthy enrollment without a restart or credential reset; it does **not** upgrade the host updater. If a legacy enrollment lost its private connection after ordinary Compose recreation, the verified setup helper can repair that exact saved deployment even when the installed controller predates the repair. It first proves the current image, settings, installation and data volume, then recreates the server with its saved binding; changed inputs or another data writer are refused. This repair preserves the pinned executor and credentials. Refresh the Updates page afterward to migrate the deployment integration. Interrupted setup resumes the same protected inputs and credentials. A host lock and durable phases prevent duplicate controllers and reject new updates while a host transaction is incomplete. Existing `config.json` alone never indicates success.
 
 ## Apply settings and operate the host
@@ -246,5 +254,12 @@ make docker-server-updater-test
 ```
 
 It builds two release identities and runs a separate Docker daemon in a disposable container. Registry aliases, published fixture ports, and replacements stay inside that daemon. The scenarios cover a healthy upgrade with the full 120-second dwell, schema/authority restoration after a failed candidate, paused recovery and explicit retry, and an executor killed during validation. Each uses a real TLS-connected agent and forwarding route, a read-only server root filesystem, and the production Compose driver. It also exercises the shipped updater command, private-socket authentication, maintenance access, and exclusive executor lock. Diagnostics are saved under `tmp/server-updater-tests/`; CI runs this target and retains its evidence.
+
+The nested daemon and lifecycle helper need rootful Docker privileges to exercise
+the supported production workflow. The outer privileged container is not a
+security boundary for hostile source code: run the rehearsal only on a disposable,
+trusted test host or hosted CI runner. It publishes no outer host ports and mounts
+no host Docker socket. Its insecure registry is a loopback-only fixture inside
+the nested daemon. CI excludes fork pull requests from this privileged job.
 
 Only the unpublished GitHub release catalog and deterministic failure checkpoints are fixtures. The source-verification tests separately cover canonical metadata, architecture/image binding, replay floors, expiration, and tampering. The container rehearsal does not model a machine power cycle. For that check, use a disposable VM, interrupt after the durable `committing` phase while the candidate's restart policy is `no`, then boot the VM and confirm the updater starts and validates the candidate before reporting success. Never perform fault injection against a live deployment.

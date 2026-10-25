@@ -133,7 +133,7 @@ ACME renewal logs use `component=public_acme`. Filter those entries and inspect 
 | Direct target origin unreachable | Run `curl -I http://<origin-host>:<port>` from inside the p2pstream container: `docker compose exec p2pstream curl -I http://app:8080`. |
 | Agent target origin unreachable | SSH to a label-matched agent host and run `curl -I http://<origin-host>:<port>` to confirm the agent can reach the service from its network. |
 | Agent offline | Reconnect or enable a label-matched agent. |
-| Origin TLS error | Fix the origin certificate; use `tls_skip_verify` only as a temporary workaround for internal self-signed certs. |
+| Origin TLS error | Fix the certificate chain, hostname, or expiry. Keep `tls_skip_verify` off; if temporarily enabled for diagnosis, a network attacker can impersonate the origin even on a private network. Restore verification after the fix. |
 | Wrong target origin | Include scheme and host, for example `http://app:8080`. |
 | Passive health cooldown | If health checks are enabled, recent connect or timeout failures can temporarily remove the target or selected target-agent path from routing. |
 
