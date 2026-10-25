@@ -41,7 +41,7 @@
     "@connectrpc/protoc-gen-connect-es": "^1.7.0",
     "@playwright/test": "^1",
     "@types/punycode": "^2.1.4",
-    "@vitejs/plugin-vue": "^6.0.6",
+    "@vitejs/plugin-vue": "^6.0.10",
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
     "vue-tsc": "^3.3.8"
