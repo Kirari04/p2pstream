@@ -1,9 +1,12 @@
 .PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-server-updater-test docker-test docs-screenshots frontend-build frontend-e2e frontend-sites-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
 
+# Docker smoke owns its disposable credentials and never loads application .env.
+ifeq (,$(filter docker-smoke docker-smoke-clean,$(MAKECMDGOALS)))
 # Load .env file if it exists
 ifneq (,$(wildcard ./.env))
     include .env
     export
+endif
 endif
 
 # Deliberately static: this fallback is only used by the local development stack.
@@ -113,15 +116,13 @@ docker-race-test:
 	@docker build --target race-test -t p2pstream:race-test .
 
 docker-smoke:
-	@echo "Starting Docker smoke test. Dynamic listener ports must be published explicitly; this test publishes 18080, 18081, 18088, 18089, and 18443 on the host."
-	@docker compose -f docker-compose.test.yml down -v --remove-orphans
-	@docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from smoke
+	@scripts/run-docker-smoke.sh
 
 docker-server-updater-test:
 	@scripts/test-server-updater.sh
 
 docker-smoke-clean:
-	@docker compose -f docker-compose.test.yml down -v --remove-orphans
+	@scripts/run-docker-smoke.sh clean
 
 test:
 	@go test ./...
@@ -146,6 +147,7 @@ verify: verify-clean-tree
 	@scripts/test-agent-lifecycle.sh
 	@python3 -I scripts/test-server-updater-host.py
 	@python3 -I scripts/test-setup-server-updater.py
+	@python3 -I scripts/test-docker-smoke-runner.py
 	@go test ./...
 	@cd third_party/yamux && go test ./... && go test -race -short ./...
 	@go vet ./...
