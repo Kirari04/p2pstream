@@ -76,3 +76,5 @@ The runner removes containers, networks and test volumes on exit, including
 test failure. `make docker-smoke-clean` recovers an interrupted stack without
 saved credentials. Its project is scoped to the checkout; run only one smoke
 invocation per checkout at a time. No application data volume is reused.
+
+For a smoke stack left by an older checkout, run `docker compose -f docker-compose.test.yml down -v` from that older checkout once, after confirming its project contains only disposable smoke data. The current clean target does not remove stacks or volumes under the old directory-derived project name.

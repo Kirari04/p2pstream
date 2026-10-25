@@ -18,7 +18,7 @@ Use this before exposing management beyond a private network, after adding agent
 
    - Keep management HTTPS enabled.
    - Keep `MANAGEMENT_BIND_ADDRESS=0.0.0.0` when agents or admins connect from other hosts.
-   - Set `MANAGEMENT_BIND_ADDRESS=127.0.0.1` only when a local reverse proxy, VPN sidecar, or SSH tunnel fronts management.
+   - For a native process, set `MANAGEMENT_BIND_ADDRESS=127.0.0.1` when a reverse proxy or SSH tunnel on the same host fronts management. In Compose, keep the container's listener reachable by Docker forwarding; use `P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS=127.0.0.1` to restrict the published host port. A proxy in a separate container needs a reachable container address, not that container's loopback.
    - Prefer firewall allowlists, VPN, or a private admin network for `8081`.
    - Set `MANAGEMENT_PUBLIC_URL` to the real management URL used by browsers and agents.
    - Set at least 32 characters of cryptographically random data as `MANAGEMENT_SETUP_TOKEN` before first setup, or capture the generated startup token from trusted logs.

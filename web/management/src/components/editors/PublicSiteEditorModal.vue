@@ -1045,6 +1045,7 @@ defineExpose({ openCreate, openEdit, close });
                 >
                 <NTag
                   v-if="route.action !== PublicRouteAction.REDIRECT && route.targets.some(target => target.targetType === PublicRouteTargetType.PROXY && target.tlsSkipVerify)"
+                  class="fit-width"
                   size="small"
                   :bordered="false"
                   type="error"
