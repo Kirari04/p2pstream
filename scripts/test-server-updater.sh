@@ -28,8 +28,8 @@ baseline_version=v0.1.53-staging.9000
 candidate_version=v0.1.53-staging.9001
 baseline_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 candidate_commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-dind_image=docker:28.3.3-dind
-registry_image=registry:2
+dind_image=docker:28.3.3-dind@sha256:a56b3bdde89315ed2cc0e4906e582b5033d93bf20d9cb9510c2cdd4e7f7690b1
+registry_image=registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
 
 cleanup() {
   local result=$?
