@@ -44,7 +44,7 @@ Agent targets use label selectors. A selector matches enabled agents whose label
 
 Proxy targets have an upstream response-header timeout. The default is `60000` milliseconds. It controls how long p2pstream waits for upstream response headers; it does not limit response streaming after headers arrive.
 
-Direct and agent targets enforce HTTP timeout and origin TLS policy from the server transport. For agent targets, the selected agent carries a raw TCP stream over Yamux, but the server still owns HTTP semantics and TLS verification. `tls_skip_verify` disables server-side origin verification and should only be used for controlled internal services.
+Direct and agent targets enforce HTTP timeout and origin TLS policy from the server transport. For agent targets, the selected agent carries a raw TCP stream over Yamux, but the server still owns HTTP semantics and TLS verification. Keep `tls_skip_verify` off so the server verifies the origin's identity.
 
 Proxy targets can define HTTP health checks:
 
@@ -63,7 +63,7 @@ Static response bodies can be defined inline on the target or selected from a ce
 ## Common Mistakes
 
 :::warning Be careful with `tls_skip_verify`
-`tls_skip_verify` disables TLS certificate validation for the connection between p2pstream and the origin. It is only appropriate for internal services with self-signed certificates that you control.
+`tls_skip_verify` disables certificate-chain, hostname, and expiry checks for the origin, including health checks. A network attacker can impersonate the origin; a private network or a self-signed certificate does not remove that risk. Keep it off in production. If temporarily enabled to diagnose a certificate error, restore verification after installing a certificate trusted by the server.
 :::
 
 - Setting an agent target origin that only the server can resolve. Agent target origins are resolved from the selected agent host.

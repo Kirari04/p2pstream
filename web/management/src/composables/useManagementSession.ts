@@ -1,7 +1,8 @@
 import { ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 import { localManagementClient } from "@/api/managementClient";
 import { messageFromError } from "@/lib/errors";
+import { consumeManagementSetupToken, stripManagementSetupToken } from "@/lib/managementSetupToken";
 import type { GetSetupStateResponse, User } from "@/gen/proto/p2pstream/v1/management_pb";
 
 type BootstrapSessionState = "setup-required" | "authenticated" | "unauthenticated";
@@ -9,7 +10,7 @@ type AuthenticatedCallback = () => Promise<void>;
 type LogoutCallback = () => void;
 
 export function useManagementSession() {
-  const route = useRoute();
+  const router = useRouter();
   const setupState = ref<GetSetupStateResponse | null>(null);
   const currentUser = ref<User | null>(null);
   const setupForm = ref({ username: "admin", password: "" });
@@ -109,39 +110,13 @@ export function useManagementSession() {
     }
   }
 
-  function initializeSetupToken() {
-    setupToken.value = setupTokenFromURL();
-  }
-
-  function setupTokenFromURL(): string {
-    const routeToken = stringQueryValue(route.query.setup_token);
-    if (routeToken) {
-      scrubSetupTokenFromURL();
-      return routeToken;
-    }
+  async function initializeSetupToken() {
     try {
-      const token = new URLSearchParams(window.location.search).get("setup_token")?.trim() ?? "";
-      if (token) scrubSetupTokenFromURL();
-      return token;
-    } catch {
-      return "";
-    }
-  }
-
-  function scrubSetupTokenFromURL() {
-    try {
-      const url = new URL(window.location.href);
-      if (!url.searchParams.has("setup_token")) return;
-      url.searchParams.delete("setup_token");
-      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      setupToken.value = stripManagementSetupToken(window.location.href).token;
+      await consumeManagementSetupToken(router, window);
     } catch {
       // Ignore browsers or test environments without full history support.
     }
-  }
-
-  function stringQueryValue(value: unknown): string {
-    if (Array.isArray(value)) return stringQueryValue(value[0]);
-    return typeof value === "string" ? value.trim() : "";
   }
 
   return {

@@ -11,6 +11,7 @@ import {
   NDrawerContent,
   NInput,
   NInputNumber,
+  NTag,
 } from "naive-ui";
 import {
   isBusyKey,
@@ -1288,7 +1289,15 @@ defineExpose({
             class="route-target"
           >
             <div class="route-target__header">
-              <span class="copy-xs weight-semibold base-text">Target {{ index + 1 }}</span>
+              <div class="layout-row align-center space-sm wrap-items">
+                <span class="copy-xs weight-semibold base-text">Target {{ index + 1 }}</span>
+                <NTag
+                  v-if="target.targetType === PublicRouteTargetType.PROXY && target.tlsSkipVerify"
+                  size="small"
+                  :bordered="false"
+                  type="error"
+                >TLS verification off</NTag>
+              </div>
               <NButton
                 type="error"
                 secondary
@@ -1512,12 +1521,19 @@ defineExpose({
                     </div>
                   </div>
                 </div>
-                <NCheckbox
+                <div
                   v-if="target.targetType === PublicRouteTargetType.PROXY"
-                  v-model:checked="target.tlsSkipVerify"
+                  class="layout-grid space-sm mq-sm-span-four"
                 >
-                  Skip TLS verify
-                </NCheckbox>
+                  <NCheckbox v-model:checked="target.tlsSkipVerify">
+                    Skip TLS verify
+                  </NCheckbox>
+                  <NAlert v-if="target.tlsSkipVerify" type="warning" :bordered="false" :show-icon="false">
+                    TLS certificate verification is off for this target, including health checks.
+                    A network attacker can impersonate the upstream and read or change traffic.
+                    Use a trusted certificate and turn verification back on before sending sensitive data.
+                  </NAlert>
+                </div>
                 <label
                   v-if="target.targetType === PublicRouteTargetType.STATIC"
                   class="layout-grid space-xs copy-xs weight-medium muted-text"

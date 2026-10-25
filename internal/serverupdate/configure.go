@@ -13,7 +13,10 @@ import (
 // policy, then retains the current image and exact private executor connection.
 // It never applies changes to other services or deployment resources.
 func ConfigureModel(config ComposeConfig, input, current []byte) ([]byte, error) {
-	if err := config.Validate(); err != nil {
+	return configureModel(config, input, current, os.Lstat)
+}
+func configureModel(config ComposeConfig, input, current []byte, lstat layoutLstat) ([]byte, error) {
+	if err := config.validate(lstat); err != nil {
 		return nil, err
 	}
 	var next, old map[string]any
@@ -22,6 +25,11 @@ func ConfigureModel(config ComposeConfig, input, current []byte) ([]byte, error)
 	}
 	if err := json.Unmarshal(current, &old); err != nil {
 		return nil, err
+	}
+	if config.DeploymentLayout == DeploymentLayoutSingleFileV1 {
+		if err := validateSingleFileModel(next); err != nil {
+			return nil, err
+		}
 	}
 	services, _ := next["services"].(map[string]any)
 	previous, _ := old["services"].(map[string]any)
@@ -128,7 +136,7 @@ func ConfigureModel(config ComposeConfig, input, current []byte) ([]byte, error)
 		}
 	}
 	managed["p2pstream-server-updater"] = updater
-	return json.Marshal(validated)
+	return marshalDeploymentModel(config, validated)
 }
 func dataMount(service map[string]any) string {
 	volumes, _ := service["volumes"].([]any)

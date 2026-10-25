@@ -18,6 +18,7 @@ import (
 // ComposeConfig is installed locally in an executor-owned directory. None of
 // these fields is accepted over the management API.
 type ComposeConfig struct {
+	DeploymentLayout     string `json:"deployment_layout,omitempty"`
 	DeploymentProtocol   int    `json:"deployment_protocol,omitempty"`
 	InstanceID           string `json:"instance_id"`
 	Repository           string `json:"repository"`
@@ -44,6 +45,12 @@ type ComposeDriver struct {
 }
 
 func (c ComposeConfig) Validate() error {
+	return c.validate(os.Lstat)
+}
+func (c ComposeConfig) validate(lstat layoutLstat) error {
+	if c.DeploymentLayout != "" && c.DeploymentLayout != DeploymentLayoutSingleFileV1 {
+		return errors.New("unsupported deployment layout")
+	}
 	if c.DeploymentProtocol != 0 && c.DeploymentProtocol != 2 {
 		return errors.New("unsupported deployment protocol")
 	}
@@ -63,6 +70,9 @@ func (c ComposeConfig) Validate() error {
 	}
 	if c.HealthTimeoutSeconds < 10 || c.HealthTimeoutSeconds > 1800 || c.HealthyDwellSeconds < 1 || c.HealthyDwellSeconds > 600 || c.HealthyDwellSeconds >= c.HealthTimeoutSeconds {
 		return errors.New("invalid updater health deadlines")
+	}
+	if c.DeploymentLayout == DeploymentLayoutSingleFileV1 {
+		return validateSingleFilePaths(c, lstat)
 	}
 	return nil
 }
@@ -371,6 +381,14 @@ func (d *ComposeDriver) Restore(ctx context.Context, id, digest string) error {
 }
 
 func (d *ComposeDriver) Deploy(ctx context.Context, image string) error {
+	return d.deploy(ctx, image, os.Lstat)
+}
+func (d *ComposeDriver) deploy(ctx context.Context, image string, lstat layoutLstat) error {
+	if d.Config.DeploymentLayout != "" {
+		if err := d.Config.validate(lstat); err != nil {
+			return err
+		}
+	}
 	if !strings.HasPrefix(image, "ghcr.io/"+strings.ToLower(d.Config.Repository)+"@sha256:") {
 		return errors.New("invalid deployment image")
 	}
@@ -404,7 +422,7 @@ func (d *ComposeDriver) Deploy(ctx context.Context, image string) error {
 		}
 		env["SERVER_UPDATE_GENERATION"] = newRuntimeGeneration()
 	}
-	data, err = json.Marshal(doc)
+	data, err = marshalDeploymentModel(d.Config, doc)
 	if err != nil {
 		return err
 	}

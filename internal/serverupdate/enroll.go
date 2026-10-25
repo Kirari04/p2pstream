@@ -40,6 +40,18 @@ func enroll(directory string, model []byte, image, updaterImage, version, reposi
 	return enrollDeployment(directory, "", model, image, updaterImage, version, repository, bootstrap, installationID)
 }
 func enrollDeployment(directory, deploymentDirectory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID string) error {
+	return enrollDeploymentLayout(directory, deploymentDirectory, model, image, updaterImage, version, repository, bootstrap, installationID, "", os.Lstat)
+}
+func enrollDeploymentLayout(directory, deploymentDirectory string, model []byte, image, updaterImage, version, repository string, bootstrap Floor, installationID, layout string, lstat layoutLstat) error {
+	if layout == DeploymentLayoutSingleFileV1 {
+		paths := ComposeConfig{DeploymentProtocol: 2, StateDir: directory, ControlDir: filepath.Join(directory, "control"), DataDir: "/server-data", DeploymentFile: filepath.Join(deploymentDirectory, "compose.yaml")}
+		if !filepath.IsAbs(deploymentDirectory) || filepath.Clean(deploymentDirectory) != deploymentDirectory {
+			return errors.New("single-file-v1 deployment directory must be clean and absolute")
+		}
+		if err := validateSingleFilePaths(paths, lstat); err != nil {
+			return err
+		}
+	}
 	if !filepath.IsAbs(directory) || filepath.Clean(directory) != directory {
 		return errors.New("enrollment directory must be absolute")
 	}
@@ -58,6 +70,11 @@ func enrollDeployment(directory, deploymentDirectory string, model []byte, image
 	var doc map[string]any
 	if err := json.Unmarshal(model, &doc); err != nil {
 		return err
+	}
+	if layout == DeploymentLayoutSingleFileV1 {
+		if err := validateSingleFileModel(doc); err != nil {
+			return err
+		}
 	}
 	project, _ := doc["name"].(string)
 	services, _ := doc["services"].(map[string]any)
@@ -168,14 +185,20 @@ func enrollDeployment(directory, deploymentDirectory string, model []byte, image
 		config.DeploymentProtocol = 2
 		config.DeploymentFile = filepath.Join(deploymentDirectory, "compose.json")
 	}
-	if err := config.Validate(); err != nil {
+	if layout != "" {
+		config.DeploymentLayout = layout
+		config.DeploymentFile = filepath.Join(deploymentDirectory, "compose.yaml")
+	}
+	if err := config.validate(lstat); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(directory, 0700); err != nil {
 		return err
 	}
-	if err := os.Chmod(directory, 0700); err != nil {
-		return err
+	if layout == "" {
+		if err := os.Chmod(directory, 0700); err != nil {
+			return err
+		}
 	}
 	if err := os.MkdirAll(config.ControlDir, 0755); err != nil {
 		return err
@@ -221,14 +244,18 @@ func enrollDeployment(directory, deploymentDirectory string, model []byte, image
 	}
 	// Compose's config output already escapes literal dollar signs. Preserve
 	// those serialized values verbatim so reloading does not change secrets.
-	encoded, err := json.Marshal(doc)
+	encoded, err := marshalDeploymentModel(config, doc)
 	if err != nil {
 		return err
 	}
 	if err := AtomicWrite(filepath.Join(directory, "original-compose.json"), model, 0600); err != nil {
 		return err
 	}
-	if err := AtomicWrite(config.DeploymentFile, encoded, (&ComposeDriver{Config: config}).deploymentMode()); err != nil {
+	modelPath, modelMode := config.DeploymentFile, (&ComposeDriver{Config: config}).deploymentMode()
+	if layout == DeploymentLayoutSingleFileV1 {
+		modelPath, modelMode = StagedDeploymentFile(directory), 0600
+	}
+	if err := AtomicWrite(modelPath, encoded, modelMode); err != nil {
 		return err
 	}
 	data, err := json.Marshal(config)

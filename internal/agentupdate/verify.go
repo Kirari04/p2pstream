@@ -56,9 +56,12 @@ type VerifiedManifest struct {
 // caller is intentionally cataloging protocol compatibility data for later
 // per-agent enforcement. ServerVersion is always required and enforced.
 type CatalogVerifyPolicy struct {
-	Now                       time.Time
-	RequiredChannel           string
-	CurrentSequence           uint64
+	Now             time.Time
+	RequiredChannel string
+	CurrentSequence uint64
+	// CurrentManifestSHA256 must pin the exact canonical bytes when accepting
+	// an equal nonzero sequence. Zero CurrentSequence permits bootstrap.
+	CurrentManifestSHA256     string
 	CurrentSecurityEpoch      uint64
 	CurrentMinimumSafeVersion string
 	ServerVersion             string
@@ -82,6 +85,14 @@ func VerifyCatalog(manifestJSON []byte, policy CatalogVerifyPolicy) (*VerifiedCa
 	manifest := verified.Manifest
 	if policy.CurrentSequence != 0 && manifest.Sequence < policy.CurrentSequence {
 		return nil, errors.New("manifest sequence is below the catalog sequence floor")
+	}
+	if policy.CurrentSequence != 0 && manifest.Sequence == policy.CurrentSequence {
+		if !digestRE.MatchString(policy.CurrentManifestSHA256) {
+			return nil, errors.New("equal catalog sequence requires a valid trusted manifest SHA-256")
+		}
+		if policy.CurrentManifestSHA256 != verified.ManifestSHA256 {
+			return nil, errors.New("manifest changed at an already trusted release sequence")
+		}
 	}
 	if manifest.SecurityEpoch < policy.CurrentSecurityEpoch {
 		return nil, errors.New("manifest security epoch is below the catalog epoch floor")

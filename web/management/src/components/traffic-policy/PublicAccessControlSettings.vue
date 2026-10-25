@@ -779,6 +779,11 @@ function groupSummary(policy: PublicAccessPolicy): string {
           </div>
         </div>
 
+        <NAlert v-if="providerForm.tlsSkipVerify" type="warning" :bordered="false" :show-icon="false">
+          TLS certificate verification is off for this provider. A network attacker can read browser credentials
+          and impersonate the auth service to grant access. Use a trusted certificate and turn verification back on.
+        </NAlert>
+
         <section class="editor-group layout-grid space-lg">
           <div>
             <h3 class="copy-sm weight-semibold">Identity response headers</h3>

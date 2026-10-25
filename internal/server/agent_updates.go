@@ -1255,14 +1255,22 @@ func (a *App) acknowledgeSupersededAgentUpdateReportRow(ctx context.Context, tx 
 	}), nil
 }
 
+// Update controls are mandatory even though the generic capacity limiters also
+// serve ordinary traffic where an unset limit intentionally means unlimited.
+func (a *App) agentUpdateControlsReady() bool {
+	return a != nil && a.agentUpdateRequestGate != nil &&
+		a.agentUpdatePeerRequests != nil && a.agentUpdateIdentityRequests != nil &&
+		a.agentUpdateGlobalRate != nil && a.agentUpdatePeerRate != nil && a.agentUpdateIdentityRate != nil
+}
+
 func (a *App) beginAgentUpdateRequest(ctx context.Context) (func(), error) {
+	if !a.agentUpdateControlsReady() {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("agent update controls are not initialized"))
+	}
 	if ctx != nil {
 		if admitted, _ := ctx.Value(agentUpdateAdmissionContextKey{}).(bool); admitted {
 			return func() {}, nil
 		}
-	}
-	if a == nil || a.agentUpdateRequestGate == nil {
-		return func() {}, nil
 	}
 	select {
 	case a.agentUpdateRequestGate <- struct{}{}:
@@ -1289,6 +1297,10 @@ func (a *App) agentUpdateHTTPAdmission(next http.Handler) http.Handler {
 			maxBytes = agentUpdateReportMaxRequestBytes
 		default:
 			next.ServeHTTP(w, r)
+			return
+		}
+		if !a.agentUpdateControlsReady() {
+			http.Error(w, "agent update controls are not initialized", http.StatusServiceUnavailable)
 			return
 		}
 		if r.ContentLength > maxBytes {

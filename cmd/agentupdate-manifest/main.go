@@ -91,6 +91,9 @@ func runVerifyRelease(arguments []string) error {
 		return fmt.Errorf("read manifest: %w", err)
 	}
 	verified, err := agentupdate.VerifyCatalog(manifestJSON, agentupdate.CatalogVerifyPolicy{
+		// Offline release verification has no persisted trust floor or pin.
+		// expectedSequence is checked below as an exact release identity.
+		CurrentSequence: 0,
 		Now:             now,
 		RequiredChannel: *expectedChannel,
 		ServerVersion:   *serverVersion,

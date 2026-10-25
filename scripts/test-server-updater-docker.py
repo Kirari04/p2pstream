@@ -46,6 +46,18 @@ def wait_for(fn, seconds=90):
         time.sleep(1)
 
 
+
+def assert_runtime_hardening(info):
+    host = info["HostConfig"]
+    capabilities = lambda values: {value.removeprefix("CAP_") for value in (values or [])}
+    assert host["ReadonlyRootfs"]
+    assert capabilities(host.get("CapDrop")) == {"ALL"}
+    assert capabilities(host.get("CapAdd")) == {"NET_BIND_SERVICE"}
+    assert host.get("SecurityOpt") == ["no-new-privileges:true"]
+    assert set(host.get("Tmpfs") or {}) == {"/tmp"}
+    assert set(host["Tmpfs"]["/tmp"].split(",")) == {"rw", "noexec", "nosuid", "nodev", "size=16m", "mode=1777"}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("scenario", choices=["success", "rollback", "retry-recovery", "kill-validating", "reboot-committing"])
@@ -78,6 +90,9 @@ def main():
             "name": project,
             "services": {"p2pstream": {
                 "image": images["baseline"], "restart": "unless-stopped", "read_only": True,
+                "tmpfs": ["/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777"],
+                "cap_drop": ["ALL"], "cap_add": ["NET_BIND_SERVICE"],
+                "security_opt": ["no-new-privileges:true"],
                 "environment": {"CONFIG_DIR": "/data", "MANAGEMENT_PORT": "8081",
                     "MANAGEMENT_SETUP_TOKEN": "review-setup-token-0123456789abcdef",
                     "BOOTSTRAP_AGENT_ID": "review-agent", "BOOTSTRAP_AGENT_NAME": "Review Agent",
@@ -169,7 +184,7 @@ def main():
         container = compose(canonical, "ps", "-q", "p2pstream")
         info = json.loads(docker("inspect", container))[0]
         assert info["HostConfig"]["RestartPolicy"]["Name"] == "unless-stopped"
-        assert info["HostConfig"]["ReadonlyRootfs"]
+        assert_runtime_hardening(info)
         assert not any(m["Destination"] == "/var/run/docker.sock" for m in info["Mounts"])
         assert docker("exec", container, "cat", "/data/certs/management/ca.crt.pem") == (state / "initial-ca.pem").read_text()
         (state / "executor.log").write_text(docker("logs", executor))
@@ -183,6 +198,7 @@ def main():
         wait_for(lambda: urllib.request.urlopen("http://127.0.0.1:18080/", timeout=5).read() == b"smoke upstream ok\n")
         recreated = compose(canonical, "ps", "-q", "p2pstream")
         recreated_info = json.loads(docker("inspect", recreated))[0]
+        assert_runtime_hardening(recreated_info)
         managed_hash = compose(canonical, "config", "--hash", "p2pstream").split()[1]
         native_hash = recreated_info["Config"]["Labels"]["com.docker.compose.config-hash"]
         assert recreated_info["Config"]["Image"] == expected_image

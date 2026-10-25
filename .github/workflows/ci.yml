@@ -46,16 +46,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
           cache: true
 
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.2.18
 
@@ -68,14 +68,18 @@ jobs:
       - name: Check installer syntax
         run: |
           sh -n scripts/setup-server-updater.sh
-          for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh; do
+          sh -n scripts/local-dev-env.sh
+          for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do
             bash -n "$script" || exit 1
           done
 
       - name: Test Docker release installation and host lifecycle
         run: |
           python3 -I scripts/test-server-updater-host.py
+          python3 -I scripts/test-server-lifecycle-harness.py
           python3 -I scripts/test-setup-server-updater.py
+          python3 -I scripts/test-docker-smoke-runner.py
+          python3 -I scripts/test-local-fixtures.py
 
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
@@ -131,12 +135,14 @@ jobs:
         run: docker build --target runtime -t p2pstream:ci .
 
       - name: Rehearse server update lifecycle in isolated Docker
-        timeout-minutes: 20
-        run: make docker-server-updater-test
+        # The canonical scenario alone has a 45-minute guard. Include image
+        # builds, legacy/engine scenarios, and time for diagnostics and cleanup.
+        timeout-minutes: 90
+        run: timeout --signal=TERM --kill-after=2m 85m make docker-server-updater-test
 
       - name: Upload server updater rehearsal artifacts
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: server-updater-rehearsal
           # Guest state contains disposable credentials and full data snapshots.
@@ -145,6 +151,7 @@ jobs:
             tmp/server-updater-tests/run.*/review/installation-evidence.json
             tmp/server-updater-tests/run.*/review/compose-versions.json
             tmp/server-updater-tests/run.*/review/installation-compose-compatibility.json
+            tmp/server-updater-tests/run.*/lifecycle-summary.json
             tmp/server-updater-tests/run.*/review/success/native-runtime-receipt.json
             tmp/server-updater-tests/run.*/review/rollback/native-runtime-receipt.json
             tmp/server-updater-tests/run.*/review/retry-recovery/native-runtime-receipt.json

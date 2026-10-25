@@ -46,6 +46,8 @@ For example, with **Hot object KiB** set to `256`, a cacheable 100 KiB response 
 
 The disk directory is `${CONFIG_DIR}/cache/public` by default, or the value of `PUBLIC_CACHE_DIR` when configured.
 
+Upgrading to cache-key namespace `v6` makes existing entries from older namespaces unreachable by new lookups, so expect a cold cache and a temporary increase in origin traffic. Old metadata and body files are not migrated or immediately deleted: they continue to occupy disk space and count toward storage budgets until normal expiry or budget eviction removes them. Cleanup is demand-driven as described above. Use **Purge all cached objects** if immediate reclamation is needed; otherwise allow normal cleanup to retire the old entries.
+
 The **Storage usage** panel reports cache-accounted body bytes for the disk tier, hot body copies currently retained in memory, and cache-entry count. Each meter shows used, configured limit, and remaining budget. The values update after each successful dashboard refresh (normally every five seconds while the session is active and no edit is in progress). “Remaining” means room within the configured cache budget; it is not the host filesystem's free-space measurement. Disk usage is the logical body size tracked by cache metadata, not filesystem allocation. Usage can briefly appear over a disk or entry limit until the next demand-driven cleanup pass.
 
 ## Validation Rules
