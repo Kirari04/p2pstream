@@ -75,6 +75,7 @@ jobs:
       - name: Test Docker release installation and host lifecycle
         run: |
           python3 -I scripts/test-server-updater-host.py
+          python3 -I scripts/test-server-lifecycle-harness.py
           python3 -I scripts/test-setup-server-updater.py
 
       - name: Run installer lifecycle tests
@@ -131,8 +132,10 @@ jobs:
         run: docker build --target runtime -t p2pstream:ci .
 
       - name: Rehearse server update lifecycle in isolated Docker
-        timeout-minutes: 20
-        run: make docker-server-updater-test
+        # The canonical scenario alone has a 45-minute guard. Include image
+        # builds, legacy/engine scenarios, and time for diagnostics and cleanup.
+        timeout-minutes: 90
+        run: timeout --signal=TERM --kill-after=2m 85m make docker-server-updater-test
 
       - name: Upload server updater rehearsal artifacts
         if: always()
@@ -145,6 +148,7 @@ jobs:
             tmp/server-updater-tests/run.*/review/installation-evidence.json
             tmp/server-updater-tests/run.*/review/compose-versions.json
             tmp/server-updater-tests/run.*/review/installation-compose-compatibility.json
+            tmp/server-updater-tests/run.*/lifecycle-summary.json
             tmp/server-updater-tests/run.*/review/success/native-runtime-receipt.json
             tmp/server-updater-tests/run.*/review/rollback/native-runtime-receipt.json
             tmp/server-updater-tests/run.*/review/retry-recovery/native-runtime-receipt.json

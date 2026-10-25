@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -46,6 +47,99 @@ func dockerReviewConfig(t *testing.T) ComposeConfig {
 		t.Fatal(err)
 	}
 	return c
+}
+
+// TestDockerReviewHostUpdate uses the host controller's real single-file
+// enrollment. Only the release catalog is synthetic. Its exact manifest hash
+// and stable minimum-safe floor are shared with the Python installation fixture.
+// The wrapper must stop the production executor first; take its real lock too.
+func TestDockerReviewHostUpdate(t *testing.T) {
+	if os.Getenv("REVIEW_HOST_RELEASE") == "" {
+		t.Skip("isolated host lifecycle fixture required")
+	}
+	c := dockerReviewConfig(t)
+	if c.DeploymentLayout != DeploymentLayoutSingleFileV1 {
+		t.Fatal("host update requires the explicit single-file-v1 layout")
+	}
+	lock, err := os.OpenFile(filepath.Join(c.StateDir, "executor.lock"), os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal("production executor must be stopped before host update qualification")
+	}
+	var r Release
+	raw, err := os.ReadFile(os.Getenv("REVIEW_HOST_RELEASE"))
+	if err != nil || json.Unmarshal(raw, &r) != nil {
+		t.Fatal("invalid host fixture release")
+	}
+	if err := r.Metadata.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if r.MinimumSafeVersion != "v0.1.52" || !digestPattern.MatchString(r.ManifestSHA256) ||
+		r.Sequence <= c.BootstrapFloor.Sequence || r.SecurityEpoch <= c.BootstrapFloor.SecurityEpoch ||
+		r.Version != r.Metadata.Version || r.Commit != r.Metadata.Commit || r.Channel != c.Channel {
+		t.Fatal("host fixture release must carry the shared advancing catalog floor")
+	}
+	// Bound fixture dwell without changing the installed production config.
+	c.HealthyDwellSeconds, c.HealthTimeoutSeconds = 2, 90
+	d := &ComposeDriver{Config: c}
+	defer d.releaseRuntimeLease()
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
+	defer cancel()
+	before, previousImage, _, err := d.Inspect(ctx)
+	if err != nil || !before.Ready || len(before.Blocked) != 0 || previousImage == r.Image {
+		t.Fatal("host fixture must start healthy on the distinct baseline image")
+	}
+	e, err := NewEngine(c.StateDir, c.InstanceID, c.Channel, d, dockerReviewSource{r}, c.BootstrapFloor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := e.Preview(ctx, r.Version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accepted, err := e.Start(ctx, StartRequest{OperationID: uuid.NewString(), Plan: p, Actor: "source-built-host-qualification"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	workerCtx, stopWorker := context.WithCancel(ctx)
+	workerDone := make(chan struct{})
+	go func() { defer close(workerDone); _ = e.Run(workerCtx) }()
+	defer func() { stopWorker(); <-workerDone }()
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for {
+		op, err := e.Operation(accepted.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if op.Terminal() || op.Phase == "recovery_required" {
+			if op.Phase != "succeeded" || op.BackupSHA256 == "" {
+				t.Fatalf("host update must succeed with a durable snapshot; phase=%s", op.Phase)
+			}
+			after, image, _, err := d.Inspect(ctx)
+			if err != nil || image != r.Image || after.Version != r.Version || after.Commit != r.Commit ||
+				!after.Ready || after.Maintenance || len(after.Blocked) != 0 || after.InstanceID != before.InstanceID {
+				t.Fatal("host update did not preserve a healthy installation on the candidate")
+			}
+			if err := verifyBackup(ctx, filepath.Join(c.StateDir, "backup-"+op.ID+".tar"), op.BackupSHA256); err != nil {
+				t.Fatal(err)
+			}
+			result, _ := json.Marshal(map[string]any{"phase": op.Phase, "image": image, "version": after.Version,
+				"snapshot_verified": true, "floor": r.VerificationFloor(), "fixture_healthy_dwell_seconds": 2})
+			if err := AtomicWrite(filepath.Join(c.StateDir, "host-update-result.json"), result, 0600); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 func TestDockerReviewEnroll(t *testing.T) {

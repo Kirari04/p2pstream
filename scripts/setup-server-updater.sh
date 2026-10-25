@@ -75,11 +75,12 @@ def main(args):
     require(VERSION.fullmatch(version), 'An exact release version is required')
     require(str(uuid.UUID(installation)) == installation and HEX.fullmatch(manifest_hash) and arch in {'amd64', 'arm64'}, 'Invalid installation binding')
     remaining = args[4:]
-    migrate = cancel = False
-    while remaining and remaining[0] in {'--migrate-deployment', '--cancel-enrollment'}:
-        require(not migrate and not cancel, 'Choose only one of --migrate-deployment and --cancel-enrollment')
+    migrate = cancel = single_file = False
+    while remaining and remaining[0] in {'--migrate-deployment', '--cancel-enrollment', '--single-file-deployment'}:
+        require(not migrate and not cancel and not single_file, 'Choose only one deployment setup or cancellation mode')
         migrate = remaining[0] == '--migrate-deployment'
         cancel = remaining[0] == '--cancel-enrollment'
+        single_file = remaining[0] == '--single-file-deployment'
         remaining = remaining[1:]
     current_version = current_hash = None
     if remaining and remaining[0] == '--upgraded-deployment':
@@ -146,6 +147,8 @@ def main(args):
                         '--expect-arch', arch, '--manifest-sha256', manifest_hash, '--repository', repository]
             if migrate:
                 command.append('--migrate-deployment')
+            if single_file:
+                command += ['--deployment-layout', 'single-file-v1']
             command += ['--'] + options
         subprocess.run(command, check=True)
 

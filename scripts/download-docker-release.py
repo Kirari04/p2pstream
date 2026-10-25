@@ -33,8 +33,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--release', required=True)
     parser.add_argument('--repository', default='Kirari04/p2pstream')
-    parser.add_argument('--directory', default='p2pstream')
+    parser.add_argument('--directory')
+    parser.add_argument('--deployment-layout', choices=['single-file-v1'], help='prepare the protected standard deployment for server updates')
     args = parser.parse_args()
+    destination = Path(args.directory or ('/opt/p2pstream/deployment' if args.deployment_layout else 'p2pstream')).absolute()
+    if args.deployment_layout and destination != Path('/opt/p2pstream/deployment'):
+        raise ValueError('single-file-v1 requires /opt/p2pstream/deployment')
     if not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?', args.release) or not re.fullmatch(r'[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*', args.repository):
         raise ValueError('An exact stable/staging release and GitHub repository are required')
     base = 'https://github.com/' + args.repository + '/releases/download/' + args.release + '/'
@@ -55,7 +59,10 @@ def main():
             if len(members) != len(NAMES) or {m.name for m in members} != NAMES or not all(m.isfile() and m.size <= 262144 for m in members):
                 raise ValueError('Unsafe Docker bundle contents')
             archive.extractall(directory, members=members)
-        subprocess.run(['python3', '-I', str(Path(directory) / 'server-updater-host.py'), 'deploy', '--release', args.release, '--repository', args.repository, '--directory', str(Path(args.directory).resolve())], check=True)
+        command = ['python3', '-I', str(Path(directory) / 'server-updater-host.py'), 'deploy', '--release', args.release, '--repository', args.repository, '--directory', str(destination if args.deployment_layout else destination.resolve())]
+        if args.deployment_layout:
+            command += ['--deployment-layout', args.deployment_layout]
+        subprocess.run(command, check=True)
 
 if __name__ == '__main__':
     main()

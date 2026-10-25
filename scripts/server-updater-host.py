@@ -29,12 +29,18 @@ import urllib.request
 import uuid
 
 STATE = Path('/etc/p2pstream-server-updater')
+SINGLE_LAYOUT = 'single-file-v1'
+SINGLE_DIRECTORY = Path('/opt/p2pstream/deployment')
+SINGLE_INPUTS = Path('/opt/p2pstream/compose.inputs.yaml')
+STABLE_CONTROLLER = Path('/usr/local/libexec/p2pstream/server-updater-host.py')
+STABLE_LAUNCHER = Path('/usr/local/sbin/p2pstream-server-update')
 BUNDLE_FILES = {'server-updater-host.py', 'install-server-updater.sh', 'server-updater-compose.sh', 'compose.yaml', '.env.example'}
 TERMINAL = {'succeeded', 'rolled_back', 'failed'}
 HEX = re.compile(r'^[0-9a-f]{64}$')
 VERSION = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?$')
 REPOSITORY = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*$')
 CANCELLATION = 'cancelled-enrollment.json'
+INSTALLATION_RECEIPT = 'installation-receipt.json'
 BLOCKED_INITIAL_OWNER = 'blocked-initial-owner.json'
 OWNER_ABSENT = 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json'
 # Published servers need no new recovery CLI or interpreter. These fixed native
@@ -66,6 +72,12 @@ head -c 65537 /proc/locks
 class Failure(RuntimeError):
     pass
 
+class CanonicalDrift(Failure):
+    pass
+
+class EnrollmentPreflightFailure(Failure):
+    pass
+
 class UnsettledHelper(Failure):
     pass
 
@@ -90,7 +102,7 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 def stable_version(value):
-    require(isinstance(value, str) and VERSION.fullmatch(value) and '-' not in value, 'Invalid retained minimum safe version')
+    require(isinstance(value, str) and len(value) <= 96 and VERSION.fullmatch(value) and '-' not in value, 'Invalid retained minimum safe version')
     return tuple(int(part) for part in value[1:].split('.'))
 
 def validate_floor(value):
@@ -110,22 +122,218 @@ def cancellation_receipt(directory, installation, repository, channel):
     if not os.path.lexists(path):
         return None
     value = read_json(path)
-    require(set(value) == {'api', 'installation', 'repository', 'channel', 'floor', 'completed'} and value['api'] == 1 and type(value['completed']) is bool, 'Invalid cancellation receipt')
+    require(isinstance(value, dict) and set(value) == {'api', 'installation', 'repository', 'channel', 'floor', 'completed'} and type(value['api']) is int and value['api'] == 1 and type(value['completed']) is bool, 'Invalid cancellation receipt')
     require((value['installation'], value['repository'], value['channel']) == (installation, repository, channel), 'Cancellation receipt belongs to another installation, publisher or channel')
     validate_floor(value['floor'])
     return value
 
+def merge_floors(floors):
+    # Sequence owns the manifest identity; epoch and minimum-safe are independent
+    # constraints. Retain every source so an older equal-sequence conflict cannot
+    # disappear merely because a later observation raised the effective sequence.
+    identities = {}
+    result = None
+    for floor in floors:
+        validate_floor(floor)
+        sequence = floor['sequence']
+        if sequence in identities:
+            require(identities[sequence] == floor, 'Release identity differs from the retained enrollment floor (conflicting history)')
+        identities[sequence] = floor
+        if result is None:
+            result = dict(floor)
+        else:
+            if sequence > result['sequence']:
+                result.update(sequence=sequence, manifest_sha256=floor['manifest_sha256'])
+            result['security_epoch'] = max(result['security_epoch'], floor['security_epoch'])
+            if stable_version(floor['minimum_safe_version']) > stable_version(result['minimum_safe_version']):
+                result['minimum_safe_version'] = floor['minimum_safe_version']
+    return result
+
+
+def retained_installation(directory, installation, repository, channel, *, active=True):
+    """Read-only recovery of trusted local constraints, never from a live image.
+
+    The host lock serializes writers; mutation callers also hold executor.lock.
+    Complete old archives are checked even when a receipt exists. A copying
+    archive is only a redundant partial snapshot of its still-present journal.
+    No timestamps are synthesized: provenance records the exact bytes read.
+    """
+    require(isinstance(installation, str) and str(uuid.UUID(installation)) == installation and isinstance(repository, str) and REPOSITORY.fullmatch(repository) and channel in {'stable', 'staging'}, 'Invalid retained installation identity')
+    identity = (installation, repository, channel)
+    sources = []
+    snapshots = {}
+    def document(path):
+        raw = read_state_bytes(path)
+        snapshots[path] = digest(raw)
+        return decode(raw)
+    def bound(value):
+        require((value.get('installation'), value.get('repository'), value.get('channel')) == identity, 'Retained history belongs to another installation, publisher or channel')
+    def add(kind, path, floor):
+        validate_floor(floor)
+        source = {'kind': kind, 'sha256': snapshots[path], 'floor': floor}
+        if source not in sources:
+            sources.append(source)
+    # Keep the legacy receipt's independent transaction-completion semantics.
+    cancellation = cancellation_receipt(directory, *identity)
+    path = directory / INSTALLATION_RECEIPT
+    if os.path.lexists(path):
+        receipt = read_json(path)
+        require(isinstance(receipt, dict) and set(receipt) == {'api', 'installation', 'repository', 'channel', 'floor', 'sources'} and type(receipt['api']) is int and receipt['api'] == 1, 'Invalid retained installation receipt')
+        bound(receipt)
+        validate_floor(receipt['floor'])
+        require(isinstance(receipt['sources'], list) and receipt['sources'], 'Invalid retained installation provenance')
+        for source in receipt['sources']:
+            require(isinstance(source, dict) and set(source) == {'kind', 'sha256', 'floor'} and isinstance(source['kind'], str) and source['kind'] in {'bootstrap', 'activated', 'observed', 'cancellation'} and isinstance(source['sha256'], str) and HEX.fullmatch(source['sha256']), 'Invalid retained installation provenance')
+            validate_floor(source['floor'])
+            require(source not in sources, 'Duplicate retained installation provenance')
+            sources.append(source)
+        require(merge_floors(source['floor'] for source in sources) == receipt['floor'], 'Retained installation floor differs from its provenance')
+    if cancellation:
+        # The cancellation file is host-owned and serialized by host.lock.
+        require(document(directory / CANCELLATION) == cancellation, 'Cancellation receipt changed during floor validation')
+        add('cancellation', directory / CANCELLATION, cancellation['floor'])
+
+    def collect(root, *, archived=False):
+        host_path, config_path, state_path = (root / name for name in ('host.json', 'config.json', 'state.json'))
+        require(os.path.lexists(host_path), 'Incomplete retained history; restore the matching complete private archive before enrollment')
+        journal = document(host_path)
+        require(isinstance(journal, dict), 'Invalid retained host history')
+        bound(journal)
+        phase = journal.get('recovery_phase') or journal.get('phase')
+        if archived:
+            require(phase in {'removed', 'rolled_back', 'preparing', 'recovery_required'} and not journal.get('recovery_operation'), 'Incomplete retained removal history; restore the matching complete private archive before enrollment')
+        if not os.path.lexists(config_path):
+            require(phase == 'preparing' and not os.path.lexists(state_path) and not any(journal.get(k) for k in ('verified_version', 'verified_commit', 'deployment_migration')), 'Missing retained configuration; restore the matching complete private archive before enrollment')
+            return  # Discarded, unactivated preparation accepted no executor floor.
+        config = document(config_path)
+        require(isinstance(config, dict) and (config.get('instance_id'), config.get('repository'), config.get('channel')) == identity, 'Retained configuration belongs to another installation, publisher or channel')
+        bootstrap = validate_floor(config.get('bootstrap_floor'))
+        add('bootstrap', config_path, bootstrap)
+        if os.path.lexists(state_path):
+            state = document(state_path)
+            require(isinstance(state, dict) and set(state) <= {'api', 'instance_id', 'channel', 'floor', 'observed_floor', 'plan', 'operation'} and type(state.get('api')) is int and state['api'] == 1 and (state.get('instance_id'), state.get('channel')) == (installation, channel), 'Retained executor state belongs to another installation or channel, or is invalid')
+            activated = validate_floor(state.get('floor'))
+            require_floor(activated, bootstrap)
+            add('activated', state_path, activated)
+            observed = state.get('observed_floor')
+            # Old Go state omitted this field, or encoded its all-zero value.
+            if 'observed_floor' not in state or observed == {'sequence': 0, 'security_epoch': 0, 'minimum_safe_version': '', 'manifest_sha256': ''} and type(observed['sequence']) is int and type(observed['security_epoch']) is int:
+                return
+            validate_floor(observed)
+            require_floor(observed, activated)
+            add('observed', state_path, observed)
+
+    marker = directory / 'archive.json'
+    transaction = read_json(marker) if os.path.lexists(marker) else None
+    active_journal = os.path.lexists(directory / 'host.json')
+    if transaction is not None:
+        require(isinstance(transaction, dict) and set(transaction) == {'id', 'stage', 'names'} and isinstance(transaction['id'], str) and str(uuid.UUID(transaction['id'])) == transaction['id'] and isinstance(transaction['stage'], str) and transaction['stage'] in {'copying', 'copied'} and isinstance(transaction['names'], list) and all(isinstance(name, str) and name not in {'', '.', '..', INSTALLATION_RECEIPT} and Path(name).name == name for name in transaction['names']) and len(set(transaction['names'])) == len(transaction['names']) and 'host.json' in transaction['names'], 'Invalid retained archive transaction')
+        require(active_journal or transaction['stage'] == 'copied' and (directory / 'history' / transaction['id']).is_dir(), 'Incomplete retained archive; restore the matching complete private archive before enrollment')
+    if active and active_journal:
+        collect(directory)
+    elif active and not transaction:
+        require(not any(os.path.lexists(directory / name) for name in ('config.json', 'state.json')), 'Orphaned retained state; restore its matching host history before enrollment')
+    history = directory / 'history'
+    if os.path.lexists(history):
+        require(stat.S_ISDIR(history.lstat().st_mode), 'Unsafe retained installation history')
+        for archive in sorted(history.iterdir()):
+            require(stat.S_ISDIR(archive.lstat().st_mode) and str(uuid.UUID(archive.name)) == archive.name, 'Unsafe retained installation archive')
+            if transaction and transaction.get('id') == archive.name and active_journal:
+                require(transaction.get('stage') in {'copying', 'copied'}, 'Invalid retained archive transaction')
+                continue
+            collect(archive, archived=True)
+    if os.path.lexists(directory / 'reenrollment.json') and not active_journal:
+        require(sources, 'Missing retained removal history; restore the matching complete private archive before enrollment')
+    floor = merge_floors(source['floor'] for source in sources)
+    if floor is None:
+        return None
+    return {'api': 1, 'installation': installation, 'repository': repository, 'channel': channel, 'floor': floor, 'sources': sources}
+
+
+def persist_installation(directory, installation, repository, channel, *, active=True):
+    receipt = retained_installation(directory, installation, repository, channel, active=active)
+    if receipt:
+        atomic(directory / INSTALLATION_RECEIPT, receipt)
+    return receipt
+
+
 def check_cancellation_floor(directory, args, manifest, manifest_hash):
-    receipt = cancellation_receipt(directory, args.expect_installation, args.repository, args.expect_channel)
+    # Also covers ordinary removals and pre-receipt archived installations.
+    receipt = retained_installation(directory, args.expect_installation, args.repository, args.expect_channel)
     if receipt:
         require_floor({key: manifest[key] for key in ('sequence', 'security_epoch', 'minimum_safe_version')} | {'manifest_sha256': manifest_hash}, receipt['floor'])
         version = args.expect_version.partition('-')[0]
         require(stable_version(version) > stable_version(receipt['floor']['minimum_safe_version']) or version == receipt['floor']['minimum_safe_version'] and '-' not in args.expect_version, 'Selected server is below the retained minimum safe version')
 
-def read_json(path):
+
+# Never print server-provided diagnostic strings: these instructions are owned by
+# this verified controller, and codes are the only diagnostic input we consume.
+ENROLLMENT_ACTIONS = {
+    'database_schema_unavailable': 'Restore database readiness and retry setup.',
+    'agent_updates_active': 'Wait for agent updates to finish, then retry setup.',
+    'certificate_rotation_active': 'Wait for certificate rotation to finish, then retry setup.',
+    'public_listener_unavailable': 'Restore the public listener and retry setup.',
+    'custom_database_path': 'Use the supported database path before enabling server updates.',
+    'custom_state_path': 'Use the supported state path before enabling server updates.',
+    'maintenance_active': 'Complete maintenance recovery before enabling server updates.',
+    'configuration_unavailable': 'Restore server configuration readiness and retry setup.',
+    'installation_identity_unavailable': 'Restore the server installation identity and retry setup.',
+    'runtime_unavailable': 'Restore server runtime readiness and retry setup.',
+}
+
+
+def enrollment_preflight(container, image, installation, version, commit, *, canonical=False):
+    try:
+        return _enrollment_preflight(container, image, installation, version, commit, canonical=canonical)
+    except EnrollmentPreflightFailure:
+        raise
+    except (Failure, OSError, ValueError, KeyError, TypeError, RecursionError):
+        raise EnrollmentPreflightFailure('Enrollment preflight could not verify the running server; restore readiness and retry setup') from None
+
+def _enrollment_preflight(container, image, installation, version, commit, *, canonical=False):
+    def reject(condition, message):
+        if not condition:
+            raise EnrollmentPreflightFailure(message)
+    def response(command):
+        result = docker('exec', container, '/app/p2pstream', command, check=False)
+        reject(result.returncode == 0 and len(result.stdout) <= 16 * 1024, 'Enrollment preflight is unavailable or invalid; deploy a current published server and retry setup')
+        try:
+            value = decode(result.stdout)
+        except (ValueError, Failure, UnicodeError):
+            raise EnrollmentPreflightFailure('Invalid enrollment preflight response; deploy a current published server and retry setup') from None
+        reject(isinstance(value, dict), 'Invalid enrollment preflight response')
+        return value
+    def verify_container():
+        inspection = decode(docker('inspect', container).stdout)
+        reject(isinstance(inspection, list) and len(inspection) == 1 and inspection[0]['Id'] == container and inspection[0]['Image'] == image and inspection[0]['State']['Running'], 'Running deployment changed during enrollment preflight; refresh the selected server setup command')
+        reject(docker('exec', container, '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == installation, 'Installation identity changed during enrollment preflight')
+    verify_container()
+    capability = response('server-enrollment-capabilities')
+    reject(type(capability.get('enrollment_preflight')) is int and capability['enrollment_preflight'] == 1, 'This server lacks enrollment preflight capability 1; manually deploy a current published server before enabling updates')
+    if canonical:
+        reject(type(capability.get('canonical_compose')) is int and capability['canonical_compose'] == 1 and type(capability.get('runtime_guard')) is int and capability['runtime_guard'] == 2, 'This server lacks canonical Compose capability 1; deploy a current published server before selecting single-file-v1')
+    reject((capability.get('version'), capability.get('commit')) == (version, commit), 'Enrollment preflight capability differs from the pinned release')
+    value = response('server-enrollment-preflight')
+    reject(set(value) == {'api', 'installation_id', 'version', 'commit', 'ready', 'blockers'} and type(value['api']) is int and value['api'] == 1 and type(value['ready']) is bool and isinstance(value['blockers'], list), 'Invalid enrollment preflight response')
+    reject((value['installation_id'], value['version'], value['commit']) == (installation, version, commit), 'Enrollment preflight differs from the selected installation or pinned release')
+    codes = []
+    for blocker in value['blockers']:
+        reject(isinstance(blocker, dict) and set(blocker) == {'code', 'action', 'message'} and all(isinstance(blocker[k], str) for k in ('code', 'action', 'message')), 'Invalid enrollment preflight blocker')
+        reject(blocker['code'] in ENROLLMENT_ACTIONS and blocker['code'] not in codes, 'Unknown or duplicate enrollment preflight blocker; deploy a current published server and retry setup')
+        codes.append(blocker['code'])
+    reject(value['ready'] == (not codes), 'Inconsistent enrollment preflight readiness')
+    verify_container()
+    reject(value['ready'], 'Enrollment blocked: ' + '; '.join(code + ': ' + ENROLLMENT_ACTIONS[code] for code in codes))
+    return {'installation': installation, 'version': version, 'commit': commit, 'container_id': container, 'image_id': image}
+
+
+def read_state_bytes(path):
     info = path.lstat()
     require(stat.S_ISREG(info.st_mode) and info.st_size <= 2 * 1024 * 1024, 'Unsafe or oversized state file: ' + str(path))
-    return decode(path.read_bytes())
+    return path.read_bytes()
+
+def read_json(path):
+    return decode(read_state_bytes(path))
 
 def atomic(path, data, mode=0o600, uid=None, gid=None):
     if not isinstance(data, bytes):
@@ -287,7 +495,7 @@ def compose_sources(options, container):
         result.append(str(path))
     return result
 
-def source_layout(source_dir, files, project, owned_aliases=None):
+def source_layout(source_dir, files, project, owned_aliases=None, *, env_options=()):
     directory = Path(source_dir)
     defaults = [directory / name for name in ('compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml') if os.path.lexists(directory / name)]
     require(len(defaults) <= 1, 'Multiple default Compose files exist; resolve the default command context before enrollment')
@@ -305,7 +513,7 @@ def source_layout(source_dir, files, project, owned_aliases=None):
     with tempfile.TemporaryDirectory(prefix='p2pstream-compose-project-') as tmp:
         selected = Path(tmp) / 'selected-project.json'
         atomic(selected, {'name': project})
-        environment = docker('compose', *[part for path in files for part in ('-f', path)], '-f', str(selected), 'config', '--environment', cwd=source_dir)
+        environment = docker('compose', *env_options, *[part for path in files for part in ('-f', path)], '-f', str(selected), 'config', '--environment', cwd=source_dir)
     values = {}
     if environment.returncode == 0:
         for line in environment.stdout.decode().splitlines():
@@ -322,12 +530,452 @@ def source_layout(source_dir, files, project, owned_aliases=None):
     alias = str(defaults[0]) if defaults and str(defaults[0]) not in files else str(directory / 'compose.yaml') if not defaults and not values.get('COMPOSE_FILE') else None
     return {'primary': primary, 'default_alias': alias, 'existing_alias_sha256': owned_aliases.get(alias) if alias and os.path.lexists(alias) else None}
 
+def protected_path(path, *, directory=False, optional=False, forbidden=0o022):
+    """Reject unsafe existing components; never chmod/chown an unsafe ancestor."""
+    path = Path(path)
+    require(path.is_absolute() and '..' not in path.parts, 'Protected deployment paths must be absolute and normalized')
+    for component in [*reversed(path.parents), path]:
+        leaf = component == path
+        if leaf and optional and not os.path.lexists(component):
+            return
+        info = component.lstat()
+        ordinary = stat.S_ISDIR(info.st_mode) if not leaf or directory else stat.S_ISREG(info.st_mode) and info.st_nlink == 1
+        require(ordinary and info.st_uid == 0 and not info.st_mode & (forbidden if leaf else 0o022), 'Unsafe protected deployment path: ' + str(component) + '; require ordinary root-owned paths without writable ancestors')
+
+
+def create_protected_directory(path, mode=0o750, gid=0):
+    path = Path(path)
+    if not os.path.lexists(path):
+        if not path.parent.exists():
+            create_protected_directory(path.parent)
+        protected_path(path.parent, directory=True)
+        path.mkdir(mode=mode)
+        os.chown(path, 0, gid)
+        path.chmod(mode)
+        fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    protected_path(path, directory=True)
+
+
+def single_paths(*, source=True):
+    protected_path(SINGLE_DIRECTORY, directory=True, forbidden=0o027)
+    require(stat.S_IMODE(SINGLE_DIRECTORY.stat().st_mode) == 0o2750, 'single-file-v1 requires the dedicated deployment directory mode 2750; prepare it explicitly before setup')
+    protected_path(SINGLE_INPUTS, optional=True, forbidden=0o027)
+    protected_path(STATE, directory=True, optional=True, forbidden=0o077)
+    trees = [STATE, SINGLE_DIRECTORY, Path('/server-data'), Path('/data')]
+    require(all(a != b and a not in b.parents and b not in a.parents for i, a in enumerate(trees) for b in trees[:i]), 'Private state, canonical deployment and data paths must not overlap')
+    require(SINGLE_INPUTS.parent == SINGLE_DIRECTORY.parent and SINGLE_INPUTS.parent != SINGLE_DIRECTORY and SINGLE_DIRECTORY not in SINGLE_INPUTS.parents and STATE not in SINGLE_INPUTS.parents, 'Editable inputs must remain outside executor-writable mounts')
+    if source:
+        protected_path(SINGLE_DIRECTORY / 'compose.yaml', forbidden=0o027)
+    for name in ('compose.yml', 'docker-compose.yaml', 'docker-compose.yml', 'compose.override.yaml', 'compose.override.yml', 'docker-compose.override.yaml', 'docker-compose.override.yml'):
+        require(not os.path.lexists(SINGLE_DIRECTORY / name), 'single-file-v1 does not support alternate default files or automatic overrides: ' + name)
+    for name in ('.env', 'release.json'):
+        protected_path(SINGLE_DIRECTORY / name, optional=True)
+
+
+def single_selection(args):
+    selected = getattr(args, 'deployment_layout', '') or ''
+    require(selected in {'', SINGLE_LAYOUT}, 'Unsupported deployment layout')
+    saved = read_json(STATE / 'host.json') if os.path.lexists(STATE / 'host.json') else None
+    if saved:
+        recorded = saved.get('deployment_layout', '')
+        require(recorded in {'', SINGLE_LAYOUT}, 'Unsupported recorded deployment layout; restore the matching private history')
+        require(not selected or recorded == selected, 'Existing enrollment retains its recorded layout; single-file-v1 migration is not supported')
+        return recorded == SINGLE_LAYOUT
+    if selected:
+        return True
+    # This declaration chooses a fixed layout only. It conveys no paths and
+    # never replaces manifest/image/install-identity verification below.
+    if Path.cwd() != SINGLE_DIRECTORY or not os.path.lexists(SINGLE_DIRECTORY / 'release.json'):
+        return False
+    single_paths()
+    value = read_json(SINGLE_DIRECTORY / 'release.json')
+    if isinstance(value, dict) and value.get('deployment_layout') == SINGLE_LAYOUT:
+        require(set(value) == {'api', 'deployment_layout', 'repository', 'version', 'commit', 'channel', 'manifest_sha256', 'image'} and type(value['api']) is int and value['api'] == 1 and isinstance(value['repository'], str) and REPOSITORY.fullmatch(value['repository']) and isinstance(value['version'], str) and VERSION.fullmatch(value['version']) and isinstance(value['commit'], str) and re.fullmatch('[0-9a-f]{40}', value['commit']) and value['channel'] in {'stable', 'staging'} and isinstance(value['manifest_sha256'], str) and HEX.fullmatch(value['manifest_sha256']) and isinstance(value['image'], str) and re.fullmatch(re.escape('ghcr.io/' + value['repository'].lower() + '@sha256:') + '[0-9a-f]{64}', value['image']), 'Invalid standard deployment layout declaration')
+        return True
+    return False
+
+
+def single_resolved_model(value, *, enrolled=False):
+    allowed = {'p2pstream', 'p2pstream-server-updater'} if enrolled else {'p2pstream'}
+    require(isinstance(value, dict) and isinstance(value.get('services'), dict) and set(value['services']) == allowed and not any(value.get(k) for k in ('include', 'configs', 'secrets')) and all(isinstance(service, dict) and not any(service.get(k) for k in ('extends', 'env_file', 'configs', 'secrets')) for service in value['services'].values()), 'single-file-v1 requires a resolved single-server model without includes, extends, env_file, configs or secrets')
+    return value
+
+
+def single_input_options(project):
+    # Editable inputs are already resolved. An explicit empty env file prevents
+    # later .env interpolation and Compose self-configuration on the host, just
+    # as COMPOSE_DISABLE_ENV_FILE does inside the immutable helper container.
+    return ['--env-file', '/dev/null', '--project-name', project, '--project-directory', str(SINGLE_DIRECTORY), '-f', str(SINGLE_INPUTS)]
+
+
+def single_matching_inputs(model):
+    if not os.path.lexists(SINGLE_INPUTS):
+        return
+    protected_path(SINGLE_INPUTS, forbidden=0o027)
+    inputs = read_state_bytes(SINGLE_INPUTS)
+    single_resolved_model(decode(inputs))
+    editable = single_resolved_model(decode(docker('compose', *single_input_options(model['name']), 'config', '--format', 'json').stdout))
+    require(read_state_bytes(SINGLE_INPUTS) == inputs, 'Editable inputs changed during resolution; restore matching inputs and retry setup')
+    expected = decode(json.dumps(model))
+    # Apply deliberately takes the image from the current managed deployment.
+    # Retained tags/digests may predate pinning or an update; all settings that
+    # apply actually adopts must still match the current standalone deployment.
+    editable['services']['p2pstream']['image'] = expected['services']['p2pstream']['image']
+    for candidate in (editable, expected):
+        service = candidate['services']['p2pstream']
+        if service.get('labels') == {}:
+            del service['labels']  # Removal can leave an empty managed-label map.
+    require(editable == expected, 'Editable inputs differ from the current standalone deployment; reconcile ' + str(SINGLE_INPUTS) + ' with the current settings, or copy the current resolved canonical model from ' + str(SINGLE_DIRECTORY / 'compose.yaml') + ' to that file, then retry setup. Reenrollment was not staged.')
+
+
+def single_source(options, model, container, *, enrolled=False, resolved=False):
+    require(Path.cwd() == SINGLE_DIRECTORY, 'single-file-v1 requires running setup from ' + str(SINGLE_DIRECTORY))
+    single_paths()
+    files = []
+    for key, value in zip(options[::2], options[1::2]):
+        require(key in {'-p', '--project-name', '-f', '--file', '--project-directory'}, 'single-file-v1 supports only its single canonical Compose file and recorded project')
+        if key in {'-f', '--file'}:
+            require(value == str(SINGLE_DIRECTORY / 'compose.yaml'), 'single-file-v1 requires the single standard canonical Compose file')
+            files.append(value)
+        elif key == '--project-directory':
+            require(value == str(SINGLE_DIRECTORY), 'single-file-v1 requires its standard project directory')
+    require(len(files) <= 1, 'single-file-v1 does not support multiple Compose inputs')
+    single_resolved_model(model, enrolled=enrolled)
+    labels = container['Config'].get('Labels', {})
+    recorded = labels.get('com.docker.compose.project.config_files')
+    require(not recorded or recorded == str(SINGLE_DIRECTORY / 'compose.yaml'), 'Running server was created from multiple or different Compose inputs')
+    source_layout(str(SINGLE_DIRECTORY), [str(SINGLE_DIRECTORY / 'compose.yaml')], model['name'], env_options=['--env-file', '/dev/null'] if resolved else [])
+    for mount in container.get('Mounts', []):
+        if mount.get('Destination') == '/data' and mount.get('Source'):
+            data = Path(mount['Source'])
+            require(all(data != path and data not in path.parents and path not in data.parents for path in (STATE, SINGLE_DIRECTORY, SINGLE_INPUTS)), 'Deployment/private/input paths overlap the data volume')
+
+
+def publish_stable_controller(bundle):
+    bundle = Path(bundle)
+    for name in BUNDLE_FILES:
+        info = (bundle / name).lstat()
+        require(stat.S_ISREG(info.st_mode) and info.st_size <= 262144, 'Unsafe or incomplete verified installation bundle')
+    controller = (bundle / 'server-updater-host.py').read_bytes()
+    require(controller == Path(__file__).read_bytes(), 'Stable controller differs from the executing verified installation helper')
+    create_protected_directory(STABLE_CONTROLLER.parent, 0o755)
+    create_protected_directory(STABLE_LAUNCHER.parent, 0o755)
+    protected_path(STABLE_CONTROLLER, optional=True)
+    protected_path(STABLE_LAUNCHER, optional=True)
+    atomic(STABLE_CONTROLLER, controller, mode=0o644)
+    atomic(STABLE_LAUNCHER, ('#!/bin/sh\nexec python3 -I ' + str(STABLE_CONTROLLER) + ' "$@"\n').encode(), mode=0o755)
+
+
 class Host:
     def __init__(self, directory=STATE):
         self.directory = directory
         self.journal = {}
         self.config = None
         self.updater = None
+
+    def single_file(self):
+        return (self.config or {}).get('deployment_layout') == SINGLE_LAYOUT or self.journal.get('deployment_layout') == SINGLE_LAYOUT
+
+    def validate_single_state(self):
+        single_paths(source=False)
+        require(self.journal.get('deployment_layout') == SINGLE_LAYOUT and self.journal.get('source_directory') == str(SINGLE_DIRECTORY) and self.journal.get('deployment_directory') == str(SINGLE_DIRECTORY), 'Missing or inconsistent single-file-v1 private host history; restore its complete private state before recovery')
+        if self.config:
+            require(self.config.get('deployment_layout') == SINGLE_LAYOUT and self.config.get('deployment_protocol') == 2 and self.config.get('deployment_file') == str(SINGLE_DIRECTORY / 'compose.yaml') and self.config.get('instance_id') == self.journal['installation'] and self.config.get('repository') == self.journal['repository'] and self.config.get('channel') == self.journal['channel'], 'Canonical deployment configuration differs from private host history')
+
+    def canonical_capability(self, image, container=None):
+        if container:
+            result = docker('exec', container, '/app/p2pstream', 'server-enrollment-capabilities', check=False)
+        else:
+            immutable = decode(docker('image', 'inspect', image).stdout)[0]['Id']
+            result = docker('run', '--rm', '--cap-drop', 'ALL', '--cap-add', 'NET_BIND_SERVICE', '--security-opt', 'no-new-privileges', '--entrypoint', '/app/p2pstream', immutable, 'server-enrollment-capabilities', check=False)
+        require(result.returncode == 0 and len(result.stdout) <= 16384, 'Published server/executor lacks single-file-v1 enrollment capabilities')
+        value = decode(result.stdout)
+        require(isinstance(value, dict) and set(value) == {'runtime_guard', 'enrollment_preflight', 'canonical_compose', 'version', 'commit'} and all(type(value[k]) is int and value[k] == expected for k, expected in [('runtime_guard', 2), ('enrollment_preflight', 1), ('canonical_compose', 1)]), 'Published server/executor lacks canonical Compose capability 1')
+        labels = decode(docker('image', 'inspect', image).stdout)[0]['Config']['Labels']
+        require((value['version'], value['commit']) == (labels.get('org.opencontainers.image.version'), labels.get('org.opencontainers.image.revision')), 'Canonical Compose capabilities differ from immutable image identity')
+
+    def single_canonical_hash(self, *, missing=False):
+        path = SINGLE_DIRECTORY / 'compose.yaml'
+        protected_path(path, optional=missing, forbidden=0o027)
+        return digest(path.read_bytes()) if os.path.lexists(path) else None
+
+    def single_expect_canonical(self, hashes, *, missing=False):
+        actual = self.single_canonical_hash(missing=missing)
+        if actual not in hashes:
+            raise CanonicalDrift('Canonical Compose changed outside the recorded transaction; restore the exact recorded model before retrying. No unrelated edits were adopted.')
+        return actual
+
+    def single_initial_candidate(self):
+        self.validate_single_state()
+        recorded = self.journal.get('single_initial')
+        require(isinstance(recorded, dict) and set(recorded) == {'source_sha256', 'candidate_sha256', 'input_sha256'} and all(isinstance(v, str) and HEX.fullmatch(v) for v in recorded.values()), 'Missing single-file-v1 initial publication history; restore the complete private state')
+        candidate = read_state_bytes(self.directory / 'staged-compose.yaml')
+        require(digest(candidate) == recorded['candidate_sha256'] and digest(read_state_bytes(self.directory / 'original-source.yaml')) == recorded['source_sha256'] and digest(read_state_bytes(self.directory / 'input.json')) == recorded['input_sha256'], 'Private canonical publication inputs changed; restore the complete matching private state')
+        require((self.directory / 'staged-compose.yaml').stat().st_mode & 0o777 == 0o600, 'Private staged canonical model must remain mode 0600')
+        return candidate
+
+    def prepare_single(self):
+        self.validate_single_state()
+        require(digest(read_state_bytes(self.directory / 'input.json')) == self.journal['input_sha256'] and digest(read_state_bytes(self.directory / 'original-source.yaml')) == self.journal['source_sha256'], 'Private original enrollment inputs changed')
+        if not self.config:
+            self.command('enroll', '--directory', str(self.directory), '--compose', str(self.directory / 'input.json'), '--image', self.journal['server_image'], '--updater-image', self.updater, '--installation', self.journal['installation'], '--release-directory', str(self.directory / 'release'), '--deployment-directory', str(SINGLE_DIRECTORY), '--deployment-layout', SINGLE_LAYOUT)
+            self.config = read_json(self.directory / 'config.json')
+        self.validate_single_state()
+        candidate = read_state_bytes(self.directory / 'staged-compose.yaml')
+        before = read_json(self.directory / 'input.json')
+        before['services']['p2pstream']['image'] = self.journal['server_image']
+        before_raw = (json.dumps(before, indent=2) + '\n').encode()
+        atomic(self.directory / 'before-compose.json', before_raw)
+        atomic(self.directory / 'enrolled-compose.json', candidate)
+        initial = {'source_sha256': self.journal['source_sha256'], 'candidate_sha256': digest(candidate), 'input_sha256': self.journal['input_sha256']}
+        self.phase('prepared', before_sha256=digest(before_raw), single_initial=initial,
+                   canonical_transaction={'api': 1, 'kind': 'initial', 'from_sha256': initial['source_sha256'], 'to_sha256': initial['candidate_sha256']})
+
+    def activate_single(self):
+        self._single_activation_mutating = False
+        try:
+            return self._activate_single()
+        except (CanonicalDrift, EnrollmentPreflightFailure):
+            raise
+        except (Failure, OSError, ValueError, KeyError) as error:
+            if not self._single_activation_mutating:
+                # Validation refusal must never enter rollback and manufacture
+                # ownership for an untouched/stopped or changed original server.
+                raise EnrollmentPreflightFailure(str(error) if isinstance(error, Failure) else 'Canonical activation verification failed before mutation; restore the recorded server and private inputs before repair') from error
+            raise
+
+    def _activate_single(self):
+        self.idle()
+        candidate = self.single_initial_candidate()
+        initial = self.journal['single_initial']
+        resuming = self.interrupted_initial_activation()
+        allowed = {initial['source_sha256'], self.journal['before_sha256']}
+        if self.journal.get('single_rollback_sha256'):
+            require(digest(read_state_bytes(self.directory / 'rollback-compose.json')) == self.journal['single_rollback_sha256'], 'Recorded canonical rollback candidate changed')
+            allowed.add(self.journal['single_rollback_sha256'])
+        if resuming:
+            allowed.add(initial['candidate_sha256'])
+            allowed.add(None)  # Only an already-recorded activation may repair absence.
+        self.single_expect_canonical(allowed, missing=resuming)
+        ids = self.compose('ps', '--all', '--quiet', 'p2pstream', model='before-compose.json').stdout.decode().split()
+        require(len(ids) == 1 or not ids and resuming and self.journal.get('replacement_intent'), 'Server disappeared before recorded canonical activation; no durable blocked replacement proof, restore the original server before repair')
+        proof = self.journal.get('activation_preflight')
+        expected = self.journal['before_image_id']
+        if ids:
+            info = decode(docker('inspect', ids[0]).stdout)[0]
+            require(info['Id'] == ids[0] and info['Image'] == expected, 'Running image changed after single-file-v1 setup was staged')
+            if info['State']['Running']:
+                proof = enrollment_preflight(ids[0], expected, self.journal['installation'], self.journal['version'], self.journal['commit'], canonical=True)
+            else:
+                require(resuming, 'Original server is stopped before enrollment preflight; restore it before repair')
+        if not ids or not info['State']['Running']:
+            require(isinstance(proof, dict) and set(proof) == {'installation', 'version', 'commit', 'container_id', 'image_id'} and (proof['installation'], proof['version'], proof['commit'], proof['image_id']) == (self.journal['installation'], self.journal['version'], self.journal['commit'], expected), 'Missing enrollment preflight provenance for interrupted canonical activation')
+            require(self.data_identity() == self.journal['installation'], 'Installation identity changed during canonical activation')
+        require_data_writers(self.config['data_volume'], ids[0] if ids else '', self.config['instance_id'])
+        if not resuming and docker('exec', ids[0], '/bin/sh', '-c', OWNER_ABSENT, check=False).returncode != 0:
+            raise EnrollmentPreflightFailure('Unexpected runtime ownership before initial canonical activation; restore matching private history instead of resetting ownership')
+        self.single_expect_canonical(allowed, missing=resuming)
+        self.phase('activating', activation_preflight=proof)
+        # The private candidate is the only authority before publication. This
+        # helper blocks admission, but cannot publish, stop, or allow a server.
+        self.prepare_replacement(info if ids else None, 'activation', decode(candidate), canonical_block=True)
+        self.compose('stop', 'p2pstream', model='before-compose.json')
+        self.single_expect_canonical(allowed, missing=resuming)
+        self.write_model(candidate)
+        self.deploy_server()
+        self.start_executor()
+        status = self.wait_healthy()
+        self.record_runtime()
+        self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
+        print('Server updates enabled. Edit ' + str(SINGLE_INPUTS) + ', then sudo ' + str(STABLE_LAUNCHER) + ' apply. Later .env edits are not used.')
+
+    def single_transaction(self):
+        self.validate_single_state()
+        transaction = self.journal.get('canonical_transaction')
+        require(isinstance(transaction, dict) and set(transaction) == {'api', 'kind', 'from_sha256', 'to_sha256'} and type(transaction['api']) is int and transaction['api'] == 1 and transaction['kind'] in {'initial', 'apply', 'remove'} and all(isinstance(transaction[k], str) and HEX.fullmatch(transaction[k]) for k in ('from_sha256', 'to_sha256')), 'Missing or invalid canonical transaction history; restore the matching private state')
+        accepted = {transaction['from_sha256'], transaction['to_sha256'], self.journal['before_sha256']}
+        if self.journal.get('single_rollback_sha256'):
+            rollback = read_state_bytes(self.directory / 'rollback-compose.json')
+            require(digest(rollback) == self.journal['single_rollback_sha256'], 'Recorded canonical rollback candidate changed')
+            accepted.add(self.journal['single_rollback_sha256'])
+        self.single_expect_canonical(accepted)
+        return transaction
+
+    def rollback_single(self):
+        require(self.journal['phase'] in {'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished canonical transaction exists; rollback cannot downgrade a healthy deployment')
+        self.idle()
+        previous = read_state_bytes(self.directory / 'before-compose.json')
+        require(digest(previous) == self.journal['before_sha256'], 'Canonical rollback snapshot differs from recorded transaction')
+        ids = self.compose('ps', '--all', '--quiet', 'p2pstream', model='before-compose.json').stdout.decode().split()
+        if not ids:
+            if not self.journal.get('replacement_intent'):
+                raise MissingRollbackServer('Expected exactly one existing server for configuration rollback; no durable blocked replacement proof, refusing to recreate a missing deployment')
+            self.verify_replacement_intent()
+            actual = None
+        else:
+            require(len(ids) == 1, 'Expected exactly one existing server for canonical rollback')
+            inspection = decode(docker('inspect', ids[0]).stdout)
+            require(len(inspection) == 1 and inspection[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
+            actual = inspection[0]
+            require(actual['Image'] == self.journal['before_image_id'], 'Running image changed outside canonical transaction; refusing rollback')
+        transaction = self.single_transaction()
+        enrolled = 'p2pstream-server-updater' in decode(previous)['services']
+        if self.journal.get('single_rollback_sha256'):
+            replacement = read_state_bytes(self.directory / 'rollback-compose.json')
+            require(digest(replacement) == self.journal['single_rollback_sha256'], 'Recorded canonical rollback candidate changed')
+        else:
+            rollback_model = decode(previous)
+            if enrolled:
+                rollback_model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(uuid.uuid4())
+            replacement = (json.dumps(rollback_model, indent=2) + '\n').encode()
+            atomic(self.directory / 'rollback-compose.json', replacement)
+        binding = self.replacement_binding()
+        intent = self.journal.get('replacement_intent')
+        previous_model = self.replacement_model()
+        if actual is not None:
+            self.replacement_server(actual, binding)
+        declaration = {'single_rollback_sha256': digest(replacement)}
+        if enrolled:
+            target = {'binding': binding, 'generation': decode(replacement)['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION']}
+            require(not self.journal.get('rollback_target') or self.journal['rollback_target'] == target, 'Rollback target binding changed')
+            declaration['rollback_target'] = target
+        if intent and intent['operation'] != 'rollback' and not self.journal.get('rollback_transition'):
+            require(intent['binding'] == binding and self.cancellation_model_hash(previous_model) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
+            declaration['rollback_transition'] = {'api': 1, 'intent_sha256': digest(json.dumps(intent, sort_keys=True).encode()),
+                'binding': intent['binding'], 'previous_model_sha256': self.cancellation_model_hash(previous_model),
+                'target_sha256': self.cancellation_model_hash(replacement),
+                'server': self.cancellation_stable_server(actual) if actual else None}
+        self.phase('rolling_back', **declaration)
+        self.compose('stop', 'p2pstream-server-updater', model='before-compose.json' if enrolled else 'enrolled-compose.json')
+        self.prepare_replacement(actual, 'rollback', decode(replacement), canonical_block=True)
+        self.compose('stop', 'p2pstream', model='before-compose.json')
+        self.single_transaction()
+        self.write_model(replacement)
+        self.deploy_server(detached=not enrolled)
+        if enrolled:
+            self.start_executor()
+            self.wait_healthy()
+            self.record_runtime()
+            self.phase('healthy', error='Previous canonical configuration restored; editable inputs and data retained')
+        else:
+            self.wait_original()
+            self.phase('rolled_back', error='Original standalone server restored at the canonical path; editable inputs retained')
+
+    def change_single(self, action):
+        require(action in {'apply', 'remove'} and self.journal['phase'] == 'healthy', 'Resolve interrupted canonical work with repair before apply/remove')
+        self.validate_single_state()
+        self.idle()
+        self.healthy()
+        current = read_state_bytes(self.current_model_path())
+        before_hash = digest(current)
+        if action == 'apply':
+            protected_path(SINGLE_INPUTS, forbidden=0o027)
+            inputs = read_state_bytes(SINGLE_INPUTS)
+            try:
+                single_resolved_model(decode(inputs))
+            except ValueError:
+                raise Failure('Editable inputs must remain the resolved JSON model in compose.inputs.yaml') from None
+            raw = docker('compose', *single_input_options(self.config['project']), 'config', '--format', 'json').stdout
+            single_resolved_model(decode(raw))
+            require(read_state_bytes(SINGLE_INPUTS) == inputs, 'Editable inputs changed during resolution')
+            atomic(self.directory / 'candidate-input.json', raw)
+            self.command('configure', '--compose', str(self.directory / 'candidate-input.json'), '--output', str(self.directory / 'candidate-compose.json'))
+            candidate_model = read_json(self.directory / 'candidate-compose.json')
+            candidate_model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(uuid.uuid4())
+            candidate = (json.dumps(candidate_model, indent=2) + '\n').encode()
+        else:
+            retained_installation(self.directory, self.journal['installation'], self.config['repository'], self.config['channel'])
+            candidate = (json.dumps(decode(remove_model(decode(current))), indent=2) + '\n').encode()
+        atomic(self.directory / 'candidate-compose.json', candidate)
+        self.compose('config', '--format', 'json', model='candidate-compose.json')
+        self.single_expect_canonical({before_hash})
+        atomic(self.directory / 'before-compose.json', current)
+        expected = decode(docker('image', 'inspect', decode(current)['services']['p2pstream']['image']).stdout)[0]['Id']
+        self.journal.pop('single_rollback_sha256', None)
+        self.phase('applying' if action == 'apply' else 'removing', before_sha256=before_hash, before_image_id=expected,
+                   canonical_transaction={'api': 1, 'kind': action, 'from_sha256': before_hash, 'to_sha256': digest(candidate)})
+        executor_lock = None
+        try:
+            executor_lock = self.stop_executor()
+            if action == 'remove':
+                self.retain_installation()
+            self.prepare_replacement(self.server_container(), action, decode(candidate))
+            self.compose('stop', 'p2pstream', model='before-compose.json')
+            self.single_expect_canonical({before_hash})
+            self.write_model(candidate)
+            self.deploy_server(detached=action == 'remove')
+            os.close(executor_lock)
+            executor_lock = None
+            if action == 'apply':
+                self.start_executor()
+                status = self.wait_healthy()
+                self.record_runtime()
+                atomic(self.directory / 'enrolled-compose.json', candidate)
+                self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
+            else:
+                self.finish_removal()
+            print('Canonical deployment ' + ('updated' if action == 'apply' else 'detached') + ' at ' + str(self.current_model_path()) + '; editable inputs retained at ' + str(SINGLE_INPUTS))
+        except Exception as error:
+            if executor_lock is not None:
+                os.close(executor_lock)
+            self.recover_failure(error)
+
+    def repair_single(self):
+        self.validate_single_state()
+        self.settle_helper()
+        self.idle()
+        phase = self.journal['phase']
+        if phase == 'recovery_required':
+            recovery = self.journal.get('recovery_phase')
+            require(recovery != 'recovering_update' and not self.journal.get('recovery_operation'), 'Data recovery was interrupted; run the recorded recover-update command instead of canonical repair')
+            if recovery == 'healthy':
+                # Read-only diagnostics also use journaled helpers. Losing the
+                # daemon while settling one must not make the installation-era
+                # before model a rollback target for a completed enrollment.
+                require(isinstance(self.journal.get('verified_version'), str) and VERSION.fullmatch(self.journal['verified_version']) and isinstance(self.journal.get('verified_commit'), str) and re.fullmatch('[0-9a-f]{40}', self.journal['verified_commit']), 'Recorded healthy diagnostic recovery lacks completed enrollment provenance; restore the matching private history')
+                self.phase('healthy', error='')
+                phase = 'healthy'
+            else:
+                require(recovery is None or isinstance(recovery, str) and recovery in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'rolled_back'}, 'Unsupported recorded canonical recovery phase; restore the matching operation history before repair')
+                # A helper's saved activating phase is not permission to
+                # recreate a missing server. Keep recovery_required and use the
+                # existing transaction rollback's presence/hash/identity guards.
+        if phase == 'healthy':
+            try:
+                self.healthy()
+            except (Failure, OSError, ValueError):
+                self.idle()
+                current = read_state_bytes(self.current_model_path())
+                info = self.server_container()
+                expected = decode(docker('image', 'inspect', decode(current)['services']['p2pstream']['image']).stdout)[0]['Id']
+                self.validate_recreation_server(info, expected, {self.canonical_hash()})
+                # This is an executor-only repair. The server, its generation,
+                # canonical bytes and editable inputs must remain unchanged.
+                self.single_expect_canonical({digest(current)})
+                lock = self.stop_executor()
+                os.close(lock)
+                self.start_executor()
+                self.wait_healthy()
+                self.single_expect_canonical({digest(current)})
+            print('Enrollment healthy; current canonical model and credentials preserved.')
+            return
+        require(phase != 'removed', 'Enrollment was removed; use the current server setup command from ' + str(SINGLE_DIRECTORY))
+        if phase in {'applying', 'removing', 'rolling_back', 'recovery_required'}:
+            self.rollback_single()
+            return
+        require(phase in {'preparing', 'prepared', 'rolled_back', 'activating'}, 'Unsupported canonical recovery phase; restore the complete private history')
+        if phase == 'preparing':
+            self.repair_readiness()
+            self.updater = self.journal['updater_image']
+            self.prepare_single()
+        try:
+            self.activate_single()
+        except Exception as error:
+            self.recover_failure(error)
 
     def current_model_path(self):
         return Path(self.config.get('deployment_file', self.directory / 'compose.json')) if self.config else self.directory / 'compose.json'
@@ -337,9 +985,16 @@ class Host:
 
     def write_model(self, data):
         path = self.current_model_path()
+        if self.single_file():
+            self.validate_single_state()
+            protected_path(path, optional=True, forbidden=0o027)
+            atomic(path, data, mode=0o640, gid=path.parent.stat().st_gid)
+            return
         atomic(path, data, mode=0o640 if self.config and self.config.get('deployment_protocol') == 2 else 0o600)
 
     def input_options(self):
+        if self.single_file():
+            return single_input_options(self.config['project'])
         return self.journal.get('editable_compose_options', self.journal['compose_options'])
 
     def prepare_deployment_directory(self):
@@ -583,7 +1238,14 @@ class Host:
                 self.journal = read_json(self.directory / 'host.json')
             if (self.directory / 'config.json').exists():
                 self.config = read_json(self.directory / 'config.json')
-                model = read_json(self.current_model_path())
+                if self.single_file():
+                    self.validate_single_state()
+                    if not os.path.lexists(self.current_model_path()):
+                        require(self.interrupted_initial_activation(), 'Canonical Compose is missing outside a recorded initial activation; restore the canonical file and matching private history')
+                        self.single_initial_candidate()
+                    model = {}
+                else:
+                    model = read_json(self.current_model_path())
                 self.updater = self.journal.get('updater_image') or model.get('services', {}).get('p2pstream-server-updater', {}).get('image', '')
                 require(re.fullmatch(re.escape('ghcr.io/' + self.config['repository'].lower() + '-updater@sha256:') + '[0-9a-f]{64}', self.updater), 'Host operations require the enrolled published updater image')
             yield
@@ -637,7 +1299,7 @@ class Host:
             raise UnsettledHelper('Host helper may still be running. Do not start competing recovery. Restore Docker access, then sudo ' + str(self.directory / 'manage') + ' repair') from error
 
     def cancellation_helper_args(self):
-        return [tuple(('compose', '--project-name', self.config['project'], '--project-directory', str(path.parent), '-f', str(path), *operation))
+        return [tuple(('compose', '--project-name', self.config['project'], '--project-directory', self.journal['source_directory'] if self.single_file() else str(path.parent), '-f', str(path), *operation))
                 for path, operation in ((self.current_model_path(), ('ps', '--all', '--quiet', 'p2pstream')),
                                         (self.directory / 'before-compose.json', ('config', '--hash', 'p2pstream')))]
 
@@ -664,7 +1326,7 @@ class Host:
             if result.returncode:
                 diagnostic = self.directory / 'helper-failure.log'
                 action = 'host helper'
-                if entrypoint == '/app/p2pstream' and len(args) >= 2 and args[0] == 'server-updater' and args[1] in {'check', 'enroll', 'configure', 'recover', 'runtime-block', 'runtime-allow', 'runtime-detach', 'record-runtime'}:
+                if entrypoint == '/app/p2pstream' and len(args) >= 2 and args[0] == 'server-updater' and args[1] in {'check', 'enroll', 'configure', 'recover', 'runtime-block', 'runtime-block-rollback', 'runtime-allow', 'runtime-detach', 'record-runtime'}:
                     action = 'server-updater ' + args[1]
                 elif entrypoint == '/usr/local/bin/docker' and args and args[0] == 'compose':
                     action = 'Docker Compose'
@@ -687,11 +1349,12 @@ class Host:
 
     def compose(self, *args, model='compose.json'):
         path = self.model_path(model)
-        return self.tools('compose', '--project-name', self.config['project'], '--project-directory', str(path.parent), '-f', str(path), *args, readonly=bool(args and args[0] in {'ps', 'logs', 'config'}), cancellation_validation=bool(getattr(self, '_cancellation_validation', False)))
+        project_directory = self.journal['source_directory'] if self.single_file() else str(path.parent)
+        return self.tools('compose', '--project-name', self.config['project'], '--project-directory', project_directory, '-f', str(path), *args, readonly=bool(args and args[0] in {'ps', 'logs', 'config'}), cancellation_validation=bool(getattr(self, '_cancellation_validation', False)))
 
     def command(self, *args):
         mounts = []
-        if args and args[0] in {'recover', 'runtime-block', 'runtime-allow', 'runtime-detach'}:
+        if args and args[0] in {'recover', 'runtime-block', 'runtime-block-staged', 'runtime-block-rollback', 'runtime-allow', 'runtime-detach'}:
             mounts = ['--label', 'p2pstream.server-update.executor=' + self.config['instance_id'],
                       '--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data']
         return self.run_helper('/app/p2pstream', ('server-updater', *args), mounts=mounts, readonly=bool(args and args[0] == 'check'), timeout=900 if args and args[0] == 'recover' else 180)
@@ -777,11 +1440,23 @@ class Host:
         require(self.journal.get('phase') == 'removed', 'Only a completed removal can be reenrolled')
         self.settle_helper()
         self.wait_original()
-        self.save_reenrollment_context()
-        self.archive_state()
+        fd = os.open(self.directory / 'executor.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise Failure('An executor still owns this deployment; removal archival is refused') from error
+            self.retain_installation()
+            self.save_reenrollment_context()
+            self.archive_state()
+        finally:
+            os.close(fd)
         self.journal = {}
         self.config = None
         self.updater = None
+
+    def retain_installation(self):
+        return persist_installation(self.directory, self.journal['installation'], self.config['repository'], self.config['channel'])
 
     def save_reenrollment_context(self):
         require(self.journal.get('phase') == 'removed', 'Reenrollment ownership requires a completed removal')
@@ -851,9 +1526,23 @@ class Host:
             else:
                 require(stat.S_ISREG(path.lstat().st_mode) and digest(path.read_bytes()) == item['original_sha256'], 'Original Compose source changed after rollback')
         source = decode(docker('compose', *self.journal['compose_options'], 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)
-        # Enrollment replaces only the input image reference with its publisher-
-        # verified digest; source files may retain their equivalent release tag.
-        require(source['services']['p2pstream'].get('image') == read_json(self.directory / 'input.json')['services']['p2pstream'].get('image'), 'Original Compose image input changed')
+        # Legacy sources retain their original tag. The single-file controller
+        # instead publishes its recorded digest-normalized rollback model at the
+        # source path. Admit only those exact bytes and that one normalization,
+        # bound to the original private inputs and initial publication history.
+        if self.single_file():
+            candidate = decode(self.single_initial_candidate())
+            transaction = self.single_transaction()
+            initial = self.journal['single_initial']
+            require(transaction['kind'] == 'initial' and transaction['from_sha256'] == initial['source_sha256'] and transaction['to_sha256'] == initial['candidate_sha256'], 'Cancellation is not the recorded initial canonical transaction')
+            rollback = read_state_bytes(self.directory / 'rollback-compose.json')
+            require(digest(rollback) == self.journal.get('single_rollback_sha256') and read_state_bytes(self.current_model_path()) == rollback, 'Canonical source differs from the recorded controller rollback')
+            normalized = read_json(self.directory / 'input.json')
+            normalized['services']['p2pstream']['image'] = self.journal['server_image']
+            require(normalized == original and server['image'] == self.journal['server_image'] == candidate['services']['p2pstream']['image'], 'Canonical rollback differs from the recorded image-only normalization')
+            require(source['services']['p2pstream'].get('image') == server['image'], 'Resolved canonical image differs from the recorded controller rollback')
+        else:
+            require(source['services']['p2pstream'].get('image') == read_json(self.directory / 'input.json')['services']['p2pstream'].get('image'), 'Original Compose image input changed')
         source['services']['p2pstream']['image'] = server['image']
         require(source == original, 'Resolved original Compose inputs changed after rollback')
         info = self.server_container()
@@ -1322,6 +2011,7 @@ class Host:
             self.handoff_recovery_controller(args.bundle)
             receipt = {'api': 1, 'installation': args.expect_installation, 'repository': args.repository, 'channel': args.expect_channel, 'floor': floor, 'completed': False}
             atomic(self.directory / CANCELLATION, receipt)
+            self.retain_installation()
             if executors:
                 docker('rm', executors[0])  # No force: a concurrently started executor fails closed.
             remaining = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
@@ -1340,7 +2030,7 @@ class Host:
         if marker.exists():
             transaction = read_json(marker)
         else:
-            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json', CANCELLATION}]
+            names = [p.name for p in self.directory.iterdir() if p.name not in {'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json', CANCELLATION, INSTALLATION_RECEIPT}]
             transaction = {'id': str(uuid.uuid4()), 'stage': 'copying', 'names': names}
             atomic(marker, transaction)
         archive = self.archive_directory(transaction)
@@ -1373,7 +2063,7 @@ class Host:
 
     def archive_directory(self, transaction):
         require(str(uuid.UUID(transaction['id'])) == transaction['id'], 'Invalid archive identity')
-        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json', CANCELLATION} for n in transaction['names']), 'Unsafe archive inventory')
+        require(all(isinstance(n, str) and Path(n).name == n and n not in {'', '.', '..', 'host.lock', 'history', 'detached-compose.json', 'archive.json', 'reenrollment.json', CANCELLATION, INSTALLATION_RECEIPT} for n in transaction['names']), 'Unsafe archive inventory')
         return self.directory / 'history' / transaction['id']
 
     def sync_directory(self):
@@ -1388,6 +2078,8 @@ class Host:
         transaction = read_json(marker)
         archive = self.archive_directory(transaction)
         require(transaction['stage'] == 'copied' and archive.is_dir(), 'Incomplete archive; inspect the private history before proceeding')
+        journal = read_json(archive / 'host.json')
+        persist_installation(self.directory, journal['installation'], journal['repository'], journal['channel'], active=False)
         for name in transaction['names']:
             require((archive / name).exists() or (archive / name).is_symlink(), 'Missing archived input; refusing cleanup')
             source = self.directory / name
@@ -1430,7 +2122,11 @@ class Host:
         return fields[1]
 
     def data_identity(self):
-        return self.run_helper('/app/p2pstream', ('server-installation-identity',), readonly=True, image=read_json(self.current_model_path())['services']['p2pstream']['image'], mounts=(
+        # The initial canonical leaf can still be original YAML after stop.
+        # Select its verified private model independently of recovery phase;
+        # published/updated canonical models retain their current image.
+        model = decode(self.replacement_model()) if self.single_file() else read_json(self.current_model_path())
+        return self.run_helper('/app/p2pstream', ('server-installation-identity',), readonly=True, image=model['services']['p2pstream']['image'], mounts=(
             '--env', 'CONFIG_DIR=/server-data', '--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data,readonly')).stdout.decode().strip()
 
     def validate_recreation_server(self, info, image_id, hashes, *, stopped=False):
@@ -1546,12 +2242,42 @@ class Host:
             require(isinstance(owner['generation'], str) and re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', owner['generation']), 'Invalid replacement runtime generation')
         return {'directory': directory.decode('ascii'), 'owner': owner}
 
+    def replacement_model(self):
+        if self.single_file() and self.journal.get('canonical_transaction', {}).get('kind') == 'initial':
+            self.single_initial_candidate()
+            missing = self.interrupted_initial_activation()
+            actual = self.single_canonical_hash(missing=missing)
+            if actual == self.journal['single_initial']['source_sha256'] or actual is None:
+                # The exact original YAML may still use a tag. Its immutable
+                # before snapshot is the normalized replacement identity.
+                require(actual is not None or self.journal.get('replacement_intent'), 'Missing canonical model has no blocked replacement proof')
+                raw = read_state_bytes(self.directory / 'before-compose.json')
+                require(digest(raw) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
+                return raw
+        return self.current_model_path().read_bytes()
+
+    def block_single_replacement(self):
+        require(self.single_file(), 'Canonical runtime block requires single-file-v1')
+        transaction = self.journal['canonical_transaction']
+        if transaction['kind'] == 'initial':
+            model = decode(self.single_initial_candidate())
+            self._single_activation_mutating = True
+            self.command('runtime-block-staged', '--config', str(self.directory / 'config.json'), '--installation', self.journal['installation'], '--image', self.journal['server_image'])
+        else:
+            self.single_transaction()
+            raw = read_state_bytes(self.directory / 'rollback-compose.json')
+            require(digest(raw) == self.journal['single_rollback_sha256'], 'Recorded canonical rollback candidate changed')
+            model = decode(raw)
+            self.command('runtime-block-rollback', '--config', str(self.directory / 'config.json'), '--installation', self.journal['installation'],
+                         '--image', model['services']['p2pstream']['image'], '--snapshot-sha256', self.journal['single_rollback_sha256'])
+        return model['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_GENERATION')
+
     def replacement_binding(self):
         raw = (self.directory / 'before-compose.json').read_bytes()
         require(digest(raw) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
         model = decode(raw)
         image = model['services']['p2pstream']['image']
-        require(read_json(self.current_model_path())['services']['p2pstream']['image'] == image, 'Replacement active image differs from the recorded transaction')
+        require(decode(self.replacement_model())['services']['p2pstream']['image'] == image, 'Replacement active image differs from the recorded transaction')
         require(re.fullmatch(re.escape('ghcr.io/' + self.config['repository'].lower() + '@sha256:') + '[0-9a-f]{64}', image), 'Recovery image is not pinned')
         published = decode(docker('image', 'inspect', image).stdout)
         require(len(published) == 1 and published[0]['Id'] == self.journal['before_image_id'], 'Recovery image differs from the recorded transaction')
@@ -1562,7 +2288,9 @@ class Host:
         return {'before_sha256': digest(raw), 'image': image, 'image_id': published[0]['Id'], 'version': version, 'commit': commit,
                 'config_sha256': digest((self.directory / 'config.json').read_bytes()), 'installation': self.journal['installation'],
                 'project': self.config['project'], 'data_volume': self.config['data_volume'],
-                'source_sha256': self.cancellation_model_hash(docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)}
+                # Canonical recovery restores the immutable transaction model;
+                # editable inputs belong to the operator's next explicit apply.
+                'source_sha256': self.cancellation_model_hash(raw) if self.single_file() else self.cancellation_model_hash(docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)}
 
     def recorded_rollback_transition(self, intent, binding):
         transition = self.journal.get('rollback_transition')
@@ -1578,6 +2306,7 @@ class Host:
         require(self.cancellation_model_hash(json.dumps(model).encode()) == transition['target_sha256'], 'Rollback publication target differs from the recorded snapshot')
         return transition
 
+
     def replacement_model_hashes(self, intent, binding):
         hashes = {intent['target_sha256'], intent['previous_model_sha256']}
         transition = self.recorded_rollback_transition(intent, binding)
@@ -1585,17 +2314,21 @@ class Host:
             hashes.add(transition['target_sha256'])
         return hashes
 
+
     def replacement_server(self, info, binding):
         labels = info['Config'].get('Labels', {})
         require(info['Image'] == binding['image_id'], 'Running image changed outside this host transaction; refusing configuration-only rollback')
         require(labels.get('com.docker.compose.project') == binding['project'] and labels.get('com.docker.compose.service') == 'p2pstream', 'Replacement server belongs to another deployment')
         hashes = set()
-        for name in ('before-compose.json', 'compose.json'):
+        names = ['before-compose.json', 'compose.json']
+        if self.single_file() and not self.current_model_path().exists():
+            names = ['before-compose.json', 'staged-compose.yaml']
+        for name in names:
             fields = self.compose('config', '--hash', 'p2pstream', model=name).stdout.decode().split()
             require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot verify replacement settings')
             hashes.add(fields[1])
         if not self.journal.get('verified_version') and not self.journal.get('verified_commit'):
-            fields = docker('compose', '--project-directory', self.journal['source_directory'], '-f', str(self.directory / 'input.json'), 'config', '--hash', 'p2pstream').stdout.decode().split()
+            fields = docker('compose', *(['--env-file', '/dev/null'] if self.single_file() else []), '--project-directory', self.journal['source_directory'], '-f', str(self.directory / 'input.json'), 'config', '--hash', 'p2pstream').stdout.decode().split()
             require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot verify original replacement settings')
             hashes.add(fields[1])
         intent = self.journal.get('replacement_intent')
@@ -1623,14 +2356,14 @@ class Host:
         require(self.config.get('deployment_protocol') == 2 and intent and intent.get('api') == 1, 'Missing deployment has no durable blocked replacement proof; refusing to recreate a missing deployment')
         binding = binding or self.replacement_binding()
         require(intent['binding'] == binding, 'Replacement snapshot, configuration or image binding changed')
-        require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
+        require(self.cancellation_model_hash(previous_model if previous_model is not None else self.replacement_model()) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
         data = self.replacement_data()
         require(data['directory'] == intent['data_directory'] and self.replacement_owned(data['owner'], intent), 'Replacement runtime owner or data directory changed')
         require(self.data_identity() == binding['installation'], 'Installation identity changed during replacement')
         require_data_writers(binding['data_volume'], '', binding['installation'])
         return intent
 
-    def prepare_replacement(self, info, operation, target, *, stopped_from=None, previous_model=None):
+    def prepare_replacement(self, info, operation, target, *, stopped_from=None, previous_model=None, canonical_block=False):
         if self.config.get('deployment_protocol') != 2:
             return
         self.idle()
@@ -1638,7 +2371,7 @@ class Host:
         existing = self.journal.get('replacement_intent')
         if existing:
             require(existing.get('api') == 1 and existing['binding'] == binding, 'Replacement snapshot, configuration or image binding changed')
-            require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in self.replacement_model_hashes(existing, binding), 'Replacement active model changed')
+            require(self.cancellation_model_hash(previous_model if previous_model is not None else self.replacement_model()) in self.replacement_model_hashes(existing, binding), 'Replacement active model changed')
         if info is None:
             self.verify_replacement_intent(binding, previous_model)
         elif stopped_from is not None:
@@ -1654,13 +2387,20 @@ class Host:
             generations = set()
             for path in (self.current_model_path(), self.directory / 'before-compose.json', self.directory / 'enrolled-compose.json'):
                 if path.exists():
-                    generations.add(read_json(path)['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_GENERATION'))
+                    model = decode(self.replacement_model()) if path == self.current_model_path() else read_json(path)
+                    generations.add(model['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_GENERATION'))
+            if canonical_block and self.journal['canonical_transaction']['kind'] == 'initial':
+                generations.add(decode(self.single_initial_candidate())['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'])
+            if canonical_block and self.journal.get('single_rollback_sha256'):
+                generations.add(read_json(self.directory / 'rollback-compose.json')['services']['p2pstream']['environment'].get('SERVER_UPDATE_GENERATION'))
             owner = data['owner']
             require(owner['instance_id'] == binding['installation'] and owner['version'] == binding['version'] and owner['commit'] == binding['commit'] and owner['generation'] in generations, 'Runtime owner does not belong to this replacement transaction')
         # Block first, then recheck the same live deployment before recording
         # authority. A prepared phase or installation UUID alone proves nothing.
-        require(data['owner'] is not None or read_json(self.current_model_path())['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2', 'Detached rollback has no blocked runtime authority; restore the verified managed deployment before retrying')
-        self.runtime('block')
+        require(data['owner'] is not None or canonical_block and self.single_file() or read_json(self.current_model_path())['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2', 'Detached rollback has no blocked runtime authority; restore the verified managed deployment before retrying')
+        generation = self.block_single_replacement() if canonical_block else None
+        if not canonical_block:
+            self.runtime('block')
         blocked = self.replacement_data()
         require(blocked['directory'] == data['directory'] and blocked['owner'] is not None and blocked['owner']['allowed'] is False, 'Replacement runtime admission was not blocked')
         owner = blocked['owner']
@@ -1668,7 +2408,7 @@ class Host:
         if data['owner'] is not None:
             require(owner == dict(data['owner'], allowed=False), 'Runtime owner changed while blocking replacement')
         else:
-            require(owner['generation'] == read_json(self.current_model_path())['services']['p2pstream']['environment'].get('SERVER_UPDATE_GENERATION'), 'Blocked replacement generation differs from the verified model')
+            require(owner['generation'] == (generation if canonical_block else read_json(self.current_model_path())['services']['p2pstream']['environment'].get('SERVER_UPDATE_GENERATION')), 'Blocked replacement generation differs from the verified model')
         if info is not None:
             current = self.server_container()
             require(self.cancellation_server_identity(current) == self.cancellation_server_identity(info), 'Deployment changed while blocking replacement')
@@ -1692,7 +2432,7 @@ class Host:
         if existing and existing['operation'] == operation and existing['target_sha256'] == digest(target_raw):
             return  # Retain exact original authority across retries.
         intent = {'api': 1, 'operation': operation, 'binding': binding, 'container_id': info['Id'] if info else existing['container_id'],
-                  'data_directory': blocked['directory'], 'owner': owner, 'permitted_owner': permitted, 'previous_server': self.cancellation_stable_server(info) if info else None, 'target_sha256': digest(target_raw), 'previous_model_sha256': self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes())}
+                  'data_directory': blocked['directory'], 'owner': owner, 'permitted_owner': permitted, 'previous_server': self.cancellation_stable_server(info) if info else None, 'target_sha256': digest(target_raw), 'previous_model_sha256': self.cancellation_model_hash(previous_model if previous_model is not None else self.replacement_model())}
         # Commit new authority and consume its publication bridge in one write.
         self.journal.pop('rollback_transition', None)
         self.phase(self.journal['phase'], replacement_intent=intent)
@@ -1781,13 +2521,17 @@ class Host:
         candidate = self.current_model_path().read_bytes()
         self.compose('rm', '--force', 'p2pstream-server-updater', model='before-compose.json')
         atomic(self.directory / 'detached-compose.json', candidate)
-        if self.config.get('deployment_protocol') == 2:
+        if self.single_file():
+            self.phase('removed', error='')
+        elif self.config.get('deployment_protocol') == 2:
             self.export_sources(candidate)
             self.phase('removed', error='', editable_compose_options=self.journal['compose_options'])
         else:
             self.phase('removed', error='', source_directory=str(self.directory), compose_options=['-p', self.config['project'], '-f', str(self.directory / 'detached-compose.json')])
         print('Updater removed. Current pinned image, settings, ports and data retained.')
-        if self.config.get('deployment_protocol') == 2:
+        if self.single_file():
+            print('Editable inputs: ' + str(SINGLE_INPUTS))
+        elif self.config.get('deployment_protocol') == 2:
             print('Editable current deployment: ' + self.journal['source_layout']['primary'] + '; the original and default Compose commands retain the current image and settings.')
         else:
             print('Editable deployment: ' + str(self.directory / 'detached-compose.json') + '; apply with sudo docker compose -p ' + self.config['project'] + ' -f ' + str(self.directory / 'detached-compose.json') + ' up -d --no-deps --no-build p2pstream')
@@ -1797,7 +2541,7 @@ class Host:
         if self.journal['detached_continuation']['operation'] == 'remove':
             self.finish_removal()
         else:
-            self.phase('rolled_back', error='Original deployment restored; enrollment is not enabled')
+            self.phase('rolled_back', error='Original standalone server restored at the canonical path; editable inputs retained' if self.single_file() else 'Original deployment restored; enrollment is not enabled')
             print(self.journal['error'])
 
     def interrupted_initial_activation(self):
@@ -1805,8 +2549,44 @@ class Host:
                 and not any(self.journal.get(key) for key in ('verified_version', 'verified_commit', 'deployment_migration', 'recovery_phase', 'recovery_operation'))
                 and not os.path.lexists(self.directory / 'state.json'))
 
+    def repair_readiness(self):
+        # Preparation/rolled-back repair must prove readiness before restoring
+        # even the saved model. A refusal leaves the transaction byte-identical.
+        expected = decode(docker('image', 'inspect', self.journal['server_image']).stdout)[0]['Id']
+        if self.config:
+            ids = self.compose('ps', '--all', '--quiet', 'p2pstream').stdout.decode().split()
+        else:
+            ids = docker('compose', *self.journal['compose_options'], 'ps', '--all', '--quiet', 'p2pstream', cwd=self.journal['source_directory']).stdout.decode().split()
+        require(len(ids) == 1, 'Expected the original running server before enrollment repair')
+        return enrollment_preflight(ids[0], expected, self.journal['installation'], self.journal['version'], self.journal['commit'], canonical=self.single_file())
+
     def activate(self):
+        if self.single_file():
+            return self.activate_single()
         self.idle()
+        # A refused preflight must not turn an untouched prepared deployment
+        # into a rollback. On retries, probe before even restoring source bridges.
+        expected = decode(docker('image', 'inspect', self.journal['server_image']).stdout)[0]['Id']
+        inventory = self.compose('ps', '--all', '--quiet', 'p2pstream').stdout.decode().split()
+        proof = self.journal.get('activation_preflight')
+        inspection = None
+        if len(inventory) == 1:
+            inspection = decode(docker('inspect', inventory[0]).stdout)[0]
+            require(inspection['Image'] == expected, 'Running image changed after setup was staged; refusing a configuration-only replacement')
+        if inspection and inspection['State']['Running']:
+            pass  # Probe at the first mutation boundary, after read-only checks.
+        elif len(inventory) <= 1 and self.interrupted_initial_activation():
+            # No server can answer while recovering a replacement already begun.
+            # Only the exact, previously preflighted activation may cross this gap.
+            require(isinstance(proof, dict) and set(proof) == {'installation', 'version', 'commit', 'container_id', 'image_id'} and (proof['installation'], proof['version'], proof['commit'], proof['image_id']) == (self.journal['installation'], self.journal['version'], self.journal['commit'], expected) and isinstance(proof['container_id'], str) and proof['container_id'], 'Missing enrollment preflight provenance for interrupted activation; restore the original server before repair')
+        else:
+            require(False, 'Server disappeared after setup was staged; inspect the host before repair')
+        restoring_bridges = self.config.get('deployment_protocol') == 2 and self.journal.get('source_bridge')
+        if restoring_bridges:
+            if inspection and inspection['State']['Running']:
+                proof = enrollment_preflight(inventory[0], expected, self.journal['installation'], self.journal['version'], self.journal['commit'])
+            self.runtime('block')
+            self.source_bridges()
         raw = docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
         require(raw == (self.directory / 'input.json').read_bytes(), 'Compose inputs changed after setup was staged; restore the recorded inputs before repair')
         expected = decode(docker('image', 'inspect', self.journal['server_image']).stdout)[0]['Id']
@@ -1815,10 +2595,16 @@ class Host:
         if ids:
             actual = decode(docker('inspect', ids[0]).stdout)[0]
             require(actual['Image'] == expected, 'Running image changed after setup was staged; refusing a configuration-only replacement')
+            if not actual['State']['Running']:
+                require(self.data_identity() == self.journal['installation'], 'Installation identity changed during activation')
         else:
             require(self.data_identity() == self.journal['installation'], 'Installation identity changed during activation')
         require_data_writers(self.config['data_volume'], ids[0] if ids else '', self.config['instance_id'])
-        self.phase('activating')
+        if ids != inventory:
+            raise EnrollmentPreflightFailure('Running deployment changed before activation; refresh the selected server setup command')
+        if not restoring_bridges and inspection and inspection['State']['Running']:
+            proof = enrollment_preflight(ids[0], expected, self.journal['installation'], self.journal['version'], self.journal['commit'])
+        self.phase('activating', activation_preflight=proof)
         self.prepare_replacement(actual if ids else None, 'activation', read_json(self.current_model_path()))
         if self.config.get('deployment_protocol') != 2:
             self.runtime('block')
@@ -1835,6 +2621,8 @@ class Host:
         print('Server updates enabled: server health and private updater verified. Later updates require an operator action.')
 
     def rollback(self):
+        if self.single_file():
+            return self.rollback_single()
         require(self.journal['phase'] in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished host transaction exists; rollback cannot downgrade a healthy updated deployment')
         self.idle()
         # Stop before changing models; a successful same-image configuration
@@ -1936,7 +2724,7 @@ class Host:
         raise Failure('Restored original server health could not be confirmed')
 
     def recover_failure(self, error):
-        if isinstance(error, UnsettledHelper):
+        if isinstance(error, (UnsettledHelper, EnrollmentPreflightFailure, CanonicalDrift)):
             raise error
         if self.journal.get('detached_continuation'):
             self.phase('recovery_required', error=str(error))
@@ -1981,7 +2769,129 @@ def require_data_writers(volume, allowed, executor=None):
             continue
         require(not any(m.get('Name') == volume and m['RW'] for m in info['Mounts']), 'Another running container writes the data volume; stop it before enrollment')
 
+def install_single_file(args, options):
+    require(not getattr(args, 'migrate_deployment', False), 'single-file-v1 does not migrate existing enrollment')
+    require(Path.cwd() == SINGLE_DIRECTORY, 'single-file-v1 requires setup from ' + str(SINGLE_DIRECTORY))
+    # Validate components before compose_options resolves any symlink aliases.
+    single_paths()
+    for key, value in zip(options[::2], options[1::2]):
+        if key in {'-f', '--file', '--project-directory'}:
+            protected_path(Path(value).absolute(), directory=key == '--project-directory')
+    raw_source = read_state_bytes(SINGLE_DIRECTORY / 'compose.yaml')
+    resolved_source = False
+    try:
+        source_document = decode(raw_source)
+    except ValueError:
+        template = (Path(args.bundle) / 'compose.yaml').read_bytes()
+        pattern = rb'(?m)^    image: [^\n]+$'
+        masked_source, count = re.subn(pattern, b'    image: PINNED_IMAGE', raw_source)
+        masked_template, expected_count = re.subn(pattern, b'    image: PINNED_IMAGE', template)
+        require(count == expected_count == 1 and masked_source == masked_template, 'Initial single-file-v1 YAML must be the published standalone template; configure its .env or use a fully resolved JSON model without includes')
+    else:
+        single_resolved_model(source_document, enrolled=isinstance(source_document, dict) and 'p2pstream-server-updater' in source_document.get('services', {}))
+        resolved_source = True
+    options = compose_options(options)
+    context = ['--env-file', '/dev/null', *options] if resolved_source else options
+    arch = local_engine()
+    require(arch == args.expect_arch and str(uuid.UUID(args.expect_installation)) == args.expect_installation and HEX.fullmatch(args.manifest_sha256), 'Invalid selected platform, installation or manifest identity')
+    ids = docker('compose', *context, 'ps', '--quiet', 'p2pstream', cwd=str(SINGLE_DIRECTORY)).stdout.decode().split()
+    require(len(ids) == 1, 'Expected exactly one running server in the standard Compose deployment')
+    info = decode(docker('inspect', ids[0]).stdout)[0]
+    identity = docker('exec', ids[0], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip()
+    require(identity == args.expect_installation, 'Wrong Docker host or Compose deployment: installation identity differs from selected environment')
+    image = decode(docker('image', 'inspect', info['Image']).stdout)[0]
+    model_raw = docker('compose', *context, 'config', '--format', 'json', cwd=str(SINGLE_DIRECTORY)).stdout
+    model = decode(model_raw)
+    volume = validate_running(info, model, image, arch, args)  # Stale image guard stays first.
+    saved = read_json(STATE / 'host.json') if os.path.lexists(STATE / 'host.json') else None
+    if saved:
+        require(saved.get('deployment_layout') == SINGLE_LAYOUT and saved.get('installation') == identity, 'Existing enrollment retains its recorded layout and installation; migration is not supported')
+        if saved['phase'] not in {'healthy', 'removed'}:
+            require((saved['version'], saved['commit'], saved['before_image_id']) == (args.expect_version, args.expect_commit, info['Image']), 'Running release changed after setup was staged; use the recorded recovery controller before fresh enrollment')
+    if not saved and 'p2pstream-server-updater' in model.get('services', {}):
+        raise Failure('Canonical deployment is already enrolled but private enrollment history is missing; restore its complete matching private state before recovery')
+    single_source(options, model, info, enrolled=bool(saved and saved['phase'] != 'removed' and (saved['phase'] == 'healthy' or 'p2pstream-server-updater' in model['services'])), resolved=resolved_source)
+    if saved and saved['phase'] != 'removed':
+        manage(argparse.Namespace(action='repair'))
+        return
+    single_matching_inputs(model)  # Refuse stale settings before any state writes.
+    owner = docker('exec', ids[0], '/bin/sh', '-c', OWNER_ABSENT, check=False)
+    require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; restore the complete matching private enrollment history before setup')
+    enrollment_preflight(ids[0], info['Image'], identity, args.expect_version, args.expect_commit, canonical=True)
+    original_source = read_state_bytes(SINGLE_DIRECTORY / 'compose.yaml')
+    try:
+        original_model = decode(original_source)
+    except ValueError:
+        template = (Path(args.bundle) / 'compose.yaml').read_bytes()
+        template, count = re.subn(rb'(?m)^    image: [^\n]+$', ('    image: ' + model['services']['p2pstream']['image']).encode(), template)
+        require(count == 1 and original_source == template, 'Initial single-file-v1 YAML must be the published standalone template; use its .env settings or a fully resolved JSON model without includes')
+    else:
+        require(isinstance(original_model, dict) and not original_model.get('include') and not any(service.get('extends') for service in original_model.get('services', {}).values()), 'Canonical source includes/extends are unsupported')
+    # Roundtrip the exact escaped snapshot with the native Compose binary. Its
+    # project directory remains the standard source context, never private state.
+    with tempfile.TemporaryDirectory(prefix='p2pstream-preflight-') as tmp:
+        path = Path(tmp) / 'compose.json'
+        path.write_bytes(model_raw)
+        path.chmod(0o600)
+        fields = docker('compose', '--env-file', '/dev/null', '--project-directory', str(SINGLE_DIRECTORY), '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
+        require(len(fields) == 2 and fields[1] == info['Config']['Labels'].get('com.docker.compose.config-hash'), 'Compose inputs differ from the running server; apply or revert pending changes before enrollment')
+    manifest, desc, server_image, manifest_hash = release_metadata(args.repository, args.expect_version, args.expect_commit, args.expect_channel, args.manifest_sha256)
+    check_cancellation_floor(STATE, args, manifest, manifest_hash)
+    require(any(p['os'] == 'linux' and p['arch'] == arch for p in manifest['oci_images'][0]['platforms']), 'Release lacks the selected platform')
+    docker('pull', '--quiet', '--platform', 'linux/' + arch, server_image)
+    require(decode(docker('image', 'inspect', server_image).stdout)[0]['Id'] == info['Image'], 'Running image is not the canonical release image')
+    updater = desc['updater_images']['linux/' + arch]
+    docker('pull', '--quiet', '--platform', 'linux/' + arch, updater)
+    helper = decode(docker('image', 'inspect', updater).stdout)[0]
+    labels = helper['Config'].get('Labels', {})
+    require(helper['Os'] == 'linux' and helper['Architecture'] == arch and labels.get('p2pstream.image.role') == 'server-updater' and (labels.get('org.opencontainers.image.version'), labels.get('org.opencontainers.image.revision')) == (args.expect_version, args.expect_commit), 'Published updater identity/platform verification failed')
+    controller = Host()
+    controller.canonical_capability(info['Image'], ids[0])
+    controller.canonical_capability(updater)
+    with controller.lock(allow_archive=True):
+        require(not controller.journal or controller.journal.get('phase') == 'removed', 'Another enrollment was staged during setup; use the stable repair command')
+        single_paths()
+        require(read_state_bytes(SINGLE_DIRECTORY / 'compose.yaml') == original_source, 'Canonical source changed during dependency downloads')
+        current_ids = docker('compose', *context, 'ps', '--quiet', 'p2pstream', cwd=str(SINGLE_DIRECTORY)).stdout.decode().split()
+        current_raw = docker('compose', *context, 'config', '--format', 'json', cwd=str(SINGLE_DIRECTORY)).stdout
+        require(current_ids == ids and current_raw == model_raw, 'Running deployment changed during dependency downloads')
+        require_data_writers(volume, ids[0])
+        check_cancellation_floor(STATE, args, manifest, manifest_hash)
+        require(docker('exec', ids[0], '/bin/sh', '-c', OWNER_ABSENT, check=False).returncode == 0, 'Runtime ownership changed before canonical preparation; restore the complete matching private history')
+        # Recheck after dependency downloads, before publishing or archiving.
+        single_matching_inputs(model)
+        publish_stable_controller(args.bundle)  # Durable before the first new journal format.
+        if controller.journal:
+            controller.archive_removed()
+        persist_installation(STATE, identity, args.repository, args.expect_channel)
+        (STATE / 'release').mkdir(mode=0o700, exist_ok=True)
+        for name, data in manifest['_files'].items():
+            atomic(STATE / 'release' / name, data)
+        atomic(STATE / 'input.json', model_raw)
+        atomic(STATE / 'original-source.yaml', original_source)
+        for name in ('server-updater-host.py', 'server-updater-compose.sh'):
+            atomic(STATE / name, (Path(args.bundle) / name).read_bytes())
+        atomic(STATE / 'manage', ('#!/bin/sh\nexec ' + str(STABLE_LAUNCHER) + ' "$@"\n').encode(), mode=0o700)
+        atomic(STATE / 'compose', (Path(args.bundle) / 'server-updater-compose.sh').read_bytes(), mode=0o700)
+        if not os.path.lexists(SINGLE_INPUTS):
+            atomic(SINGLE_INPUTS, (json.dumps(model, indent=2) + '\n').encode(), mode=0o640, gid=SINGLE_DIRECTORY.stat().st_gid)
+        controller.updater = updater
+        controller.phase('preparing', installation=identity, source_directory=str(SINGLE_DIRECTORY), compose_options=options,
+                         version=args.expect_version, commit=args.expect_commit, channel=args.expect_channel, architecture=arch,
+                         repository=args.repository, manifest_sha256=manifest_hash, updater_image=updater, server_image=server_image,
+                         source_files=[str(SINGLE_DIRECTORY / 'compose.yaml')], source_layout={'primary': str(SINGLE_DIRECTORY / 'compose.yaml')},
+                         deployment_layout=SINGLE_LAYOUT, deployment_directory=str(SINGLE_DIRECTORY), source_sha256=digest(original_source),
+                         input_sha256=digest(model_raw), before_image_id=info['Image'])
+        controller.prepare_single()
+        try:
+            controller.activate_single()
+        except Exception as error:
+            controller.recover_failure(error)
+
+
 def install(args, options):
+    if single_selection(args):
+        return install_single_file(args, options)
     arch = local_engine()
     require(arch == args.expect_arch, 'Docker daemon architecture differs from selected server')
     require(str(uuid.UUID(args.expect_installation)) == args.expect_installation, 'Invalid installation identity')
@@ -1999,6 +2909,9 @@ def install(args, options):
     model_raw = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
     model = decode(model_raw)
     data_volume = validate_running(container, model, image, arch, args)
+    saved = read_json(STATE / 'host.json') if os.path.lexists(STATE / 'host.json') else None
+    if saved is None or saved.get('phase') == 'removed':
+        enrollment_preflight(ids[0], container['Image'], identity, args.expect_version, args.expect_commit)
     migration_requested = False
     owned_aliases = {}
     removed_source_files = None
@@ -2133,6 +3046,7 @@ def install(args, options):
         require(docker('exec', ids[0], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == identity, 'Installation identity changed before enrollment')
         require(docker('exec', ids[0], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Running management listener is unhealthy; repair it before enrollment')
         require_data_writers(data_volume, ids[0])
+        persist_installation(STATE, identity, args.repository, args.expect_channel)
         # Detect another executor/control mount via Go validator before activation.
         (STATE / 'release').mkdir(mode=0o700, exist_ok=True)
         for name, data in manifest['_files'].items():
@@ -2171,7 +3085,7 @@ def manage(args):
     local_engine()
     host = Host()
     with host.lock(allow_archive=args.action == 'discard-preparation'):
-        require(host.journal, 'No saved enrollment; use the selected server setup command')
+        require(host.journal, 'No saved enrollment: private enrollment history is missing. Restore the complete matching private state before managing an owned deployment; never reset runtime ownership to recreate history.')
         receipt_path = STATE / CANCELLATION
         if os.path.lexists(receipt_path) and not read_json(receipt_path).get('completed'):
             # Even read-only Compose inspection starts a journaled helper. An
@@ -2180,6 +3094,17 @@ def manage(args):
             if args.action == 'status':
                 print('Host setup: ' + host.journal['phase'])
             raise Failure('Enrollment cancellation is incomplete; retry the verified cancellation command')
+        if args.action in {'repair', 'rollback'} and host.journal.get('detached_continuation'):
+            host.resume_detached_continuation()
+            return
+        if host.single_file() and args.action in {'repair', 'apply', 'remove', 'recreate'}:
+            if args.action == 'repair':
+                host.repair_single()
+            elif args.action == 'recreate':
+                raise Failure('single-file-v1 recreation/adoption is not supported; preserve canonical and private history and use its recorded transaction recovery')
+            else:
+                host.change_single(args.action)
+            return
         if args.action == 'discard-preparation':
             host.discard_preparation()
             return
@@ -2311,8 +3236,10 @@ def manage(args):
             if host.journal['phase'] in {'applying', 'removing', 'rolling_back', 'recovery_required'}:
                 host.rollback()
                 return
-            host.write_model((STATE / 'enrolled-compose.json').read_bytes())
             try:
+                if host.journal['phase'] in {'preparing', 'prepared', 'rolled_back'}:
+                    host.repair_readiness()
+                host.write_model((STATE / 'enrolled-compose.json').read_bytes())
                 host.activate()
             except Exception as error:
                 host.recover_failure(error)
@@ -2336,6 +3263,7 @@ def manage(args):
                 atomic(STATE / 'candidate-compose.json', candidate)
                 host.compose('config', '--format', 'json', model='candidate-compose.json')
         elif args.action == 'remove':
+            retained_installation(STATE, host.journal['installation'], host.config['repository'], host.config['channel'])
             candidate = remove_model(model)
             atomic(STATE / 'candidate-compose.json', candidate)
             host.compose('config', '--format', 'json', model='candidate-compose.json')
@@ -2347,6 +3275,8 @@ def manage(args):
         executor_lock = None
         try:
             executor_lock = host.stop_executor()
+            if args.action == 'remove':
+                host.retain_installation()
             host.prepare_replacement(host.server_container(), args.action, decode(candidate))
             if host.config.get('deployment_protocol') != 2:
                 host.runtime('block')
@@ -2381,11 +3311,41 @@ def remove_model(model):
     model['volumes'].pop('server-updater-data', None)
     return json.dumps(model, separators=(',', ':')).encode()
 
-def deploy(args):
+def deploy_single_file(args):
+    require(not getattr(args, 'directory', None) or Path(args.directory) == SINGLE_DIRECTORY, 'single-file-v1 can only prepare ' + str(SINGLE_DIRECTORY))
+    # Validate the existing nearest ancestor before any downloads or creation.
+    ancestor = SINGLE_DIRECTORY
+    while not os.path.lexists(ancestor):
+        ancestor = ancestor.parent
+    protected_path(ancestor, directory=True)
+    if os.path.lexists(SINGLE_DIRECTORY):
+        protected_path(SINGLE_DIRECTORY, directory=True, forbidden=0o027)
+        require(not any(SINGLE_DIRECTORY.iterdir()), 'Standard deployment directory is not empty; use its existing deployment')
     arch = local_engine(updater=False)
     manifest, desc, image, manifest_hash = release_metadata(args.repository, args.release)
     require(any(p['os'] == 'linux' and p['arch'] == arch for p in manifest['oci_images'][0]['platforms']), 'Release lacks this platform')
-    directory = Path(args.directory).resolve()
+    create_protected_directory(SINGLE_DIRECTORY, 0o2750, operator_gid())
+    require(stat.S_IMODE(SINGLE_DIRECTORY.stat().st_mode) == 0o2750, 'Existing standard deployment directory requires mode 2750; permissions were not repaired automatically')
+    bundle = Path(__file__).resolve().parent
+    template = (bundle / 'compose.yaml').read_bytes()
+    # The verified release template has exactly one server image line. Pin it
+    # here instead of relying on a tag or a later .env substitution.
+    template, count = re.subn(rb'(?m)^    image: [^\n]+$', ('    image: ' + image).encode(), template)
+    require(count == 1, 'Published deployment template has an unsupported image layout')
+    atomic(SINGLE_DIRECTORY / 'compose.yaml', template, mode=0o640, gid=SINGLE_DIRECTORY.stat().st_gid)
+    atomic(SINGLE_DIRECTORY / '.env', (bundle / '.env.example').read_bytes(), mode=0o600)
+    atomic(SINGLE_DIRECTORY / 'release.json', {'api': 1, 'deployment_layout': SINGLE_LAYOUT, 'repository': args.repository, 'version': args.release, 'commit': manifest['commit'], 'channel': manifest['channel'], 'manifest_sha256': manifest_hash, 'image': image}, mode=0o640, gid=SINGLE_DIRECTORY.stat().st_gid)
+    print('Prepared ' + str(SINGLE_DIRECTORY) + ' with a pinned standalone server. Edit .env, then run docker compose up -d from that directory.')
+    print('The normal management setup command recognizes this declared layout. After enrollment edit ' + str(SINGLE_INPUTS) + ' and use sudo ' + str(STABLE_LAUNCHER) + ' apply; later .env edits are ignored.')
+
+
+def deploy(args):
+    if getattr(args, 'deployment_layout', '') == SINGLE_LAYOUT:
+        return deploy_single_file(args)
+    arch = local_engine(updater=False)
+    manifest, desc, image, manifest_hash = release_metadata(args.repository, args.release)
+    require(any(p['os'] == 'linux' and p['arch'] == arch for p in manifest['oci_images'][0]['platforms']), 'Release lacks this platform')
+    directory = Path(args.directory or 'p2pstream').resolve()
     directory.mkdir(mode=0o750, parents=True, exist_ok=True)
     require(not (directory / 'compose.yaml').exists() and not (directory / '.env').exists(), 'Deployment inputs already exist; use them instead of overwriting them')
     bundle = Path(__file__).resolve().parent
@@ -2409,6 +3369,7 @@ def main():
         setup.add_argument('--expect-' + key, required=True)
     setup.add_argument('--manifest-sha256', required=True)
     setup.add_argument('--repository', required=True)
+    setup.add_argument('--deployment-layout', choices=[SINGLE_LAYOUT], default='')
     setup.add_argument('--migrate-deployment', action='store_true', help='Explicitly migrate compatible legacy enrollment to managed Compose ownership')
     cancel = commands.add_parser('cancel-enrollment', help='Archive a proven restored, never-completed enrollment using a verified release bundle')
     for key in ('installation', 'channel'):
@@ -2426,7 +3387,8 @@ def main():
     deployment = commands.add_parser('deploy', help='Prepare editable pinned Docker deployment inputs')
     deployment.add_argument('--release', required=True)
     deployment.add_argument('--repository', default='Kirari04/p2pstream')
-    deployment.add_argument('--directory', default='p2pstream')
+    deployment.add_argument('--directory', default=None)
+    deployment.add_argument('--deployment-layout', choices=[SINGLE_LAYOUT], default='')
     parts = sys.argv[1:]
     separator = parts.index('--') if '--' in parts else len(parts)
     args = parser.parse_args(parts[:separator])
