@@ -1,5 +1,6 @@
 .git/
 .env
+**/.local-dev/
 bin/
 tmp/
 web/management/dist/

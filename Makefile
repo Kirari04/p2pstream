@@ -136,13 +136,15 @@ verify: verify-clean-tree
 	@$(MAKE) generate
 	@$(MAKE) verify-clean-tree
 	@sh -n scripts/setup-server-updater.sh
-	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh; do \
+	@sh -n scripts/local-dev-env.sh
+	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do \
 		bash -n "$$script" || exit 1; \
 	done
 	@scripts/test-agent-lifecycle.sh
 	@python3 -I scripts/test-server-updater-host.py
 	@python3 -I scripts/test-setup-server-updater.py
 	@python3 -I scripts/test-docker-smoke-runner.py
+	@python3 -I scripts/test-local-fixtures.py
 	@go test ./...
 	@cd third_party/yamux && go test ./... && go test -race -short ./...
 	@go vet ./...
