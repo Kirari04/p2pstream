@@ -71,12 +71,8 @@ func TestPublicPathDotScanSplitEquivalence(t *testing.T) {
 			if got := containsPublicPathDotSegment(tc.path); got != tc.want {
 				t.Fatalf("candidate = %v, want %v", got, tc.want)
 			}
-			// A manually built request makes this check cover arbitrary decoded
-			// bytes without asking URL parsing to accept invalid UTF-8 or NUL.
-			r := &http.Request{URL: &url.URL{Path: tc.path}, RequestURI: tc.path}
-			if got := classifyPublicRequestPath(r).DecodedDotSegment; got != tc.want {
-				t.Fatalf("decoded path classification = %v, want %v", got, tc.want)
-			}
+			// Classifier tests live separately: classification inspects nested
+			// encodings and backslash separators; this helper takes literal bytes.
 		})
 	}
 }

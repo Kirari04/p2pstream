@@ -310,6 +310,11 @@ func TestPublicProxyStrictRouteRejectsInvalidPathBeforePolicyAndRoute(t *testing
 		"http://app.example/public/%5Cadmin",
 		"http://app.example/public/../admin",
 		"http://app.example/public/./admin",
+		"http://app.example//public/admin",
+		"http://app.example/public;session=x/admin",
+		"http://app.example/public%253Bsession=x/admin",
+		"http://app.example/public/%252e%252e/admin",
+		"http://app.example/public%252fadmin",
 	} {
 		t.Run(target, func(t *testing.T) {
 			rec := httptest.NewRecorder()

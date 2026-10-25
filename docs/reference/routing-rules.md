@@ -71,12 +71,14 @@ Every route has a path security mode:
 
 | Mode | Behavior |
 | --- | --- |
-| `strict` | Rejects request targets containing encoded path separators such as `%2F` or `%5C` before WAF, rate limits, traffic shaping, cache, or forwarding. |
-| `allow_encoded_separators` | Allows encoded separators for compatibility with upstreams that use encoded path IDs. Shared cache bypasses these requests. |
+| `strict` | Rejects encoded path separators such as `%2F` or `%5C`, as well as the ambiguities listed below, before WAF, rate limits, access control, traffic shaping, cache, or forwarding. |
+| `allow_encoded_separators` | Allows singly encoded separators for upstreams that use opaque path IDs. Shared cache bypasses these requests. All other path checks still apply. |
 
-Decoded `.` and `..` path segments and raw literal backslashes are always rejected on public listeners. Encoded dots inside ordinary segment names, such as `/files/v1%2e2/readme`, are allowed; encoded dots that decode to a whole `.` or `..` segment are rejected.
+Public listeners reject duplicate slashes, semicolon path parameters (including encoded forms), raw literal backslashes, and `.` or `..` segments using either slash or backslash separators. These checks apply in both modes, including when decoding an encoded separator would produce duplicate slashes or traversal. For example, `//admin`, `/admin;session=x`, `/admin%3Bsession=x`, and `/files/a%5C..%5Cadmin` return `400`.
 
-WAF, rate-limit, and traffic-shaper path matching use p2pstream's decoded request path model. Keep route-specific policy simple when enabling encoded-separator compatibility.
+Nested percent encodings are also rejected in both modes: Go's once-decoded path must not contain another valid `%HH` escape. This includes nested separators (`%252F`), dots (`%252e`), and ordinary prefix characters (`/%2561dmin`). Literal percent filenames such as `/files/100%25.txt`, spaces such as `/files/a%20b.txt`, and dots inside ordinary names such as `/files/v1%2e2/readme` remain allowed. A literal filename containing a percent followed by two hexadecimal digits must use another naming scheme. Inspection bounds each path representation to eight decoding passes and rejects unresolved nesting, bounding work even for deeply wrapped escapes.
+
+Accepted paths retain their original escaped bytes when forwarded; validation does not normalize one path for matching and send a different path upstream. WAF, rate-limit, and traffic-shaper path matching use Go's once-decoded request path: an encoded slash becomes a route boundary, while an encoded backslash remains a literal character. Compatibility mode explicitly accepts potential parser differences with an upstream that uses opaque encoded IDs. If the upstream treats backslashes as route boundaries, `/admin%5Cpanel` can select a fallback route even though the origin interprets it as `/admin/panel`. Enable this mode only where that weaker parser agreement is acceptable, and keep route-specific policy simple. It never permits literal duplicate slashes or path parameters.
 
 ## Runtime effects
 

@@ -67,7 +67,8 @@ const (
 	// independently of the operator's potentially much larger disk-entry limit.
 	maxPublicCacheNegativeLookups = 4096
 	publicCacheNegativeLookupTTL  = 30 * time.Second
-	publicCacheKeyDigestVersion   = "v5"
+	// Exclude persisted entries admitted before malformed Vary was rejected.
+	publicCacheKeyDigestVersion = "v6"
 )
 
 var defaultPublicCacheStatusCodes = []int64{200, 203, 204, 301, 308}
@@ -1867,11 +1868,11 @@ func publicCacheResponseVaryHeaders(ruleHeaders []string, varyValues []string) (
 	}
 	for _, value := range varyValues {
 		for _, part := range strings.Split(value, ",") {
-			part = strings.TrimSpace(part)
+			part = strings.Trim(part, " \t")
 			if part == "" {
 				continue
 			}
-			if part == "*" {
+			if part == "*" || !validHTTPToken(part) {
 				return nil, false
 			}
 			canonical := textproto.CanonicalMIMEHeaderKey(part)
