@@ -145,6 +145,7 @@ verify: verify-clean-tree
 	done
 	@scripts/test-agent-lifecycle.sh
 	@python3 -I scripts/test-server-updater-host.py
+	@python3 -I scripts/test-server-lifecycle-harness.py
 	@python3 -I scripts/test-setup-server-updater.py
 	@go test ./...
 	@cd third_party/yamux && go test ./... && go test -race -short ./...

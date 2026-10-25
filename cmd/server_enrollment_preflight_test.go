@@ -43,11 +43,8 @@ func TestServerEnrollmentPreflightCommandLocalReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	var capability serverupdate.DeploymentCapabilities
-	if json.Unmarshal(out.Bytes(), &capability) != nil || capability.RuntimeGuard != 2 || capability.EnrollmentPreflight != 1 {
+	if json.Unmarshal(out.Bytes(), &capability) != nil || capability.RuntimeGuard != 2 || capability.EnrollmentPreflight != 1 || capability.CanonicalCompose != 1 {
 		t.Fatalf("capabilities = %s", out.Bytes())
-	}
-	if strings.Contains(out.String(), "canonical_compose") {
-		t.Fatal("preflight release must not advertise canonical deployment support")
 	}
 	if entries, err := os.ReadDir(dir); err != nil || len(entries) != 0 {
 		t.Fatalf("capability command touched application data: %v %v", entries, err)

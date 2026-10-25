@@ -42,7 +42,7 @@ func managedRuntimeFixture(t *testing.T) (*ComposeDriver, RuntimeOwner) {
 	// Model Docker's stopped creation independently of the owner marker. The
 	// stop assertion observes the durable guard at the external side effect.
 	script := `#!/usr/bin/env python3
-import json,pathlib,sys
+import json,pathlib,sys,time
 root=pathlib.Path(__file__).parent
 args=sys.argv[1:]
 cfg=json.loads((root/'state'/'config.json').read_text())
@@ -60,7 +60,12 @@ if args[:2]==['image','inspect']:
     print(json.dumps([{'Id':'sha256:'+args[-1].split(':')[-1],'Config':{'Labels':{'org.opencontainers.image.version':cap['version'],'org.opencontainers.image.revision':cap['commit'],'org.opencontainers.image.source':'https://github.com/test/repo'}}}]))
 elif args[0]=='run':
     assert args[-1]=='server-deployment-capabilities'
-    if (root/'unsupported').exists(): sys.exit(1)
+    if (root/'unsupported').exists():
+        print('private-probe-output-must-not-escape',file=sys.stderr)
+        sys.exit(1)
+    if (root/'pause-probe').exists():
+        (root/'probe-started').touch()
+        time.sleep(60)
     print(json.dumps(identity(args[-2])))
 elif args[0]=='compose':
     if 'ps' in args: print('managed-container')
@@ -223,5 +228,66 @@ func TestManagedUnsupportedCandidateLeavesDataBlocked(t *testing.T) {
 	owner, err := ReadRuntimeOwner(driver.Config.DataDir)
 	if err != nil || owner.Allowed {
 		t.Fatal("failed activation unblocked the data volume")
+	}
+}
+
+func TestGuardedImageProbeFailureRetainsSafeCause(t *testing.T) {
+	driver, _ := managedRuntimeFixture(t)
+	root := filepath.Dir(driver.Config.Docker)
+	if err := os.WriteFile(filepath.Join(root, "unsupported"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := driver.guardedImage(context.Background(), "ghcr.io/test/repo@sha256:"+strings.Repeat("a", 64))
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 1 || !strings.Contains(err.Error(), "capability probe failed: Docker run failed") {
+		t.Fatalf("Docker probe failure lost its safe cause: %v", err)
+	}
+	if strings.Contains(err.Error(), "lacks coordinated") || strings.Contains(err.Error(), "private-probe-output") {
+		t.Fatalf("probe error claims unsupported image or exposes subprocess output: %v", err)
+	}
+}
+
+func TestGuardedImageCancelledProbePreservesDeployment(t *testing.T) {
+	driver, _ := managedRuntimeFixture(t)
+	root := filepath.Dir(driver.Config.Docker)
+	ownerPath := filepath.Join(driver.Config.DataDir, RuntimeOwnerName)
+	owner, err := os.ReadFile(ownerPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := os.ReadFile(driver.Config.DeploymentFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "pause-probe"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		_, err := driver.guardedImage(ctx, "ghcr.io/test/repo@sha256:"+strings.Repeat("a", 64))
+		result <- err
+	}()
+	for {
+		if _, err := os.Stat(filepath.Join(root, "probe-started")); err == nil {
+			break
+		}
+		select {
+		case err := <-result:
+			t.Fatalf("probe did not reach the capability command: %v", err)
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	cancel()
+	err = <-result
+	if !errors.Is(err, context.Canceled) || !strings.Contains(err.Error(), "capability probe interrupted") {
+		t.Fatalf("probe cancellation was misreported: %v", err)
+	}
+	for path, before := range map[string][]byte{ownerPath: owner, driver.Config.DeploymentFile: model} {
+		after, err := os.ReadFile(path)
+		if err != nil || string(after) != string(before) {
+			t.Fatalf("cancelled read-only probe changed deployment state: %s: %v", path, err)
+		}
 	}
 }
