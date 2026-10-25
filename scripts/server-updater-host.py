@@ -6,6 +6,7 @@ steps are rejected by the independently shipped Go layout validator.
 """
 import argparse
 import contextlib
+import datetime
 import fcntl
 import grp
 import hashlib
@@ -34,11 +35,41 @@ HEX = re.compile(r'^[0-9a-f]{64}$')
 VERSION = re.compile(r'^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?$')
 REPOSITORY = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*$')
 CANCELLATION = 'cancelled-enrollment.json'
+BLOCKED_INITIAL_OWNER = 'blocked-initial-owner.json'
+OWNER_ABSENT = 'test -d /data && test ! -e /data/.p2pstream-runtime-owner.json && test ! -L /data/.p2pstream-runtime-owner.json'
+# Published servers need no new recovery CLI or interpreter. These fixed native
+# commands run only inside the independently proved, immutable current server.
+# stat does not follow links; dd refuses links and cannot block on a FIFO. Read
+# bounds and before/after metadata checks also apply to the read-only probe.
+OWNER_PROBE = r'''set -eu
+export LC_ALL=C PATH=/usr/bin:/bin
+cd /data
+test ! -L /data
+owner=.p2pstream-runtime-owner.json
+test ! -L "$owner" && test -f "$owner"
+metadata=$(stat -c '%d:%i:%f:%h:%u:%g:%s:%y:%z' -- "$owner")
+printf '%s\n' "$metadata"
+dd if="$owner" iflag=nonblock,nofollow bs=4097 count=1 status=none
+test "$metadata" = "$(stat -c '%d:%i:%f:%h:%u:%g:%s:%y:%z' -- "$owner")"
+test ! -L "$owner"
+'''
+LEASE_PROBE = r'''set -eu
+export LC_ALL=C PATH=/usr/bin:/bin
+cd /data
+test ! -L /data
+stat -c '%d:%i' -- /data
+test ! -L .p2pstream-runtime.lock && test -f .p2pstream-runtime.lock
+stat -c '%d:%i:%f:%h:%u:%g:%s:%y:%z' -- .p2pstream-runtime.lock
+head -c 65537 /proc/locks
+'''
 
 class Failure(RuntimeError):
     pass
 
 class UnsettledHelper(Failure):
+    pass
+
+class MissingRollbackServer(Failure):
     pass
 
 def require(condition, message):
@@ -459,9 +490,22 @@ class Host:
         args = ('--force-recreate',) if force else ()
         if self.config.get('deployment_protocol') == 2:
             self.compose('stop', 'p2pstream')
+            if self.journal.get('replacement_intent'):
+                intent = self.verify_replacement_intent()
+                require(self.cancellation_model_hash(self.current_model_path().read_bytes()) == intent['target_sha256'], 'Replacement target changed before creation')
+                observed = self.server_container(allow_missing=True)
+                require((self.cancellation_stable_server(observed) if observed else None) == getattr(self, '_replacement_server', None), 'Deployment changed before replacement creation')
+                require(self.replacement_data()['owner']['allowed'] is False, 'Replacement admission changed before creation')
+                self._replacement_stopped_target = {'server': self.cancellation_stable_server(observed), 'started_at': observed['State'].get('StartedAt'), 'restart_count': observed.get('RestartCount')} if observed else None
+            # Compose config-change recreation can remove the old container
+            # before replacement creation fails, even without --force-recreate.
             self.compose('up', '--no-start', '--no-deps', '--no-build', '--pull', 'never', *args, 'p2pstream')
-            self.runtime('detach' if detached else 'allow')
-            self.compose('start', 'p2pstream')
+            if detached:
+                self.begin_detached_continuation()
+                self.continue_detached_start()
+            else:
+                self.runtime('allow')
+                self.compose('start', 'p2pstream')
         else:
             self.compose('up', '-d', '--no-deps', '--no-build', '--pull', 'never', *args, 'p2pstream')
 
@@ -549,6 +593,11 @@ class Host:
     def phase(self, phase, **values):
         self.journal.update(values)
         self.journal['phase'] = phase
+        if phase in {'healthy', 'rolled_back', 'removed'}:
+            self.journal.pop('replacement_intent', None)
+            self.journal.pop('rollback_target', None)
+            self.journal.pop('rollback_transition', None)
+            self.journal.pop('detached_continuation', None)
         if phase == 'healthy':
             self.journal.pop('recovery_phase', None)
             self.journal.pop('recovery_operation', None)
@@ -614,7 +663,14 @@ class Host:
                             '--mount', mount, *mounts, image or self.updater, *args, timeout=timeout, check=False)
             if result.returncode:
                 diagnostic = self.directory / 'helper-failure.log'
-                atomic(diagnostic, result.stdout + b'\n' + result.stderr)
+                action = 'host helper'
+                if entrypoint == '/app/p2pstream' and len(args) >= 2 and args[0] == 'server-updater' and args[1] in {'check', 'enroll', 'configure', 'recover', 'runtime-block', 'runtime-allow', 'runtime-detach', 'record-runtime'}:
+                    action = 'server-updater ' + args[1]
+                elif entrypoint == '/usr/local/bin/docker' and args and args[0] == 'compose':
+                    action = 'Docker Compose'
+                header = {'time': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'check': action, 'exit': result.returncode}
+                atomic(diagnostic, json.dumps(header).encode() + b'\n' + result.stdout + b'\n' + result.stderr)
+                self._helper_failure_diagnostic = diagnostic
                 raise Failure('Host helper failed (exit ' + str(result.returncode) + '); private diagnostic: ' + str(diagnostic))
         except BaseException:
             # Killing the Docker client does not kill its container. Confirm the
@@ -674,22 +730,48 @@ class Host:
         raise Failure('Private updater did not become reachable')
 
     def healthy(self):
+        self._helper_failure_diagnostic = None
+        self._health_check_stage = 'private updater authentication'
         self.status_socket()
-        return decode(self.command('check').stdout)
+        self._health_check_stage = 'server readiness and deployment verification'
+        result = self.command('check')
+        self._health_check_stage = 'verification response decoding'
+        return decode(result.stdout)
 
     def wait_healthy(self):
         deadline = time.monotonic() + 120
         consecutive = 0
+        last_failure = None
         while time.monotonic() < deadline:
             try:
+                self._health_check_stage = 'server verification'
+                self._helper_failure_diagnostic = None
                 status = self.healthy()
                 consecutive += 1
                 if consecutive >= 3:
                     return status
-            except (Failure, OSError, ValueError):
+            except UnsettledHelper:
+                raise  # Preserve the explicit helper-settlement recovery boundary.
+            except (Failure, OSError, ValueError) as error:
                 consecutive = 0
+                # Raw exception text can contain private response or filesystem
+                # values. Report the fixed stage and point to attributable local
+                # helper output when this attempt actually produced it.
+                detail = 'verification refused'
+                if isinstance(error, OSError):
+                    detail = 'local operating-system error'
+                    if type(error.errno) is int:
+                        detail += ' (errno ' + str(error.errno) + ')'
+                elif isinstance(error, ValueError):
+                    detail = 'invalid verification response'
+                last_failure = self._health_check_stage + ': ' + detail
+                if self._helper_failure_diagnostic:
+                    last_failure += '; private diagnostic: ' + str(self._helper_failure_diagnostic)
             time.sleep(2)
-        raise Failure('Server health, deployment hash, or authenticated updater verification failed')
+        message = 'Server verification did not reach three consecutive successful checks'
+        if last_failure:
+            message += '. Last failure during ' + last_failure
+        raise Failure(message)
 
     def archive_removed(self):
         require(self.journal.get('phase') == 'removed', 'Only a completed removal can be reenrolled')
@@ -792,6 +874,395 @@ class Host:
         require(owner.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
         require_data_writers(self.config['data_volume'], info['Id'])
 
+    def validate_cancelled_upgrade(self, args):
+        # Old controllers can leave bare recovery_required after refusing an
+        # external image change. It is not evidence of a completed rollback:
+        # prove the entire current deployment independently, without a helper,
+        # phase rewrite, source restoration, or execution of the saved model.
+        require(self.config and self.config.get('deployment_protocol') == 2, 'Upgraded cancellation requires managed deployment ownership')
+        require(self.journal.get('phase') in {'rolled_back', 'recovery_required'} and not self.journal.get('recovery_phase') and not self.journal.get('recovery_operation'), 'Upgraded cancellation belongs to another host operation')
+        require(not self.journal.get('verified_version') and not self.journal.get('verified_commit') and not self.journal.get('deployment_migration'), 'A previously enabled enrollment cannot be cancelled')
+        require(not os.path.lexists(self.directory / 'state.json') and not os.path.lexists(self.directory / 'control' / 'maintenance'), 'Update history or maintenance exists; enrollment cancellation is refused')
+        require(not os.path.lexists(self.directory / 'helper.json'), 'An unfinished helper exists; upgraded cancellation is refused')
+        helpers = docker('ps', '--all', '--quiet', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation']).stdout.decode().split()
+        require(not helpers, 'A host helper still exists; cancellation is refused')
+        history = self.directory / 'history'
+        if os.path.lexists(history):
+            require(stat.S_ISDIR(history.lstat().st_mode), 'Unsafe enrollment history')
+            transaction = read_json(self.directory / 'archive.json') if os.path.lexists(self.directory / 'archive.json') else None
+            partial = self.archive_directory(transaction) if transaction else None
+            for archive in history.iterdir():
+                require(stat.S_ISDIR(archive.lstat().st_mode) and not os.path.lexists(archive / 'state.json') and not os.path.lexists(archive / 'control' / 'maintenance'), 'Prior update history exists; upgraded cancellation is refused')
+                if archive == partial:
+                    receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
+                    require(transaction['stage'] in {'copying', 'copied'} and receipt and not receipt['completed'], 'Partial archive is not an active enrollment cancellation')
+                    # copy2 may leave a present but truncated destination. This
+                    # exact transaction's intact active journal is authoritative
+                    # until the archive commit removes it; all other history is
+                    # still parsed strictly below.
+                    continue
+                previous = read_json(archive / 'host.json')
+                require(previous.get('installation') == self.journal['installation'] and previous.get('phase') in {'preparing', 'rolled_back', 'recovery_required'} and not any(previous.get(key) for key in ('verified_version', 'verified_commit', 'deployment_migration', 'recovery_phase', 'recovery_operation')), 'Prior verified enrollment history exists; upgraded cancellation is refused')
+        raw = (self.directory / 'before-compose.json').read_bytes()
+        require(digest(raw) == self.journal.get('before_sha256'), 'Original deployment snapshot changed; cancellation is refused')
+        original = decode(raw)
+        require('p2pstream-server-updater' not in original['services'], 'Original deployment was already enrolled; cancellation is refused')
+        server = original['services']['p2pstream']
+        require(not any(key.startswith('SERVER_UPDATE_') for key in server.get('environment', {})) and not any(key.startswith('p2pstream.server-update.') for key in server.get('labels', {})), 'Original deployment retains an updater binding')
+        require(not any(v.get('target') == '/run/p2pstream-server-update' or v.get('target', '').startswith('/run/p2pstream-server-update/') for v in server.get('volumes', [])), 'Original deployment retains an updater control mount')
+        saved = read_json(self.current_model_path())
+        require(saved == original or saved == read_json(self.directory / 'enrolled-compose.json'), 'Saved model differs from the initial enrollment snapshots')
+        options, snapshots, replacements = self.upgraded_cancellation_sources()
+        arch = local_engine()
+        require(arch == args.expect_arch == self.journal['architecture'], 'Docker daemon architecture differs from selected server')
+        recorded = self.blocked_owner_archive()
+        retry = recorded and recorded['api'] == 2
+        if retry:
+            # This resumes only an already admitted archival transaction. No
+            # cached manifest can admit a new cancellation or a different image.
+            receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
+            release = recorded['release']
+            identity = self.cancellation_release_identity(args, arch)
+            require(set(release) == set(identity) | {'image'} and all(release[key] == value for key, value in identity.items()), 'Cancellation retry release identity differs')
+            require(receipt and not receipt['completed'] and receipt['floor'] == recorded['provenance']['floor'], 'Blocked initial owner archive or retained floor differs')
+            floor = validate_floor(receipt['floor'])
+            require(floor['manifest_sha256'] == args.manifest_sha256, 'Cancellation retry manifest differs from retained floor')
+            server_image = release['image']
+            require(isinstance(server_image, str) and re.fullmatch(re.escape('ghcr.io/' + args.repository.lower() + '@sha256:') + '[0-9a-f]{64}', server_image), 'Invalid admitted cancellation image')
+            manifest, manifest_hash = floor, floor['manifest_sha256']
+        else:
+            manifest, _, server_image, manifest_hash = release_metadata(args.repository, args.expect_version, args.expect_commit, args.expect_channel, args.manifest_sha256)
+            floor = {key: manifest[key] for key in ('sequence', 'security_epoch', 'minimum_safe_version')} | {'manifest_sha256': manifest_hash}
+            platform = [p for p in manifest['oci_images'][0]['platforms'] if p['os'] == 'linux' and p['arch'] == arch]
+            require(len(platform) == 1, 'Release lacks the selected server platform')
+            # Fresh admission always verifies the current, unexpired release.
+            docker('pull', '--quiet', '--platform', 'linux/' + arch, server_image)
+        self._cancellation_release = self.cancellation_release_identity(args, arch) | {'image': server_image}
+        require_floor(floor, self.config['bootstrap_floor'])
+        check_cancellation_floor(self.directory, args, manifest, manifest_hash)
+        version = args.expect_version.partition('-')[0]
+        require(stable_version(version) > stable_version(floor['minimum_safe_version']) or version == floor['minimum_safe_version'] and '-' not in args.expect_version, 'Selected server is below the current minimum safe version')
+        require(args.expect_version != self.journal['version'] and floor['sequence'] > self.config['bootstrap_floor']['sequence'], 'Upgraded cancellation requires a newer published release')
+        published = decode(docker('image', 'inspect', server_image).stdout)[0]
+        source_dir = self.journal['source_directory']
+        source_raw = docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout
+        source = decode(source_raw)
+        source_image = source['services']['p2pstream']['image']
+        source['services']['p2pstream']['image'] = server['image']
+        require(source == original, 'Only the server image may change after failed enrollment; resolved Compose settings differ')
+        source['services']['p2pstream']['image'] = source_image
+        ids = docker('compose', *options, 'ps', '--all', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split()
+        require(len(ids) == 1, 'Expected exactly one existing upgraded server')
+        inspection = decode(docker('inspect', ids[0]).stdout)
+        require(len(inspection) == 1 and inspection[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
+        info = inspection[0]
+        require(not info['State'].get('Paused') and not info['State'].get('Restarting'), 'Upgraded server is not stably running')
+        require(info['Image'] == published['Id'] and info['Image'] != self.journal['before_image_id'], 'Running image is not the upgraded canonical release image')
+        require(decode(docker('image', 'inspect', source_image).stdout)[0]['Id'] == info['Image'], 'Compose image input differs from the running published image')
+        require(validate_running(info, source, published, arch, args) == self.config['data_volume'], 'Original data volume was not preserved')
+        require(source['name'] == self.config['project'], 'Upgraded server belongs to another Compose deployment')
+        with tempfile.TemporaryDirectory(prefix='p2pstream-cancellation-') as tmp:
+            path = Path(tmp) / 'compose.json'
+            atomic(path, source_raw)
+            fields = docker('compose', '--project-directory', source_dir, '-f', str(path), 'config', '--hash', 'p2pstream').stdout.decode().split()
+        labels = info['Config'].get('Labels', {})
+        require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]) and labels.get('com.docker.compose.config-hash') == fields[1], 'Running upgraded settings differ from current Compose inputs')
+        require(not any(key.startswith('p2pstream.server-update.') for key in labels) and not any(value.partition('=')[0].startswith('SERVER_UPDATE_') for value in info['Config'].get('Env', [])), 'Running upgraded server retains an updater binding')
+        require(not any(m['Destination'] == '/run/p2pstream-server-update' or m['Destination'].startswith('/run/p2pstream-server-update/') for m in info['Mounts']), 'Running upgraded server retains an updater control mount')
+        require(docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
+        require(docker('exec', info['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Upgraded server is unhealthy; cancellation is refused')
+        require_data_writers(self.config['data_volume'], info['Id'])
+        owner = self.prove_blocked_initial_owner(info, args, floor, source_raw)
+        self._cancelled_upgrade = {'options': options, 'model': source_raw, 'server': self.cancellation_server_identity(info), 'snapshots': snapshots, 'replacements': replacements, 'owner': owner}
+        self.check_cancelled_upgrade(options)
+        for name, snapshot in snapshots.items():
+            require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
+        return floor
+
+    @staticmethod
+    def cancellation_inode(metadata, limit):
+        fields = metadata.split(':', 7)
+        require(len(fields) == 8 and all(re.fullmatch(r'[0-9]+', fields[i]) for i in (0, 1, 3, 4, 5, 6)) and re.fullmatch(r'[0-9a-f]+', fields[2]), 'Unsafe runtime ownership metadata')
+        device, inode, mode, links, uid, gid, size = [int(value, 16 if i == 2 else 10) for i, value in enumerate(fields[:7])]
+        require(stat.S_ISREG(mode) and not mode & 0o022 and links == 1 and size <= limit, 'Unsafe runtime ownership metadata')
+        return device, inode
+
+    def cancellation_owner_snapshot(self, container):
+        absent = docker('exec', container, '/bin/sh', '-c', OWNER_ABSENT, check=False, timeout=15)
+        if absent.returncode == 0:
+            return None
+        result = docker('exec', container, '/bin/sh', '-c', OWNER_PROBE, check=False, timeout=15)
+        require(result.returncode == 0, 'Runtime ownership remains or cannot be inspected; cancellation is refused')
+        metadata, separator, raw = result.stdout.partition(b'\n')
+        require(separator and 0 < len(raw) <= 4096, 'Unsafe runtime owner marker')
+        metadata = metadata.decode('ascii')
+        self.cancellation_inode(metadata, 4096)
+        return {'metadata': metadata, 'data_hex': raw.hex(), 'sha256': digest(raw)}
+
+    def cancellation_live_lease(self, info):
+        # The published standalone binary must be PID 1 in its own namespace.
+        # Thus a kernel FLOCK entry for PID 1 proves this exact server holds the
+        # stable writer lease, without attempting to acquire or replace it.
+        require(info['Config'].get('Cmd') == ['/app/p2pstream', 'server'] and not info['Config'].get('Entrypoint') and not info.get('HostConfig', {}).get('Init') and not info.get('HostConfig', {}).get('PidMode'), 'Cannot prove the standalone server lifetime lease')
+        result = docker('exec', info['Id'], '/bin/sh', '-c', LEASE_PROBE, check=False, timeout=15)
+        require(result.returncode == 0, 'Cannot inspect the standalone server lifetime lease')
+        directory, separator, remainder = result.stdout.partition(b'\n')
+        require(separator and re.fullmatch(rb'[0-9]+:[0-9]+', directory), 'Cannot inspect the runtime data directory')
+        metadata, separator, locks = remainder.partition(b'\n')
+        require(separator and len(locks) <= 65536, 'Cannot inspect the standalone server lifetime lease')
+        metadata = metadata.decode('ascii')
+        device, inode = self.cancellation_inode(metadata, 4096)
+        held = []
+        for line in locks.decode('ascii').splitlines():
+            match = re.fullmatch(r'[0-9]+: +FLOCK +ADVISORY +WRITE +1 +([0-9a-f]+):([0-9a-f]+):([0-9]+) +0 +EOF', line)
+            if match and (int(match[1], 16), int(match[2], 16), int(match[3])) == (os.major(device), os.minor(device), inode):
+                held.append(':'.join(match.groups()))
+        require(len(held) == 1, 'Standalone server does not hold the stable lifetime lease')
+        return {'metadata': metadata, 'key': held[0], 'directory': directory.decode('ascii')}
+
+    @staticmethod
+    def cancellation_stat_matches(info, metadata):
+        fields = metadata.split(':', 7)
+        identity = [int(value, 16 if i == 2 else 10) for i, value in enumerate(fields[:7])]
+        dates = re.fullmatch(r'(.*)\.([0-9]{9}) ([+-][0-9]{4}):(.*)\.([0-9]{9}) ([+-][0-9]{4})', fields[7])
+        require(dates, 'Invalid runtime ownership timestamps')
+        times = [int(datetime.datetime.strptime(dates[i] + dates[i + 2], '%Y-%m-%d %H:%M:%S%z').timestamp()) * 10 ** 9 + int(dates[i + 1]) for i in (1, 4)]
+        return identity + times == [info.st_dev, info.st_ino, info.st_mode, info.st_nlink, info.st_uid, info.st_gid, info.st_size, info.st_mtime_ns, info.st_ctime_ns]
+
+    @contextlib.contextmanager
+    def cancellation_data_directory(self, info, lease):
+        volume = decode(docker('volume', 'inspect', self.config['data_volume']).stdout)
+        require(len(volume) == 1 and volume[0].get('Name') == self.config['data_volume'] and volume[0].get('Driver') == 'local' and volume[0].get('Scope') == 'local', 'Cannot prove the local runtime data volume')
+        mountpoint = volume[0].get('Mountpoint')
+        mounts = [m for m in info['Mounts'] if m['Destination'] == '/data']
+        require(isinstance(mountpoint, str) and Path(mountpoint).is_absolute() and len(mounts) == 1 and mounts[0].get('Source') == mountpoint and mounts[0].get('Type') == 'volume', 'Runtime data mountpoint differs from the local volume')
+        try:
+            fd = os.open(mountpoint, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        except OSError as error:
+            raise Failure('Runtime data volume is not locally accessible; cancellation is refused') from error
+        try:
+            current = os.fstat(fd)
+            require(f'{current.st_dev}:{current.st_ino}' == lease['directory'], 'Local runtime data directory differs from the running container')
+            yield fd
+        finally:
+            os.close(fd)
+
+    def check_local_cancellation_owner(self, directory, snapshot, lease):
+        current_lock = os.stat('.p2pstream-runtime.lock', dir_fd=directory, follow_symlinks=False)
+        require(self.cancellation_stat_matches(current_lock, lease['metadata']), 'Local stable lifetime lock differs from the running container')
+        name = '.p2pstream-runtime-owner.json'
+        if snapshot is None:
+            try:
+                os.stat(name, dir_fd=directory, follow_symlinks=False)
+            except FileNotFoundError:
+                return
+            raise Failure('Runtime ownership changed during cancellation validation')
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        try:
+            require(self.cancellation_stat_matches(os.fstat(fd), snapshot['metadata']), 'Local runtime owner differs from the running container')
+            raw = os.read(fd, 4097)
+            require(raw.hex() == snapshot['data_hex'] and digest(raw) == snapshot['sha256'], 'Local runtime owner bytes differ from the archived marker')
+            require(self.cancellation_stat_matches(os.fstat(fd), snapshot['metadata']) and self.cancellation_stat_matches(os.stat(name, dir_fd=directory, follow_symlinks=False), snapshot['metadata']), 'Runtime owner changed during cancellation validation')
+        finally:
+            os.close(fd)
+
+    @staticmethod
+    def cancellation_release_identity(args, arch):
+        return {'repository': args.repository, 'version': args.expect_version, 'commit': args.expect_commit,
+                'channel': args.expect_channel, 'architecture': arch, 'manifest_sha256': args.manifest_sha256}
+
+    def blocked_owner_archive(self):
+        path = self.directory / BLOCKED_INITIAL_OWNER
+        if not os.path.lexists(path):
+            return None
+        metadata = path.lstat()
+        require(stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1 and not metadata.st_mode & 0o022 and metadata.st_uid == 0, 'Unsafe blocked initial owner archive')
+        recorded = read_json(path)
+        require(type(recorded.get('api')) is int and recorded['api'] in {1, 2} and set(recorded) == ({'api', 'owner', 'lease', 'provenance'} | ({'release'} if recorded['api'] == 2 else set())), 'Invalid blocked initial owner archive')
+        return recorded
+
+    @staticmethod
+    def cancellation_stable_lease(lease):
+        # Timestamp changes are not ownership changes between attempts. Every
+        # per-attempt comparison still includes the complete fresh stat/lease.
+        return {'directory': lease['directory'], 'metadata': ':'.join(lease['metadata'].split(':', 7)[:7])}
+
+    @staticmethod
+    def cancellation_stable_server(info):
+        value = {key: info.get(key) for key in ('Id', 'Image', 'Config', 'HostConfig', 'Mounts')}
+        value['Mounts'] = sorted(info['Mounts'], key=lambda mount: json.dumps(mount, sort_keys=True, separators=(',', ':')))
+        return value
+
+    @staticmethod
+    def cancellation_model_hash(raw):
+        return digest(json.dumps(decode(raw), sort_keys=True, separators=(',', ':')).encode())
+
+    def prove_blocked_initial_owner(self, info, args, floor, source_raw):
+        snapshot = self.cancellation_owner_snapshot(info['Id'])
+        path = self.directory / BLOCKED_INITIAL_OWNER
+        if snapshot is None and not os.path.lexists(path):
+            return None  # Preserve the original owner-absent cancellation path.
+        enrolled_raw = (self.directory / 'enrolled-compose.json').read_bytes()
+        enrolled = decode(enrolled_raw)
+        server = enrolled['services']['p2pstream']
+        env = server.get('environment', {})
+        generation = env.get('SERVER_UPDATE_GENERATION')
+        require(isinstance(generation, str) and re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', generation), 'Unknown initial enrollment generation')
+        require(isinstance(self.journal.get('version'), str) and VERSION.fullmatch(self.journal['version']) and isinstance(self.journal.get('commit'), str) and re.fullmatch(r'[0-9a-f]{40}', self.journal['commit']), 'Invalid initial enrolled release identity')
+        require(isinstance(server.get('image'), str) and re.fullmatch(re.escape('ghcr.io/' + self.config['repository'].lower() + '@sha256:') + r'[0-9a-f]{64}', server['image']), 'Initial enrolled image is not pinned')
+        require(enrolled.get('name') == self.config['project'] and server.get('image') == self.journal['server_image'] and env.get('SERVER_UPDATE_INSTANCE_ID') == self.journal['installation'] and env.get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2' and not env.get('SERVER_UPDATE_TOKEN') and env.get('SERVER_UPDATE_TOKEN_FILE') == '/run/p2pstream-server-update/token' and env.get('SERVER_UPDATE_SOCKET') == '/run/p2pstream-server-update/control.sock' and env.get('SERVER_UPDATE_GATE_FILE') == '/run/p2pstream-server-update/maintenance', 'Initial enrolled runtime binding differs')
+        old = decode(docker('image', 'inspect', server['image']).stdout)
+        require(len(old) == 1 and old[0]['Id'] == self.journal['before_image_id'], 'Initial enrolled image differs')
+        labels = old[0]['Config'].get('Labels', {})
+        require((labels.get('org.opencontainers.image.version'), labels.get('org.opencontainers.image.revision'), labels.get('org.opencontainers.image.source', '').lower()) == (self.journal['version'], self.journal['commit'], 'https://github.com/' + self.config['repository'].lower()), 'Initial enrolled image release identity differs')
+        expected = {'api': 2, 'allowed': False, 'instance_id': self.journal['installation'], 'generation': generation, 'version': self.journal['version'], 'commit': self.journal['commit']}
+        recorded = self.blocked_owner_archive()
+        legacy = recorded and recorded['api'] == 1
+        provenance = {'installation': self.journal['installation'], 'data_volume': self.config['data_volume'], 'enrolled_sha256': digest(enrolled_raw), 'journal_sha256': digest((self.directory / 'host.json').read_bytes()), 'config_sha256': digest((self.directory / 'config.json').read_bytes()), 'source_model_sha256': digest(source_raw) if legacy else self.cancellation_model_hash(source_raw), 'server_sha256': digest(json.dumps(self.cancellation_server_identity(info, legacy=True) if legacy else self.cancellation_stable_server(info), sort_keys=True).encode()), 'current_version': args.expect_version, 'current_commit': args.expect_commit, 'floor': floor}
+        lease = self.cancellation_live_lease(info)
+        with self.cancellation_data_directory(info, lease) as directory:
+            self.check_local_cancellation_owner(directory, snapshot, lease)
+        if recorded:
+            # Legacy api1 hashes include volatile runtime state. They cannot be
+            # inverted into a stable binding after a restart; retain strict
+            # compatibility only while the original proof still matches.
+            receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
+            require(recorded['provenance'] == provenance and recorded['lease'] == (lease if legacy else self.cancellation_stable_lease(lease)) and receipt and not receipt['completed'] and receipt['floor'] == floor, 'Blocked initial owner archive or retained floor differs')
+            require(snapshot is None or snapshot == recorded['owner'], 'Runtime owner changed after cancellation was recorded')
+            archived = recorded['owner']
+        else:
+            require(not os.path.lexists(self.directory / 'archive.json'), 'Runtime owner appeared during cancellation archival')
+            archived = snapshot
+        require(isinstance(archived, dict) and set(archived) == {'metadata', 'data_hex', 'sha256'}, 'Invalid blocked initial owner archive')
+        raw = bytes.fromhex(archived['data_hex'])
+        self.cancellation_inode(archived['metadata'], 4096)
+        require(0 < len(raw) <= 4096 and digest(raw) == archived['sha256'], 'Blocked initial owner archive hash differs')
+        owner = decode(raw)
+        require(isinstance(owner, dict) and owner == expected and type(owner.get('api')) is int and owner.get('allowed') is False, 'Runtime ownership is not the exact blocked initial enrollment')
+        record = recorded or {'api': 2, 'owner': archived, 'lease': self.cancellation_stable_lease(lease), 'provenance': provenance, 'release': self._cancellation_release}
+        return {'snapshot': snapshot, 'lease': lease, 'record': record}
+
+    def retire_blocked_initial_owner(self):
+        proof = self._cancelled_upgrade
+        owner = proof['owner']
+        if owner is None:
+            return
+        # Host and executor locks, current release floor and every deployment
+        # gate precede this one narrowly scoped admission-metadata operation.
+        # The sole published standalone writer never changes its owner marker;
+        # trusted host writers are serialized by the two controller locks. No
+        # generic detach/offline data operation is being authorized here.
+        self.check_cancelled_upgrade(proof['options'])
+        for name, snapshot in proof['snapshots'].items():
+            require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
+        path = self.directory / BLOCKED_INITIAL_OWNER
+        if not os.path.lexists(path):
+            atomic(path, owner['record'])  # Exact bytes/hash/provenance durable before unlink.
+        else:
+            require(read_json(path) == owner['record'], 'Blocked initial owner archive changed')
+        self.check_cancelled_upgrade(proof['options'])
+        snapshot, lease = owner['snapshot'], owner['lease']
+        with self.cancellation_data_directory(proof['server'], lease) as directory:
+            self.check_cancelled_upgrade(proof['options'])
+            # Mutation stays in the Python process holding both controller
+            # locks: an orphaned Docker exec could resume after a retry and
+            # unlink a newly enrolled owner. Read-only exec probes are harmless
+            # if orphaned. A directory FD binds every local lookup and unlink to
+            # the exact volume inode independently observed in the container.
+            self.clear_blocked_initial_owner(directory, snapshot, lease)
+        owner['snapshot'] = None
+        self.check_cancelled_upgrade(proof['options'])
+
+    def clear_blocked_initial_owner(self, directory, snapshot, lease):
+        self.check_local_cancellation_owner(directory, snapshot, lease)
+        if snapshot is not None:
+            os.unlink('.p2pstream-runtime-owner.json', dir_fd=directory)
+        os.fsync(directory)  # Also make an interrupted unlink durable on retry.
+
+    @staticmethod
+    def cancellation_source_snapshot(path):
+        if not os.path.lexists(path):
+            return None
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode), 'Cancellation source must be a regular file without symlinks')
+        return {'data': path.read_bytes(), 'mode': stat.S_IMODE(info.st_mode), 'uid': info.st_uid, 'gid': info.st_gid}
+
+    def upgraded_cancellation_sources(self):
+        snapshots, replacements = {}, {}
+        files = self.journal.get('source_bridge', {}).get('files', [])
+        def snapshot(name):
+            if name not in snapshots:
+                snapshots[name] = self.cancellation_source_snapshot(Path(name))
+            return snapshots[name]
+        for name in self.journal['source_files']:
+            require(snapshot(name), 'Original Compose source is missing')
+        bridges = {item['path']: json.dumps(item['bridge'], separators=(',', ':'), sort_keys=True).encode() for item in files}
+        restoring = any(snapshot(item['path']) and snapshot(item['path'])['data'] == bridges[item['path']] for item in files)
+        for item in files:
+            name = item['path']
+            current = snapshot(name)
+            if item['editable'] is not None:
+                if restoring:
+                    editable = snapshot(item['editable'])
+                    require(editable and current and current['data'] in (bridges[name], editable['data']), 'Compose source is not an owned bridge or its exact editable input')
+                    if current['data'] == bridges[name]:
+                        replacements[name] = dict(current, data=editable['data'])
+            else:
+                backup = snapshot(item['original_backup']) if item.get('original_backup') else None
+                require(not item.get('original_backup') or backup and digest(backup['data']) == item['original_sha256'], 'Default Compose recovery snapshot changed')
+                require(current is None and backup is None or current and current['data'] in ([bridges[name]] + ([backup['data']] if backup else [])), 'Default Compose alias is not an owned bridge or its original backup')
+                if current and current['data'] == bridges[name]:
+                    replacements[name] = dict(current, data=backup['data'], mode=0o600, uid=item['uid'], gid=item['gid']) if backup else None
+        return self.input_options() if restoring else self.journal['compose_options'], snapshots, replacements
+
+    @staticmethod
+    def cancellation_server_identity(info, legacy=False):
+        # Health logs and ExecIDs change during probes; runtime/settings changes
+        # must not. Keep the projection independent of probe timestamps.
+        value = {key: info.get(key) for key in ('Id', 'Image', 'Config', 'HostConfig', 'Mounts', 'NetworkSettings', 'RestartCount')} | {
+            'State': {key: info['State'].get(key) for key in ('Running', 'Paused', 'Restarting', 'StartedAt')}}
+        if not legacy:
+            # Docker does not promise top-level Mounts ordering. Preserve every
+            # field, duplicate and nested array; api1's recorded hash stays raw.
+            value['Mounts'] = sorted(info['Mounts'], key=lambda mount: json.dumps(mount, sort_keys=True, separators=(',', ':')))
+        return value
+
+    def check_cancelled_upgrade(self, options):
+        proof = self._cancelled_upgrade
+        source_dir = self.journal['source_directory']
+        info = decode(docker('inspect', proof['server']['Id']).stdout)
+        require(len(info) == 1 and self.cancellation_server_identity(info[0]) == proof['server'], 'Upgraded deployment changed during cancellation validation')
+        require(decode(docker('compose', *options, 'config', '--format', 'json', cwd=source_dir).stdout) == decode(proof['model']) and docker('compose', *options, 'ps', '--all', '--quiet', 'p2pstream', cwd=source_dir).stdout.decode().split() == [proof['server']['Id']], 'Upgraded deployment changed during cancellation validation')
+        require(docker('exec', proof['server']['Id'], '/app/p2pstream', 'server-health', check=False).returncode == 0, 'Upgraded server is unhealthy; cancellation is refused')
+        require(docker('exec', proof['server']['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() == self.config['instance_id'] == self.journal['installation'], 'Original installation identity changed')
+        expected = proof['owner']
+        require(self.cancellation_owner_snapshot(proof['server']['Id']) == (expected['snapshot'] if expected else None), 'Runtime ownership changed during cancellation validation')
+        if expected:
+            require(self.cancellation_live_lease(info[0]) == expected['lease'], 'Standalone lifetime lease changed during cancellation validation')
+        require_data_writers(self.config['data_volume'], proof['server']['Id'])
+
+    def restore_cancelled_upgrade(self):
+        proof = self._cancelled_upgrade
+        self.check_cancelled_upgrade(proof['options'])
+        # Validate the entire captured set before the first source write. The
+        # receipt is already durable; retries recognize exact mixed restored and
+        # bridge bytes, and independently prove the same current deployment.
+        for name, snapshot in proof['snapshots'].items():
+            require(self.cancellation_source_snapshot(Path(name)) == snapshot, 'Compose source changed during cancellation validation')
+        for name, replacement in proof['replacements'].items():
+            path = Path(name)
+            require(self.cancellation_source_snapshot(path) == proof['snapshots'][name], 'Compose source changed during cancellation restoration')
+            if replacement is None:
+                path.unlink()
+                fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+            else:
+                atomic(path, replacement['data'], mode=replacement['mode'], uid=replacement['uid'], gid=replacement['gid'])
+        self.check_cancelled_upgrade(self.journal['compose_options'])
+
     def cancel_enrollment(self, args):
         receipt = cancellation_receipt(self.directory, args.expect_installation, args.repository, args.expect_channel)
         if not self.journal:
@@ -801,6 +1272,16 @@ class Host:
             atomic(self.directory / CANCELLATION, receipt)
             return
         require((self.journal.get('installation'), self.config and self.config.get('repository'), self.config and self.config.get('channel')) == (args.expect_installation, args.repository, args.expect_channel), 'Saved enrollment differs from the selected installation, publisher or channel')
+        if getattr(args, 'upgraded_deployment', False):
+            floor = self.validate_cancelled_upgrade(args)
+        else:
+            self.validate_original_cancellation()
+            floor = validate_floor(self.config['bootstrap_floor'])
+        if receipt:
+            require_floor(floor, receipt['floor'])
+        self.archive_cancelled_enrollment(args, floor)
+
+    def validate_original_cancellation(self):
         # Validation can be interrupted before any cancellation receipt exists,
         # or while a completed receipt from an earlier enrollment is retained.
         # Mark its two exact read-only helpers from the first attempt, and settle
@@ -822,9 +1303,8 @@ class Host:
             self.validate_cancelled_original()
         except UnsettledHelper as error:
             raise UnsettledHelper('Cannot settle cancellation validation; restore Docker access and retry the verified cancellation command') from error
-        floor = validate_floor(self.config['bootstrap_floor'])
-        if receipt:
-            require_floor(floor, receipt['floor'])
+
+    def archive_cancelled_enrollment(self, args, floor):
         executors = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
         require(len(executors) <= 1, 'Multiple saved executors exist; cancellation is refused')
         if executors:
@@ -846,6 +1326,9 @@ class Host:
                 docker('rm', executors[0])  # No force: a concurrently started executor fails closed.
             remaining = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'label=p2pstream.server-update.executor=' + self.journal['installation']).stdout.decode().split()
             require(not remaining, 'An executor remains; cancellation archival is refused')
+            if getattr(args, 'upgraded_deployment', False):
+                self.retire_blocked_initial_owner()
+                self.restore_cancelled_upgrade()
             self.archive_state()
             receipt['completed'] = True
             atomic(self.directory / CANCELLATION, receipt)
@@ -1044,16 +1527,291 @@ class Host:
         self.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
         print('Last managed server configuration restored; current image, data and credentials preserved.')
 
+    def replacement_data(self):
+        # This helper only reads the named volume. Its journal is settled before
+        # any recovery decision; command failure is never interpreted as absence.
+        probe = "stat -c '%d:%i' -- /server-data\nif " + OWNER_ABSENT.replace('/data', '/server-data') + "; then printf 'absent\\n'; else\n" + OWNER_PROBE.replace('/data', '/server-data') + "\nfi"
+        result = self.run_helper('/bin/sh', ('-c', probe), readonly=True,
+                                 mounts=('--mount', 'type=volume,src=' + self.config['data_volume'] + ',dst=/server-data,readonly'))
+        directory, separator, body = result.stdout.partition(b'\n')
+        require(separator and re.fullmatch(rb'[0-9]+:[0-9]+', directory), 'Cannot prove replacement data directory')
+        if body == b'absent\n':
+            owner = None
+        else:
+            metadata, separator, raw = body.partition(b'\n')
+            require(separator and 0 < len(raw) <= 4096, 'Cannot prove replacement runtime owner')
+            self.cancellation_inode(metadata.decode('ascii'), 4096)
+            owner = decode(raw)
+            require(isinstance(owner, dict) and set(owner) == {'api', 'allowed', 'instance_id', 'generation', 'version', 'commit'} and type(owner['api']) is int and owner['api'] == 2 and type(owner['allowed']) is bool, 'Invalid replacement runtime owner')
+            require(isinstance(owner['generation'], str) and re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', owner['generation']), 'Invalid replacement runtime generation')
+        return {'directory': directory.decode('ascii'), 'owner': owner}
+
+    def replacement_binding(self):
+        raw = (self.directory / 'before-compose.json').read_bytes()
+        require(digest(raw) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
+        model = decode(raw)
+        image = model['services']['p2pstream']['image']
+        require(read_json(self.current_model_path())['services']['p2pstream']['image'] == image, 'Replacement active image differs from the recorded transaction')
+        require(re.fullmatch(re.escape('ghcr.io/' + self.config['repository'].lower() + '@sha256:') + '[0-9a-f]{64}', image), 'Recovery image is not pinned')
+        published = decode(docker('image', 'inspect', image).stdout)
+        require(len(published) == 1 and published[0]['Id'] == self.journal['before_image_id'], 'Recovery image differs from the recorded transaction')
+        labels = published[0]['Config'].get('Labels', {})
+        version, commit = labels.get('org.opencontainers.image.version'), labels.get('org.opencontainers.image.revision')
+        require(isinstance(version, str) and VERSION.fullmatch(version) and isinstance(commit, str) and re.fullmatch('[0-9a-f]{40}', commit) and labels.get('org.opencontainers.image.source', '').lower() == 'https://github.com/' + self.config['repository'].lower(), 'Recovery image release identity differs')
+        require(self.journal['installation'] == self.config['instance_id'] and model['name'] == self.config['project'], 'Recovery installation or project differs')
+        return {'before_sha256': digest(raw), 'image': image, 'image_id': published[0]['Id'], 'version': version, 'commit': commit,
+                'config_sha256': digest((self.directory / 'config.json').read_bytes()), 'installation': self.journal['installation'],
+                'project': self.config['project'], 'data_volume': self.config['data_volume'],
+                'source_sha256': self.cancellation_model_hash(docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout)}
+
+    def recorded_rollback_transition(self, intent, binding):
+        transition = self.journal.get('rollback_transition')
+        if not transition:
+            return None
+        require(set(transition) == {'api', 'intent_sha256', 'binding', 'previous_model_sha256', 'target_sha256', 'server'} and transition['api'] == 1 and transition['intent_sha256'] == digest(json.dumps(intent, sort_keys=True).encode()) and transition['binding'] == binding == intent['binding'], 'Rollback publication transition binding changed')
+        require(transition['previous_model_sha256'] in {intent['previous_model_sha256'], intent['target_sha256']}, 'Rollback publication prior model differs')
+        model = read_json(self.directory / 'before-compose.json')
+        if 'p2pstream-server-updater' in model['services']:
+            target = self.journal.get('rollback_target')
+            require(target and target['binding'] == binding and isinstance(target['generation'], str) and str(uuid.UUID(target['generation'])) == target['generation'], 'Rollback publication generation differs')
+            model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = target['generation']
+        require(self.cancellation_model_hash(json.dumps(model).encode()) == transition['target_sha256'], 'Rollback publication target differs from the recorded snapshot')
+        return transition
+
+    def replacement_model_hashes(self, intent, binding):
+        hashes = {intent['target_sha256'], intent['previous_model_sha256']}
+        transition = self.recorded_rollback_transition(intent, binding)
+        if transition:
+            hashes.add(transition['target_sha256'])
+        return hashes
+
+    def replacement_server(self, info, binding):
+        labels = info['Config'].get('Labels', {})
+        require(info['Image'] == binding['image_id'], 'Running image changed outside this host transaction; refusing configuration-only rollback')
+        require(labels.get('com.docker.compose.project') == binding['project'] and labels.get('com.docker.compose.service') == 'p2pstream', 'Replacement server belongs to another deployment')
+        hashes = set()
+        for name in ('before-compose.json', 'compose.json'):
+            fields = self.compose('config', '--hash', 'p2pstream', model=name).stdout.decode().split()
+            require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot verify replacement settings')
+            hashes.add(fields[1])
+        if not self.journal.get('verified_version') and not self.journal.get('verified_commit'):
+            fields = docker('compose', '--project-directory', self.journal['source_directory'], '-f', str(self.directory / 'input.json'), 'config', '--hash', 'p2pstream').stdout.decode().split()
+            require(len(fields) == 2 and fields[0] == 'p2pstream' and HEX.fullmatch(fields[1]), 'Cannot verify original replacement settings')
+            hashes.add(fields[1])
+        intent = self.journal.get('replacement_intent')
+        recorded_server = False
+        if intent and intent['binding'] == binding:
+            transition = self.recorded_rollback_transition(intent, binding)
+            projection = self.cancellation_stable_server(info)
+            if transition:
+                require(projection == transition['server'], 'Server differs from the declared rollback publication transition')
+            recorded_server = projection == intent.get('previous_server') or transition is not None and projection == transition['server']
+        require(recorded_server or labels.get('com.docker.compose.config-hash') in hashes, 'Running settings differ from the recorded replacement transaction')
+        mounts = [m for m in info['Mounts'] if m['Destination'] == '/data']
+        require(len(mounts) == 1 and mounts[0].get('Name') == binding['data_volume'] and mounts[0].get('RW') and not any(m['Destination'].startswith('/data/') for m in info['Mounts']), 'Replacement data volume differs')
+        identity = docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity').stdout.decode().strip() if info['State']['Running'] else self.data_identity()
+        require(identity == binding['installation'], 'Installation identity changed during replacement')
+        require_data_writers(binding['data_volume'], info['Id'], binding['installation'])
+
+    @staticmethod
+    def replacement_owned(owner, intent):
+        permitted = intent.get('permitted_owner')
+        return owner is not None and (owner == intent['owner'] or permitted is not None and owner in (permitted, dict(permitted, allowed=False)))
+
+    def verify_replacement_intent(self, binding=None, previous_model=None):
+        intent = self.journal.get('replacement_intent')
+        require(self.config.get('deployment_protocol') == 2 and intent and intent.get('api') == 1, 'Missing deployment has no durable blocked replacement proof; refusing to recreate a missing deployment')
+        binding = binding or self.replacement_binding()
+        require(intent['binding'] == binding, 'Replacement snapshot, configuration or image binding changed')
+        require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
+        data = self.replacement_data()
+        require(data['directory'] == intent['data_directory'] and self.replacement_owned(data['owner'], intent), 'Replacement runtime owner or data directory changed')
+        require(self.data_identity() == binding['installation'], 'Installation identity changed during replacement')
+        require_data_writers(binding['data_volume'], '', binding['installation'])
+        return intent
+
+    def prepare_replacement(self, info, operation, target, *, stopped_from=None, previous_model=None):
+        if self.config.get('deployment_protocol') != 2:
+            return
+        self.idle()
+        binding = self.replacement_binding()
+        existing = self.journal.get('replacement_intent')
+        if existing:
+            require(existing.get('api') == 1 and existing['binding'] == binding, 'Replacement snapshot, configuration or image binding changed')
+            require(self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes()) in self.replacement_model_hashes(existing, binding), 'Replacement active model changed')
+        if info is None:
+            self.verify_replacement_intent(binding, previous_model)
+        elif stopped_from is not None:
+            require(self.cancellation_stable_server(info) == self.cancellation_stable_server(stopped_from) and not info['State']['Running'] and info['State'].get('StartedAt') == stopped_from['State'].get('StartedAt') and info.get('RestartCount') == stopped_from.get('RestartCount'), 'Deployment changed while stopping for rollback')
+            require(self.data_identity() == binding['installation'], 'Installation identity changed during replacement')
+            require_data_writers(binding['data_volume'], info['Id'], binding['installation'])
+        else:
+            self.replacement_server(info, binding)
+        data = self.replacement_data()
+        if existing:
+            require(data['directory'] == existing['data_directory'] and self.replacement_owned(data['owner'], existing), 'Replacement runtime owner or data directory changed')
+        elif data['owner'] is not None:
+            generations = set()
+            for path in (self.current_model_path(), self.directory / 'before-compose.json', self.directory / 'enrolled-compose.json'):
+                if path.exists():
+                    generations.add(read_json(path)['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_GENERATION'))
+            owner = data['owner']
+            require(owner['instance_id'] == binding['installation'] and owner['version'] == binding['version'] and owner['commit'] == binding['commit'] and owner['generation'] in generations, 'Runtime owner does not belong to this replacement transaction')
+        # Block first, then recheck the same live deployment before recording
+        # authority. A prepared phase or installation UUID alone proves nothing.
+        require(data['owner'] is not None or read_json(self.current_model_path())['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2', 'Detached rollback has no blocked runtime authority; restore the verified managed deployment before retrying')
+        self.runtime('block')
+        blocked = self.replacement_data()
+        require(blocked['directory'] == data['directory'] and blocked['owner'] is not None and blocked['owner']['allowed'] is False, 'Replacement runtime admission was not blocked')
+        owner = blocked['owner']
+        require(owner['instance_id'] == binding['installation'] and (owner['version'], owner['commit']) == (binding['version'], binding['commit']), 'Blocked replacement owner release differs')
+        if data['owner'] is not None:
+            require(owner == dict(data['owner'], allowed=False), 'Runtime owner changed while blocking replacement')
+        else:
+            require(owner['generation'] == read_json(self.current_model_path())['services']['p2pstream']['environment'].get('SERVER_UPDATE_GENERATION'), 'Blocked replacement generation differs from the verified model')
+        if info is not None:
+            current = self.server_container()
+            require(self.cancellation_server_identity(current) == self.cancellation_server_identity(info), 'Deployment changed while blocking replacement')
+            if stopped_from is None:
+                self.replacement_server(current, binding)
+            else:
+                require_data_writers(binding['data_volume'], current['Id'], binding['installation'])
+        else:
+            require(self.server_container(allow_missing=True) is None, 'A server appeared during replacement recovery')
+            require_data_writers(binding['data_volume'], '', binding['installation'])
+        require(self.replacement_binding() == binding, 'Replacement snapshots changed while blocking')
+        target_raw = json.dumps(target, separators=(',', ':'), sort_keys=True).encode()
+        require(target['services']['p2pstream']['image'] == binding['image'], 'Replacement target image differs')
+        env = target['services']['p2pstream'].get('environment', {})
+        permitted = None
+        if 'p2pstream-server-updater' in target['services']:
+            generation = env.get('SERVER_UPDATE_GENERATION')
+            require(isinstance(generation, str) and str(uuid.UUID(generation)) == generation, 'Invalid replacement target generation')
+            permitted = dict(owner, generation=generation, allowed=True)
+        self._replacement_server = self.cancellation_stable_server(info) if info else None
+        if existing and existing['operation'] == operation and existing['target_sha256'] == digest(target_raw):
+            return  # Retain exact original authority across retries.
+        intent = {'api': 1, 'operation': operation, 'binding': binding, 'container_id': info['Id'] if info else existing['container_id'],
+                  'data_directory': blocked['directory'], 'owner': owner, 'permitted_owner': permitted, 'previous_server': self.cancellation_stable_server(info) if info else None, 'target_sha256': digest(target_raw), 'previous_model_sha256': self.cancellation_model_hash(previous_model if previous_model is not None else self.current_model_path().read_bytes())}
+        # Commit new authority and consume its publication bridge in one write.
+        self.journal.pop('rollback_transition', None)
+        self.phase(self.journal['phase'], replacement_intent=intent)
+
+    def begin_detached_continuation(self):
+        intent = self.verify_replacement_intent()
+        require(intent['operation'] in {'rollback', 'remove'} and intent['permitted_owner'] is None, 'No detached replacement transaction exists')
+        info = self.server_container()
+        self.replacement_server(info, intent['binding'])
+        require(not info['State']['Running'] and not info['State'].get('Paused') and not info['State'].get('Restarting'), 'Detached target is not stopped')
+        stopped = getattr(self, '_replacement_stopped_target', None)
+        reused = stopped is not None and self.cancellation_stable_server(info) == stopped['server'] and info['State'].get('StartedAt') == stopped['started_at'] and info.get('RestartCount') == stopped['restart_count']
+        require(reused or (stopped is None or info['Id'] != stopped['server']['Id']) and info['State'].get('StartedAt') in (None, '', '0001-01-01T00:00:00Z') and info.get('RestartCount') in (None, 0), 'Detached target has already been started outside its continuation')
+        data = self.replacement_data()
+        require(data['owner'] is not None and data['owner']['allowed'] is False and self.replacement_owned(data['owner'], intent), 'Detached target lacks its blocked owner')
+        continuation = {'api': 1, 'stage': 'detaching', 'operation': intent['operation'], 'reused_stopped_target': reused,
+                        'intent_sha256': digest(json.dumps(intent, sort_keys=True).encode()),
+                        'server': self.cancellation_stable_server(info), 'started_at': info['State'].get('StartedAt'),
+                        'restart_count': info.get('RestartCount'), 'target_sha256': intent['target_sha256'],
+                        'data_directory': data['directory'], 'owner': data['owner']}
+        self.phase(self.journal['phase'], detached_continuation=continuation)
+
+    def detached_server_matches(self, info, continuation):
+        observed = self.cancellation_stable_server(info)
+        recorded = continuation['server']
+        actual, saved = observed.get('HostConfig'), recorded.get('HostConfig')
+        key = 'OomKillDisable'
+        if isinstance(actual, dict) and isinstance(saved, dict) and (key in actual or key in saved):
+            if key not in actual or key not in saved:
+                return False
+            if any(value is not None and type(value) is not bool for value in (actual[key], saved[key])):
+                return False
+            # Docker start revalidates resources and can clear default false to
+            # null when OOM-disable is unsupported. Only the declared start may
+            # do this; keep the saved projection and cancellation hashes exact.
+            if continuation['stage'] == 'starting' and saved[key] is False and actual[key] is None:
+                observed = dict(observed, HostConfig=dict(actual, OomKillDisable=False))
+        return observed == recorded
+
+    def detached_target(self):
+        continuation = self.journal.get('detached_continuation')
+        intent = self.journal.get('replacement_intent')
+        require(self.config.get('deployment_protocol') == 2 and continuation and continuation.get('api') == 1 and continuation['stage'] in {'detaching', 'starting'} and intent and continuation['operation'] == intent['operation'] in {'rollback', 'remove'}, 'Invalid detached continuation')
+        require(continuation['intent_sha256'] == digest(json.dumps(intent, sort_keys=True).encode()) and intent['binding'] == self.replacement_binding(), 'Detached continuation bindings changed')
+        require(self.cancellation_model_hash(self.current_model_path().read_bytes()) == continuation['target_sha256'] == intent['target_sha256'], 'Detached target model changed')
+        require('p2pstream-server-updater' not in read_json(self.current_model_path())['services'], 'Detached target still has an updater')
+        # This is completion of one already-created target, never authority to
+        # recreate an absent target or return to a historical image.
+        info = self.server_container(allow_missing=True)
+        require(info is not None and self.detached_server_matches(info, continuation), 'Declared detached target is missing or changed; no recreation is authorized')
+        require(not info['State'].get('Paused') and not info['State'].get('Restarting') and info.get('RestartCount') == continuation['restart_count'], 'Detached target runtime changed')
+        if info['State']['Running']:
+            require(continuation['stage'] == 'starting', 'Detached target started before its declared start transition')
+        else:
+            require(info['State'].get('StartedAt') == continuation['started_at'], 'Stopped detached target was started outside this continuation')
+        data = self.replacement_data()
+        require(data['directory'] == continuation['data_directory'] == intent['data_directory'], 'Detached data directory changed')
+        require(data['owner'] is None or continuation['stage'] == 'detaching' and data['owner'] == continuation['owner'], 'Detached runtime owner changed')
+        require(not info['State']['Running'] or data['owner'] is None, 'Running detached target retains runtime ownership')
+        require(self.data_identity() == intent['binding']['installation'], 'Detached installation identity changed')
+        require_data_writers(intent['binding']['data_volume'], info['Id'], intent['binding']['installation'])
+        return info, data
+
+    def continue_detached_start(self):
+        self.settle_helper()
+        self.idle()
+        info, data = self.detached_target()
+        continuation = self.journal['detached_continuation']
+        if data['owner'] is not None:
+            self.runtime('detach')  # Existing runtime command takes the stable lease.
+            info, data = self.detached_target()
+            require(data['owner'] is None, 'Runtime detach did not remove its declared owner')
+        if continuation['stage'] != 'starting':
+            # Durable intent precedes start, including a lost helper response.
+            continuation = dict(continuation, stage='starting')
+            self.phase(self.journal['phase'], detached_continuation=continuation)
+        info, _ = self.detached_target()
+        if not info['State']['Running']:
+            self.compose('start', 'p2pstream')
+        self.detached_target()
+        self.wait_original()
+        self.detached_target()
+
+    def finish_removal(self):
+        self.wait_original()
+        candidate = self.current_model_path().read_bytes()
+        self.compose('rm', '--force', 'p2pstream-server-updater', model='before-compose.json')
+        atomic(self.directory / 'detached-compose.json', candidate)
+        if self.config.get('deployment_protocol') == 2:
+            self.export_sources(candidate)
+            self.phase('removed', error='', editable_compose_options=self.journal['compose_options'])
+        else:
+            self.phase('removed', error='', source_directory=str(self.directory), compose_options=['-p', self.config['project'], '-f', str(self.directory / 'detached-compose.json')])
+        print('Updater removed. Current pinned image, settings, ports and data retained.')
+        if self.config.get('deployment_protocol') == 2:
+            print('Editable current deployment: ' + self.journal['source_layout']['primary'] + '; the original and default Compose commands retain the current image and settings.')
+        else:
+            print('Editable deployment: ' + str(self.directory / 'detached-compose.json') + '; apply with sudo docker compose -p ' + self.config['project'] + ' -f ' + str(self.directory / 'detached-compose.json') + ' up -d --no-deps --no-build p2pstream')
+
+    def resume_detached_continuation(self):
+        self.continue_detached_start()
+        if self.journal['detached_continuation']['operation'] == 'remove':
+            self.finish_removal()
+        else:
+            self.phase('rolled_back', error='Original deployment restored; enrollment is not enabled')
+            print(self.journal['error'])
+
+    def interrupted_initial_activation(self):
+        return (self.journal['phase'] == 'activating' and self.config.get('deployment_protocol') == 2
+                and not any(self.journal.get(key) for key in ('verified_version', 'verified_commit', 'deployment_migration', 'recovery_phase', 'recovery_operation'))
+                and not os.path.lexists(self.directory / 'state.json'))
+
     def activate(self):
         self.idle()
-        if self.config.get('deployment_protocol') == 2 and self.journal.get('source_bridge'):
-            self.runtime('block')
-            self.source_bridges()
         raw = docker('compose', *self.input_options(), 'config', '--format', 'json', cwd=self.journal['source_directory']).stdout
         require(raw == (self.directory / 'input.json').read_bytes(), 'Compose inputs changed after setup was staged; restore the recorded inputs before repair')
         expected = decode(docker('image', 'inspect', self.journal['server_image']).stdout)[0]['Id']
         ids = self.compose('ps', '--all', '--quiet', 'p2pstream').stdout.decode().split()
-        require(len(ids) == 1 or not ids and self.journal['phase'] == 'activating' and self.config.get('deployment_protocol') == 2, 'Server disappeared after setup was staged; inspect the host before repair')
+        require(len(ids) == 1 or not ids and self.interrupted_initial_activation() and self.journal.get('replacement_intent'), 'Server disappeared after setup was staged; inspect the host before repair')
         if ids:
             actual = decode(docker('inspect', ids[0]).stdout)[0]
             require(actual['Image'] == expected, 'Running image changed after setup was staged; refusing a configuration-only replacement')
@@ -1061,7 +1819,9 @@ class Host:
             require(self.data_identity() == self.journal['installation'], 'Installation identity changed during activation')
         require_data_writers(self.config['data_volume'], ids[0] if ids else '', self.config['instance_id'])
         self.phase('activating')
-        self.runtime('block')
+        self.prepare_replacement(actual if ids else None, 'activation', read_json(self.current_model_path()))
+        if self.config.get('deployment_protocol') != 2:
+            self.runtime('block')
         if self.config.get('deployment_protocol') == 2:
             self.source_bridges()
             self.deploy_server()
@@ -1077,7 +1837,6 @@ class Host:
     def rollback(self):
         require(self.journal['phase'] in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished host transaction exists; rollback cannot downgrade a healthy updated deployment')
         self.idle()
-        self.phase('rolling_back')
         # Stop before changing models; a successful same-image configuration
         # rollback does not claim to restore application data.
         previous = self.directory / 'before-compose.json'
@@ -1085,10 +1844,50 @@ class Host:
         require(digest(previous.read_bytes()) == self.journal.get('before_sha256'), 'Recovery snapshot differs from the recorded transaction')
         before = read_json(previous)
         ids = self.compose('ps', '--all', '--quiet', 'p2pstream', model='before-compose.json').stdout.decode().split()
-        if ids:
-            require(len(ids) == 1, 'Ambiguous recovery deployment')
-            info = decode(docker('inspect', ids[0]).stdout)[0]
+        if not ids:
+            if not self.journal.get('replacement_intent'):
+                raise MissingRollbackServer('Expected exactly one existing server for configuration rollback; no durable blocked replacement proof, refusing to recreate a missing deployment')
+            self.verify_replacement_intent()
+            info = None
+        else:
+            require(len(ids) == 1, 'Expected exactly one existing server for configuration rollback')
+            inspection = decode(docker('inspect', ids[0]).stdout)
+            require(len(inspection) == 1 and inspection[0]['Id'] == ids[0], 'Server inspection differs from Compose inventory')
+            info = inspection[0]
             require(info['Image'] == self.journal['before_image_id'], 'Running image changed outside this host transaction; refusing configuration-only rollback')
+        model = decode(json.dumps(before))
+        enrolled = 'p2pstream-server-updater' in model['services']
+        intent = self.journal.get('replacement_intent')
+        rollback_target = None
+        if enrolled and self.config.get('deployment_protocol') == 2:
+            binding = self.replacement_binding()
+            rollback_target = self.journal.get('rollback_target')
+            if rollback_target:
+                require(rollback_target['binding'] == binding, 'Rollback target binding changed')
+            else:
+                rollback_target = {'binding': binding, 'generation': str(uuid.uuid4())}
+            model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = rollback_target['generation']
+        previous_model = self.current_model_path().read_bytes()
+        if self.config.get('deployment_protocol') == 2 and info is not None:
+            binding = self.replacement_binding()
+            self.replacement_server(info, binding)
+            data = self.replacement_data()
+            if intent:
+                require(self.cancellation_model_hash(previous_model) in self.replacement_model_hashes(intent, binding), 'Replacement active model changed')
+                require(intent['binding'] == binding and data['directory'] == intent['data_directory'] and self.replacement_owned(data['owner'], intent), 'Replacement runtime owner or data directory changed')
+            require(data['owner'] is not None or enrolled or read_json(self.current_model_path())['services']['p2pstream'].get('environment', {}).get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2', 'Detached rollback has no blocked runtime authority; restore the verified managed deployment before retrying')
+        declaration = {'rollback_target': rollback_target} if rollback_target else {}
+        if intent and intent['operation'] != 'rollback' and not self.journal.get('rollback_transition'):
+            # Preserve the validated old authority while publishing the exact
+            # next model. Neither phase nor a model hash alone grants ownership.
+            declaration['rollback_transition'] = {'api': 1, 'intent_sha256': digest(json.dumps(intent, sort_keys=True).encode()),
+                'binding': intent['binding'], 'previous_model_sha256': self.cancellation_model_hash(previous_model),
+                'target_sha256': self.cancellation_model_hash(json.dumps(model).encode()),
+                'server': self.cancellation_stable_server(info) if info else None}
+        # No Compose create/up may run while rollback_transition is durable.
+        # prepare_replacement below must atomically advance replacement_intent
+        # and consume the transition before deploy_server may create a target.
+        self.phase('rolling_back', **declaration)
         helper_model = 'before-compose.json' if 'p2pstream-server-updater' in before['services'] else 'enrolled-compose.json'
         if (self.directory / helper_model).exists():
             self.compose('stop', 'p2pstream-server-updater', model=helper_model)
@@ -1096,10 +1895,6 @@ class Host:
         if self.config.get('deployment_protocol') != 2 or current_env.get('SERVER_UPDATE_RUNTIME_PROTOCOL') == '2':
             self.runtime('block')
         self.compose('stop', 'p2pstream', model='before-compose.json')
-        model = read_json(previous)
-        enrolled = 'p2pstream-server-updater' in model['services']
-        if enrolled and self.config.get('deployment_protocol') == 2:
-            model['services']['p2pstream']['environment']['SERVER_UPDATE_GENERATION'] = str(uuid.uuid4())
         self.write_model(json.dumps(model, separators=(',', ':')).encode())
         if self.config.get('deployment_protocol') == 2:
             if enrolled:
@@ -1107,6 +1902,10 @@ class Host:
                 self.source_bridges()
             else:
                 self.restore_sources()
+        if self.config.get('deployment_protocol') == 2:
+            stopped = self.server_container(allow_missing=True)
+            require((stopped is None) == (info is None), 'Server inventory changed before rollback replacement')
+            self.prepare_replacement(stopped, 'rollback', model, stopped_from=info, previous_model=previous_model)
         self.deploy_server(detached=not enrolled)
         if enrolled:
             self.start_executor()
@@ -1139,11 +1938,19 @@ class Host:
     def recover_failure(self, error):
         if isinstance(error, UnsettledHelper):
             raise error
-        self.phase('recovery_required', error=str(error))
+        if self.journal.get('detached_continuation'):
+            self.phase('recovery_required', error=str(error))
+            raise Failure(str(error) + '; retry the declared detached target with sudo ' + str(self.directory / 'manage') + ' repair or rollback') from error
+        activating = self.interrupted_initial_activation()
+        self.phase('activating' if activating else 'recovery_required', error=str(error))
         try:
             self.rollback()
         except Exception as rollback_error:
-            self.phase('recovery_required', error=str(error) + '; configuration rollback failed: ' + str(rollback_error))
+            # Preserve only an actual initial activation whose rollback proved
+            # absence before starting. Once rollback enters rolling_back, even
+            # a later missing container must stay on the rollback recovery path.
+            resume = activating and isinstance(rollback_error, MissingRollbackServer) and self.journal['phase'] == 'activating'
+            self.phase('activating' if resume else 'recovery_required', error=str(error) + '; configuration rollback failed: ' + str(rollback_error))
         raise Failure(str(error) + '\nDurable recovery state: ' + str(self.directory / 'host.json') + '\nRecovery: sudo ' + str(self.directory / 'manage') + ' rollback\nResume: sudo ' + str(self.directory / 'manage') + ' repair') from error
 
 def validate_running(container, model, image, arch, expected):
@@ -1218,6 +2025,12 @@ def install(args, options):
                     removed_source_files = host.journal.get('source_files')
             if host.journal and host.journal['phase'] != 'removed':
                 require(host.journal.get('source_directory') == source_dir and host.journal.get('compose_options') == options, 'Use the recorded Compose context for this enrollment')
+                if host.journal['phase'] != 'healthy' and not host.journal.get('verified_version') and not host.journal.get('verified_commit'):
+                    # Check before saved repair can write a model, start helpers,
+                    # or convert a failed preflight into a rollback transaction.
+                    require((host.journal.get('version'), host.journal.get('commit')) == (args.expect_version, args.expect_commit), 'Running release changed after setup was staged; use verified upgraded-deployment cancellation before fresh enrollment')
+                    staged_image = host.journal.get('before_image_id') or decode(docker('image', 'inspect', host.journal['server_image']).stdout)[0]['Id']
+                    require(container['Image'] == staged_image, 'Running image changed after setup was staged; use verified upgraded-deployment cancellation before fresh enrollment')
             if host.journal.get('phase') == 'healthy':
                 try:
                     host.healthy()
@@ -1409,14 +2222,21 @@ def manage(args):
             host.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
             print('Paused update recovery completed; server and updater verified.')
             return
+        if args.action in {'repair', 'rollback'} and host.journal.get('detached_continuation'):
+            host.resume_detached_continuation()
+            return
         if args.action == 'rollback':
             require(host.journal['phase'] in {'preparing', 'prepared', 'activating', 'applying', 'removing', 'rolling_back', 'recovery_required', 'rolled_back'}, 'No unfinished host transaction exists; rollback cannot downgrade a healthy updated deployment')
             require(host.journal.get('recovery_phase') not in {'healthy', 'repairing', 'recreating', 'migrating_deployment', 'recovering_update'}, 'Use repair or recover-update for the recorded helper; no unfinished configuration transaction exists')
             host.settle_helper()
+            activating = host.interrupted_initial_activation()
             try:
                 host.rollback()
             except Exception as error:
-                host.phase('recovery_required', error=str(error))
+                # Refusing an absent server before rollback starts must retain
+                # the same initial-activation repair path as automatic recovery.
+                resume = activating and isinstance(error, MissingRollbackServer) and host.journal['phase'] == 'activating'
+                host.phase('activating' if resume else 'recovery_required', error=str(error))
                 raise
             return
         if args.action == 'recreate':
@@ -1527,7 +2347,9 @@ def manage(args):
         executor_lock = None
         try:
             executor_lock = host.stop_executor()
-            host.runtime('block')
+            host.prepare_replacement(host.server_container(), args.action, decode(candidate))
+            if host.config.get('deployment_protocol') != 2:
+                host.runtime('block')
             host.write_model(candidate)
             host.deploy_server(detached=args.action == 'remove')
             os.close(executor_lock)
@@ -1540,20 +2362,7 @@ def manage(args):
                 host.phase('healthy', verified_version=status['version'], verified_commit=status['commit'], error='')
                 print('Configuration applied; current pinned image and private updater connection preserved.')
             else:
-                host.wait_original()
-                # Remove the stopped executor using the saved pre-removal model.
-                host.compose('rm', '--force', 'p2pstream-server-updater', model='before-compose.json')
-                atomic(STATE / 'detached-compose.json', candidate)
-                if host.config.get('deployment_protocol') == 2:
-                    host.export_sources(candidate)
-                    host.phase('removed', error='', editable_compose_options=host.journal['compose_options'])
-                else:
-                    host.phase('removed', error='', source_directory=str(STATE), compose_options=['-p', host.config['project'], '-f', str(STATE / 'detached-compose.json')])
-                print('Updater removed. Current pinned image, settings, ports and data retained.')
-                if host.config.get('deployment_protocol') == 2:
-                    print('Editable current deployment: ' + host.journal['source_layout']['primary'] + '; the original and default Compose commands retain the current image and settings.')
-                else:
-                    print('Editable deployment: ' + str(STATE / 'detached-compose.json') + '; apply with sudo docker compose -p ' + host.config['project'] + ' -f ' + str(STATE / 'detached-compose.json') + ' up -d --no-deps --no-build p2pstream')
+                host.finish_removal()
         except Exception as error:
             if executor_lock is not None:
                 os.close(executor_lock)
@@ -1606,6 +2415,10 @@ def main():
         cancel.add_argument('--expect-' + key, required=True)
     cancel.add_argument('--repository', required=True)
     cancel.add_argument('--bundle', required=True)
+    cancel.add_argument('--upgraded-deployment', action='store_true', help='Prove a manually upgraded published server before retiring a never-completed enrollment')
+    for key in ('version', 'commit', 'arch'):
+        cancel.add_argument('--expect-' + key)
+    cancel.add_argument('--manifest-sha256')
     for action in ['status', 'logs', 'apply', 'recreate', 'repair', 'rollback', 'remove', 'recover-update', 'discard-preparation']:
         commands.add_parser(action)
     inspect = commands.add_parser('inspect')
@@ -1624,11 +2437,20 @@ def main():
         elif args.action == 'cancel-enrollment':
             require(not options, 'Cancellation uses the saved Compose context; additional options are refused')
             require(str(uuid.UUID(args.expect_installation)) == args.expect_installation and REPOSITORY.fullmatch(args.repository) and args.expect_channel in {'stable', 'staging'}, 'Invalid cancellation identity, publisher or channel')
+            current_identity = (args.expect_version, args.expect_commit, args.expect_arch, args.manifest_sha256)
+            if args.upgraded_deployment:
+                require(all(current_identity), 'Upgraded cancellation requires current version, commit, architecture and manifest SHA-256')
+                require(VERSION.fullmatch(args.expect_version) and re.fullmatch('[0-9a-f]{40}', args.expect_commit) and args.expect_arch in {'amd64', 'arm64'} and HEX.fullmatch(args.manifest_sha256), 'Invalid current release identity')
+            else:
+                require(not any(value is not None for value in current_identity), 'Current release identity requires --upgraded-deployment')
             local_engine()
             controller = Host()
             with controller.lock(allow_archive=True):
                 controller.cancel_enrollment(args)
-            print('Failed enrollment cancelled and archived privately; original server remains running. Release floors retained. Manually deploy a current fixed published server using the same Compose inputs and data volume, then copy its fresh setup command.')
+            if args.upgraded_deployment:
+                print('Failed enrollment cancelled and archived privately; verified current server remains running. Release floors retained. Copy its fresh setup command to enroll.')
+            else:
+                print('Failed enrollment cancelled and archived privately; original server remains running. Release floors retained. Manually deploy a current fixed published server using the same Compose inputs and data volume, then copy its fresh setup command.')
         elif args.action == 'deploy':
             require(not options, 'Unexpected Compose options')
             deploy(args)

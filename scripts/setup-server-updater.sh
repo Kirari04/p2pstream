@@ -26,6 +26,7 @@ from pathlib import Path
 NAMES = {'server-updater-host.py', 'install-server-updater.sh', 'server-updater-compose.sh', 'compose.yaml', '.env.example'}
 HOSTS = {'github.com', 'release-assets.githubusercontent.com', 'objects.githubusercontent.com'}
 HEX = re.compile(r'[0-9a-f]{64}')
+VERSION = re.compile(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?')
 
 
 def require(condition, message):
@@ -54,12 +55,24 @@ def download(url, maximum):
     return raw
 
 
+def release_manifest(repository, version, manifest_hash, *, allow_expired_identity=False):
+    base = 'https://github.com/' + repository + '/releases/download/' + version + '/'
+    raw = download(base + 'p2pstream_agent_update_manifest.json', 65536)
+    require(hashlib.sha256(raw).hexdigest() == manifest_hash, 'Release changed since this command was copied; refresh the selected server')
+    manifest = json.loads(raw)
+    channel = 'staging' if '-staging.' in version else 'stable'
+    require(manifest['schema_version'] == 1 and manifest['version'] == version and manifest['channel'] == channel and re.fullmatch(r'[0-9a-f]{40}', manifest['commit']), 'Manifest identity mismatch')
+    expiry = datetime.datetime.strptime(manifest['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc)
+    require(allow_expired_identity or expiry > datetime.datetime.now(datetime.timezone.utc), 'Release metadata expired; manually upgrade to a current published release')
+    return base, manifest, channel
+
+
 def main(args):
     require(len(args) >= 5, 'Expected repository@release, installation, manifest SHA-256, architecture, and --')
     binding, installation, manifest_hash, arch = args[:4]
     repository, separator, version = binding.partition('@')
     require(separator and re.fullmatch(r'[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*', repository), 'Invalid GitHub repository')
-    require(re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?', version), 'An exact release version is required')
+    require(VERSION.fullmatch(version), 'An exact release version is required')
     require(str(uuid.UUID(installation)) == installation and HEX.fullmatch(manifest_hash) and arch in {'amd64', 'arm64'}, 'Invalid installation binding')
     remaining = args[4:]
     migrate = cancel = False
@@ -68,16 +81,24 @@ def main(args):
         migrate = remaining[0] == '--migrate-deployment'
         cancel = remaining[0] == '--cancel-enrollment'
         remaining = remaining[1:]
+    current_version = current_hash = None
+    if remaining and remaining[0] == '--upgraded-deployment':
+        require(cancel and len(remaining) >= 4, '--upgraded-deployment requires --cancel-enrollment, current version, and current manifest SHA-256')
+        current_version, current_hash = remaining[1:3]
+        require(VERSION.fullmatch(current_version) and HEX.fullmatch(current_hash), 'Invalid current release binding')
+        require(('-staging.' in current_version) == ('-staging.' in version), 'Current and recovery releases must use the same channel')
+        remaining = remaining[3:]
     require(remaining and remaining[0] == '--', 'Expected -- before Compose options')
     options = remaining[1:]
     require(not cancel or not options, 'Enrollment cancellation does not accept Compose options')
-    base = 'https://github.com/' + repository + '/releases/download/' + version + '/'
-    raw = download(base + 'p2pstream_agent_update_manifest.json', 65536)
-    require(hashlib.sha256(raw).hexdigest() == manifest_hash, 'Release changed since this command was copied; refresh the selected server')
-    manifest = json.loads(raw)
-    channel = 'staging' if '-staging.' in version else 'stable'
-    require(manifest['schema_version'] == 1 and manifest['version'] == version and manifest['channel'] == channel and re.fullmatch(r'[0-9a-f]{40}', manifest['commit']), 'Manifest identity mismatch')
-    require(datetime.datetime.strptime(manifest['expires_at'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=datetime.timezone.utc) > datetime.datetime.now(datetime.timezone.utc), 'Release metadata expired; manually upgrade to a current published release')
+    base, manifest, channel = release_manifest(repository, version, manifest_hash)
+    current_manifest = None
+    if current_version is not None:
+        # Only explicit upgraded cancellation may pass an expired, pinned
+        # current identity to the freshly verified recovery controller. Its
+        # exact API2 receipt decides whether this is an admitted retry; without
+        # that proof the controller still performs fresh expiry validation.
+        _, current_manifest, _ = release_manifest(repository, current_version, current_hash, allow_expired_identity=True)
     assets = manifest['release_assets']
     require(isinstance(assets, list) and len(assets) <= 64, 'Invalid release assets')
     inventory = {}
@@ -113,6 +134,12 @@ def main(args):
             # server may still run the older release whose enrollment failed.
             command += ['cancel-enrollment', '--expect-installation', installation, '--repository', repository,
                         '--expect-channel', channel, '--bundle', directory]
+            if current_manifest is not None:
+                # The recovery code and already upgraded server have independent
+                # release identities. Never substitute the recovery build's pin.
+                command += ['--upgraded-deployment', '--expect-version', current_version,
+                            '--expect-commit', current_manifest['commit'], '--expect-arch', arch,
+                            '--manifest-sha256', current_hash]
         else:
             command += ['install', '--bundle', directory, '--expect-installation', installation,
                         '--expect-version', version, '--expect-commit', manifest['commit'], '--expect-channel', channel,
