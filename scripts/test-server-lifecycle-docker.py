@@ -706,6 +706,28 @@ def helper(images, test, *, update=False):
     docker(*args, timeout=800 if update else 90)
 
 
+
+def assert_hardened_model(service):
+    require(service.get('read_only') is True
+            and service.get('cap_drop') == ['ALL']
+            and service.get('cap_add') == ['NET_BIND_SERVICE']
+            and service.get('security_opt') == ['no-new-privileges:true']
+            and service.get('tmpfs') == ['/tmp:rw,nosuid,nodev,mode=1777'],
+            'server-model-hardening-changed')
+
+
+def assert_hardened_runtime(info):
+    host = info['HostConfig']
+    capabilities = lambda values: {value.removeprefix('CAP_') for value in (values or [])}
+    require(host['ReadonlyRootfs']
+            and capabilities(host.get('CapDrop')) == {'ALL'}
+            and capabilities(host.get('CapAdd')) == {'NET_BIND_SERVICE'}
+            and host.get('SecurityOpt') == ['no-new-privileges:true']
+            and set(host.get('Tmpfs') or {}) == {'/tmp'}
+            and set(host['Tmpfs']['/tmp'].split(',')) == {'rw', 'nosuid', 'nodev', 'mode=1777'},
+            'server-runtime-hardening-changed')
+
+
 def assert_binding(images, expected):
     wait(health)
     config, info = read(STATE / 'config.json'), server_info()
@@ -716,7 +738,8 @@ def assert_binding(images, expected):
                 for mount in info['Mounts']), 'runtime-private-binding-missing')
     require(not any(mount['Destination'] == '/var/run/docker.sock' for mount in info['Mounts']),
             'server-has-docker-socket')
-    require(info['HostConfig']['ReadonlyRootfs'], 'server-root-no-longer-read-only')
+    assert_hardened_model(read(CANONICAL)['services']['p2pstream'])
+    assert_hardened_runtime(info)
     require(docker('exec', info['Id'], '/app/p2pstream', 'server-installation-identity')
             == read(ROOT / 'identity.json')['installation'], 'installation-identity-changed')
     require(sha(docker('exec', info['Id'], 'cat', '/data/certs/management/ca.crt.pem').encode())
@@ -775,6 +798,8 @@ def removal_forward_recovery(images, expected_floor, *, action='repair'):
             and continuation['target_sha256'] == intent['target_sha256']
             == host.Host.cancellation_model_hash(CANONICAL.read_bytes()), 'remove-declared-target-differs')
     require(read(CANONICAL) == json.loads(host.remove_model(model)), 'remove-changed-standalone-model')
+    assert_hardened_model(read(CANONICAL)['services']['p2pstream'])
+    assert_hardened_runtime(target)
     require(target['Config']['Image'] == images['candidate']
             and 'QUALIFICATION_SETTING=applied-after-update' in target['Config']['Env'],
             'remove-changed-current-software-or-settings')
@@ -988,14 +1013,15 @@ def default_yaml_case(images, host):
         (DEPLOYMENT / '.env').write_bytes(env)
         (DEPLOYMENT / '.env').chmod(0o600)
         resolved = json.loads(compose('config', '--format', 'json', command_label='default-yaml-compose-config'))
-        require(resolved['name'] == PROJECT and set(resolved['services']) == {'p2pstream'}
-                and not resolved['services']['p2pstream'].get('read_only')
-                and not resolved['services']['p2pstream'].get('tmpfs'), 'default-yaml-native-template-changed')
+        require(resolved['name'] == PROJECT and set(resolved['services']) == {'p2pstream'},
+                'default-yaml-native-template-changed')
+        assert_hardened_model(resolved['services']['p2pstream'])
         compose('up', '-d', command_label='default-yaml-compose-up')
         wait(lambda: health(default_yaml=True))
         initial = server_info(list_label='default-yaml-server-list', inspect_label='default-yaml-server-inspect')
-        require(initial['Name'] == '/p2pstream' and initial['Config']['Image'] == images['baseline']
-                and not initial['HostConfig']['ReadonlyRootfs'], 'default-yaml-original-runtime-mismatch')
+        require(initial['Name'] == '/p2pstream' and initial['Config']['Image'] == images['baseline'],
+                'default-yaml-original-runtime-mismatch')
+        assert_hardened_runtime(initial)
         installation = docker('exec', initial['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15,
                               command_label='default-yaml-initial-identity')
         ca = sha(docker('exec', initial['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15,
@@ -1027,6 +1053,9 @@ def default_yaml_case(images, host):
         def restored_identity():
             wait(lambda: health(default_yaml=True))
             actual = server_info(list_label='default-yaml-server-list', inspect_label='default-yaml-server-inspect')
+            assert_hardened_model(json.loads(compose('config', '--format', 'json',
+                                                    command_label='default-yaml-compose-config'))['services']['p2pstream'])
+            assert_hardened_runtime(actual)
             require(actual['Image'] == initial['Image'] and actual['Config']['Image'] == images['baseline'],
                     'default-yaml-recovery-changed-software')
             require(docker('exec', actual['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15,
@@ -1136,7 +1165,9 @@ def main():
     DEPLOYMENT.mkdir(parents=True, mode=0o2750)
     DEPLOYMENT.chmod(0o2750)
     model = {'name': PROJECT, 'services': {'p2pstream': {
-        'image': images['baseline'], 'restart': 'unless-stopped', 'read_only': True, 'tmpfs': ['/tmp'],
+        'image': images['baseline'], 'restart': 'unless-stopped', 'read_only': True,
+        'tmpfs': ['/tmp:rw,nosuid,nodev,mode=1777'], 'cap_drop': ['ALL'],
+        'cap_add': ['NET_BIND_SERVICE'], 'security_opt': ['no-new-privileges:true'],
         'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081', 'MANAGEMENT_SETUP_TOKEN': SETUP_TOKEN},
         'ports': [{'target': 8081, 'published': '18101', 'host_ip': '127.0.0.1', 'protocol': 'tcp'}],
         'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
@@ -1287,6 +1318,8 @@ def main():
     stage('complete-remove')
     fresh('remove', release='candidate', label='complete-remove')
     require(read(STATE / 'host.json')['phase'] == 'removed', 'remove-not-committed')
+    assert_hardened_model(read(CANONICAL)['services']['p2pstream'])
+    assert_hardened_runtime(server_info())
     require(server_info()['Config']['Image'] == images['candidate'], 'remove-downgraded-image')
     require('QUALIFICATION_SETTING=applied-after-update' in server_info()['Config']['Env'],
             'remove-dropped-applied-settings')
