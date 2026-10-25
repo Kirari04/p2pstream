@@ -50,16 +50,32 @@ READINESS_DEADLINE = None
 STAGE = 'setup'
 CHECKS = []
 CONTAINER_FIELDS = ('Id', 'Image', 'Running', 'StartedAt', 'RestartCount', 'Labels', 'Mounts')
+COMMAND_LABELS = frozenset({
+    'command', 'default-yaml-legacy-list', 'default-yaml-legacy-inspect',
+    'default-yaml-legacy-identity', 'default-yaml-saved-name-list', 'default-yaml-volume-list',
+    'default-yaml-save-legacy', 'default-yaml-compose-config', 'default-yaml-compose-up',
+    'default-yaml-server-list', 'default-yaml-server-inspect', 'default-yaml-health',
+    'default-yaml-health-list', 'default-yaml-health-inspect', 'default-yaml-initial-identity',
+    'default-yaml-initial-ca', 'default-yaml-volume-inspect', 'default-yaml-install',
+    'default-yaml-restored-identity', 'default-yaml-restored-ca', 'default-yaml-restored-volume',
+    'default-yaml-rollback', 'default-yaml-owner', 'default-yaml-repair', 'default-yaml-status',
+    'default-yaml-remove', 'default-yaml-stop', 'default-yaml-stopped-inspect',
+    'default-yaml-remove-server', 'default-yaml-volume-users', 'default-yaml-cleanup-volume-inspect',
+    'default-yaml-remove-volume', 'default-yaml-cleanup-legacy-inspect',
+    'default-yaml-cleanup-name-list', 'default-yaml-restore-legacy-name',
+})
+STDERR_FIRST_LINE_LIMIT = 1024
 
 
 class CheckFailure(RuntimeError):
     """Fixed, safe diagnostics; never attach captured command output."""
 
-    def __init__(self, check, *, changed_fields=(), worker_stage=None, worker_checks=()):
+    def __init__(self, check, *, changed_fields=(), worker_stage=None, worker_checks=(), command_failure=None):
         super().__init__(check)
         self.changed_fields = list(changed_fields)
         self.worker_stage = worker_stage
         self.worker_checks = list(worker_checks)
+        self.command_failure = command_failure
 
 
 class DeliberateInterruption(BaseException):
@@ -85,6 +101,11 @@ def failure_report(error):
         report['changed_fields'] = error.changed_fields
         if error.worker_stage is not None:
             report.update(worker_stage=error.worker_stage, worker_checks=error.worker_checks)
+        if error.command_failure is not None:
+            report['command_failure'] = error.command_failure
+    cleanup = getattr(error, 'cleanup_failure', None)
+    if cleanup is not None:
+        report['cleanup_failure'] = cleanup
     return report
 
 
@@ -93,19 +114,51 @@ def isolated():
             and socket.gethostbyname('ghcr.io') == '127.0.0.1', 'disposable-daemon-required')
 
 
-def run(arguments, *, timeout=180, cwd=None, expected=0, check='command'):
+def stderr_category(raw):
+    # Inspect only a bounded first line and return literals, never subprocess text.
+    if not raw:
+        return 'empty'
+    line = raw[:STDERR_FIRST_LINE_LIMIT + 1].partition(b'\n')[0]
+    if len(line) > STDERR_FIRST_LINE_LIMIT:
+        return 'unclassified'
+    line = line.strip().lower()
+    if not line:
+        return 'empty'
+    if b'permission denied' in line or b'operation not permitted' in line:
+        return 'exec-permission-denied' if b'exec' in line else 'permission-denied'
+    if b'cannot connect to the docker daemon' in line:
+        return 'daemon-unavailable'
+    if b'no such file or directory' in line:
+        return 'file-not-found'
+    if b'invalid persisted installation identity' in line:
+        return 'invalid-identity'
+    if b'unsafe updater state file' in line:
+        return 'unsafe-state'
+    return 'unclassified'
+
+
+def run(arguments, *, timeout=180, cwd=None, expected=0, check='command', command_label='command'):
     # Capture both streams: Docker/Compose and host diagnostics can contain
     # resolved settings. A command failure is identified by its bounded check.
+    require(isinstance(command_label, str) and command_label in COMMAND_LABELS, 'invalid-command-label')
     if READINESS_DEADLINE is not None:
         timeout = min(timeout, max(0.001, READINESS_DEADLINE - time.monotonic()))
     try:
         result = subprocess.run([str(arg) for arg in arguments], cwd=cwd,
                                 capture_output=True, timeout=timeout)
-    except (OSError, subprocess.TimeoutExpired):
-        raise CheckFailure(check + '-unavailable-or-timed-out') from None
-    require(result.returncode == expected, check + '-exit-' + str(result.returncode))
-    require(len(result.stdout) <= 2 * 1024 * 1024 and len(result.stderr) <= 2 * 1024 * 1024,
-            'command-output-limit')
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise CheckFailure(check + '-unavailable-or-timed-out', command_failure={
+            'label': command_label, 'exit_code': None,
+            'kind': 'timeout' if isinstance(error, subprocess.TimeoutExpired) else 'unavailable',
+            'stderr_category': stderr_category(error.stderr) if isinstance(error, subprocess.TimeoutExpired)
+            else 'unclassified'}) from None
+    diagnostic = {'label': command_label, 'exit_code': result.returncode,
+                  'kind': 'exit', 'stderr_category': stderr_category(result.stderr)}
+    if result.returncode != expected:
+        raise CheckFailure(check + '-exit-' + str(result.returncode), command_failure=diagnostic)
+    if len(result.stdout) > 2 * 1024 * 1024 or len(result.stderr) > 2 * 1024 * 1024:
+        diagnostic['kind'] = 'output-limit'
+        raise CheckFailure('command-output-limit', command_failure=diagnostic)
     return result
 
 
@@ -113,9 +166,9 @@ def docker(*arguments, **kwargs):
     return run(['docker', *arguments], **kwargs).stdout.decode().strip()
 
 
-def compose(*arguments, native=False):
+def compose(*arguments, native=False, command_label='command'):
     prefix = ['--config', '/review/native-docker'] if native else []
-    return docker(*prefix, 'compose', *arguments, cwd=DEPLOYMENT)
+    return docker(*prefix, 'compose', *arguments, cwd=DEPLOYMENT, command_label=command_label)
 
 
 def read(path):
@@ -150,16 +203,16 @@ def wait(fn):
         READINESS_DEADLINE = previous
 
 
-def server_info(all_containers=False):
+def server_info(all_containers=False, *, list_label='command', inspect_label='command'):
     args = ['ps', '--quiet', *(['--all'] if all_containers else []),
             '--filter', 'label=com.docker.compose.project=' + PROJECT,
             '--filter', 'label=com.docker.compose.service=p2pstream']
-    ids = docker(*args, timeout=10).split()
+    ids = docker(*args, timeout=10, command_label=list_label).split()
     require(len(ids) == 1, 'exactly-one-server')
-    return json.loads(docker('inspect', ids[0], timeout=10))[0]
+    return json.loads(docker('inspect', ids[0], timeout=10, command_label=inspect_label))[0]
 
 
-def owner_bytes(images):
+def owner_bytes(images, *, command_label='command'):
     # An independent, read-only named-volume mount works even when the server is
     # stopped. /data is application-owned mode 0700: UID 0 alone cannot traverse
     # it after dropping capabilities. Grant only DAC_READ_SEARCH, keep the mount
@@ -182,7 +235,7 @@ def owner_bytes(images):
                 '  cat -- ' + OWNER + '\n'
                 'else\n'
                 '  printf ABSENT\n'
-                'fi'], check='owner-observation-data-or-marker-unreadable').stdout
+                'fi'], check='owner-observation-data-or-marker-unreadable', command_label=command_label).stdout
     require(result == b'ABSENT' or result.startswith(b'PRESENT:'), 'invalid-owner-observation')
     return result
 
@@ -290,8 +343,11 @@ def preflight():
     return json.loads(docker('exec', server_info()['Id'], '/app/p2pstream', 'server-enrollment-preflight', timeout=15))
 
 
-def health():
-    docker('exec', server_info()['Id'], '/app/p2pstream', 'server-health', timeout=15)
+def health(*, default_yaml=False):
+    info = server_info(list_label='default-yaml-health-list' if default_yaml else 'command',
+                       inspect_label='default-yaml-health-inspect' if default_yaml else 'command')
+    docker('exec', info['Id'], '/app/p2pstream', 'server-health', timeout=15,
+           command_label='default-yaml-health' if default_yaml else 'command')
     return True
 
 
@@ -575,7 +631,7 @@ def worker(args):
 
 
 def fresh(action, *, release='baseline', label=None, refusal='', variant='', interrupt='', block=False,
-          default_yaml=False):
+          default_yaml=False, command_label='command'):
     label = label or action
     arguments = [sys.executable, '-I', __file__, '--worker', action, '--release', release,
                  '--label', label, '--refusal', refusal, '--variant', variant, '--interrupt', interrupt]
@@ -584,15 +640,17 @@ def fresh(action, *, release='baseline', label=None, refusal='', variant='', int
     if default_yaml:
         arguments.append('--default-yaml')
     try:
-        run(arguments, timeout=600, expected=INTERRUPTED if interrupt else 0, check='worker-' + label)
-    except CheckFailure:
+        run(arguments, timeout=600, expected=INTERRUPTED if interrupt else 0, check='worker-' + label,
+            command_label=command_label)
+    except CheckFailure as error:
         report = ROOT / ('failure-' + label + '.json')
         if report.is_file():
             failure = read(report)
             raise CheckFailure('worker-' + label + '-' + failure['check'],
                                changed_fields=failure.get('changed_fields', ()),
                                worker_stage=failure.get('stage'),
-                               worker_checks=failure.get('checks', ())) from None
+                               worker_checks=failure.get('checks', ()),
+                               command_failure=error.command_failure) from None
         raise
     CHECKS.append('worker-' + label + '-expected-exit')
 
@@ -762,25 +820,31 @@ def default_yaml_case(images, host):
     retained = parent_root / 'completed-legacy-state'
     stage('default-yaml-preflight')
     config, journal = read(retained / 'config.json'), read(retained / 'host.json')
-    ids = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'name=^/p2pstream$', timeout=15).split()
+    ids = docker('ps', '--all', '--quiet', '--no-trunc', '--filter', 'name=^/p2pstream$', timeout=15,
+                 command_label='default-yaml-legacy-list').split()
     require(len(ids) == 1, 'default-yaml-exact-stopped-legacy-required')
-    legacy = json.loads(docker('inspect', ids[0], timeout=15))[0]
+    legacy = json.loads(docker('inspect', ids[0], timeout=15, command_label='default-yaml-legacy-inspect'))[0]
     prove_stopped_legacy(legacy, config, journal)
     require(legacy['Id'] == ids[0], 'default-yaml-legacy-inspection-mismatch')
+    # The runtime binary has cap_net_bind_service=ep; retain that capability
+    # in the bounding set so exec succeeds, even with no-new-privileges.
     identity = docker('run', '--rm', '--network', 'none', '--read-only', '--user', '0:0',
-                      '--cap-drop', 'ALL', '--cap-add', 'DAC_READ_SEARCH',
+                      '--cap-drop', 'ALL', '--cap-add', 'DAC_READ_SEARCH', '--cap-add', 'NET_BIND_SERVICE',
                       '--security-opt', 'no-new-privileges', '--env', 'CONFIG_DIR=/server-data',
                       '--mount', 'type=volume,src=' + config['data_volume'] + ',dst=/server-data,readonly',
-                      '--entrypoint', '/app/p2pstream', legacy['Image'], 'server-installation-identity', timeout=30)
+                      '--entrypoint', '/app/p2pstream', legacy['Image'], 'server-installation-identity', timeout=30,
+                      command_label='default-yaml-legacy-identity')
     require(identity == config['instance_id'], 'default-yaml-stopped-legacy-data-identity-mismatch')
     saved_name = 'review-default-yaml-retained-legacy'
-    require(not docker('ps', '--all', '--quiet', '--filter', 'name=^/' + saved_name + '$', timeout=15),
+    require(not docker('ps', '--all', '--quiet', '--filter', 'name=^/' + saved_name + '$', timeout=15,
+                       command_label='default-yaml-saved-name-list'),
             'default-yaml-legacy-saved-name-occupied')
     require(not STATE.exists() and not DEPLOYMENT.exists() and not INPUTS.exists(),
             'default-yaml-requires-clean-canonical-paths')
     # A successful complete inventory proves absence. Never interpret a failed
     # volume inspect as permission to create or later remove somebody's volume.
-    require('p2pstream-data' not in docker('volume', 'ls', '--quiet', timeout=15).split(),
+    require('p2pstream-data' not in docker('volume', 'ls', '--quiet', timeout=15,
+                                         command_label='default-yaml-volume-list').split(),
             'default-yaml-fixture-volume-already-exists')
     template = (BUNDLE / 'compose.yaml').read_bytes()
     source = pinned_default_yaml(template, images['baseline'])
@@ -793,10 +857,11 @@ def default_yaml_case(images, host):
         require(env.count(old + b'\n') == 1, 'default-yaml-env-template-layout')
         env = env.replace(old + b'\n', new + b'\n')
     renamed, completed = False, False
+    primary_error = None
     try:
         default_yaml_context()
         ROOT.mkdir(mode=0o700)
-        docker('rename', legacy['Id'], saved_name, timeout=15)
+        docker('rename', legacy['Id'], saved_name, timeout=15, command_label='default-yaml-save-legacy')
         renamed = True
         DEPLOYMENT.mkdir(parents=True, mode=0o2750)
         DEPLOYMENT.chmod(0o2750)
@@ -804,28 +869,33 @@ def default_yaml_case(images, host):
         CANONICAL.chmod(0o640)
         (DEPLOYMENT / '.env').write_bytes(env)
         (DEPLOYMENT / '.env').chmod(0o600)
-        resolved = json.loads(compose('config', '--format', 'json'))
+        resolved = json.loads(compose('config', '--format', 'json', command_label='default-yaml-compose-config'))
         require(resolved['name'] == PROJECT and set(resolved['services']) == {'p2pstream'}
                 and not resolved['services']['p2pstream'].get('read_only')
                 and not resolved['services']['p2pstream'].get('tmpfs'), 'default-yaml-native-template-changed')
-        compose('up', '-d')
-        wait(health)
-        initial = server_info()
+        compose('up', '-d', command_label='default-yaml-compose-up')
+        wait(lambda: health(default_yaml=True))
+        initial = server_info(list_label='default-yaml-server-list', inspect_label='default-yaml-server-inspect')
         require(initial['Name'] == '/p2pstream' and initial['Config']['Image'] == images['baseline']
                 and not initial['HostConfig']['ReadonlyRootfs'], 'default-yaml-original-runtime-mismatch')
-        installation = docker('exec', initial['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15)
-        ca = sha(docker('exec', initial['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15).encode())
+        installation = docker('exec', initial['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15,
+                              command_label='default-yaml-initial-identity')
+        ca = sha(docker('exec', initial['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15,
+                        command_label='default-yaml-initial-ca').encode())
         write(ROOT / 'identity.json', {'installation': installation, 'ca_sha256': ca})
         fixture_catalog(host, images)
-        volume = json.loads(docker('volume', 'inspect', VOLUME, timeout=15))
+        volume = json.loads(docker('volume', 'inspect', VOLUME, timeout=15,
+                                   command_label='default-yaml-volume-inspect'))
         require(len(volume) == 1 and volume[0]['Name'] == VOLUME
                 and volume[0].get('Labels', {}).get('com.docker.compose.project') == PROJECT
                 and volume[0].get('Labels', {}).get('com.docker.compose.volume') == 'p2pstream-data',
                 'default-yaml-new-volume-ownership-mismatch')
         original = file_snapshot(CANONICAL)
         stage('default-yaml-stopped-before-publication')
-        fresh('install', label='stopped-before-publication', interrupt='before-publish', default_yaml=True)
-        stopped = server_info(all_containers=True)
+        fresh('install', label='stopped-before-publication', interrupt='before-publish', default_yaml=True,
+              command_label='default-yaml-install')
+        stopped = server_info(all_containers=True, list_label='default-yaml-server-list',
+                              inspect_label='default-yaml-server-inspect')
         require(stopped['Id'] == initial['Id'] and not stopped['State']['Running'],
                 'default-yaml-original-not-stopped-in-place')
         require(file_snapshot(CANONICAL) == original and CANONICAL.read_bytes() == source,
@@ -837,15 +907,18 @@ def default_yaml_case(images, host):
         editable = INPUTS.read_bytes()
 
         def restored_identity():
-            wait(health)
-            actual = server_info()
+            wait(lambda: health(default_yaml=True))
+            actual = server_info(list_label='default-yaml-server-list', inspect_label='default-yaml-server-inspect')
             require(actual['Image'] == initial['Image'] and actual['Config']['Image'] == images['baseline'],
                     'default-yaml-recovery-changed-software')
-            require(docker('exec', actual['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15)
+            require(docker('exec', actual['Id'], '/app/p2pstream', 'server-installation-identity', timeout=15,
+                           command_label='default-yaml-restored-identity')
                     == installation, 'default-yaml-recovery-changed-installation')
-            require(sha(docker('exec', actual['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15).encode())
+            require(sha(docker('exec', actual['Id'], 'cat', '/data/certs/management/ca.crt.pem', timeout=15,
+                               command_label='default-yaml-restored-ca').encode())
                     == ca, 'default-yaml-recovery-changed-ca')
-            require(json.loads(docker('volume', 'inspect', VOLUME, timeout=15)) == volume
+            require(json.loads(docker('volume', 'inspect', VOLUME, timeout=15,
+                                      command_label='default-yaml-restored-volume')) == volume
                     and [m for m in actual['Mounts'] if m['Destination'] == '/data']
                     == [m for m in initial['Mounts'] if m['Destination'] == '/data'],
                     'default-yaml-recovery-changed-data-volume')
@@ -859,54 +932,69 @@ def default_yaml_case(images, host):
             return actual
 
         stage('default-yaml-public-rollback')
-        fresh('rollback', label='stopped-yaml-rollback', default_yaml=True)
+        fresh('rollback', label='stopped-yaml-rollback', default_yaml=True, command_label='default-yaml-rollback')
         restored_identity()
-        require(read(STATE / 'host.json')['phase'] == 'rolled_back' and owner_bytes(images) == b'ABSENT',
+        require(read(STATE / 'host.json')['phase'] == 'rolled_back'
+                and owner_bytes(images, command_label='default-yaml-owner') == b'ABSENT',
                 'default-yaml-rollback-not-standalone')
         stage('default-yaml-public-repair')
-        fresh('repair', label='rolled-back-yaml-repair', default_yaml=True)
+        fresh('repair', label='rolled-back-yaml-repair', default_yaml=True, command_label='default-yaml-repair')
         enrolled = restored_identity()
         binding = read(STATE / 'config.json')
         require(read(STATE / 'host.json')['phase'] == 'healthy'
                 and enrolled['Config']['Labels'].get('p2pstream.server-update.instance') == binding['instance_id']
                 and any(m['Destination'] == '/run/p2pstream-server-update' and not m['RW'] for m in enrolled['Mounts']),
                 'default-yaml-repair-not-enrolled')
-        run([LAUNCHER, 'status'], timeout=30, cwd=DEPLOYMENT, check='default-yaml-authenticated-status')
+        run([LAUNCHER, 'status'], timeout=30, cwd=DEPLOYMENT, check='default-yaml-authenticated-status',
+            command_label='default-yaml-status')
         CHECKS.append('default-bundle-yaml-stop-before-publication-fresh-rollback-then-repair')
         stage('default-yaml-owned-cleanup')
-        fresh('remove', label='default-yaml-cleanup-remove', default_yaml=True)
+        fresh('remove', label='default-yaml-cleanup-remove', default_yaml=True, command_label='default-yaml-remove')
         current = restored_identity()
         require(read(STATE / 'host.json')['phase'] == 'removed', 'default-yaml-cleanup-not-removed')
         labels = current['Config']['Labels']
         require(current['Name'] == '/p2pstream' and labels.get('com.docker.compose.project') == PROJECT
                 and labels.get('com.docker.compose.service') == 'p2pstream', 'default-yaml-cleanup-ownership-mismatch')
-        docker('stop', current['Id'], timeout=30)
-        stopped = json.loads(docker('inspect', current['Id'], timeout=15))[0]
+        docker('stop', current['Id'], timeout=30, command_label='default-yaml-stop')
+        stopped = json.loads(docker('inspect', current['Id'], timeout=15,
+                                    command_label='default-yaml-stopped-inspect'))[0]
         require(not stopped['State']['Running'] and stopped['Image'] == initial['Image'],
                 'default-yaml-cleanup-stop-not-confirmed')
-        docker('rm', current['Id'], timeout=30)
-        require(not docker('ps', '--all', '--quiet', '--filter', 'volume=' + VOLUME, timeout=15)
-                and json.loads(docker('volume', 'inspect', VOLUME, timeout=15)) == volume,
+        docker('rm', current['Id'], timeout=30, command_label='default-yaml-remove-server')
+        require(not docker('ps', '--all', '--quiet', '--filter', 'volume=' + VOLUME, timeout=15,
+                           command_label='default-yaml-volume-users')
+                and json.loads(docker('volume', 'inspect', VOLUME, timeout=15,
+                                      command_label='default-yaml-cleanup-volume-inspect')) == volume,
                 'default-yaml-cleanup-volume-not-exclusively-owned')
-        docker('volume', 'rm', VOLUME, timeout=30)
+        docker('volume', 'rm', VOLUME, timeout=30, command_label='default-yaml-remove-volume')
         # Preserve this successful case's complete private state and exact YAML
         # separately. Failed cases never reach cleanup or move their inputs.
         STATE.rename(ROOT / 'completed-updater-state')
         INPUTS.rename(ROOT / 'completed-compose.inputs.yaml')
         DEPLOYMENT.rename(ROOT / 'completed-deployment')
         completed = True
+    except BaseException as error:
+        primary_error = error
+        raise
     finally:
         # A failure retains its fixture server/state/data. Restore the old name
         # only if it is free and the exact saved stopped legacy object is intact.
         try:
             if renamed:
-                current = json.loads(docker('inspect', legacy['Id'], timeout=15))[0]
+                current = json.loads(docker('inspect', legacy['Id'], timeout=15,
+                                            command_label='default-yaml-cleanup-legacy-inspect'))[0]
                 require(container_snapshot(current) == container_snapshot(legacy)
                         and current['Name'] == '/' + saved_name, 'default-yaml-retained-legacy-changed')
-                name_free = not docker('ps', '--all', '--quiet', '--filter', 'name=^/p2pstream$', timeout=15)
+                name_free = not docker('ps', '--all', '--quiet', '--filter', 'name=^/p2pstream$', timeout=15,
+                                       command_label='default-yaml-cleanup-name-list')
                 if name_free:
-                    docker('rename', legacy['Id'], 'p2pstream', timeout=15)
+                    docker('rename', legacy['Id'], 'p2pstream', timeout=15,
+                           command_label='default-yaml-restore-legacy-name')
                 require(name_free or not completed, 'default-yaml-cleanup-legacy-name-not-restored')
+        except BaseException as cleanup_error:
+            if primary_error is None:
+                raise
+            primary_error.cleanup_failure = failure_report(cleanup_error)
         finally:
             ROOT, PROJECT, VOLUME = parent_root, parent_project, parent_volume
 
@@ -1188,5 +1276,9 @@ if __name__ == '__main__':
                 write(ROOT / ('failure-' + options.label + '.json'), report)
             else:
                 write(ROOT / 'summary.json', report)
-        print('FAIL source-built canonical lifecycle: ' + code + ' stage=' + report['stage'], file=sys.stderr)
+        diagnostic = report.get('command_failure')
+        suffix = (' command=' + diagnostic['label'] + ' exit=' + str(diagnostic['exit_code'])
+                  + ' stderr=' + diagnostic['stderr_category']) if diagnostic else ''
+        print('FAIL source-built canonical lifecycle: ' + code + ' stage=' + report['stage'] + suffix,
+              file=sys.stderr)
         sys.exit(1)

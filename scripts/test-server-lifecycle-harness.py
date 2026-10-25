@@ -383,6 +383,64 @@ class BoundarySnapshots(unittest.TestCase):
 
 
 class DefaultYamlFixture(unittest.TestCase):
+    @staticmethod
+    def capture_identity_probe(module=harness):
+        """Stop at the actual launch site; never execute a Docker command."""
+        config = {'project': 'legacy', 'data_volume': 'PRIVATE_VOLUME', 'instance_id': 'PRIVATE_INSTALLATION'}
+        journal = {'phase': 'removed', 'installation': 'PRIVATE_INSTALLATION', 'before_image_id': 'PRIVATE_IMAGE'}
+        info = inspection()
+        info.update(Name='/p2pstream')
+        info['State']['Running'] = False
+        info['Config']['Labels'] = {'com.docker.compose.project': 'legacy', 'com.docker.compose.service': 'p2pstream'}
+        captured = []
+
+        class ProbeCaptured(BaseException):
+            pass
+
+        def docker(*args, **kwargs):
+            if args[0] == 'run':
+                captured.append((args, kwargs))
+                raise ProbeCaptured()
+            return 'PRIVATE_ID' if args[0] == 'ps' else json.dumps([info])
+
+        with patch.object(module, 'read', side_effect=[config, journal]), patch.object(module, 'docker', docker), \
+                patch.object(module, 'STAGE', 'setup'):
+            try:
+                module.default_yaml_case({}, None)
+            except ProbeCaptured:
+                return captured[0]
+        raise AssertionError('synthetic probe capture was not reached')
+
+    def test_identity_probe_retains_sandbox_and_both_required_capabilities(self):
+        args, kwargs = self.capture_identity_probe()
+        self.assertEqual([args[i + 1] for i, value in enumerate(args) if value == '--cap-add'],
+                         ['DAC_READ_SEARCH', 'NET_BIND_SERVICE'])
+        for flag, value in (('--cap-drop', 'ALL'), ('--network', 'none'), ('--user', '0:0'),
+                            ('--security-opt', 'no-new-privileges'), ('--env', 'CONFIG_DIR=/server-data'),
+                            ('--entrypoint', '/app/p2pstream')):
+            self.assertEqual(args[args.index(flag) + 1], value)
+        self.assertIn('--read-only', args)
+        self.assertIn('--rm', args)
+        self.assertEqual(args[args.index('--mount') + 1],
+                         'type=volume,src=PRIVATE_VOLUME,dst=/server-data,readonly')
+        self.assertEqual(args[-2:], ('PRIVATE_IMAGE', 'server-installation-identity'))
+        self.assertEqual(kwargs, {'timeout': 30, 'command_label': 'default-yaml-legacy-identity'})
+
+    def test_default_yaml_command_labels_are_explicit_fixed_allowlisted_literals(self):
+        tree = ast.parse(Path(harness.__file__).read_text())
+        case = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                    and node.name == 'default_yaml_case')
+        for call in ast.walk(case):
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+                continue
+            keys = ('command_label',) if call.func.id in {'docker', 'compose', 'fresh', 'run', 'owner_bytes'} \
+                else (('list_label', 'inspect_label') if call.func.id == 'server_info' else ())
+            for key in keys:
+                value = next((kw.value for kw in call.keywords if kw.arg == key), None)
+                self.assertIsInstance(value, ast.Constant)
+                self.assertIn(value.value, harness.COMMAND_LABELS)
+                self.assertNotEqual(value.value, 'command')
+
     def test_image_pin_changes_only_one_line_of_actual_bundle_source_template(self):
         template = (ROOT.parent / 'compose.yaml').read_bytes()
         replacement = harness.pinned_default_yaml(template, 'PRIVATE_PINNED_IMAGE')
@@ -436,6 +494,188 @@ class DefaultYamlFixture(unittest.TestCase):
             self.assertEqual(harness.ROOT, Path('/private/case/default-yaml'))
             self.assertEqual(harness.PROJECT, harness.DEPLOYMENT.name)
             self.assertEqual(harness.VOLUME, 'p2pstream-data')
+
+
+class CommandFailureDiagnostics(unittest.TestCase):
+    """Run the actual command wrapper and CLI summary writer with synthetic I/O."""
+
+    def entrypoint(self, main, *, root=None):
+        with tempfile.TemporaryDirectory() as directory, contextlib.ExitStack() as stack:
+            path = Path(directory) if root is None else root
+            stack.enter_context(patch.multiple(harness, ROOT=path, CHECKS=[], STAGE='default-yaml-preflight'))
+            stack.enter_context(patch.object(sys, 'argv', [harness.__file__]))
+            output = stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+            entrypoint = ast.parse(Path(harness.__file__).read_text()).body[-1]
+            namespace = dict(vars(harness), __name__='__main__', main=main, isolated=lambda: None)
+            with self.assertRaises(SystemExit) as caught:
+                exec(compile(ast.Module(body=[entrypoint], type_ignores=[]), harness.__file__, 'exec'), namespace)
+            self.assertEqual(caught.exception.code, 1)
+            return json.loads((path / 'summary.json').read_bytes()), output.getvalue()
+
+    def failed_command(self, *, stderr=b'', stdout=b'PRIVATE_STDOUT', code=255,
+                       label='default-yaml-legacy-identity', error=None):
+        def main():
+            harness.run(['PRIVATE_ARGUMENT', 'PRIVATE_TOKEN'], command_label=label)
+        result = subprocess.CompletedProcess([], code, stdout, stderr)
+        with patch.object(harness.subprocess, 'run', side_effect=error, return_value=result) as command:
+            report, output = self.entrypoint(main)
+        rendered = json.dumps(report) + output
+        self.assertNotIn('PRIVATE', rendered)
+        self.assertNotIn('/secret', rendered)
+        if 'command_failure' in report:
+            self.assertIn(' command=' + report['command_failure']['label'], output)
+            self.assertIn(' exit=' + str(report['command_failure']['exit_code']), output)
+            self.assertIn(' stderr=' + report['command_failure']['stderr_category'], output)
+        return report, command
+
+    def test_fixed_label_numeric_exit_and_first_line_category_reach_real_summary(self):
+        cases = [
+            (b'', 'empty'),
+            (b'exec /secret/PRIVATE_TOKEN: operation not permitted\nPRIVATE_MODEL=secret', 'exec-permission-denied'),
+            (b'PRIVATE_ENV=secret permission denied', 'permission-denied'),
+            (b'Cannot connect to the Docker daemon at /secret/PRIVATE_SOCKET', 'daemon-unavailable'),
+            (b'Error: lstat /secret/PRIVATE_FILE: no such file or directory', 'file-not-found'),
+            (b'Error: invalid persisted installation identity PRIVATE_TOKEN', 'invalid-identity'),
+            (b'Error: unsafe updater state file PRIVATE_MODEL', 'unsafe-state'),
+            (b'PRIVATE_TOKEN PRIVATE_MODEL PRIVATE_ENV /secret/path', 'unclassified'),
+            (b'PRIVATE_FIRST_LINE\nexec PRIVATE_TOKEN: operation not permitted', 'unclassified'),
+            (b'\nexec PRIVATE_TOKEN: operation not permitted', 'empty'),
+            (b' \t\r\nPRIVATE_TOKEN', 'empty'),
+            (b'exec operation not permitted ' + b'P' * 2048 + b'PRIVATE_TOKEN', 'unclassified'),
+            (b'P' * 1025 + b'\npermission denied PRIVATE_TOKEN', 'unclassified'),
+            (b'P' * 1024 + b'\npermission denied PRIVATE_TOKEN', 'unclassified'),
+        ]
+        for index, (stderr, category) in enumerate(cases):
+            with self.subTest(case=index):
+                report, command = self.failed_command(stderr=stderr)
+                self.assertEqual(report['check'], 'command-exit-255')
+                self.assertEqual(report['command_failure'], {
+                    'label': 'default-yaml-legacy-identity', 'exit_code': 255,
+                    'kind': 'exit', 'stderr_category': category})
+                command.assert_called_once()
+
+    def test_unknown_labels_are_refused_without_execution_or_public_reflection(self):
+        for label in ('PRIVATE_UNKNOWN_LABEL', None, []):
+            report, command = self.failed_command(label=label)
+            self.assertEqual(report['check'], 'invalid-command-label')
+            self.assertNotIn('command_failure', report)
+            command.assert_not_called()
+
+    def test_generic_label_and_negative_exit_remain_bounded(self):
+        report, _ = self.failed_command(label='command', code=-9)
+        self.assertEqual(report['command_failure']['label'], 'command')
+        self.assertEqual(report['command_failure']['exit_code'], -9)
+
+    def test_timeout_and_oserror_never_reflect_exception_arguments_or_output(self):
+        errors = [subprocess.TimeoutExpired(['PRIVATE_COMMAND'], 1, output=b'PRIVATE_STDOUT',
+                                           stderr=b'exec /secret/PRIVATE_TOKEN: permission denied'),
+                  OSError(errno.EACCES, 'PRIVATE_ENV /secret/path', 'PRIVATE_ARGUMENT')]
+        for index, error in enumerate(errors):
+            report, _ = self.failed_command(error=error)
+            self.assertEqual(report['check'], 'command-unavailable-or-timed-out')
+            self.assertIsNone(report['command_failure']['exit_code'])
+            self.assertEqual(report['command_failure']['kind'], 'timeout' if index == 0 else 'unavailable')
+            self.assertEqual(report['command_failure']['stderr_category'],
+                             'exec-permission-denied' if index == 0 else 'unclassified')
+
+    def test_success_still_enforces_output_limit_and_expected_exit(self):
+        report, _ = self.failed_command(stdout=b'P' * (2 * 1024 * 1024 + 1), code=0)
+        self.assertEqual(report['check'], 'command-output-limit')
+        self.assertEqual(report['command_failure']['kind'], 'output-limit')
+        result = subprocess.CompletedProcess([], 75, b'', b'')
+        with patch.object(harness.subprocess, 'run', return_value=result):
+            self.assertIs(harness.run(['PRIVATE_ARGUMENT'], expected=75), result)
+
+    def test_primary_failure_survives_cleanup_command_or_refusal_without_retry(self):
+        # The real default-YAML body reaches Compose configuration and then its
+        # real finally block. Only subprocess transport and private read inputs
+        # are synthetic; fixture writes use the real temporary filesystem.
+        for cleanup in ('inspect', 'name-list', 'rename', 'identity-refusal', 'name-occupied'):
+            with self.subTest(cleanup=cleanup), tempfile.TemporaryDirectory() as directory, \
+                    contextlib.ExitStack() as stack:
+                path = Path(directory)
+                root = path / 'lifecycle'
+                root.mkdir()
+                retained = root / 'completed-legacy-state'
+                retained.mkdir()
+                info = inspection()
+                info.update(Name='/p2pstream')
+                info['State']['Running'] = False
+                info['Config']['Labels'] = {'com.docker.compose.project': 'legacy', 'com.docker.compose.service': 'p2pstream'}
+                config = {'project': 'legacy', 'data_volume': 'PRIVATE_VOLUME', 'instance_id': 'PRIVATE_INSTALLATION'}
+                journal = {'phase': 'removed', 'installation': 'PRIVATE_INSTALLATION', 'before_image_id': 'PRIVATE_IMAGE'}
+                (retained / 'config.json').write_text(json.dumps(config))
+                (retained / 'host.json').write_text(json.dumps(journal))
+                saved = False
+                calls = []
+
+                def command(args, **kwargs):
+                    nonlocal saved
+                    self.assertEqual(args[0], 'docker')
+                    calls.append(args)
+                    a, out, code = args[1:], b'', 0
+                    if a[0] == 'rename':
+                        if saved and cleanup == 'rename':
+                            code = 255
+                        else:
+                            saved = a[-1] != 'p2pstream'
+                    elif a[0] == 'ps':
+                        if saved:
+                            code = 255 if cleanup == 'name-list' else 0
+                            out = b'PRIVATE_OCCUPANT' if cleanup == 'name-occupied' else b''
+                        elif a[-1] == 'name=^/p2pstream$':
+                            out = b'PRIVATE_ID'
+                    elif a[0] == 'inspect':
+                        current = copy.deepcopy(info)
+                        if saved:
+                            code = 255 if cleanup == 'inspect' else 0
+                            current['Name'] = '/review-default-yaml-retained-legacy'
+                            if cleanup == 'identity-refusal':
+                                current['Image'] = 'PRIVATE_CHANGED_IMAGE'
+                        out = json.dumps([current]).encode()
+                    elif a[0] == 'run':
+                        out = b'PRIVATE_INSTALLATION'
+                    elif a[:2] == ['volume', 'ls']:
+                        pass
+                    elif a[:2] == ['compose', 'config']:
+                        code = 17
+                    else:
+                        self.fail('unexpected synthetic command')
+                    return subprocess.CompletedProcess(args, code, out, b'PRIVATE_TOKEN /secret/model')
+
+                deployment = path / 'deployment'
+                stack.enter_context(patch.multiple(harness, ROOT=root, STATE=path / 'state',
+                                                   DEPLOYMENT=deployment, CANONICAL=deployment / 'compose.yaml',
+                                                   INPUTS=path / 'inputs.yaml', BUNDLE=ROOT.parent))
+                stack.enter_context(patch.object(harness.subprocess, 'run', side_effect=command))
+                original = harness.ROOT, harness.PROJECT, harness.VOLUME
+                def main():
+                    harness.default_yaml_case({'baseline': 'PRIVATE_IMAGE'}, None)
+
+                report, output = self.entrypoint(main, root=root)
+                self.assertEqual(report['check'], 'command-exit-17')
+                self.assertEqual(report['command_failure']['label'], 'default-yaml-compose-config')
+                self.assertEqual((harness.ROOT, harness.PROJECT, harness.VOLUME), original)
+                renames = [a for a in calls if a[1] == 'rename']
+                self.assertEqual(len(renames), 2 if cleanup == 'rename' else 1)
+                if cleanup == 'name-occupied':
+                    self.assertNotIn('cleanup_failure', report)
+                else:
+                    failure = report['cleanup_failure']
+                    if cleanup == 'identity-refusal':
+                        self.assertEqual(failure['check'], 'default-yaml-retained-legacy-changed')
+                        self.assertNotIn('command_failure', failure)
+                        self.assertEqual(calls[-1][1], 'inspect')
+                    else:
+                        self.assertEqual(failure['check'], 'command-exit-255')
+                        self.assertEqual(failure['command_failure']['exit_code'], 255)
+                        self.assertEqual(failure['command_failure']['label'], {
+                            'inspect': 'default-yaml-cleanup-legacy-inspect',
+                            'name-list': 'default-yaml-cleanup-name-list',
+                            'rename': 'default-yaml-restore-legacy-name'}[cleanup])
+                self.assertNotIn('PRIVATE', json.dumps(report))
+                self.assertNotIn('/secret', json.dumps(report))
+                self.assertNotIn('PRIVATE', output)
 
 
 class ReplacementRecoveryInputs(unittest.TestCase):
