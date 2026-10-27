@@ -15,6 +15,7 @@ import {
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import {
   formatUnixMillis,
+  isDefaultSelfSignedCertificate,
   healthTraceOutcomeLabel,
   healthTraceOutcomeSeverity,
   healthTraceReasonSummary,
@@ -23,10 +24,20 @@ import {
   healthTraceTransitionSummary,
   tlsCertificateLastAttemptSummary,
   tlsCertificateRenewalSummary,
+  tlsCertificateSummary,
   tlsCertificateValiditySummary,
 } from "@/lib/publicProxyLabels";
 
 describe("publicProxyLabels", () => {
+  test("recognizes fresh and persisted legacy default mappings", () => {
+    for (const hostnamePattern of ["localhost", "p2pstream.local"]) {
+      const cert = tlsCertificate({ hostnamePattern });
+      expect(isDefaultSelfSignedCertificate(cert)).toBe(true);
+      expect(tlsCertificateSummary(cert)).toBe("Default self-signed certificate");
+    }
+    expect(isDefaultSelfSignedCertificate(tlsCertificate())).toBe(false);
+  });
+
   test("formats certificate validity from and until", () => {
     const cert = tlsCertificate({
       issuedAtUnixMillis: BigInt(Date.UTC(2026, 4, 15)),

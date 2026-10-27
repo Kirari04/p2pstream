@@ -298,14 +298,14 @@ func generateSelfSignedCertificatePEM(validFor time.Duration) ([]byte, []byte, e
 	template := &x509.Certificate{
 		SerialNumber: randomSerialNumber(),
 		Subject: pkix.Name{
-			CommonName: "p2pstream.local",
+			CommonName: defaultSelfSignedTLSHost,
 		},
 		NotBefore:             now.Add(-time.Minute),
 		NotAfter:              now.Add(validFor),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		DNSNames:              []string{"localhost", "p2pstream.local"},
+		DNSNames:              []string{defaultSelfSignedTLSHost},
 		IPAddresses: []net.IP{
 			net.ParseIP("127.0.0.1"),
 			net.ParseIP("::1"),
