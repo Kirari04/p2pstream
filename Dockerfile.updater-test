@@ -7,7 +7,7 @@ COPY third_party/yamux ./third_party/yamux
 RUN go mod download
 COPY . .
 RUN go test -c -tags server_update_docker -o /out/server-update-test ./internal/serverupdate
-FROM docker:28.3.3-cli@sha256:0135662b510037ea581d99c2e5929c5e01185139c0b86986a418bd4da0b98a44 AS tools
+FROM docker:29.9.2-cli@sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14809346814bbfdb AS tools
 FROM ${REVIEW_RUNTIME}
 USER root
 COPY --from=tools /usr/local/bin/docker /usr/local/bin/docker
