@@ -9,7 +9,7 @@ Use this page after the quickstart when you need to change ports, understand wha
 ## Prerequisites
 
 - The release deployment package prepared by the [quickstart](./quickstart), with `compose.yaml` and a digest pin in `.env`.
-- A `.env` file copied from `.env.example`.
+- The private `.env` created during release preparation, with your management URL and settings.
 - A decision about which host ports should reach container ports `80`, `443`, and `8081`.
 
 ## Steps
@@ -81,29 +81,26 @@ Use this page after the quickstart when you need to change ports, understand wha
    listener is separate from the host publish address. Restrict public management
    access with host firewall rules when remote access is required.
 
-5. Start the container before updater enrollment:
+5. Start the container:
 
    ```bash
    docker compose up -d
    docker compose logs -f p2pstream
    ```
 
-:::warning Upgrading a Compose file from v0.1.49 or earlier
-Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even when the setting is absent from `.env`. Change that Compose default to `0`, or add `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` to `.env`, before recreating the container. A value of `0` lets a single busy target use the server-wide request ceiling instead of rejecting requests at the old 256-request quarter-cap.
-:::
+## Apply configuration changes
 
-## Apply settings after updater enrollment
-
-New enrollment turns the original Compose entry points into references to the current managed deployment. Edit the saved `.p2pstream-input-…` copies printed by setup and the same `.env`. The controller records their directory, project and ordered files. Change supported settings there, then run:
+The Compose file and `.env` belong to the operator. Edit them directly, validate the configuration, then recreate the service:
 
 ```bash
-sudo /etc/p2pstream-server-updater/manage apply
-sudo /etc/p2pstream-server-updater/manage status
+docker compose config --quiet
+docker compose up -d
+docker compose ps
 ```
 
-The controller validates the running deployment, refuses hooks/builds, data-layout changes and changes to other services/resources, preserves the **current** software digest and private connection, restarts the server once, and verifies health. It restores the exact pre-apply configuration on failure where possible. `P2PSTREAM_IMAGE` in the original input is deliberately ignored during enrolled configuration application; choose software updates in **System → Server updates**. Use a separate Compose project for services you want to manage independently.
+Keep `P2PSTREAM_IMAGE` at its current digest during settings changes. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`. The management API and agent tunnels remain available.
 
-Read-only inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `manage logs`. After new enrollment or explicit migration, ordinary `docker compose up -d --force-recreate` retains the current image and updater connection. It recreates already-applied settings; edits still use `manage apply`. Older enrollments need the [deployment migration](../operations/server-updates#migrate-an-existing-enrollment) before ordinary recreation is supported.
+Software upgrades require an explicit change to the image digest and a backup of application data and deployment inputs. Follow [Upgrades](../operations/upgrades).
 
 ## Runtime Effects
 
@@ -123,7 +120,7 @@ with `no-new-privileges`. Store persistent files under `/data`; custom cache,
 certificate or other output paths need an explicit writable mount.
 
 :::warning New listeners must be published explicitly
-Docker only exposes ports listed under `ports`. While enrolled, apply port changes with `manage apply`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
+Docker only exposes ports listed under `ports`. Apply port changes with `docker compose up -d`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
 
 ```yaml
 ports:
@@ -161,7 +158,7 @@ Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should sho
 
 ## Next Steps
 
-- [Management server updates](../operations/server-updates)
+- [Manual server upgrades](../operations/upgrades)
 - [Backup and restore](../operations/backup-restore)
 - [Docker reference](../reference/docker)
 - [Management TLS reference](../reference/management-tls)

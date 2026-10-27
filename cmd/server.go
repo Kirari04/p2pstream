@@ -13,12 +13,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/logger"
 	"p2pstream/internal/server"
-	"p2pstream/internal/serverupdate"
 )
 
 const (
@@ -62,15 +60,10 @@ var serverCmd = &cobra.Command{
 		}
 		defer database.Close()
 
-		installationID, err := serverupdate.InstallationIdentity(cfg.ConfigDir, true)
-		if err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize installation identity")
-		}
 		app, err := server.NewAppWithError(cfg, database)
 		if err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize server application")
 		}
-		app.InstallationID = installationID
 		if cfg.AgentUpdatesEnabled {
 			authority, authorityErr := server.InitializeAgentUpdateManagementAuthority(context.Background(), database, cfg.AgentUpdateAuthorityKeyFile)
 			if authorityErr != nil {
@@ -142,10 +135,6 @@ var serverCmd = &cobra.Command{
 		}
 		server.ConfigureManagementHTTPServer(mgmtSrv)
 
-		if err := app.StartServerUpdateRuntime(ctx); err != nil {
-			log.Fatal().Err(err).Msg("Failed to initialize server update readiness")
-		}
-
 		app.StartAdaptiveTunnelCapacity(ctx)
 		app.StartAgentUpdateMaintenance(ctx)
 		app.StartObservabilityMaintenance(ctx)
@@ -216,23 +205,12 @@ var serverCmd = &cobra.Command{
 	},
 }
 
-func loadServerConfig(ctx context.Context) (*config.Config, *serverupdate.RuntimeLease, error) {
-	var lease *serverupdate.RuntimeLease
+func loadServerConfig(ctx context.Context) (*config.Config, *server.DataLease, error) {
+	var lease *server.DataLease
 	cfg, err := config.LoadWithGuard(func(cfg *config.Config) error {
 		var err error
-		lease, err = serverupdate.AcquireRuntimeLease(ctx, cfg.ConfigDir)
-		if err != nil {
-			return err
-		}
-		owner, err := serverupdate.ReadRuntimeOwner(cfg.ConfigDir)
-		if err != nil {
-			return err
-		}
-		return serverupdate.ValidateRuntimeAdmission(owner, serverupdate.RuntimeAdmission{
-			Protocol: cfg.ServerUpdateRuntimeProtocol, InstanceID: cfg.ServerUpdateInstanceID,
-			Generation: cfg.ServerUpdateGeneration, Version: buildinfo.Version, Commit: buildinfo.Commit,
-			Socket: cfg.ServerUpdateSocket, GateFile: cfg.ServerUpdateGateFile, TokenFile: cfg.ServerUpdateTokenFile,
-		})
+		lease, err = server.AcquireDataLease(ctx, cfg.ConfigDir)
+		return err
 	})
 	if err != nil {
 		_ = lease.Close()

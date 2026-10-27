@@ -8,8 +8,7 @@ remote fleet.
 > Historical record: this review describes the compatibility support available through `v0.1.53-staging.90`.
 > Its legacy recovery, floor, slot-repair, and release-cutoff references are
 > retained as evidence of that review and are not compatibility promises for
-> v0.1.53. Complete the previous-release preparation in [Upgrades](./upgrades)
-> before the planned v0.1.53 cutover.
+> current releases. For current operations, see [Managed agent updates](./managed-agent-updates).
 
 ## Review method
 

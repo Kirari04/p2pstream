@@ -111,7 +111,6 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
       { key: "environments", label: "Environments", path: "/settings/environments" },
       { key: "api-tokens", label: "API tokens", path: "/settings/api-tokens" },
       { key: "management-tls", label: "Management TLS", path: "/settings/management-tls", activePrefix: "/settings/management-tls" },
-      { key: "server-updates", label: "Server updates", path: "/settings/updates" },
     ],
   },
 ] as const;

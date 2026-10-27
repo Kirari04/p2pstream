@@ -42,13 +42,13 @@ The runtime image:
 | Exposed ports            | `80`, `443`, `8081`        |
 | Command                  | `/app/p2pstream server`    |
 
-The root Compose file maps:
+The default Compose file maps:
 
 ```yaml
 ports:
   - "${P2PSTREAM_HTTP_PORT:-80}:80"
   - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-  - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
+  - "${P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS:-}:${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
 ```
 
 ## Validation Rules
@@ -57,12 +57,14 @@ ports:
 - The application does not read a `PORT` environment variable for public listeners.
 - Public listener ports are stored in SQLite and managed through **Proxy -> Listeners**.
 - The release deployment package pins an OCI digest. Use a digest for repeatability; moving aliases are discovery conveniences.
-- Treat `staging` as a mutable convenience alias; pin `vX.Y.Z-staging.N` or the OCI digest for a repeatable staging deployment.
+- Treat `staging` as a mutable convenience alias; select an exact `vX.Y.Z-staging.N` release and pin its OCI digest for a repeatable deployment.
 - Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.
 
 ## Release installation assets
 
-New stable and staging releases contain a small `p2pstream_<version>_docker.tar.gz` deployment/installation bundle, a checksummed `p2pstream_<version>_docker.py` downloader, and `p2pstream_install.json`. The existing canonical agent manifest binds their exact hashes/sizes; the installation descriptor binds Linux amd64/arm64 images at `ghcr.io/kirari04/p2pstream-updater@sha256:...`. The updater includes the matching release binary and the pinned Docker/Compose tools. Enrollment does not build images locally.
+Stable and staging releases provide a checksummed `p2pstream_<version>_docker.py` preparation tool and `p2pstream_<version>_docker.tar.gz` bundle. The release manifest binds the bundle's hash and size and records the server's OCI image digests. Preparation requires an exact release and a destination directory; it creates operator-owned `compose.yaml` and `.env` files with the selected image pinned by digest. It does not start containers or manage subsequent settings and upgrades.
+
+Edit those files directly and use `docker compose up -d` to apply configuration. For a software upgrade, prepare the selected release in a separate directory, back up the full data volume and deployment inputs, then update the existing deployment's image digest. See [Upgrades](../operations/upgrades).
 
 Release publication uploads all assets to a draft, downloads and verifies them, and then publishes. Enable [GitHub release immutability](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/establish-provenance-and-integrity/prevent-release-changes) in repository settings to enforce locked tags/assets at publication. The workflow reports whether GitHub actually marked the release immutable. Existing releases are not retroactively renamed or modified. OCI digests pin content; version names alone do not guarantee GitHub assets are immutable. Publisher and GitHub HTTPS remain the trust source; this workflow does not independently verify release attestations or implement publisher signatures.
 
@@ -70,7 +72,7 @@ Release publication uploads all assets to a draft, downloads and verifies them, 
 
 The runtime image creates a non-root `p2pstream` user and grants the binary `cap_net_bind_service` so it can bind low ports. State is stored in `/data`, including SQLite, generated certificates, ACME material, and default public cache storage.
 
-`MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent Yamux tunnel remain available.
+Set `MANAGEMENT_UI_DISABLED=true` in `.env`, then run `docker compose up -d` to stop serving the browser UI from the management listener. The ConnectRPC API and agent Yamux tunnel remain available.
 
 ## License and Source
 

@@ -1,68 +1,13 @@
 # Upgrades
 
-## Coordinated Docker deployment ownership
-
-Existing server-updater enrollments retain their pinned executor and original
-Compose workflow after a server-only upgrade. Update the server to a published
-release supporting coordinated deployment first, then use **System → Server
-Updates → Upgrade host updater** (called **Upgrade deployment integration** in
-older UI versions). Its host command installs
-the matching executor and migrates the original Compose entry points to the
-current canonical deployment. It preserves the current image, installation ID,
-credentials, data and release floors. Fresh enrollment uses this layout directly.
-
-The host updater does not self-update. An ordinary server update keeps it pinned,
-and repeating setup only validates an already healthy installation. The one-time
-migration is the explicit upgrade path for the legacy deployment integration;
-later host-updater upgrades require the applicable release's host procedure.
-
-After migration, ordinary `docker compose up -d --force-recreate` keeps the
-updater and current image. Edit the saved `.p2pstream-input-…` files and `.env`,
-then use `manage apply` to activate settings. The new server takes a lifetime
-data-volume lock; the updater also records which deployment generation may
-start. These runtime files survive snapshot restoration. Previous binaries do
-not understand that protection: remove enrollment through `manage remove`
-before any manual change to an incompatible image. Managed rollback continues
-to restore the full application snapshot and matching supported previous image.
-See [server update operations](./server-updates) for migration and interruption
-recovery. The private updater HTTP protocol and database schema are unchanged.
-
-### Recover an enrollment that never completed
-
-If initial setup restored the original server and remains `rolled_back`, a saved
-executor defect may also make `manage repair` fail repeatedly. In particular,
-the `v0.1.53-staging.103` duplicate-network-alias receipt error requires a fixed
-executor; repair keeps the original pinned one.
-
-After a fixed release with cancellation support is published, follow
-[Cancel a never-completed enrollment](./server-updates#cancel-a-never-completed-enrollment).
-Its verified bootstrap checks the old restored deployment and privately archives
-only eligible failed enrollment state, retaining enforced trust floors. It refuses
-completed enrollments, saved updater state (including previews) and unresolved runtime work.
-Cancellation does not change the running image or data. Then manually deploy the
-fixed published image with the same restored Compose configuration and named data
-volume, refresh the Updates page, and enroll again using its fresh setup command.
-Do not delete updater state or use an old copied setup command to bypass recovery.
-
-If the server was manually upgraded **before** cancellation, leave it running. A blocked startup marker can prevent it from starting again; avoid container restarts and host reboots until verified recovery completes.
-The saved enrollment still belongs to the old image; repeating `repair` or
-`rollback` cannot adopt the upgrade. Use the explicit
-[upgraded-deployment recovery](./server-updates#if-the-server-was-already-manually-upgraded)
-from a published recovery release that supports it. It separately verifies the
-current published image, permits only an image change to the original settings,
-restores any proven setup-owned Compose entry points, and retires only an exact
-blocked startup marker left by that failed enrollment. It preserves the stable
-writer lock and archives the failed enrollment without restarting the server or
-changing application data. Then run fresh
-setup from the current server. `.106` includes the alias fix and original-image
-cancellation, but does not include this later recovery mode.
+Server upgrades are operator-owned. Use the deployment's Compose file and `.env` to select and run an exact image digest. Managed agent updates remain available under **Agents → Updates** and have their own [rollout procedure](./managed-agent-updates).
 
 ## Legacy support ends with v0.1.53
 
 **Legacy support ends with v0.1.53-staging.91 and the stable v0.1.53 release.**
 The staging cutover is scheduled for `v0.1.53-staging.91`; stable `v0.1.53` is
 not published yet. These versions no longer repair old database layouts, policy
-formats, or managed-updater state automatically. New installations need no preparation.
+formats, or managed-agent-updater state automatically. New installations need no preparation.
 
 | Version | What to do |
 | --- | --- |
@@ -106,7 +51,7 @@ Follow the preparation below before moving to `v0.1.53-staging.91` or stable
    | Proxy target URL | Save only the origin, such as `https://upstream.example:8443`. Remove credentials, paths, queries, and fragments; a trailing `/` is accepted. Configure upstream authentication separately. |
    | Policy with `legacy_first_value` | Open the policy and resave its equivalent CEL expression. Keep explicit first-value matching if that is the intended behavior. |
    | Public certificate without saved validity dates | Re-upload the certificate so its validity dates are stored. |
-   | Old managed updater | Complete repair or re-enrollment while legacy support is available. Keep security floors and durable receipts intact; see [Managed agent updates](./managed-agent-updates). |
+   | Old managed agent updater | Complete repair or re-enrollment while legacy support is available. Keep security floors and durable receipts intact; see [Managed agent updates](./managed-agent-updates). |
 
    The new release checks old target URLs and policy flags before changing the
    database. If a check fails, correct the named record with the preparation
@@ -133,23 +78,50 @@ After preparation, take another complete backup and keep the matching
 preparation-release binary or image. This is the restore point if the cutover
 fails.
 
-## Install v0.1.53 when it is released
+## Before changing versions
 
-For supported Docker Compose deployments, use
-[Management Server Updates](./server-updates). For a manual Compose upgrade,
-first remove updater enrollment with `sudo /etc/p2pstream-server-updater/manage remove` if enabled. Use the current exported Compose model and exact project/file command printed by removal, pin the `v0.1.53` image tag in that configuration, then run the equivalent of:
+- Read the selected release's notes and check server, agent, and pinned agent-updater compatibility.
+- Finish active agent rollouts, rollback recovery, and management TLS rotations before restarting the server.
+- Schedule a maintenance window: the server restart interrupts public requests and agent tunnels.
+- Save the full `CONFIG_DIR` data volume and your Compose files, `.env`, release receipt, and current image digest. Stop application writers for a consistent SQLite backup; follow [Backup and restore](./backup-restore).
 
-```bash
-docker compose pull
-docker compose up -d
-```
+Keep the backup with its matching image. Database migrations run at startup; replacing the image alone does not reverse those migrations. Do not run concurrent writable server containers against the same data volume.
 
-For a binary/systemd install, download the matching release binary and install it:
+## Upgrade a Compose deployment
 
-```bash
-sudo install -m 0755 p2pstream /usr/local/bin/p2pstream
-sudo systemctl restart p2pstream
-```
+1. Select an exact published stable tag (`vX.Y.Z`) or staging tag (`vX.Y.Z-staging.N`). Follow the verified download block in the [quickstart](../getting-started/quickstart), setting `P2PSTREAM_RELEASE` to that tag and `P2PSTREAM_DIRECTORY` to a **new, separate directory**. Preparation writes deployment inputs without starting Docker.
+
+2. Inspect the prepared `.env` and release receipt. The `P2PSTREAM_IMAGE` value must refer to the intended repository and immutable digest:
+
+   ```dotenv
+   P2PSTREAM_IMAGE=ghcr.io/kirari04/p2pstream@sha256:REPLACE_WITH_VERIFIED_RELEASE_DIGEST
+   ```
+
+   Use the digest from the verified release preparation, never the literal placeholder. Moving `latest`, `staging`, and `nightly` tags do not preserve an exact image identity.
+
+3. In your **existing deployment directory**, update only `P2PSTREAM_IMAGE` in `.env` to the prepared value. Compare the new release's `compose.yaml` and default settings in `.env` with your deployment and deliberately apply any required changes. Preserve your settings, secrets, project name, ports, and persistent data-volume mount. Keep the new release receipt with the deployment once the upgrade is verified.
+
+4. Validate and pull before stopping the current server, then recreate it:
+
+   ```bash
+   docker compose config --quiet
+   docker compose pull p2pstream
+   docker compose up -d p2pstream
+   docker compose ps
+   docker compose logs --tail=100 p2pstream
+   ```
+
+   Use the same project name, ordered `-f` files, and `--env-file` options as your normal deployment for every command. Do not run the newly prepared Compose project against the live data volume.
+
+5. Verify the running release and traffic before closing the maintenance window:
+
+   - The container uses the intended digest and its logs show successful startup.
+   - The management UI and **Overview** load, or your management API responds if the UI is disabled.
+   - **Proxy → Listeners** shows the expected listeners running.
+   - Agents reconnect under **Agents → Fleet**, and managed updater check-ins succeed.
+   - TLS, WAF, access policies, and important public hostnames work as expected.
+
+Keep the previous image and complete backup until the new version has been validated. Never use `docker compose down -v` during an upgrade: it removes persistent volumes.
 
 :::warning Compose files from v0.1.49 or earlier
 These files may inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256` even when
@@ -157,13 +129,18 @@ it is absent from `.env`. Change the Compose default to `0` or set
 `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` explicitly to use automatic limits.
 :::
 
-## Verify the upgrade
+## Upgrade a binary/systemd deployment
 
-- The management UI and **Overview** load without unsupported-state errors.
-- **Proxy → Listeners** shows the expected listeners running.
-- Agents reconnect under **Agents → Fleet** and updater check-ins succeed.
-- TLS, WAF, and local-auth settings are correct.
-- A test request succeeds for each important hostname.
+Download the exact release's Linux binary for the host architecture and verify its SHA-256 against that release's checksum manifest before installation. Save the current binary, configuration, and a consistent full data backup. Stop the service before replacing the executable:
+
+```bash
+sudo systemctl stop p2pstream
+sudo install -m 0755 ./p2pstream /usr/local/bin/p2pstream
+sudo systemctl start p2pstream
+sudo journalctl -u p2pstream -n 100 --no-pager
+```
+
+Substitute your configured service name and binary path. Verify listeners, agent connections, and public traffic as for Compose.
 
 ## Roll out proxy admission changes
 
@@ -204,22 +181,16 @@ configuration, drain affected work and use the supported update procedure.
 Binary rollback does not restore database compatibility across the v0.1.53
 cutover; the backup requirement below still applies.
 
-## Roll back to an earlier version
+## Restore after a failed upgrade
 
-**Do not run a pre-v0.1.53 binary against a database upgraded by v0.1.53.** Stop
-the new release, restore the complete backup taken after preparation, and start
-the binary or image saved with that backup. Writes made after the backup are
-not restored. Managed server updates use snapshot recovery if validation fails.
+Stop the new server, restore the complete pre-upgrade data backup and its matching Compose inputs or binary, then start that saved version. Follow [Backup and restore](./backup-restore) and repeat the verification above. Writes made after the backup are lost on restoration. Do not assume an older binary can read a database migrated by a newer release.
 
-Coordinate agent rollback too: new fixed-mode agents require a response header
-that older servers may omit. Use the supported signed agent rollback/recovery
-procedure. Never delete receipts or lower updater security floors to force an
-older binary.
+Coordinate agent rollback with the restored server's compatibility requirements. Use the signed agent rollback/recovery procedure; preserve receipts and updater security floors.
 
 ## Related procedures
 
-- [Management Server Updates](./server-updates)
 - [Backup and restore](./backup-restore)
+- [Docker reference](../reference/docker)
 - [Database reference](../reference/database)
 - [Configuration reference](../reference/configuration)
 - [Managed agent updates](./managed-agent-updates)
