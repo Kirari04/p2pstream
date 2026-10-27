@@ -10,8 +10,5 @@ License version 3 or later. See LICENSE for the complete license terms.
 p2pstream is distributed without warranty, including without the implied
 warranty of merchantability or fitness for a particular purpose.
 
-The corresponding source for official release binaries and container images is
-available from the matching GitHub release tag or source archive.
-
 When the optional GeoIP feature is enabled, this product includes GeoLite Data
 created by MaxMind, available from https://www.maxmind.com.

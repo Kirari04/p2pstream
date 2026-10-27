@@ -104,8 +104,13 @@ func TestPublicProxyConfigSeedsDefaults(t *testing.T) {
 		t.Fatalf("expected one seeded TLS certificate, got %d", len(cfg.TlsCertificates))
 	}
 	seededCert := cfg.TlsCertificates[0]
-	if seededCert.GetListenerId() != httpsListener.GetId() || seededCert.GetHostnamePattern() != "p2pstream.local" || !seededCert.GetEnabled() {
+	if seededCert.GetListenerId() != httpsListener.GetId() || seededCert.GetHostnamePattern() != "localhost" || !seededCert.GetEnabled() {
 		t.Fatalf("unexpected seeded TLS certificate: %+v", seededCert)
+	}
+	if seededCert.GetLeafIssuer() != "CN=localhost" ||
+		len(seededCert.GetLeafDnsNames()) != 1 || seededCert.GetLeafDnsNames()[0] != "localhost" ||
+		len(seededCert.GetLeafIpAddresses()) != 2 || seededCert.GetLeafIpAddresses()[0] != "127.0.0.1" || seededCert.GetLeafIpAddresses()[1] != "::1" {
+		t.Fatalf("unexpected seeded TLS identity: %+v", seededCert)
 	}
 	wantCertPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", httpsListener.GetId()), fmt.Sprintf("tls-%d.crt.pem", seededCert.GetId()))
 	wantKeyPath := filepath.Join(configDir, "certs", fmt.Sprintf("public-listener-%d", httpsListener.GetId()), fmt.Sprintf("tls-%d.key.pem", seededCert.GetId()))

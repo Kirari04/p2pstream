@@ -828,10 +828,10 @@ func publicTLSCertificateValidityFromFile(certPath string) (sql.NullTime, sql.Nu
 }
 
 func validateACMEHostPattern(pattern string, challengeType string) error {
-	if pattern == defaultSelfSignedTLSHost || pattern == "localhost" {
+	host := strings.TrimPrefix(pattern, "*.")
+	if host == "localhost" || host == "local" || strings.HasSuffix(host, ".local") {
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates require a public DNS hostname"))
 	}
-	host := strings.TrimPrefix(pattern, "*.")
 	if net.ParseIP(host) != nil {
 		return connect.NewError(connect.CodeInvalidArgument, errors.New("ACME certificates require a DNS hostname, not an IP address"))
 	}

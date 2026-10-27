@@ -425,6 +425,21 @@ func TestPublicACMECanonicalizationDoesNotOverwriteConcurrentEdit(t *testing.T) 
 	}
 }
 
+func TestACMEHostValidationRejectsLocalDefaults(t *testing.T) {
+	for _, hostname := range []string{"localhost", "p2pstream.local", "service.local", "*.service.local", "*.local", "local"} {
+		t.Run(hostname, func(t *testing.T) {
+			if err := validateACMEHostPattern(hostname, publicACMEChallengeDNS01); err == nil {
+				t.Fatal("ACME accepted a nonpublic local hostname")
+			}
+		})
+	}
+	for _, hostname := range []string{"example.com", "*.example.com", "service.local.example.com"} {
+		if err := validateACMEHostPattern(hostname, publicACMEChallengeDNS01); err != nil {
+			t.Fatalf("ACME rejected public hostname %q: %v", hostname, err)
+		}
+	}
+}
+
 func TestPublicSelfSignedCertificateGenerationUsesHostPatternSAN(t *testing.T) {
 	_, _, wildcardLeaf, err := generatePublicSelfSignedCertificatePEM("*.Example.COM", 24*time.Hour)
 	if err != nil {

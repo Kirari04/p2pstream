@@ -40,7 +40,7 @@ ACME challenges:
 | TLS-ALPN-01 | Public DNS hostname must reach the HTTPS listener, usually port `443`. |
 | DNS-01 | Enabled Cloudflare DNS credential. Required for wildcard certificates. |
 
-If no configured certificate matches a public hostname, the HTTPS listener can serve a fallback self-signed certificate. Treat that as a public deployment failure.
+If no configured certificate matches a public hostname, the HTTPS listener can serve a fallback self-signed certificate. New default and fallback certificates use generic `localhost` and loopback names without product identity fields; this does not prevent TLS fingerprinting. Existing persisted certificates are preserved on upgrade; see the [replacement steps](../reference/public-tls-acme#runtime-effects). Treat a fallback certificate as a public deployment failure.
 
 The **TLS** page summarizes HTTPS listeners, configured certificates, certificate errors, and DNS credentials before the detail tables. Certificate rows keep mapping, challenge or certificate type, readiness, validity or retry metadata, and row actions together; ACME errors remain directly below the affected mapping.
 

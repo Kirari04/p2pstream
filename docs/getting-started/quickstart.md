@@ -96,7 +96,7 @@ On a new database, p2pstream seeds:
 | HTTP listener | `public-http` on `:80` |
 | HTTPS listener | `public-https` on `:443` |
 | Routes | default catch-all routes with static welcome targets |
-| HTTPS fallback certificate | self-signed mapping for `p2pstream.local` |
+| HTTPS fallback certificate | self-signed mapping for `localhost` |
 
 The seeded static targets serve a local `Welcome to p2pstream proxy` page. Replace them or add more specific routes before publishing real traffic.
 
