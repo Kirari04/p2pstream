@@ -85,10 +85,7 @@ EXPOSE 9000
 CMD ["/smoke-upstream"]
 
 FROM test-base AS legal
-ARG VERSION
-ARG COMMIT
-ARG SOURCE_REPOSITORY
-RUN VERSION="${VERSION}" COMMIT="${COMMIT}" SOURCE_REPOSITORY="${SOURCE_REPOSITORY}" make legal-notices
+RUN make legal-notices
 
 FROM debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8 AS runtime
 WORKDIR /app

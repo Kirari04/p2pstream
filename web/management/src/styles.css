@@ -205,18 +205,6 @@ samp {
   background: var(--app-border);
 }
 
-.app-source-link {
-  display: inline-flex;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--app-text-muted);
-  transition: color 0.15s ease;
-}
-
-.app-source-link:hover {
-  color: var(--app-text);
-}
-
 .app-env-label {
   display: none;
   color: var(--app-text-muted);
@@ -1945,18 +1933,6 @@ samp {
   width: min(11rem, 26vw);
 }
 
-.app-source-link {
-  min-height: 2rem;
-  align-items: center;
-  border-radius: 6px;
-  padding-inline: 0.5rem;
-  font-size: 0.8125rem;
-}
-
-.app-source-link:hover {
-  background: var(--app-hover);
-}
-
 .app-header__logout-label {
   display: none;
 }
@@ -2056,26 +2032,6 @@ body:has(.app-sidebar--mobile-open) {
   color: var(--app-text-muted);
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.app-sidebar__source-link {
-  display: inline-flex;
-  min-height: 2.5rem;
-  align-items: center;
-  margin-top: 0.5rem;
-  border-radius: 7px;
-  color: var(--app-text-muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-}
-
-.app-sidebar__source-link:hover {
-  color: var(--app-text);
-}
-
-.app-sidebar__source-link:focus-visible {
-  outline: 3px solid var(--app-focus);
-  outline-offset: 1px;
 }
 
 .app-sidebar__nav {
@@ -2557,8 +2513,7 @@ body:has(.app-sidebar--mobile-open) {
   .app-sidebar__mobile-close,
   .app-sidebar__link,
   .app-sidebar__sublink,
-  .app-sidebar__collapse,
-  .app-source-link {
+  .app-sidebar__collapse {
     min-height: 2.75rem;
   }
 
@@ -2670,10 +2625,6 @@ body:has(.app-sidebar--mobile-open) {
 
 @media (max-width: 639px) {
   .app-release-channel code {
-    display: none;
-  }
-
-  .app-source-link {
     display: none;
   }
 

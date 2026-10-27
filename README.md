@@ -188,9 +188,3 @@ A scheduled nightly workflow builds the current `dev` branch and publishes the D
 ## License
 
 p2pstream is licensed under the GNU Affero General Public License version 3 or later (`AGPL-3.0-or-later`). See [LICENSE](LICENSE) for the complete license text and [NOTICE](NOTICE) for the project notice.
-
-Official binaries, Docker images, and release assets provide corresponding source through the matching tagged GitHub source archive. Running management instances also expose a source offer at:
-
-```text
-/.well-known/p2pstream/source
-```

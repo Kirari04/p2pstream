@@ -72,17 +72,9 @@ The runtime image creates a non-root `p2pstream` user and grants the binary `cap
 
 `MANAGEMENT_UI_DISABLED=true` stops serving the browser UI from the management listener. The ConnectRPC API and agent Yamux tunnel remain available.
 
-## License and Source
+## License
 
 The runtime image is licensed as `AGPL-3.0-or-later` and includes license files under `/app/legal`. The image also carries OCI labels for the license, source repository, revision, and version.
-
-Every management listener exposes the corresponding source offer at:
-
-```text
-/.well-known/p2pstream/source
-```
-
-The endpoint remains available even when `MANAGEMENT_UI_DISABLED=true`. If you modify p2pstream and provide network access to that modified version, AGPL section 13 requires that users interacting with it remotely have an opportunity to receive the corresponding source for your modified version.
 
 ## Examples
 
