@@ -20,7 +20,7 @@ RUN bun install --frozen-lockfile
 COPY web/management/ ./
 RUN bun run build
 
-FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS backend
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS backend
 WORKDIR /src
 ARG VERSION
 ARG COMMIT
@@ -35,7 +35,7 @@ RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=$
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
 
-FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS test-base
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS test-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -71,7 +71,7 @@ RUN cd third_party/yamux && go test ./... && go test -race -short ./...
 
 FROM test-base AS smoke
 
-FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS smoke-upstream-build
+FROM golang:1.27.3-bookworm@sha256:972b4110ba0f47539a975c31e52c64765e1ff19f2d74469ae4a595c6676e80a5 AS smoke-upstream-build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY third_party/yamux ./third_party/yamux
