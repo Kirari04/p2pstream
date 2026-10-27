@@ -65,17 +65,14 @@ jobs:
 
       - name: Check installer syntax
         run: |
-          sh -n scripts/setup-server-updater.sh
           sh -n scripts/local-dev-env.sh
-          for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do
+          for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do
             bash -n "$script" || exit 1
           done
 
       - name: Test release installation and host lifecycle
         run: |
-          python3 -I scripts/test-server-updater-host.py
-          python3 -I scripts/test-server-lifecycle-harness.py
-          python3 -I scripts/test-setup-server-updater.py
+          python3 -I scripts/test-download-docker-release.py
           python3 -I scripts/test-docker-smoke-runner.py
           python3 -I scripts/test-local-fixtures.py
 
@@ -279,8 +276,8 @@ jobs:
           target: runtime
           platforms: linux/${{ matrix.arch }}
           push: true
-          # Installed updaters require executable manifests and a two-platform
-          # index. Publish signed provenance separately below, never inline.
+          # Keep the executable index limited to its two supported platforms.
+          # Publish signed provenance separately below, never inline.
           provenance: false
           build-args: |
             VERSION=${{ needs.verify.outputs.tag }}
@@ -291,36 +288,11 @@ jobs:
             VITE_RELEASE_REF=${{ needs.verify.outputs.tag }}
           tags: ${{ needs.verify.outputs.image }}:candidate-${{ github.run_id }}-${{ github.run_attempt }}-linux-${{ matrix.arch }}
 
-      - name: Build and push prebuilt updater
-        id: updater
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          file: Dockerfile.updater
-          platforms: linux/${{ matrix.arch }}
-          push: true
-          # Installed updaters require executable manifests and a two-platform
-          # index. Publish signed provenance separately below, never inline.
-          provenance: false
-          build-args: |
-            P2PSTREAM_IMAGE=${{ needs.verify.outputs.image }}@${{ steps.build.outputs.digest }}
-          tags: ${{ needs.verify.outputs.image }}-updater:candidate-${{ github.run_id }}-${{ github.run_attempt }}-linux-${{ matrix.arch }}
-
-      # Attest the exact pushed subjects via OCI referrers and the GitHub store;
-      # these do not become children of the executable release index.
       - name: Attest server architecture image provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ needs.verify.outputs.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
-          create-storage-record: false
-
-      - name: Attest updater architecture image provenance
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
-        with:
-          subject-name: ${{ needs.verify.outputs.image }}-updater
-          subject-digest: ${{ steps.updater.outputs.digest }}
           push-to-registry: true
           create-storage-record: false
 
@@ -331,30 +303,25 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
           ARCH: ${{ matrix.arch }}
           DIGEST: ${{ steps.build.outputs.digest }}
-          UPDATER_DIGEST: ${{ steps.updater.outputs.digest }}
         run: |
           set -Eeuo pipefail
           [[ "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Build did not return a canonical image digest" >&2; exit 1; }
           printf '%s@%s\n' "${IMAGE}" "${DIGEST}" >"p2pstream_${TAG}_image_linux_${ARCH}.txt"
-          [[ "${UPDATER_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "Updater build returned no canonical digest" >&2; exit 1; }
-          printf '%s-updater@%s\n' "${IMAGE}" "${UPDATER_DIGEST}" >"p2pstream_${TAG}_updater_linux_${ARCH}.txt"
 
       - name: Verify anonymous release image access
         shell: bash
         env:
           IMAGE: ${{ needs.verify.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-          UPDATER_DIGEST: ${{ steps.updater.outputs.digest }}
         run: |
           set -Eeuo pipefail
           anonymous_config="$(mktemp -d)"
           trap 'rm -rf -- "${anonymous_config}"' EXIT
-          for reference in "${IMAGE}@${DIGEST}" "${IMAGE}-updater@${UPDATER_DIGEST}"; do
-            docker --config "${anonymous_config}" manifest inspect "${reference}" >/dev/null || {
-              echo "Release image is unavailable anonymously: ${reference}. New GHCR packages default to private; set the server and updater package visibility to public and rerun before publishing installation assets." >&2
-              exit 1
-            }
-          done
+          reference="${IMAGE}@${DIGEST}"
+          docker --config "${anonymous_config}" manifest inspect "${reference}" >/dev/null || {
+            echo "Release image is unavailable anonymously: ${reference}. New GHCR packages default to private; set the package visibility to public and rerun before publishing installation assets." >&2
+            exit 1
+          }
 
       - name: Upload architecture image descriptor
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -362,7 +329,6 @@ jobs:
           name: image-linux-${{ matrix.arch }}
           path: |
             p2pstream_${{ needs.verify.outputs.tag }}_image_linux_${{ matrix.arch }}.txt
-            p2pstream_${{ needs.verify.outputs.tag }}_updater_linux_${{ matrix.arch }}.txt
           if-no-files-found: error
 
   release:
@@ -419,7 +385,7 @@ jobs:
           set -Eeuo pipefail
           mkdir -p dist/assets
           find dist/artifacts -type f \( -name '*.tar.gz' -o -name 'p2pstream_v*_linux_*' \) -exec cp {} dist/assets/ \;
-          find dist/image-descriptors -type f \( -name 'p2pstream_v*_image_linux_*.txt' -o -name 'p2pstream_v*_updater_linux_*.txt' \) -exec cp {} dist/assets/ \;
+          find dist/image-descriptors -type f -name 'p2pstream_v*_image_linux_*.txt' -exec cp {} dist/assets/ \;
           git archive --format=tar.gz --prefix="p2pstream-${TAG}/" -o "dist/assets/p2pstream_${TAG}_source.tar.gz" HEAD
 
       - name: Create and verify content-addressed image index
@@ -469,7 +435,7 @@ jobs:
           push-to-registry: true
           create-storage-record: false
 
-      - name: Package minimal Docker deployment and installation bundle
+      - name: Package standalone Docker deployment
         shell: bash
         env:
           TAG: ${{ needs.verify.outputs.tag }}
@@ -478,14 +444,10 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p dist/docker-install
-          cp scripts/setup-server-updater.sh dist/assets/setup-server-updater.sh
           cp scripts/download-docker-release.py "dist/assets/p2pstream_${TAG}_docker.py"
-          cp scripts/server-updater-host.py scripts/install-server-updater.sh scripts/server-updater-compose.sh .env.example dist/docker-install/
+          cp .env.example dist/docker-install/
           sed 's|image: ghcr.io/kirari04/p2pstream:latest|image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"|' compose.yaml >dist/docker-install/compose.yaml
-          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C dist/docker-install -czf "dist/assets/p2pstream_${TAG}_docker.tar.gz" server-updater-host.py install-server-updater.sh server-updater-compose.sh compose.yaml .env.example
-          go run ./cmd/installation-manifest --version "${TAG}" --commit "${GITHUB_SHA}" --channel "${CHANNEL}" --repository "${GITHUB_REPOSITORY}" \
-            --amd64 "$(cat "dist/assets/p2pstream_${TAG}_updater_linux_amd64.txt")" \
-            --arm64 "$(cat "dist/assets/p2pstream_${TAG}_updater_linux_arm64.txt")" --output dist/assets/p2pstream_install.json
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C dist/docker-install -czf "dist/assets/p2pstream_${TAG}_docker.tar.gz" compose.yaml .env.example
 
       - name: Generate canonical update manifest
         shell: bash
@@ -521,9 +483,8 @@ jobs:
 
           published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           expires_at="$(date -u -d "+${MANIFEST_VALIDITY_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
-          go run ./cmd/serverupdate-manifest --version "${TAG}" --commit "${GITHUB_SHA}" --output dist/assets/p2pstream_server_update.json
           manifest=dist/assets/p2pstream_agent_update_manifest.json
-          (cd dist/assets && sha256sum p2pstream_* setup-server-updater.sh >checksums.txt)
+          (cd dist/assets && sha256sum p2pstream_* >checksums.txt)
           go run ./cmd/agentupdate-manifest create \
             --channel "${CHANNEL}" \
             --version "${TAG}" \
@@ -543,13 +504,8 @@ jobs:
             --artifact "linux/arm64=dist/assets/p2pstream_${TAG}_linux_arm64" \
             --oci-index "${IMAGE}=dist/assets/p2pstream_${TAG}_image_index.json" \
             --release-asset dist/assets/checksums.txt \
-            --release-asset dist/assets/p2pstream_server_update.json \
-            --release-asset dist/assets/p2pstream_install.json \
-            --release-asset dist/assets/setup-server-updater.sh \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.py" \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.tar.gz" \
-            --release-asset "dist/assets/p2pstream_${TAG}_updater_linux_amd64.txt" \
-            --release-asset "dist/assets/p2pstream_${TAG}_updater_linux_arm64.txt" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_arm64" \
@@ -583,13 +539,8 @@ jobs:
             --artifact "linux/arm64=dist/assets/p2pstream_${TAG}_linux_arm64" \
             --oci-index "${IMAGE}=dist/assets/p2pstream_${TAG}_image_index.json" \
             --release-asset dist/assets/checksums.txt \
-            --release-asset dist/assets/p2pstream_server_update.json \
-            --release-asset dist/assets/p2pstream_install.json \
-            --release-asset dist/assets/setup-server-updater.sh \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.py" \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.tar.gz" \
-            --release-asset "dist/assets/p2pstream_${TAG}_updater_linux_amd64.txt" \
-            --release-asset "dist/assets/p2pstream_${TAG}_updater_linux_arm64.txt" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_arm64" \

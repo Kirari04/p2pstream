@@ -3,14 +3,12 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
@@ -28,14 +26,6 @@ const (
 )
 
 type Config struct {
-	ServerUpdateSocket          string `env:"SERVER_UPDATE_SOCKET"`
-	ServerUpdateToken           string `env:"SERVER_UPDATE_TOKEN"`
-	ServerUpdateInstanceID      string `env:"SERVER_UPDATE_INSTANCE_ID"`
-	ServerUpdateGateFile        string `env:"SERVER_UPDATE_GATE_FILE"`
-	ServerUpdateTokenFile       string `env:"SERVER_UPDATE_TOKEN_FILE"`
-	ServerUpdateRuntimeProtocol int    `env:"SERVER_UPDATE_RUNTIME_PROTOCOL"`
-	ServerUpdateGeneration      string `env:"SERVER_UPDATE_GENERATION"`
-
 	ManagementPort                    string `env:"MANAGEMENT_PORT" envDefault:"8081"`
 	ManagementBindAddress             string `env:"MANAGEMENT_BIND_ADDRESS" envDefault:"0.0.0.0"`
 	ConfigDir                         string `env:"CONFIG_DIR" envDefault:"p2pstream-data"`
@@ -104,23 +94,17 @@ var agentUpdateRepositoryRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-
 
 // Load reads .env files and environment variables into the Config struct.
 func Load() (*Config, error) {
-	return loadConfig(nil, true)
+	return loadConfig(nil)
 }
 
 // LoadWithGuard parses one environment snapshot, then invokes guard before
 // creating or changing any application data directories. Server processes use
 // it to acquire and validate their lifetime data lease before initialization.
 func LoadWithGuard(guard func(*Config) error) (*Config, error) {
-	return loadConfig(guard, true)
+	return loadConfig(guard)
 }
 
-// LoadReadOnly resolves configuration without creating or chmodding data. It
-// is suitable for health probes while another process owns the data lease.
-func LoadReadOnly() (*Config, error) {
-	return loadConfig(nil, false)
-}
-
-func loadConfig(guard func(*Config) error, prepare bool) (*Config, error) {
+func loadConfig(guard func(*Config) error) (*Config, error) {
 	// Attempt to load .env file; it's okay if it doesn't exist.
 	_ = godotenv.Load()
 
@@ -130,9 +114,6 @@ func loadConfig(guard func(*Config) error, prepare bool) (*Config, error) {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 	if err := resolveServerTunnelCapacity(cfg, DetectProcessMemoryLimitBytes()); err != nil {
-		return nil, err
-	}
-	if err := validateServerUpdaterConfig(cfg); err != nil {
 		return nil, err
 	}
 	if err := validateManagementTLSConfig(cfg); err != nil {
@@ -169,10 +150,8 @@ func loadConfig(guard func(*Config) error, prepare bool) (*Config, error) {
 			return nil, err
 		}
 	}
-	if prepare {
-		if err := prepareConfigDir(cfg.ConfigDir, cfg.CertsDir); err != nil {
-			return nil, err
-		}
+	if err := prepareConfigDir(cfg.ConfigDir, cfg.CertsDir); err != nil {
+		return nil, err
 	}
 
 	if !explicitDatabaseURL || strings.TrimSpace(cfg.DatabaseURL) == "" {
@@ -504,55 +483,4 @@ func rejectLegacyDefaultDatabase(newDBPath string) error {
 		return fmt.Errorf("failed to inspect legacy database %q: %w", legacyDBPath, err)
 	}
 	return fmt.Errorf("legacy database found at %q; automatic migration is unsupported, move it to %q or set DATABASE_URL explicitly", legacyDBPath, newDBPath)
-}
-
-func validateServerUpdaterConfig(cfg *Config) error {
-	if cfg.ServerUpdateTokenFile != "" {
-		if cfg.ServerUpdateToken != "" {
-			return errors.New("SERVER_UPDATE_TOKEN and SERVER_UPDATE_TOKEN_FILE are mutually exclusive")
-		}
-		token, err := readServerUpdateTokenFile(cfg.ServerUpdateTokenFile)
-		if err != nil {
-			return err
-		}
-		cfg.ServerUpdateToken = token
-	}
-	if cfg.ServerUpdateSocket == "" && cfg.ServerUpdateToken == "" && cfg.ServerUpdateInstanceID == "" && cfg.ServerUpdateGateFile == "" && cfg.ServerUpdateRuntimeProtocol == 0 && cfg.ServerUpdateGeneration == "" {
-		return nil
-	}
-	if !filepath.IsAbs(cfg.ServerUpdateSocket) || !filepath.IsAbs(cfg.ServerUpdateGateFile) || len(cfg.ServerUpdateToken) < 32 || !regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`).MatchString(cfg.ServerUpdateInstanceID) {
-		return errors.New("SERVER_UPDATE_SOCKET, SERVER_UPDATE_TOKEN, SERVER_UPDATE_INSTANCE_ID and SERVER_UPDATE_GATE_FILE must be installed together by the host installer")
-	}
-	if cfg.ServerUpdateRuntimeProtocol != 0 || cfg.ServerUpdateGeneration != "" {
-		if cfg.ServerUpdateRuntimeProtocol != 2 || !regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`).MatchString(cfg.ServerUpdateGeneration) ||
-			cfg.ServerUpdateSocket != "/run/p2pstream-server-update/control.sock" || cfg.ServerUpdateGateFile != "/run/p2pstream-server-update/maintenance" || cfg.ServerUpdateTokenFile != "/run/p2pstream-server-update/token" {
-			return errors.New("runtime protocol two requires the installed generation and private control mount")
-		}
-	}
-	return nil
-}
-
-func readServerUpdateTokenFile(path string) (string, error) {
-	const invalid = "cannot read a valid private SERVER_UPDATE_TOKEN_FILE"
-	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
-		return "", errors.New(invalid)
-	}
-	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
-	if err != nil {
-		return "", errors.New(invalid)
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0022 != 0 || info.Size() > 4096 || info.Sys().(*syscall.Stat_t).Nlink != 1 {
-		return "", errors.New(invalid)
-	}
-	data, err := io.ReadAll(io.LimitReader(file, 4097))
-	if err != nil || len(data) > 4096 {
-		return "", errors.New(invalid)
-	}
-	token := strings.TrimSpace(string(data))
-	if len(token) < 32 || strings.IndexFunc(token, func(r rune) bool { return r < 33 || r > 126 }) != -1 {
-		return "", errors.New(invalid)
-	}
-	return token, nil
 }

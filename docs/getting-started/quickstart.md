@@ -14,13 +14,14 @@ Use this path for the normal self-hosted server deployment on a VPS, home lab ho
 
 ## Steps
 
-1. Download and verify the latest stable release's small Docker deployment package. The block prepares `p2pstream/compose.yaml`, a private `.env`, and `release.json`, with an immutable server image digest:
+1. Select an exact published release tag, then download and verify its small Docker deployment package. The block prepares `p2pstream/compose.yaml`, a private `.env`, and `release.json`, with an immutable server image digest:
 
    ```bash
+   export P2PSTREAM_RELEASE=vX.Y.Z # Replace with the exact published tag you selected.
    (
      set -eu
      repo=Kirari04/p2pstream
-     release=${P2PSTREAM_RELEASE:-$(curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 60 "https://api.github.com/repos/$repo/releases/latest" | python3 -I -c 'import json,re,sys; v=json.load(sys.stdin)["tag_name"]; assert re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?",v); print(v)')}
+     release=${P2PSTREAM_RELEASE:?Set P2PSTREAM_RELEASE to an exact published release tag first}
      python3 -I -c 'import re,sys; assert re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?",sys.argv[1])' "$release"
      work=$(mktemp -d)
      trap 'rm -rf -- "$work"' EXIT
@@ -31,16 +32,16 @@ Use this path for the normal self-hosted server deployment on a VPS, home lab ho
      curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/checksums.txt" -o "$work/checksums.txt"
      curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/$asset" -o "$work/$asset" || { echo "This release has no Docker deployment package. Select a newer published release containing it." >&2; exit 1; }
      python3 -I -c 'import hashlib,pathlib,re,sys; d=pathlib.Path(sys.argv[1]); n=sys.argv[2]; rows=[r.split() for r in (d/"checksums.txt").read_text().splitlines()]; hashes=[r[0] for r in rows if len(r)==2 and r[1]==n]; assert len(hashes)==1 and re.fullmatch(r"[0-9a-f]{64}",hashes[0]) and hashlib.sha256((d/n).read_bytes()).hexdigest()==hashes[0], "Deployment downloader checksum mismatch"' "$work" "$asset"
-     python3 -I "$work/$asset" --repository "$repo" --release "$release" --directory "$PWD/p2pstream"
+     python3 -I "$work/$asset" --repository "$repo" --release "$release" --directory "${P2PSTREAM_DIRECTORY:-$PWD/p2pstream}"
    )
    ```
 
-   For an exact repeatable version, run `export P2PSTREAM_RELEASE=vX.Y.Z` first. Staging supports `vX.Y.Z-staging.N`. This requires a published release containing the Docker installation assets; old releases are never patched with new assets. If they are missing, choose a newer supported published release, or use an existing pinned-image deployment to upgrade manually first. GitHub and the publisher remain the trust source; checksums are not independent signatures.
+   Stable tags use `vX.Y.Z`; staging tags use `vX.Y.Z-staging.N`. Select a published release containing the Docker installation assets. Set `P2PSTREAM_DIRECTORY` to use a new directory of your choice. Preparation writes operator-owned Compose inputs without starting Docker or replacing an existing deployment. GitHub and the publisher remain the trust source; checksums are not independent signatures.
 
 2. Enter the prepared directory:
 
    ```bash
-   cd p2pstream
+   cd "${P2PSTREAM_DIRECTORY:-p2pstream}"
    ```
 
 3. Edit `.env` so generated browser links and agent snippets use the real management URL:
@@ -72,11 +73,11 @@ Use this path for the normal self-hosted server deployment on a VPS, home lab ho
 
 The management server uses HTTPS by default. In auto mode, p2pstream creates a local management CA and server certificate under `/data/certs/management`; browsers warn until you trust that CA or place management behind trusted TLS.
 
-## Optional server updates
+## Configuration and upgrades
 
-After first login, **System → Server updates** offers a release-based setup command for this server. New releases provide a `curl … | sudo sh` one-liner; older releases retain their full setup block. Installing the dedicated Docker-authorized updater is optional and restarts the server once. The page reconnects and confirms its availability. Setup preserves editable Compose copies beside the original entry points. Edit those saved inputs and `.env`, then run `sudo /etc/p2pstream-server-updater/manage apply`; use the UI for operator-triggered software updates. Ordinary recreation retains the applied deployment after new enrollment or migration. Server updates leave the host updater pinned; it does not self-update. Read [server update operations](../operations/server-updates) before enrollment.
+Edit `compose.yaml` and `.env` directly, then run `docker compose up -d` to apply settings. Keep the current `P2PSTREAM_IMAGE` digest when changing configuration. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`; the management API and agents remain available.
 
-For a new installation using a release with `single-file-v1` support, the verified downloader also accepts `--deployment-layout single-file-v1`. Run it with `sudo` and omit `--directory`; it prepares `/opt/p2pstream/deployment`. Use that directory for the `.env` edits, initial Compose commands, and copied setup command. After enrollment, `compose.yaml` remains the complete applied deployment; edit `/opt/p2pstream/compose.inputs.yaml` and run `sudo p2pstream-server-update apply`. See the [standard deployment workflow](../operations/server-updates#standard-single-file-deployment). This option does not migrate an existing installation.
+Server upgrades are manual: back up the full data volume and Compose inputs, prepare the chosen release in a separate directory, then update your image digest. Follow [Upgrades](../operations/upgrades) for the complete procedure. Managed agent updates remain available under **Agents → Updates**.
 
 ## Verification
 
@@ -106,7 +107,7 @@ The seeded static targets serve a local `Welcome to p2pstream proxy` page. Repla
 | --- | --- |
 | Browser cannot connect | Confirm `docker ps`, host firewall, and `P2PSTREAM_MANAGEMENT_PORT`. |
 | Certificate warning | Expected with auto management TLS until the generated CA is trusted. |
-| Agent snippets use the wrong URL | Fix `MANAGEMENT_PUBLIC_URL`, then use `docker compose up -d` before updater enrollment or `sudo /etc/p2pstream-server-updater/manage apply` while enrolled. |
+| Agent snippets use the wrong URL | Fix `MANAGEMENT_PUBLIC_URL` in `.env`, then run `docker compose up -d`. |
 | Public listener does not answer | Confirm the listener exists under **Proxy -> Listeners**, is enabled and running, and its port is published by Compose. |
 
 See [Troubleshooting](../operations/troubleshooting) for route, TLS, agent, and cache-specific checks.

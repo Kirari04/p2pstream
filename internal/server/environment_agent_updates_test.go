@@ -117,7 +117,6 @@ func TestEnvironmentProxyAgentUpdateOperations(t *testing.T) {
 			}
 			viewerHeader := http.Header{"Cookie": {sessionCookieName + "=viewer-session"}}
 			for _, method := range []string{
-				"GetServerUpdateOverview", "PreviewServerUpdate", "StartServerUpdate", "GetServerUpdateOperation",
 				"GenerateAgentUpdaterEnrollmentToken", "GetAgentUpdateOverview", "ListAgentUpdateCampaigns",
 				"PreviewAgentUpdateCampaign", "CreateAgentUpdateCampaign", "PauseAgentUpdateCampaign",
 				"ResumeAgentUpdateCampaign", "CancelAgentUpdateCampaign", "RetryAgentUpdateAssignments",
@@ -136,10 +135,6 @@ func TestEnvironmentProxyAgentUpdateOperations(t *testing.T) {
 				method, body, contains string
 				status                 int
 			}{
-				{"GetServerUpdateOverview", "{}", "Server updates require a Linux Docker Compose release", http.StatusOK},
-				{"PreviewServerUpdate", `{"instanceId":"wrong","targetVersion":"v1.0.1"}`, "selected server changed", http.StatusBadRequest},
-				{"StartServerUpdate", `{"instanceId":"wrong"}`, "selected server changed", http.StatusBadRequest},
-				{"GetServerUpdateOperation", `{"instanceId":"wrong"}`, "selected server changed", http.StatusBadRequest},
 				{"GetAgentUpdateOverview", "{}", remoteAgent.PublicID, http.StatusOK},
 				{"ListAgentUpdateCampaigns", "{}", "campaigns", http.StatusOK},
 				{"GenerateAgentUpdaterEnrollmentToken", fmt.Sprintf(`{"agentId":"%d"}`, bootstrapAgent.ID), remote.AgentUpdateAuthority.Identity().KeyID, http.StatusOK},

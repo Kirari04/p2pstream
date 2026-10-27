@@ -107,7 +107,6 @@ export default defineConfig({
           { text: "Observability", link: "/concepts/observability" },
           { text: "Backup and Restore", link: "/operations/backup-restore" },
           { text: "Upgrades", link: "/operations/upgrades" },
-          { text: "Server Updates", link: "/operations/server-updates" },
           { text: "Systemd", link: "/operations/systemd" },
           { text: "Screenshots", link: "/reference/screenshots" }
         ]

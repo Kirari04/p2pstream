@@ -7,8 +7,6 @@ stage copies Bun from the pinned Bun image and supplies `bunx` as a symlink to
 that executable. It does not execute the remote Bun installer. GitHub Actions
 use full upstream commit pins with readable version comments. Dependabot opens
 Docker and action updates against `dev`; review and test those updates normally.
-The rehearsal daemon and registry images in `scripts/test-server-updater.sh`
-are also pinned; review those references when updating rehearsal dependencies.
 
 Digest pins fix the base-image bytes. Network package installs and the hosted
 runner remain additional build inputs; these pins alone do not make the entire
@@ -17,15 +15,15 @@ build hermetic or byte-for-byte reproducible.
 ## Release image provenance
 
 The release workflow publishes signed SLSA build provenance using GitHub's
-official `actions/attest` action. Each server and updater architecture manifest
+official `actions/attest` action. Each server architecture manifest
 is a separate subject named by its image repository and exact Buildx output
 digest. The final server index is also attested, after validating its bytes,
 digest and exactly two executable Linux descriptors (`amd64` and `arm64`).
 
 Attestations are stored in GitHub and pushed separately to the image registry.
 They are not added as children of the executable image index. Inline BuildKit
-`provenance: false` is intentional: installed updaters require the existing
-two-platform index and per-architecture executable manifests. Attestation failure
+`provenance: false` keeps the executable image index limited to its two
+platform descriptors and per-architecture executable manifests. Attestation failure
 fails the release job before release publication. Only the image/release jobs
 receive `id-token: write` and `attestations: write`; signing uses short-lived
 GitHub OIDC credentials and needs no stored signing key. Optional organization
@@ -47,8 +45,7 @@ gh attestation verify "oci://${image}@${digest}" \
 ```
 
 Use `refs/heads/staging` for staging releases. Verify the final index digest and
-the architecture digest actually deployed; use `ghcr.io/kirari04/p2pstream-updater`
-for updater subjects. By default the CLI obtains attestations from GitHub; add
+the architecture digest actually deployed. By default the CLI obtains attestations from GitHub; add
 `--bundle-from-oci` to obtain them from the registry instead. Registry access
 requires authentication as described by the CLI. Older releases predate these
 attestations. See the upstream [action documentation](https://github.com/actions/attest)
@@ -56,8 +53,7 @@ and [CLI verification options](https://cli.github.com/manual/gh_attestation_veri
 
 The signature establishes the named workflow/source identity's claim about the
 subject bytes. It is not an independent code review, a complete BuildKit
-materials inventory, an SBOM or a guarantee of build isolation. Installed
-updaters still verify their existing release identity and digest contracts;
+materials inventory, an SBOM or a guarantee of build isolation. Managed agent updaters verify their release identity and digest contracts;
 they do **not** enforce these attestations. Verification is an operator check.
 
 ## Disposable Docker smoke tests

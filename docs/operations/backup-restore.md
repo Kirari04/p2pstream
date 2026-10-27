@@ -14,7 +14,9 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 
 ## Steps
 
-The commands below use the default, unenrolled Compose context. If server updates are enabled, finish any update or paused recovery, then run `sudo /etc/p2pstream-server-updater/manage remove` before this offline procedure. Removal preserves the current release/settings and prints the exact project/file command for `/etc/p2pstream-server-updater/detached-compose.json`; use that context for every Compose command below. Substitute your actual data-volume name. After restoration is verified, copy a fresh setup command from **System → Server updates** to enroll again using the exported model. See [server update operations](./server-updates).
+Run every Compose command from your deployment directory, with the same project name, ordered `-f` files, and `--env-file` options you normally use. Confirm the actual volume name with `docker compose config --volumes` and `docker volume inspect`; substitute it below if you changed the default.
+
+Keep a private backup of `compose.yaml`, any overrides, `.env`, the release receipt, and the exact `P2PSTREAM_IMAGE` digest alongside the data archive. These inputs are needed to restore the matching application version and settings. Protect backups as secrets: they contain credentials, private keys, and user data.
 
 1. Include at least:
 
@@ -23,7 +25,6 @@ The commands below use the default, unenrolled Compose context. If server update
    /data/p2pstream.db-wal
    /data/p2pstream.db-shm
    /data/certs/
-   /data/server-installation-id
    ```
 
    The database stores proxy config, users, sessions, agent registry, TLS metadata, and observability. The cert directory stores management TLS and public TLS material.
@@ -42,7 +43,7 @@ The commands below use the default, unenrolled Compose context. If server update
    docker compose start p2pstream
    ```
 
-3. To restore, stop Compose and recreate the named data volume:
+3. To restore, confirm your backup is readable and stop Compose. Save any current data you may need before replacing the named volume:
 
    ```bash
    docker compose down
@@ -60,7 +61,7 @@ The commands below use the default, unenrolled Compose context. If server update
      tar -C /data -xzf /backup/p2pstream-data.tar.gz
    ```
 
-5. Start p2pstream with the restored volume:
+5. Restore the Compose inputs and `.env` saved with the backup, including its exact image digest, then start p2pstream with the restored volume:
 
    ```bash
    docker compose up -d

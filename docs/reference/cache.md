@@ -54,10 +54,6 @@ The **Storage usage** panel reports cache-accounted body bytes for the disk tier
 
 p2pstream always bypasses cache for requests with `Authorization`, `Cookie`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
 
-The legacy `allow_cookie_requests` and acknowledgement fields are retired at
-v0.1.53. Cookie-bearing requests never use shared cache lookup or storage;
-update clients to stop sending the old fields. The v0.1.53 upgrade removes the database column automatically.
-
 Requests containing encoded path separators on routes that enable `allow_encoded_separators` path security always bypass shared cache. Compatibility routes can preserve encoded separators for upstreams that require them, but those ambiguous request targets are not used for shared cache lookup or storage.
 
 p2pstream refuses to store responses with `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, including parameterized directives such as `private="Set-Cookie"`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, generated forwarding-header Vary values, disallowed status codes, or bodies larger than the rule limit.

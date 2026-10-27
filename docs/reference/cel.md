@@ -35,7 +35,7 @@ Cache and retry `route_ids` and `target_ids` are separate post-routing filters. 
 
 When both fields are supplied, `cel_expression` must exactly match the expression generated from `builder`.
 
-Legacy `match` fields are removed from the public API. Stored legacy rows must have been converted to CEL/builder JSON by an earlier release before upgrading; see [Upgrades](../operations/upgrades).
+Policy APIs accept `match_rule` with CEL and optional builder JSON. Stored policy rules must use this supported format.
 
 ## Variables
 
@@ -108,9 +108,8 @@ Builder mode generates CEL from groups and conditions:
 | `Host pattern` operator | Valid only for host fields. |
 | `Path prefix` operator | Values must start with `/`. |
 
-Header and query conditions check all repeated values. Before upgrading to v0.1.53, resave
-builder rules that used `legacy_first_value` as the equivalent current CEL. The
-v0.1.53 loader does not preserve or convert that legacy flag.
+Header and query conditions check all repeated values. Use an explicit CEL
+expression when a policy must inspect only the first value.
 
 ## Limits And Validation
 
