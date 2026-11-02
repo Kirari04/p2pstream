@@ -929,16 +929,13 @@ def default_yaml_context():
     PROJECT, VOLUME = DEPLOYMENT.name, 'p2pstream-data'
 
 
-def pinned_default_yaml(template, image, oom_score_adj=0):
-    require(type(oom_score_adj) is int and 0 <= oom_score_adj <= 1000, 'invalid-fixture-oom-score')
+def pinned_default_yaml(template, image):
     lines = template.splitlines(keepends=True)
     indexes = [index for index, line in enumerate(lines) if line.startswith(b'    image: ')]
     require(len(indexes) == 1, 'default-yaml-template-image-layout')
     index = indexes[0]
     require(lines[index].endswith(b'\n'), 'default-yaml-template-image-newline')
     lines[index] = b'    image: ' + image.encode() + b'\n'
-    if oom_score_adj:
-        lines.insert(index + 1, b'    oom_score_adj: ' + str(oom_score_adj).encode() + b'\n')
     return b''.join(lines)
 
 
@@ -971,7 +968,7 @@ def prepare_deployment_directory():
     DEPLOYMENT.chmod(0o2750)
 
 
-def default_yaml_case(images, host, oom_score_adj=0):
+def default_yaml_case(images, host):
     """One real bundle YAML initial stop/rollback/repair, before the JSON case."""
     global ROOT, PROJECT, VOLUME
     parent_root, parent_project, parent_volume = ROOT, PROJECT, VOLUME
@@ -1005,7 +1002,7 @@ def default_yaml_case(images, host, oom_score_adj=0):
                                          command_label='default-yaml-volume-list').split(),
             'default-yaml-fixture-volume-already-exists')
     template = (BUNDLE / 'compose.yaml').read_bytes()
-    source = pinned_default_yaml(template, images['baseline'], oom_score_adj)
+    source = pinned_default_yaml(template, images['baseline'])
     env = (BUNDLE / '.env.example').read_bytes()
     for old, new in ((b'P2PSTREAM_HTTP_PORT=80', b'P2PSTREAM_HTTP_PORT=18110'),
                      (b'P2PSTREAM_HTTPS_PORT=443', b'P2PSTREAM_HTTPS_PORT=18111'),
@@ -1168,13 +1165,16 @@ def main():
     images, host = read('/review/images.json'), load_host()
     require(docker('info', '--format', '{{.Architecture}}') in {'x86_64', 'amd64'},
             'catalog-fixture-requires-amd64')
+    resources = read('/review/fixture-resources.json')
+    # Exact published YAML has no OOM override. A positive nested floor changes
+    # its declared resource at start; qualify this case on a rootful daemon.
+    require(resources['oom_score_adj'] == 0, 'canonical-default-yaml-requires-zero-oom-floor')
     # The preceding legacy rehearsal finishes removed. Keep its private state
     # intact while giving this independent installation the production defaults.
     if STATE.exists():
         require(read(STATE / 'host.json')['phase'] == 'removed', 'legacy-fixture-must-finish-removed')
         STATE.rename(ROOT / 'completed-legacy-state')
-    resources = read('/review/fixture-resources.json')
-    default_yaml_case(images, host, resources['oom_score_adj'])
+    default_yaml_case(images, host)
     stage('fixture-setup')
     require(not CANONICAL.exists() and not INPUTS.exists(), 'canonical-fixture-requires-clean-paths')
     prepare_deployment_directory()

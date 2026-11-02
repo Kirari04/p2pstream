@@ -800,6 +800,25 @@ class DefaultYamlFixture(unittest.TestCase):
                 self.assertIn(value.value, harness.COMMAND_LABELS)
                 self.assertNotEqual(value.value, 'command')
 
+    def test_exact_default_yaml_refuses_nested_oom_floor_before_moving_private_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / 'state'
+            state.mkdir()
+            marker = state / 'marker'
+            marker.write_text('retained')
+            with patch.multiple(harness, ROOT=root / 'run', STATE=state), \
+                    patch.object(harness, 'isolated'), patch.object(harness, 'load_host'), \
+                    patch.object(harness, 'docker', return_value='amd64'), \
+                    patch.object(harness, 'read', side_effect=lambda path: {'oom_score_adj': 200} if str(path).endswith('fixture-resources.json') else {}), \
+                    patch.object(harness, 'default_yaml_case') as default_case:
+                with self.assertRaises(harness.CheckFailure) as caught:
+                    harness.main()
+                self.assertEqual(caught.exception.check, 'canonical-default-yaml-requires-zero-oom-floor')
+                default_case.assert_not_called()
+            self.assertEqual(marker.read_text(), 'retained')
+            self.assertFalse((root / 'run/completed-legacy-state').exists())
+
     def test_fixture_parent_is_protected_under_zero_umask(self):
         with tempfile.TemporaryDirectory() as directory:
             parent = Path(directory) / 'parent'
@@ -817,15 +836,6 @@ class DefaultYamlFixture(unittest.TestCase):
                     harness.prepare_deployment_directory()
                 self.assertEqual(parent.stat().st_mode & 0o7777, 0o777)
                 self.assertFalse(harness.DEPLOYMENT.exists())
-
-    def test_nested_fixture_declares_oom_floor_without_changing_other_template_settings(self):
-        template = (ROOT.parent / 'compose.yaml').read_bytes()
-        default = harness.pinned_default_yaml(template, 'PINNED_IMAGE')
-        explicit = harness.pinned_default_yaml(template, 'PINNED_IMAGE', 200)
-        self.assertEqual(explicit.replace(b'    oom_score_adj: 200\n', b''), default)
-        for invalid in (True, -1, 1001, '200', None):
-            with self.subTest(value=invalid), self.assertRaises(Exception):
-                harness.pinned_default_yaml(template, 'PINNED_IMAGE', invalid)
 
     def test_image_pin_changes_only_one_line_of_actual_bundle_source_template(self):
         template = (ROOT.parent / 'compose.yaml').read_bytes()
