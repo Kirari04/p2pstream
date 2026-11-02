@@ -155,7 +155,7 @@ if `/data/.p2pstream-runtime-owner.json` remains. A backup from an enrolled or
 interrupted deployment needs its matching controller's recovery/removal procedure
 before it can become standalone; do not bypass that guard by deleting the marker.
 Never delete or replace `.p2pstream-runtime.lock`. The database rollback rules
-[below](#roll-back-to-an-earlier-version) still apply.
+[below](#restore-after-a-failed-upgrade) still apply.
 
 ## Upgrade a Compose deployment
 
