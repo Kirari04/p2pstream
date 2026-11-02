@@ -109,6 +109,25 @@ done
 guest apk add --no-cache python3 2>&1 | tee "$artifact_dir/install-python.log"
 guest mkdir -p /review
 guest touch /review/ISOLATED_TEST_VM
+# A rootful daemon nested in rootless Docker cannot lower its inherited OOM
+# score. Declare that floor in test deployments before creation, rather than
+# weakening the production detached-target identity check after start.
+guest python3 - <<'PYRESOURCES'
+import json
+import subprocess
+from pathlib import Path
+pid = subprocess.check_output(['pidof', 'dockerd'], text=True, timeout=10).strip()
+assert pid.isdecimal(), 'Expected one disposable Docker daemon'
+uid_map = Path('/proc/' + pid + '/uid_map').read_text().split()
+nested = uid_map != ['0', '0', '4294967295']
+score = int(Path('/proc/' + pid + '/oom_score_adj').read_text())
+assert -1000 <= score <= 1000
+Path('/review/fixture-resources.json').write_text(json.dumps({
+    'rootful_in_user_namespace': nested, 'daemon_oom_score_adj': score,
+    'oom_score_adj': max(0, score) if nested else 0}))
+PYRESOURCES
+docker cp "$daemon:/review/fixture-resources.json" "$artifact_dir/fixture-resources.json"
+
 docker cp scripts/test-server-updater-docker.py "$daemon:/review/test-server-updater-docker.py"
 docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" "$registry_image" \
   | guest docker load >"$artifact_dir/load-images.log"

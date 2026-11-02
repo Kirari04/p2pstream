@@ -260,6 +260,23 @@ class DetachedStartResources:
                     Lifecycle.assert_no_server_lifecycle(self, self.commands[before:])
                     self.assertEqual(host.read_json(self.state / 'host.json')['detached_continuation'], current['detached_continuation'])
 
+    def test_nested_daemon_oom_floor_does_not_relax_declared_target(self):
+        controller = host.Host()
+        for saved_score in (0, 100, 200, 300):
+            saved = {'Id': 'declared', 'Image': 'pinned', 'Config': {}, 'Mounts': [],
+                     'HostConfig': {'OomScoreAdj': saved_score, 'OomKillDisable': False}}
+            for stage in ('detaching', 'starting'):
+                continuation = {'server': copy.deepcopy(saved), 'stage': stage}
+                for observed_score in (0, 100, 200, 300):
+                    actual = copy.deepcopy(saved)
+                    actual['HostConfig']['OomScoreAdj'] = observed_score
+                    if stage == 'starting':
+                        actual['HostConfig']['OomKillDisable'] = None
+                    with self.subTest(saved=saved_score, observed=observed_score, stage=stage):
+                        self.assertEqual(controller.detached_server_matches(actual, continuation),
+                                         saved_score == observed_score)
+                        self.assertEqual(continuation['server'], saved)
+
     def test_resource_allowance_preserves_other_gates(self):
         self.interrupt_resource_start('remove', 'before-start')
         original, journal = copy.deepcopy(self.info), host.read_json(self.state / 'host.json')

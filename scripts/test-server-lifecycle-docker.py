@@ -929,13 +929,16 @@ def default_yaml_context():
     PROJECT, VOLUME = DEPLOYMENT.name, 'p2pstream-data'
 
 
-def pinned_default_yaml(template, image):
+def pinned_default_yaml(template, image, oom_score_adj=0):
+    require(type(oom_score_adj) is int and 0 <= oom_score_adj <= 1000, 'invalid-fixture-oom-score')
     lines = template.splitlines(keepends=True)
     indexes = [index for index, line in enumerate(lines) if line.startswith(b'    image: ')]
     require(len(indexes) == 1, 'default-yaml-template-image-layout')
     index = indexes[0]
     require(lines[index].endswith(b'\n'), 'default-yaml-template-image-newline')
     lines[index] = b'    image: ' + image.encode() + b'\n'
+    if oom_score_adj:
+        lines.insert(index + 1, b'    oom_score_adj: ' + str(oom_score_adj).encode() + b'\n')
     return b''.join(lines)
 
 
@@ -956,7 +959,7 @@ def prove_stopped_legacy(info, config, journal):
             'default-yaml-legacy-data-mismatch')
 
 
-def default_yaml_case(images, host):
+def default_yaml_case(images, host, oom_score_adj=0):
     """One real bundle YAML initial stop/rollback/repair, before the JSON case."""
     global ROOT, PROJECT, VOLUME
     parent_root, parent_project, parent_volume = ROOT, PROJECT, VOLUME
@@ -990,7 +993,7 @@ def default_yaml_case(images, host):
                                          command_label='default-yaml-volume-list').split(),
             'default-yaml-fixture-volume-already-exists')
     template = (BUNDLE / 'compose.yaml').read_bytes()
-    source = pinned_default_yaml(template, images['baseline'])
+    source = pinned_default_yaml(template, images['baseline'], oom_score_adj)
     env = (BUNDLE / '.env.example').read_bytes()
     for old, new in ((b'P2PSTREAM_HTTP_PORT=80', b'P2PSTREAM_HTTP_PORT=18110'),
                      (b'P2PSTREAM_HTTPS_PORT=443', b'P2PSTREAM_HTTPS_PORT=18111'),
@@ -1159,7 +1162,8 @@ def main():
     if STATE.exists():
         require(read(STATE / 'host.json')['phase'] == 'removed', 'legacy-fixture-must-finish-removed')
         STATE.rename(ROOT / 'completed-legacy-state')
-    default_yaml_case(images, host)
+    resources = read('/review/fixture-resources.json')
+    default_yaml_case(images, host, resources['oom_score_adj'])
     stage('fixture-setup')
     require(not CANONICAL.exists() and not INPUTS.exists(), 'canonical-fixture-requires-clean-paths')
     DEPLOYMENT.mkdir(parents=True, mode=0o2750)
@@ -1172,6 +1176,7 @@ def main():
         'ports': [{'target': 8081, 'published': '18101', 'host_ip': '127.0.0.1', 'protocol': 'tcp'}],
         'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
         'volumes': {'data': {'name': VOLUME}}}
+    model['services']['p2pstream']['oom_score_adj'] = resources['oom_score_adj']
     write(CANONICAL, model, 0o640)
     compose('up', '-d')
     wait(health)
@@ -1394,6 +1399,7 @@ def main():
     compose('stop', 'p2pstream')
     write(ROOT / 'summary.json', {'result': 'passed', 'qualification': 'source-built-real-docker',
                                  'published_pair_gate': 'pending-future-feature-bearing-releases',
+                                 'fixture_resources': resources,
                                  'checks': checks, 'candidate_image': images['candidate'],
                                  'candidate_manifest_sha256': expected_floor['manifest_sha256'],
                                  'limitations': ['synthetic-catalog', 'same-source-two-release-identities',

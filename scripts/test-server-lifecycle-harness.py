@@ -135,7 +135,7 @@ class RemovalRecoveryBoundaries(unittest.TestCase):
             model = host.read_json(Path(config['deployment_file']))
             server = model['services']['p2pstream']
             fixture.info['Config'].update(Image=server['image'], Env=[key + '=' + str(value) for key, value in server['environment'].items()])
-            fixture.info['HostConfig'] = {'PortBindings': {str(port['target']) + '/tcp': [
+            fixture.info['HostConfig'] = {'OomScoreAdj': server.get('oom_score_adj', 0), 'PortBindings': {str(port['target']) + '/tcp': [
                 {'HostIp': port.get('host_ip', ''), 'HostPort': str(port['published'])}] for port in server.get('ports', [])}}
             fixture.info['Mounts'] = [{'Type': volume['type'], 'Destination': volume['target'],
                 'Name': model['volumes'][volume['source']]['name'] if volume['type'] == 'volume' else '',
@@ -800,6 +800,15 @@ class DefaultYamlFixture(unittest.TestCase):
                 self.assertIn(value.value, harness.COMMAND_LABELS)
                 self.assertNotEqual(value.value, 'command')
 
+    def test_nested_fixture_declares_oom_floor_without_changing_other_template_settings(self):
+        template = (ROOT.parent / 'compose.yaml').read_bytes()
+        default = harness.pinned_default_yaml(template, 'PINNED_IMAGE')
+        explicit = harness.pinned_default_yaml(template, 'PINNED_IMAGE', 200)
+        self.assertEqual(explicit.replace(b'    oom_score_adj: 200\n', b''), default)
+        for invalid in (True, -1, 1001, '200', None):
+            with self.subTest(value=invalid), self.assertRaises(Exception):
+                harness.pinned_default_yaml(template, 'PINNED_IMAGE', invalid)
+
     def test_image_pin_changes_only_one_line_of_actual_bundle_source_template(self):
         template = (ROOT.parent / 'compose.yaml').read_bytes()
         replacement = harness.pinned_default_yaml(template, 'PRIVATE_PINNED_IMAGE')
@@ -1314,7 +1323,7 @@ class MainFailureSummary(unittest.TestCase):
             stack.enter_context(patch.object(harness, 'STAGE', 'setup', create=True))
             replacements = {'isolated': lambda: None, 'load_host': lambda: None,
                             'default_yaml_case': lambda *args: None,
-                            'read': lambda *a: {'baseline': 'baseline', 'candidate': 'candidate'},
+                            'read': lambda *a: ({'oom_score_adj': 0} if a[0] == '/review/fixture-resources.json' else {'baseline': 'baseline', 'candidate': 'candidate'}),
                             'docker': docker, 'compose': lambda *a: 'PRIVATE_MODEL',
                             'server_info': lambda **kw: info, 'owner_bytes': lambda *a: b'PRIVATE_OWNER',
                             'wait': lambda *a: None, 'fixture_catalog': lambda *a: releases,
