@@ -177,15 +177,32 @@ guest docker tag "$candidate_image" "ghcr.io/review/p2pstream:$candidate_version
 guest docker tag "$upstream_image" p2pstream-review:upstream
 guest docker push "ghcr.io/review/p2pstream:$baseline_version" >"$artifact_dir/push-baseline.log" 2>&1
 guest docker push "ghcr.io/review/p2pstream:$candidate_version" >"$artifact_dir/push-candidate.log" 2>&1
-baseline_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream:$baseline_version")
-candidate_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream:$candidate_version")
+# Docker 29's image store can retain saved local aliases ahead of the pushed
+# repository in RepoDigests. Select by repository, never by array position.
+guest_image_ref() {
+  guest python3 - "$1" "$2" <<'PYREF'
+import json
+import re
+import subprocess
+import sys
+image, repository = sys.argv[1:]
+info = json.loads(subprocess.check_output(['docker', 'image', 'inspect', image]))
+assert len(info) == 1, 'Expected one inspected image'
+refs = {ref for ref in info[0].get('RepoDigests', [])
+        if re.fullmatch(re.escape(repository) + r'@sha256:[0-9a-f]{64}', ref)}
+assert len(refs) == 1, 'Expected one digest for the pushed repository'
+print(refs.pop())
+PYREF
+}
+baseline_ref=$(guest_image_ref "ghcr.io/review/p2pstream:$baseline_version" ghcr.io/review/p2pstream)
+candidate_ref=$(guest_image_ref "ghcr.io/review/p2pstream:$candidate_version" ghcr.io/review/p2pstream)
 helper_ref=$(guest docker image inspect --format '{{.Id}}' "$helper_image")
 guest docker tag "$updater_image" "ghcr.io/review/p2pstream-updater:$baseline_version"
 guest docker tag "$candidate_updater_image" "ghcr.io/review/p2pstream-updater:$candidate_version"
 guest docker push "ghcr.io/review/p2pstream-updater:$baseline_version" >"$artifact_dir/push-updater.log" 2>&1
 guest docker push "ghcr.io/review/p2pstream-updater:$candidate_version" >"$artifact_dir/push-candidate-updater.log" 2>&1
-updater_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream-updater:$baseline_version")
-candidate_updater_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream-updater:$candidate_version")
+updater_ref=$(guest_image_ref "ghcr.io/review/p2pstream-updater:$baseline_version" ghcr.io/review/p2pstream-updater)
+candidate_updater_ref=$(guest_image_ref "ghcr.io/review/p2pstream-updater:$candidate_version" ghcr.io/review/p2pstream-updater)
 guest python3 - "$baseline_ref" "$candidate_ref" "$helper_ref" "$updater_ref" "$candidate_updater_ref" <<'PY'
 import json
 from pathlib import Path
