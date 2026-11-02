@@ -2188,3 +2188,63 @@ func TestAggregateCleanupJoinsSlabPreparation(t *testing.T) {
 		t.Fatalf("cleanup retained storage: %+v", stats)
 	}
 }
+
+func TestAggregateGracefulCloseRetainsBytesUntilDrainOrReset(t *testing.T) {
+	for _, dispose := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reset=%t", dispose), func(t *testing.T) {
+			left, right := net.Pipe()
+			client, err := Client(left, smallAggregateTestConfig())
+			if err != nil {
+				t.Fatal(err)
+			}
+			server, err := Server(right, smallAggregateTestConfig())
+			if err != nil {
+				client.Close()
+				t.Fatal(err)
+			}
+			defer client.Close()
+			defer server.Close()
+			writer, err := client.OpenStream()
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader, err := server.AcceptStream()
+			if err != nil {
+				t.Fatal(err)
+			}
+			payload := bytes.Repeat([]byte("x"), int(AggregateWindowUnitSize))
+			if _, err := writer.Write(payload); err != nil {
+				t.Fatal(err)
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if err := reader.Close(); err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.Now().Add(time.Second)
+			for server.NumStreams() != 0 && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if server.NumStreams() != 0 {
+				t.Fatal("FIN exchange did not remove stream")
+			}
+			if stats := server.AggregateReceiveWindowStats(); stats.BufferedUnits != 1 {
+				t.Fatalf("graceful close lost storage: %+v", stats)
+			}
+			if dispose {
+				if err := reader.Reset(); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				got, err := io.ReadAll(reader)
+				if err != nil || !bytes.Equal(got, payload) {
+					t.Fatalf("drain after close: %q, %v", got, err)
+				}
+			}
+			if stats := server.AggregateReceiveWindowStats(); stats.BufferedUnits != 0 || stats.FreeUnits != stats.TotalUnits {
+				t.Fatalf("terminal owner retained storage: %+v", stats)
+			}
+		})
+	}
+}
