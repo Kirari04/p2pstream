@@ -90,6 +90,12 @@ jobs:
       - name: Run Go tests
         run: go test ./...
 
+      - name: Compile qualification instrumentation and test control-lane health
+        run: >-
+          go test -tags=p2pstream_qualification -count=1 -timeout=60s
+          -run '^TestAgentHealthMissingControlIsInconclusiveOnlyWithLiveBulk$'
+          ./internal/agent ./internal/server ./internal/tunnel
+
       - name: Test matched offered-load round trip
         env:
           P2PSTREAM_QUALIFICATION_MATCHED_OFFERED_ROUNDTRIP: "1"
