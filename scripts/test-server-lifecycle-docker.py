@@ -959,6 +959,18 @@ def prove_stopped_legacy(info, config, journal):
             'default-yaml-legacy-data-mismatch')
 
 
+def prepare_deployment_directory():
+    # docker exec can inherit dockerd's zero umask. parents=True would create
+    # the intermediate /opt/p2pstream as 0777 regardless of the leaf mode.
+    # Declare its mode explicitly; never repair an unsafe existing ancestor.
+    DEPLOYMENT.parent.mkdir(mode=0o750, exist_ok=True)
+    parent = DEPLOYMENT.parent.lstat()
+    require(stat.S_ISDIR(parent.st_mode) and not parent.st_mode & 0o022,
+            'unsafe-fixture-deployment-parent')
+    DEPLOYMENT.mkdir(mode=0o2750)
+    DEPLOYMENT.chmod(0o2750)
+
+
 def default_yaml_case(images, host, oom_score_adj=0):
     """One real bundle YAML initial stop/rollback/repair, before the JSON case."""
     global ROOT, PROJECT, VOLUME
@@ -1009,8 +1021,7 @@ def default_yaml_case(images, host, oom_score_adj=0):
         ROOT.mkdir(mode=0o700)
         docker('rename', legacy['Id'], saved_name, timeout=15, command_label='default-yaml-save-legacy')
         renamed = True
-        DEPLOYMENT.mkdir(parents=True, mode=0o2750)
-        DEPLOYMENT.chmod(0o2750)
+        prepare_deployment_directory()
         CANONICAL.write_bytes(source)
         CANONICAL.chmod(0o640)
         (DEPLOYMENT / '.env').write_bytes(env)
@@ -1166,8 +1177,7 @@ def main():
     default_yaml_case(images, host, resources['oom_score_adj'])
     stage('fixture-setup')
     require(not CANONICAL.exists() and not INPUTS.exists(), 'canonical-fixture-requires-clean-paths')
-    DEPLOYMENT.mkdir(parents=True, mode=0o2750)
-    DEPLOYMENT.chmod(0o2750)
+    prepare_deployment_directory()
     model = {'name': PROJECT, 'services': {'p2pstream': {
         'image': images['baseline'], 'restart': 'unless-stopped', 'read_only': True,
         'tmpfs': ['/tmp:rw,nosuid,nodev,mode=1777'], 'cap_drop': ['ALL'],

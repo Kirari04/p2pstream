@@ -800,6 +800,24 @@ class DefaultYamlFixture(unittest.TestCase):
                 self.assertIn(value.value, harness.COMMAND_LABELS)
                 self.assertNotEqual(value.value, 'command')
 
+    def test_fixture_parent_is_protected_under_zero_umask(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory) / 'parent'
+            with patch.object(harness, 'DEPLOYMENT', parent / 'deployment'):
+                old = os.umask(0)
+                try:
+                    harness.prepare_deployment_directory()
+                finally:
+                    os.umask(old)
+                self.assertEqual(parent.stat().st_mode & 0o7777, 0o750)
+                self.assertEqual(harness.DEPLOYMENT.stat().st_mode & 0o7777, 0o2750)
+                harness.DEPLOYMENT.rmdir()
+                parent.chmod(0o777)
+                with self.assertRaises(harness.CheckFailure):
+                    harness.prepare_deployment_directory()
+                self.assertEqual(parent.stat().st_mode & 0o7777, 0o777)
+                self.assertFalse(harness.DEPLOYMENT.exists())
+
     def test_nested_fixture_declares_oom_floor_without_changing_other_template_settings(self):
         template = (ROOT.parent / 'compose.yaml').read_bytes()
         default = harness.pinned_default_yaml(template, 'PINNED_IMAGE')
