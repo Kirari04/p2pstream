@@ -29,7 +29,7 @@ baseline_version=v0.1.53-staging.9000
 candidate_version=v0.1.53-staging.9001
 baseline_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 candidate_commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-dind_image=docker:28.3.3-dind@sha256:a56b3bdde89315ed2cc0e4906e582b5033d93bf20d9cb9510c2cdd4e7f7690b1
+dind_image=docker:29.9.2-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977
 registry_image=registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
 
 cleanup() {
@@ -91,7 +91,7 @@ docker build --file Dockerfile.updater --build-arg "P2PSTREAM_IMAGE=$candidate_i
 docker pull "$registry_image" 2>&1 | tee "$artifact_dir/pull-registry.log"
 docker pull "$dind_image" 2>&1 | tee "$artifact_dir/pull-daemon.log"
 
-echo "Starting disposable Docker 28.3.3; no host ports or host Docker socket are mounted."
+echo "Starting disposable Docker 29.9.2; no host ports or host Docker socket are mounted."
 docker run --detach --privileged --name "$daemon" \
   --add-host ghcr.io:127.0.0.1 --env DOCKER_TLS_CERTDIR= \
   --env DOCKER_HOST=unix:///var/run/docker.sock \
@@ -103,7 +103,7 @@ for ((attempt=0; attempt<90; attempt++)); do
   sleep 1
 done
 [[ $ready == true ]] || { echo "Disposable Docker daemon did not become ready." >&2; exit 1; }
-[[ $(guest docker version --format '{{.Server.Version}}') == 28.3.3 ]] || {
+[[ $(guest docker version --format '{{.Server.Version}}') == 29.9.2 ]] || {
   echo "Unexpected guest Docker engine version." >&2; exit 1;
 }
 guest apk add --no-cache python3 2>&1 | tee "$artifact_dir/install-python.log"

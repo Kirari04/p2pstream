@@ -5,7 +5,7 @@ ARG RELEASE_CHANNEL=development
 ARG VITE_RELEASE_REPOSITORY=""
 ARG VITE_RELEASE_REF=""
 
-FROM oven/bun:1.2.18@sha256:2cdd9c93006af1b433c214016d72a3c60d7aa2c75691cb44dfd5250aa379986b AS bun
+FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS bun
 
 FROM bun AS frontend
 WORKDIR /app/web/management
@@ -20,7 +20,7 @@ RUN bun install --frozen-lockfile
 COPY web/management/ ./
 RUN bun run build
 
-FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS backend
+FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS backend
 WORKDIR /src
 ARG VERSION
 ARG COMMIT
@@ -35,7 +35,7 @@ RUN go build -trimpath -ldflags "-s -w -X p2pstream/internal/buildinfo.Version=$
 FROM scratch AS binary
 COPY --from=backend /out/p2pstream /p2pstream
 
-FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS test-base
+FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS test-base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         bash \
@@ -71,7 +71,7 @@ RUN cd third_party/yamux && go test ./... && go test -race -short ./...
 
 FROM test-base AS smoke
 
-FROM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS smoke-upstream-build
+FROM golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS smoke-upstream-build
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY third_party/yamux ./third_party/yamux
