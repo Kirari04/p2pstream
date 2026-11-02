@@ -75,6 +75,11 @@ The management server uses HTTPS by default. In auto mode, p2pstream creates a l
 
 ## Configuration and upgrades
 
+If an earlier release enrolled this server in **Management Server Updates**,
+[leave server updater enrollment](../operations/upgrades#leave-server-updater-enrollment)
+**before changing its image or Compose configuration**. Complete removal on the
+enrolled image, then continue from the detached deployment it exports.
+
 Edit `compose.yaml` and `.env` directly, then run `docker compose up -d` to apply settings. Keep the current `P2PSTREAM_IMAGE` digest when changing configuration. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`; the management API and agents remain available.
 
 Server upgrades are manual: back up the full data volume and Compose inputs, prepare the chosen release in a separate directory, then update your image digest. Follow [Upgrades](../operations/upgrades) for the complete procedure. Managed agent updates remain available under **Agents → Updates**.

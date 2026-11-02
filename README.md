@@ -77,6 +77,11 @@ Runtime state is stored in the named Docker volume `p2pstream-data`. It contains
 
 ## Common Operations
 
+If this installation enrolled in **Management Server Updates** on an earlier
+release, [remove server updater enrollment](docs/operations/upgrades.md#leave-server-updater-enrollment)
+**before changing its image or Compose configuration**. Removal needs the old
+image's recovery commands; continue from the detached deployment it exports.
+
 ```bash
 docker compose logs -f p2pstream
 docker compose restart p2pstream

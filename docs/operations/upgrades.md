@@ -2,6 +2,11 @@
 
 Server upgrades are operator-owned. Use the deployment's Compose file and `.env` to select and run an exact image digest. Managed agent updates remain available under **Agents → Updates** and have their own [rollout procedure](./managed-agent-updates).
 
+If an earlier release enrolled this server in **Management Server Updates**, first
+[leave server updater enrollment](#leave-server-updater-enrollment). Complete
+removal while the enrolled image is still running, before changing its image or
+Compose configuration.
+
 ## Legacy support ends with v0.1.53
 
 **Legacy support ends with v0.1.53-staging.91 and the stable v0.1.53 release.**
@@ -87,6 +92,71 @@ fails.
 
 Keep the backup with its matching image. Database migrations run at startup; replacing the image alone does not reverse those migrations. Do not run concurrent writable server containers against the same data volume.
 
+## Leave server updater enrollment
+
+Earlier staging releases could replace operator-owned Compose inputs with a
+managed deployment. Its image and settings can be literal values in the managed
+model, so editing `.env` does not necessarily change them. New releases omit the
+server updater and its recovery commands and manifests: the old updater cannot
+install them, and its removal health checks cannot finish after the image changes.
+
+1. Keep the currently enrolled image and deployment in place. Finish any active
+   update, rollback, or paused host recovery using that release's controller.
+   Back up the full data volume and private deployment/recovery files. If
+   enrollment or recovery is incomplete, resolve it with the installed release's
+   recovery procedure before proceeding; do not delete its journal or owner marker.
+
+2. **Before changing the server image**, run the installed removal command:
+
+   ```bash
+   sudo /etc/p2pstream-server-updater/manage remove
+   ```
+
+   This recreates the server without enrollment, preserving its current image,
+   settings, ports, and data volume. Wait for successful removal and healthy
+   service. If it fails, retain the current image and recovery state and follow
+   the controller's repair instructions; do not proceed with the upgrade.
+
+3. Save the editable deployment location and exact project/file command printed
+   by removal. Depending on the enrolled layout, removal exports the current
+   model to the original Compose entry points, leaves a detached canonical model
+   at `/opt/p2pstream/deployment/compose.yaml`, or prints a command using
+   `/etc/p2pstream-server-updater/detached-compose.json`. The single-file layout
+   also retains `/opt/p2pstream/compose.inputs.yaml`; do not resume its old
+   updater `apply` workflow. Use the **detached deployment**, with its retained
+   project name and named data volume, for subsequent Compose commands. Do not
+   switch back to a stale pre-enrollment file or assume `.env` controls a
+   resolved model's literal image/settings.
+
+4. Inspect the effective configuration with that deployment's `docker compose
+   config`, and inspect its containers. Confirm no `p2pstream-server-updater`
+   service/container, `SERVER_UPDATE_*` environment, or
+   `/run/p2pstream-server-update` mount remains. Check that the server is healthy
+   on the same image and data volume. Keep rendered configuration private: it
+   can contain secrets. Take a new consistent backup of this standalone state.
+
+5. Only now follow [Upgrade a Compose deployment](#upgrade-a-compose-deployment).
+   Preserve the exported model's project name, ports, settings, and data mount.
+   When its image is a literal value, update `services.p2pstream.image` directly;
+   changing `P2PSTREAM_IMAGE` in `.env` works only if the Compose model references it.
+
+6. After the standalone deployment and upgrade are verified, obsolete updater
+   files and its unused `server-updater-data` volume may be archived or removed.
+   First preserve recovery backups and relocate any **active** exported Compose
+   file out of `/etc/p2pstream-server-updater`, updating and verifying your
+   project/file command. Only then retire that directory and the obsolete
+   `/usr/local/sbin/p2pstream-server-update` launcher. Identify the actual updater
+   volume by its deployment configuration; never remove the server's data volume
+   or run `docker compose down -v` for cleanup.
+
+For rollback to an updater-era image, use the matching data and deployment backup
+taken **after successful removal**. Those older images refuse standalone startup
+if `/data/.p2pstream-runtime-owner.json` remains. A backup from an enrolled or
+interrupted deployment needs its matching controller's recovery/removal procedure
+before it can become standalone; do not bypass that guard by deleting the marker.
+Never delete or replace `.p2pstream-runtime.lock`. The database rollback rules
+[below](#roll-back-to-an-earlier-version) still apply.
+
 ## Upgrade a Compose deployment
 
 1. Select an exact published stable tag (`vX.Y.Z`) or staging tag (`vX.Y.Z-staging.N`). Follow the verified download block in the [quickstart](../getting-started/quickstart), setting `P2PSTREAM_RELEASE` to that tag and `P2PSTREAM_DIRECTORY` to a **new, separate directory**. Preparation writes deployment inputs without starting Docker.
@@ -99,7 +169,7 @@ Keep the backup with its matching image. Database migrations run at startup; rep
 
    Use the digest from the verified release preparation, never the literal placeholder. Moving `latest`, `staging`, and `nightly` tags do not preserve an exact image identity.
 
-3. In your **existing deployment directory**, update only `P2PSTREAM_IMAGE` in `.env` to the prepared value. Compare the new release's `compose.yaml` and default settings in `.env` with your deployment and deliberately apply any required changes. Preserve your settings, secrets, project name, ports, and persistent data-volume mount. Keep the new release receipt with the deployment once the upgrade is verified.
+3. In your **existing deployment directory**, update only `P2PSTREAM_IMAGE` in `.env` to the prepared value, or `services.p2pstream.image` if your detached Compose model pins the image directly. Compare the new release's `compose.yaml` and default settings in `.env` with your deployment and deliberately apply any required changes. Preserve your settings, secrets, project name, ports, and persistent data-volume mount. Keep the new release receipt with the deployment once the upgrade is verified.
 
 4. Validate and pull before stopping the current server, then recreate it:
 
