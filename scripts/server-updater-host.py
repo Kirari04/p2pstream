@@ -1319,8 +1319,8 @@ class Host:
             path.unlink()
         except Exception as error:
             previous = self.journal.get('recovery_phase') or pending.get('phase', self.journal['phase'])
-            self.phase('recovery_required', recovery_phase=previous, error='Cannot confirm host helper termination: ' + str(error))
-            raise UnsettledHelper('Host helper may still be running. Do not start competing recovery. Restore Docker access, then sudo ' + str(self.directory / 'manage') + ' repair') from error
+            self.phase('recovery_required', recovery_phase=previous, error='Cannot confirm host helper cleanup: ' + str(error))
+            raise UnsettledHelper('Host helper cleanup is unconfirmed; it may already be complete. Do not start competing recovery. Restore Docker access if needed, then sudo ' + str(self.directory / 'manage') + ' repair') from error
 
     def cancellation_helper_args(self):
         return [tuple(('compose', '--project-name', self.config['project'], '--project-directory', self.journal['source_directory'] if self.single_file() else str(path.parent), '-f', str(path), *operation))

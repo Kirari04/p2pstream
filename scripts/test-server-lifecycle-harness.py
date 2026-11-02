@@ -837,6 +837,20 @@ class DefaultYamlFixture(unittest.TestCase):
                 self.assertEqual(parent.stat().st_mode & 0o7777, 0o777)
                 self.assertFalse(harness.DEPLOYMENT.exists())
 
+    def test_fixture_parent_refuses_foreign_owner_without_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory) / 'parent'
+            parent.mkdir(mode=0o750)
+            original = parent.stat()
+            with patch.object(harness, 'DEPLOYMENT', parent / 'deployment'), \
+                    patch.object(harness.os, 'geteuid', return_value=original.st_uid + 1):
+                with self.assertRaises(harness.CheckFailure) as caught:
+                    harness.prepare_deployment_directory()
+                self.assertEqual(str(caught.exception), 'unsafe-fixture-deployment-parent')
+            self.assertEqual(parent.stat().st_uid, original.st_uid)
+            self.assertEqual(parent.stat().st_mode, original.st_mode)
+            self.assertFalse((parent / 'deployment').exists())
+
     def test_image_pin_changes_only_one_line_of_actual_bundle_source_template(self):
         template = (ROOT.parent / 'compose.yaml').read_bytes()
         replacement = harness.pinned_default_yaml(template, 'PRIVATE_PINNED_IMAGE')

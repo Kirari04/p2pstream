@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"strings"
 	"sync"
 	"testing"
@@ -297,9 +298,14 @@ func waitPublicOwnedBytes(t *testing.T, a *App, owner adaptiveResourceOwner, exp
 // boundary: small HPACK values must not bypass Go 1.27's pre-handler rejection.
 func TestPublicHTTP2RejectsExcessHeaderValuesBeforeAdmission(t *testing.T) {
 	a := newPublicOwnedResourceTestApp(t)
-	entered := make(chan struct{}, 1)
+	entered := make(chan int64, 2)
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		entered <- struct{}{}
+		ctx := newPublicProxyContext(a, 1, w, r)
+		defer ctx.runCleanup()
+		if publicRequestAdmissionStage(ctx) != publicProxyStageContinue {
+			return
+		}
+		entered <- a.agentStreamCapacity.snapshot().AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicRequest]
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	srv.EnableHTTP2 = true
@@ -310,6 +316,10 @@ func TestPublicHTTP2RejectsExcessHeaderValuesBeforeAdmission(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
+	connections := make(chan httptrace.GotConnInfo, 2)
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
+		connections <- info
+	}})
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -326,10 +336,41 @@ func TestPublicHTTP2RejectsExcessHeaderValuesBeforeAdmission(t *testing.T) {
 	if response.StatusCode != http.StatusRequestHeaderFieldsTooLarge || response.ProtoMajor != 2 {
 		t.Fatalf("unexpected response %s %s", response.Proto, response.Status)
 	}
+	rejectedConnection := <-connections
 	select {
 	case <-entered:
 		t.Fatal("oversized header value count reached handler")
 	default:
+	}
+	waitPublicOwnedBytes(t, a, adaptiveResourceOwnerPublicRequest, 0)
+	if s := a.agentStreamCapacity.snapshot(); s.AdaptiveExternalFDs != 1 || s.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicConnection] == 0 {
+		t.Fatalf("rejected stream lost connection ownership: %+v", s)
+	}
+	// The parser rejects only the oversized stream. An ordinary request still
+	// enters real admission on the same physical connection and owns a lease.
+	valid, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err = client.Do(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusNoContent || response.ProtoMajor != 2 {
+		t.Fatalf("valid request after rejection: %s %s", response.Proto, response.Status)
+	}
+	validConnection := <-connections
+	if !validConnection.Reused || validConnection.Conn != rejectedConnection.Conn {
+		t.Fatal("valid request did not reuse the rejected stream's connection")
+	}
+	select {
+	case charged := <-entered:
+		if charged <= 0 {
+			t.Fatal("valid request did not acquire an admission lease")
+		}
+	default:
+		t.Fatal("valid request did not enter admission")
 	}
 	waitPublicOwnedBytes(t, a, adaptiveResourceOwnerPublicRequest, 0)
 	client.CloseIdleConnections()

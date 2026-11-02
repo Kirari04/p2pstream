@@ -59,6 +59,12 @@ coverage and retain their provenance comments. A runtime image build alone does
 not qualify updater install/rollback/retry or native Compose behavior; the
 canonical `make docker-server-updater-test` rehearsal is required for that claim.
 
+This rehearsal targets Engine 29.9.2. A review smoke test exercised the shipped
+CLI 29.9.2 and Compose 5.6.1 against Engine 28.3.3: configuration hashes matched
+Compose 2.39.2, an existing container was reused, and list, run and teardown
+operations worked. Full lifecycle qualification on Engine 28 and older engines
+remains an accepted coverage limitation; the smoke test does not establish it.
+
 Docker 29 rehearsal compatibility fixes also select a unique pushed digest by
 repository instead of assuming `RepoDigests[0]` is the registry reference.
 Timed-out host helpers can be auto-removed between the stopped-state inspection

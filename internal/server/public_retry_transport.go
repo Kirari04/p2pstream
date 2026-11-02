@@ -99,7 +99,7 @@ func publicRetryRequestWorkingBytes(readLimit int64) (int64, bool) {
 	if readLimit < 0 {
 		return 0, false
 	}
-	// Go 1.26.6 io.ReadAll starts with capacity 512 even for a one-byte
+	// Go 1.27.3 io.ReadAll starts with capacity 512 even for a one-byte
 	// LimitedReader. Its intermediate chunks and final copy can coexist.
 	workingBytes := max(int64(512), readLimit)
 	if workingBytes > math.MaxInt64/3 {

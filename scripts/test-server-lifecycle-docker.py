@@ -960,9 +960,11 @@ def prepare_deployment_directory():
     # docker exec can inherit dockerd's zero umask. parents=True would create
     # the intermediate /opt/p2pstream as 0777 regardless of the leaf mode.
     # Declare its mode explicitly; never repair an unsafe existing ancestor.
+    # isolated() requires effective UID 0 before the live fixture runs.
     DEPLOYMENT.parent.mkdir(mode=0o750, exist_ok=True)
     parent = DEPLOYMENT.parent.lstat()
-    require(stat.S_ISDIR(parent.st_mode) and not parent.st_mode & 0o022,
+    require(stat.S_ISDIR(parent.st_mode) and parent.st_uid == os.geteuid()
+            and not parent.st_mode & 0o022,
             'unsafe-fixture-deployment-parent')
     DEPLOYMENT.mkdir(mode=0o2750)
     DEPLOYMENT.chmod(0o2750)
