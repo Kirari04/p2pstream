@@ -58,3 +58,11 @@ versions. Historical Docker 28 resource-normalization fixtures remain useful
 coverage and retain their provenance comments. A runtime image build alone does
 not qualify updater install/rollback/retry or native Compose behavior; the
 canonical `make docker-server-updater-test` rehearsal is required for that claim.
+
+Docker 29 rehearsal compatibility fixes also select a unique pushed digest by
+repository instead of assuming `RepoDigests[0]` is the registry reference.
+Timed-out host helpers can be auto-removed between the stopped-state inspection
+and explicit removal. A removal error is accepted only after a fresh successful
+label-filtered inventory proves the helper absent; missing daemon access or a
+remaining helper still requires recovery. Regression tests cover all three
+outcomes without relaxing the no-competing-writer rule.

@@ -1288,7 +1288,13 @@ class Host:
                 info = docker('inspect', name, check=False, timeout=30)
                 if info.returncode == 0:
                     require(not decode(info.stdout)[0]['State']['Running'], 'Host helper is still running')
-                    docker('rm', '--force', name, timeout=30)
+                    removed = docker('rm', '--force', name, check=False, timeout=30)
+                    if removed.returncode:
+                        # A --rm helper can disappear after inspect when Docker
+                        # finishes its automatic cleanup. Only a fresh successful
+                        # inventory proves this race safe; an rm error alone does not.
+                        names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}', timeout=30).stdout.decode().split()
+                        require(name not in names, 'Cannot confirm host helper termination')
                 else:
                     names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}', timeout=30).stdout.decode().split()
                     require(name not in names, 'Cannot confirm host helper termination')

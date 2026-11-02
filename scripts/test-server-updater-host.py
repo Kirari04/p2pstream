@@ -2295,6 +2295,39 @@ class Lifecycle(DetachedStartResources, unittest.TestCase):
         self.assertEqual(calls, ['run', 'ps', 'kill', 'inspect', 'rm'])
         self.assertFalse((self.state / 'helper.json').exists())
 
+    def test_timed_out_helper_auto_removal_requires_confirmed_absence(self):
+        self.install()
+        original = host.read_json(self.state / 'host.json')
+        for outcome in ('absent', 'still-present', 'inventory-unavailable'):
+            with self.subTest(outcome=outcome):
+                host.atomic(self.state / 'host.json', original)
+                controller = host.Host()
+                base = host.Host.__mro__[1]
+                inventories = 0
+                def daemon(*args, **kwargs):
+                    nonlocal inventories
+                    if args[0] == 'run':
+                        raise subprocess.TimeoutExpired(args, 1)
+                    if args[0] == 'ps':
+                        inventories += 1
+                        if inventories > 1 and outcome == 'inventory-unavailable':
+                            raise host.Failure('daemon unavailable')
+                        present = inventories == 1 or outcome == 'still-present'
+                        return subprocess.CompletedProcess(args, 0, (controller.helper_name() + '\n').encode() if present else b'', b'')
+                    if args[0] == 'inspect':
+                        return subprocess.CompletedProcess(args, 0, b'[{"State":{"Running":false}}]', b'')
+                    if args[0] == 'rm':
+                        self.assertFalse(kwargs['check'])
+                        return subprocess.CompletedProcess(args, 1, b'', b'container auto-removed')
+                    return subprocess.CompletedProcess(args, 0, b'', b'')
+                expected = subprocess.TimeoutExpired if outcome == 'absent' else host.UnsettledHelper
+                with controller.lock(), patch.object(host, 'docker', daemon), self.assertRaises(expected):
+                    base.run_helper(controller, '/bin/sh', ['-c', 'sleep 120'], timeout=1)
+                self.assertEqual((self.state / 'helper.json').exists(), outcome != 'absent')
+                journal = host.read_json(self.state / 'host.json')
+                self.assertEqual(journal['phase'], 'healthy' if outcome == 'absent' else 'recovery_required')
+                (self.state / 'helper.json').unlink(missing_ok=True)
+
     def test_helper_failure_retains_private_diagnostics_and_settles(self):
         self.install()
         controller = host.Host()
