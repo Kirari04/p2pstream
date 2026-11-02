@@ -108,12 +108,26 @@ func (a *AgentConn) transportLane() int {
 	if a.nextTunnel < first || a.nextTunnel >= len(a.tunnels) {
 		a.nextTunnel = first
 	}
+	fallback := -1
 	for offset := range count {
 		lane := first + (a.nextTunnel-first+offset)%count
 		if session := a.tunnels[lane]; session != nil && !session.IsClosed() {
+			if fallback < 0 {
+				fallback = lane
+			}
+			stats := session.AggregateReceiveWindowStats()
+			if stats.Enabled && (stats.FreeUnits <= stats.TotalUnits/4 || stats.SendAvailable <= stats.SendLimit/4) {
+				continue
+			}
 			a.nextTunnel = first + (lane-first+1)%count
 			return lane
 		}
+	}
+	// Pressure is not disconnection. Keep the existing admission/deadline
+	// path on a live bulk lane when every bulk pool is temporarily pressured.
+	if fallback >= 0 {
+		a.nextTunnel = first + (fallback-first+1)%count
+		return fallback
 	}
 	return -1
 }

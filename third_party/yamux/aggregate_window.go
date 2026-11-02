@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"sync"
+	"time"
 )
 
 const (
@@ -87,7 +88,9 @@ type aggregateWindow struct {
 	slabs      *aggregateSlab
 	poolClosed bool
 
-	ownerHead *Stream
+	ownerHead      *Stream
+	pressureDone   chan struct{}
+	pressureResets uint64
 
 	pendingStreamHead *Stream
 	pendingStreamTail *Stream
@@ -109,7 +112,8 @@ type aggregateWindow struct {
 
 // AggregateReceiveWindowStats is a fixed-cardinality diagnostic snapshot of
 // the receiver-owned payload pool. BufferedUnits includes chunks borrowed by
-// the physical reader while a DATA frame is being copied.
+// the physical reader while a DATA frame is being copied. Send fields report
+// the remaining peer-granted allocation allowance for the opposite direction.
 type AggregateReceiveWindowStats struct {
 	Enabled          bool
 	Closed           bool
@@ -119,6 +123,9 @@ type AggregateReceiveWindowStats struct {
 	FreeUnits        uint32
 	BufferedUnits    uint32
 	PendingRefund    uint64
+	PressureResets   uint64
+	SendAvailable    uint32
+	SendLimit        uint32
 }
 
 func (s *Session) AggregateReceiveWindowStats() AggregateReceiveWindowStats {
@@ -129,6 +136,9 @@ func (s *Session) AggregateReceiveWindowStats() AggregateReceiveWindowStats {
 	a.mu.Lock()
 	stats := AggregateReceiveWindowStats{
 		Enabled:          true,
+		PressureResets:   a.pressureResets,
+		SendAvailable:    a.sendWindow,
+		SendLimit:        a.sendLimit,
 		Closed:           a.poolClosed,
 		ReceiveLimit:     a.recvLimit,
 		ReceiveAvailable: a.recvWindow,
@@ -420,6 +430,9 @@ func (s *Session) returnAggregateChunks(stream *Stream, head, tail *aggregateChu
 		a.mu.Unlock()
 		return
 	}
+	if refund && stream != nil {
+		stream.pressureUnits = stream.aggregateUnits
+	}
 	tail.next = a.free
 	a.free = head
 	a.freeUnits += units
@@ -519,7 +532,10 @@ func (s *Session) trackAggregateBuffer(stream *Stream) {
 		return
 	}
 	a.mu.Lock()
+	stream.pressureUnits = stream.aggregateUnits
 	if !stream.aggregateBufferTracked && !a.poolClosed {
+		stream.pressureSince = time.Now()
+		stream.pressureBaseline = stream.pressureUnits
 		stream.aggregateBufferTracked = true
 		stream.aggregateOwnerNext = a.ownerHead
 		if a.ownerHead != nil {
@@ -537,6 +553,8 @@ func (s *Session) untrackAggregateBuffer(stream *Stream) {
 	}
 	a.mu.Lock()
 	if stream.aggregateBufferTracked {
+		stream.pressureUnits = 0
+		stream.pressureSince = time.Time{}
 		if stream.aggregateOwnerPrev == nil {
 			a.ownerHead = stream.aggregateOwnerNext
 		} else {

@@ -60,6 +60,11 @@ type Config struct {
 	// growth.
 	MaxStreamAllocationWindowSize uint32
 
+	// AggregateReceivePressureTimeout bounds sustained buffer ownership under
+	// low aggregate free-pool capacity. Zero selects one second. This local
+	// receiver policy uses ordinary RST and needs no wire negotiation change.
+	AggregateReceivePressureTimeout time.Duration
+
 	// StreamOpenTimeout is the maximum amount of time that a stream will
 	// be allowed to remain in pending state while waiting for an ack from the peer.
 	// Once the timeout is reached the session will be gracefully closed.
@@ -115,6 +120,9 @@ func VerifyConfig(config *Config) error {
 	}
 	if config.MaxIncomingStreams < -1 {
 		return fmt.Errorf("MaxIncomingStreams must be -1, zero, or positive")
+	}
+	if config.AggregateReceivePressureTimeout < 0 || (config.AggregateReceivePressureTimeout > 0 && config.AggregateReceivePressureTimeout < 4*time.Millisecond) {
+		return fmt.Errorf("aggregate receive pressure timeout must be zero or at least 4ms")
 	}
 	aggregateValues := config.InitialSessionWindowSize != 0 || config.MaxSessionWindowSize != 0 || config.MaxDataFrameSize != 0 || config.InitialStreamAllocationWindowSize != 0 || config.MaxStreamAllocationWindowSize != 0
 	if aggregateValues {

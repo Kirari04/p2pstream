@@ -587,3 +587,75 @@ func TestGrowingConnRetainsReservationWhenWindowUpdateFails(t *testing.T) {
 		t.Fatal("failed update reservation leaked or released twice")
 	}
 }
+
+func TestAggregatePressureProgressWithGrowthReservationDenied(t *testing.T) {
+	for _, reverse := range []bool{false, true} {
+		t.Run(fmt.Sprint(reverse), func(t *testing.T) {
+			left, right := net.Pipe()
+			cfg, err := NewAggregateYamuxConfig(nil, 4<<20, 32)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.AggregateReceivePressureTimeout = 100 * time.Millisecond
+			client, err := yamux.Client(left, cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server, err := yamux.Server(right, cfg)
+			if err != nil {
+				client.Close()
+				t.Fatal(err)
+			}
+			var wg sync.WaitGroup
+			defer func() { client.Close(); server.Close(); wg.Wait() }()
+			sender, receiver := client, server
+			if reverse {
+				sender, receiver = server, client
+			}
+			var denials atomic.Int64
+			growth := NewAggregateReceiveWindowGrowth(receiver, func(int64) (func(), bool) { denials.Add(1); return nil, false })
+			defer growth.Release()
+			for i := 0; i < 4; i++ {
+				writer, err := sender.OpenStream()
+				if err != nil {
+					t.Fatal(err)
+				}
+				reader, err := receiver.AcceptStream()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if grown, err := growth.Grow(reader, 1<<20); err != nil || grown {
+					t.Fatalf("denial: %t %v", grown, err)
+				}
+				wg.Add(1)
+				go func() { defer wg.Done(); writer.Write(make([]byte, 2<<20)) }()
+			}
+			deadline := time.Now().Add(time.Second)
+			for receiver.AggregateReceiveWindowStats().FreeUnits != 0 && time.Now().Before(deadline) {
+				time.Sleep(time.Millisecond)
+			}
+			if receiver.AggregateReceiveWindowStats().FreeUnits != 0 {
+				t.Fatal("pool never filled")
+			}
+			writer, err := sender.OpenStream()
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader, err := receiver.AcceptStream()
+			if err != nil {
+				t.Fatal(err)
+			}
+			wg.Add(1)
+			go func() { defer wg.Done(); writer.Write([]byte("ok")) }()
+			reader.SetReadDeadline(time.Now().Add(time.Second))
+			data := make([]byte, 2)
+			if _, err := io.ReadFull(reader, data); err != nil || string(data) != "ok" {
+				t.Fatalf("denied-growth progress: %q %v", data, err)
+			}
+			stats := receiver.AggregateReceiveWindowStats()
+			if denials.Load() != 4 || stats.PressureResets == 0 || stats.ReceiveLimit != AggregateInitialSessionWindowBytes {
+				t.Fatalf("denials=%d stats=%+v", denials.Load(), stats)
+			}
+		})
+	}
+}

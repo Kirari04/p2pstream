@@ -37,6 +37,10 @@ var (
 	// an operation
 	ErrSessionShutdown = fmt.Errorf("session shutdown")
 
+	// ErrReceivePressure means the local receiver explicitly evicted a retained
+	// buffer under aggregate pool pressure. It must not be reported as EOF.
+	ErrReceivePressure = fmt.Errorf("aggregate receive buffer evicted under resource pressure")
+
 	// ErrStreamsExhausted is returned if we have no more
 	// stream ids to issue
 	ErrStreamsExhausted = fmt.Errorf("streams exhausted")

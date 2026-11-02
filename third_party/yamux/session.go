@@ -151,6 +151,7 @@ func newSession(config *Config, conn io.ReadWriteCloser, client bool) *Session {
 	}
 	if config.InitialSessionWindowSize != 0 {
 		s.aggregate = newAggregateWindow(config)
+		s.aggregate.pressureDone = make(chan struct{})
 	}
 	if client {
 		s.nextStreamID = 1
@@ -162,6 +163,7 @@ func newSession(config *Config, conn io.ReadWriteCloser, client bool) *Session {
 	go s.sendPingReplies()
 	if s.aggregate != nil {
 		go s.publishAggregateCredit()
+		go s.monitorAggregatePressure()
 	}
 	if config.EnableKeepAlive {
 		go s.keepalive()
@@ -343,6 +345,9 @@ func (s *Session) Close() error {
 	s.conn.Close()
 	<-s.recvDoneCh
 	if s.aggregate != nil {
+		if s.aggregate.pressureDone != nil {
+			<-s.aggregate.pressureDone
+		}
 		<-s.aggregate.publishDone
 		<-s.sendDoneCh
 		s.closeAggregateSends()

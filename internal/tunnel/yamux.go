@@ -44,7 +44,8 @@ const (
 	// admission is deciding whether to serve or reset it.
 	AggregateAcceptBacklogStreams = 257
 	// AggregateSessionMetadataBytes covers the Session, queues, publisher state,
-	// slab descriptors and allocator slack outside the payload pool itself.
+	// the fixed pressure monitor/timer and 16 deferred reset references, slab
+	// descriptors and allocator slack outside the payload pool itself.
 	AggregateSessionMetadataBytes = int64(256 * 1024)
 	// AggregatePendingStreamMetadataBytes is a conservative bound for a stream
 	// object, channels, headers and allocator slack before application admission.

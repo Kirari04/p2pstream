@@ -69,6 +69,39 @@ allocation allowance cannot exceed one quarter of the session limit, preserving
 room for other streams when one peer fragments or stalls its data. Pool memory
 accounting includes chunk and slab overhead rather than payload bytes alone.
 
+Aggregate receivers also enforce a local retained-share pressure lease. The
+session has one monitor, ticking every quarter of
+`AggregateReceivePressureTimeout` (zero selects a one-second lease). When free
+units fall to one quarter of the pool or below, a buffered owner is eligible for
+eviction if its sampled retained-unit count has not fallen by at least half
+within that lease. Empty streams are never candidates. Bytes read without
+returning units, and units immediately refilled into the same retained share,
+do not renew the lease. A materially smaller sampled share renews it. This is
+an isolation policy on sustained ownership, not a throughput measurement: a
+continuously backlogged stream can be reset under pressure despite some reads.
+
+Eviction explicitly sets `ErrReceivePressure` on local reads, discards the
+owned buffer once, and returns only physically freed units through the existing
+refund publisher. This also applies to unread FIN/FIN buffers: graceful close
+normally preserves readable bytes, but a pressure eviction reports an error
+instead of silently turning discarded bytes into successful EOF. Ordinary
+wire RST notifies the peer; negotiation and published window promises do not
+change. At most 16 evicted owners await ordered RST delivery. The monitor never
+waits on stream I/O: it uses try-locks in state/receive/ledger order and queues
+RST only after prior DATA releases the send lock. `Session.Close` joins the
+monitor before joining refunds and releasing pool ownership. The fixed worker,
+timer, and bounded owner references fit the session metadata envelope.
+
+Both tunnel endpoints run this receiver policy. Bulk lane selection prefers
+lanes with free local receive capacity and peer-granted send credit. If all
+live bulk lanes are pressured, it retains the existing admission/deadline path
+on a bulk lane; pressure is neither disconnection nor permission to use the
+protected control lane. A finite set of stalled holders can be evicted over
+successive monitor ticks even if growth reservations are denied. A physically
+blocked connection or an unbounded supply of newly admitted hostile streams
+is outside that same-lane progress guarantee. No pool slab shrinks here:
+retirement, growth caps and application disposal auditing remain separate work.
+
 Aggregate sessions retain the ordinary frame-header layout and version byte,
 but use session `WINDOW_UPDATE` on stream zero, a new per-stream
 `ALLOCATION_WINDOW_UPDATE`, and `WINDOW_GROW` to distinguish newly reserved

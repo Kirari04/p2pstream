@@ -56,6 +56,11 @@ type Stream struct {
 	allocationRefundTerminal   bool // guarded by session.aggregate.mu
 	allocationRefundNext       *Stream
 
+	pressureUnits    uint32 // guarded by aggregate.mu; mirrors retained buffer units
+	pressureBaseline uint32
+	pressureSince    time.Time
+	pressureErr      error // guarded by stateLock; survives FIN and session shutdown
+
 	aggregateBufferTracked bool
 	aggregateOwnerPrev     *Stream
 	aggregateOwnerNext     *Stream
@@ -152,6 +157,11 @@ START:
 
 	// If the stream is closed and there's no data buffered, return EOF
 	s.stateLock.Lock()
+	if s.pressureErr != nil {
+		err := s.pressureErr
+		s.stateLock.Unlock()
+		return 0, err
+	}
 	switch s.state {
 	case streamInit, streamSYNSent, streamSYNReceived, streamEstablished:
 		refundAllocation = true
@@ -786,7 +796,7 @@ func (s *Stream) processFlagsMode(flags uint16, allowCrossedTerminalFIN bool) er
 			closeStream = true
 			s.notifyWaiting()
 		case streamClosed, streamReset:
-			if !allowCrossedTerminalFIN {
+			if !allowCrossedTerminalFIN && s.pressureErr == nil {
 				s.session.logger.Printf("[ERR] yamux: unexpected FIN flag in state %d", s.state)
 				return ErrUnexpectedFlag
 			}
@@ -812,6 +822,12 @@ func (s *Stream) processFlagsMode(flags uint16, allowCrossedTerminalFIN bool) er
 // receiver's session WINDOW_UPDATE worker.
 func (s *Stream) discardReceiveBuffer(refund bool) uint32 {
 	s.recvLock.Lock()
+	defer s.recvLock.Unlock()
+	return s.discardReceiveBufferLocked(refund)
+}
+
+// Caller holds recvLock, and stateLock when changing terminal state.
+func (s *Stream) discardReceiveBufferLocked(refund bool) uint32 {
 	var discarded uint32
 	var aggregateHead, aggregateTail *aggregateChunk
 	var aggregateUnits uint32
@@ -834,7 +850,6 @@ func (s *Stream) discardReceiveBuffer(refund bool) uint32 {
 		discarded = uint32(s.recvBuf.Len())
 		s.recvBuf = nil
 	}
-	s.recvLock.Unlock()
 	return discarded
 }
 
