@@ -354,7 +354,7 @@ func TestAggregateGatheredDataWriteErrorAbortsAndRetainsCredit(t *testing.T) {
 	go session.publishAggregateCredit()
 	go session.send()
 
-	if n, err := stream.Write([]byte("ambiguous DATA")); n != 0 || !errors.Is(err, writeErr) {
+	if n, err := stream.Write([]byte("ambiguous DATA")); n != len("ambiguous DATA") || !errors.Is(err, writeErr) {
 		t.Fatalf("Write n=%d err=%v", n, err)
 	}
 	select {

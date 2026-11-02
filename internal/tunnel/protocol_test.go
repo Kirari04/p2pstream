@@ -234,7 +234,7 @@ func TestNegotiatedSessionResourceModelsCoverPoolsAndPendingObjects(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow)) +
+	want := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow)+yamux.AggregateSendMemory) +
 		AggregateSessionMetadataBytes + AggregateAcceptBacklogStreams*AggregatePendingStreamMetadataBytes
 	if got != want {
 		t.Fatalf("aggregate session reservation = %d, want %d", got, want)

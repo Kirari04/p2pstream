@@ -336,14 +336,14 @@ func NewAgentLegacyYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int
 
 // AggregateSessionResourceBytes is the lifetime reservation required before
 // advertising an aggregate receive pool. It includes the exact conservative
-// pool allocation model plus fixed session state and a caller-selected bound
+// pool allocation model, bounded sender-owned frames, fixed session state and a caller-selected bound
 // for peer-created streams awaiting synchronous application admission.
 func AggregateSessionResourceBytes(window uint32, pendingStreams int) (int64, error) {
 	if pendingStreams < 0 {
 		return 0, errors.New("aggregate pending stream count must not be negative")
 	}
 	pool := yamux.AggregateReceiveWindowMemory(window)
-	base := uint64(AggregateSessionMetadataBytes)
+	base := uint64(AggregateSessionMetadataBytes) + yamux.AggregateSendMemory
 	perStream := uint64(AggregatePendingStreamMetadataBytes)
 	if uint64(pendingStreams) > (math.MaxUint64-base)/perStream {
 		return 0, errors.New("aggregate pending stream reservation exceeds accounting range")

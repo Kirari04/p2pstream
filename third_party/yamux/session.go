@@ -116,11 +116,12 @@ type Session struct {
 // sendReady is used to either mark a stream as ready
 // or to directly send a header
 type sendReady struct {
-	Hdr    []byte
-	mu     sync.Mutex // Protects Body from unsafe reads.
-	Body   []byte
-	Err    chan error
-	Commit func()
+	ownedData bool // aggregate immutable frame, owns one sendSlots token
+	Hdr       []byte
+	mu        sync.Mutex // Protects Body from unsafe reads.
+	Body      []byte
+	Err       chan error
+	Commit    func()
 }
 
 // newSession is used to construct a new session
@@ -344,6 +345,7 @@ func (s *Session) Close() error {
 	if s.aggregate != nil {
 		<-s.aggregate.publishDone
 		<-s.sendDoneCh
+		s.closeAggregateSends()
 		s.closeAggregatePool()
 	}
 
@@ -675,11 +677,14 @@ func (s *Session) sendLoop() error {
 			}
 			if err != nil {
 				s.logger.Printf("[ERR] yamux: Failed to write frame: %v", err)
+				s.releaseAggregateSend(ready)
 				asyncSendErr(ready.Err, err)
 				return err
 			}
 		}
 
+		frame = nil
+		s.releaseAggregateSend(ready)
 		asyncSendErr(ready.Err, nil)
 	}
 }

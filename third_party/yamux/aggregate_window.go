@@ -51,7 +51,16 @@ func aggregateDataCharge(length uint32) uint32 {
 	return ((length + AggregateWindowUnitSize - 1) / AggregateWindowUnitSize) * AggregateWindowUnitSize
 }
 
+// AggregateSendMemory bounds eight owned DATA frames, including 40 KiB
+// allocator rounding per 32 KiB payload plus header and 1 KiB per-send metadata.
+// This is a sender reservation, independent of remote receive credit.
+const aggregateSendSlots = 8
+const AggregateSendMemory uint64 = aggregateSendSlots * (40*1024 + 1024)
+
 type aggregateWindow struct {
+	sendOwnedMu sync.RWMutex // enqueue versus joined shutdown cleanup
+	sendSlots   chan struct{}
+
 	// qualification is a zero-size type in ordinary builds. Tagged diagnostic
 	// builds use it for bounded per-session sender counters.
 	qualification qualificationAggregateSendCounters
@@ -161,6 +170,7 @@ func (s *Stream) AggregateReceiveAllocationMaximum() (uint32, bool) {
 func newAggregateWindow(config *Config) *aggregateWindow {
 	a := &aggregateWindow{
 		protocolMax: config.MaxSessionWindowSize,
+		sendSlots:   make(chan struct{}, aggregateSendSlots),
 		sendWindow:  config.InitialSessionWindowSize,
 		sendLimit:   config.InitialSessionWindowSize,
 		sendNotify:  make(chan struct{}),

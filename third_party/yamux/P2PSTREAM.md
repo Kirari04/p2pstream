@@ -94,18 +94,29 @@ abort the session; they never retry a subset or revoke credit. Selected stream
 references survive outside the pending queue until commit or joined cleanup,
 including streams that receive more pending refunds while a batch is in flight.
 
-The physical sender gathers each DATA header and payload into one reusable
-buffer and performs one write in both legacy and aggregate modes. It detaches
-borrowed payload storage under the send-item lock before writing, so a caller
-returning after timeout or shutdown may reuse its payload. A timed-out queued
-header retains its old backing array; callers replace their header before reuse.
-Credit is committed before the first wire byte. A short write is fatal, including
-a short write without an error; no remainder is retried. Header-only controls
-remain separate queue items. The reusable buffer includes allocator rounding:
-a 32 KiB payload plus its 12-byte header uses 40 KiB capacity on the qualified
-Go toolchain. Larger legacy frames retain their existing payload-copy behavior
-with additional header and allocator rounding; this is not a 12-byte resident
-memory increase.
+Aggregate DATA has an explicit queue-acceptance boundary. Before acceptance,
+rejection returns its allocation reservation without consuming byte credit or
+establishment flags. After acceptance, the unique send owns an immutable
+header/payload frame and completion channel. `Write` returns the accepted byte
+count with a timeout or shutdown error if completion is not yet known; callers
+must not replay that prefix. Late completion cannot acknowledge another write.
+A physical short write or socket error still terminates the session.
+
+At most eight aggregate DATA frames may be preparing, queued or in flight.
+`AggregateSendMemory` reserves 328 KiB per aggregate session: eight rounded
+40 KiB frame allocations plus 1 KiB of per-send metadata each. Both application
+endpoints include this sender charge in `AggregateSessionResourceBytes`, in
+addition to receive storage and stream working buffers. Completion releases a
+frame's slot only after the socket write returns and its storage is detached;
+shutdown joins the sender and fences submissions before clearing queued frames.
+This reservation remains session-owned even if the application stream closes.
+
+DATA and FIN/RST share the ordered FIFO. Establishment flags are consumed only
+after DATA acceptance, serialized with stream control publication. Pending
+aggregate flags survive local Close while a DATA submission is rejected. The
+legacy sender retains its borrowed-body/copy-on-timeout behavior and reusable
+gather buffer. Receive-credit publications retain their existing fail-closed
+behavior on ambiguous publication; a DATA caller timeout is not such a failure.
 
 The priority queue remains bounded and separate from the DATA/terminal FIFO.
 Local FIN and growth serialization is preserved; a reset crossing an already

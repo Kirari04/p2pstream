@@ -33,8 +33,9 @@ type Stream struct {
 	session  *Session
 	incoming bool
 
-	state     streamState
-	stateLock sync.Mutex
+	establishmentFlags uint16 // aggregate flags survive concurrent local Close
+	state              streamState
+	stateLock          sync.Mutex
 
 	recvBuf  *recvBuffer
 	recvLock sync.Mutex
@@ -102,6 +103,12 @@ func newStream(session *Session, id uint32, state streamState) *Stream {
 	s.readDeadline.Store(time.Time{})
 	s.writeDeadline.Store(time.Time{})
 	if session.aggregateEnabled() {
+		if state == streamInit {
+			s.establishmentFlags = flagSYN
+		}
+		if state == streamSYNReceived {
+			s.establishmentFlags = flagACK
+		}
 		s.allocationSendWindow = session.config.InitialStreamAllocationWindowSize
 		s.allocationSendLimit = session.config.InitialStreamAllocationWindowSize
 		s.allocationRecvWindow = session.config.InitialStreamAllocationWindowSize
@@ -306,7 +313,9 @@ func (s *Stream) readAggregateLocked(p []byte) (n int, drainedHead, drainedTail 
 	return n, drainedHead, drainedTail, drainedUnits
 }
 
-// Write is used to write to the stream
+// Write is used to write to the stream. In aggregate mode n includes DATA
+// accepted by the bounded send queue even when err reports a completion timeout
+// or shutdown. Callers must not resend that accepted prefix.
 func (s *Stream) Write(b []byte) (n int, err error) {
 	s.sendLock.Lock()
 	defer s.sendLock.Unlock()
@@ -360,6 +369,22 @@ START:
 			goto WAIT
 		}
 	}
+	if s.session.aggregateEnabled() {
+		outcome, sendErr := s.sendAggregateData(b[:max])
+		if outcome == aggregateSendRejected {
+			a := s.session.aggregate
+			a.mu.Lock()
+			charge := aggregateDataCharge(max)
+			a.sendWindow += charge
+			s.allocationSendWindow += charge
+			a.broadcastSendLocked()
+			a.mu.Unlock()
+			return 0, sendErr
+		}
+		// Queue acceptance consumes bytes even if physical completion is late.
+		// Returning n prevents callers from replaying the accepted prefix.
+		return int(max), sendErr
+	}
 	// Determine flags only after all DATA credit is reserved. Otherwise a
 	// blocked first write could consume SYN without putting it on the wire.
 	flags = s.sendFlags()
@@ -371,11 +396,6 @@ START:
 		if errors.Is(err, ErrSessionShutdown) || errors.Is(err, ErrConnectionWriteTimeout) {
 			// Message left in ready queue, header re-use is unsafe.
 			s.sendHdr = header(make([]byte, headerSize))
-		}
-		if s.session.aggregateEnabled() {
-			// A timeout can race a queued write. Session credit cannot safely be
-			// restored without knowing whether the peer observed the frame.
-			s.session.abortAggregate(err)
 		}
 		return 0, err
 	}
@@ -426,7 +446,8 @@ func (s *Stream) sendFlags() uint16 {
 // stateLock; callers that also inspect receive storage must acquire stateLock
 // before recvLock, matching processFlags, Read, and reset cleanup.
 func (s *Stream) sendFlagsLocked() uint16 {
-	var flags uint16
+	flags := s.establishmentFlags
+	s.establishmentFlags = 0
 	switch s.state {
 	case streamInit:
 		flags |= flagSYN
