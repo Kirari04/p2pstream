@@ -36,10 +36,16 @@ import (
 	"p2pstream/gen/proto/p2pstream/v1/p2pstreamv1connect"
 )
 
-const (
-	smokeAdminUsername = "smoke_admin"
-	smokeAdminPassword = "correct horse battery staple"
-)
+const smokeAdminUsername = "smoke_admin"
+
+func requiredSmokeCredential(t *testing.T, name string) string {
+	t.Helper()
+	value := os.Getenv(name)
+	if len(value) < 32 {
+		t.Fatalf("%s must contain at least 32 characters; run scripts/run-docker-smoke.sh", name)
+	}
+	return value
+}
 
 func TestDockerSmoke(t *testing.T) {
 	ctx := context.Background()
@@ -428,7 +434,7 @@ func setupAndLogin(ctx context.Context, t *testing.T, client p2pstreamv1connect.
 
 	loginResp, err := client.Login(ctx, connect.NewRequest(&p2pstreamv1.LoginRequest{
 		Username: smokeAdminUsername,
-		Password: smokeAdminPassword,
+		Password: requiredSmokeCredential(t, "SMOKE_ADMIN_PASSWORD"),
 	}))
 	if err != nil {
 		t.Fatalf("login admin: %v; run `make docker-smoke-clean` if an old smoke database exists", err)
@@ -447,8 +453,8 @@ func setupAdmin(ctx context.Context, t *testing.T, client p2pstreamv1connect.Age
 	for {
 		_, err := client.SetupAdmin(ctx, connect.NewRequest(&p2pstreamv1.SetupAdminRequest{
 			Username:   smokeAdminUsername,
-			Password:   smokeAdminPassword,
-			SetupToken: envOrDefault("MANAGEMENT_SETUP_TOKEN", ""),
+			Password:   requiredSmokeCredential(t, "SMOKE_ADMIN_PASSWORD"),
+			SetupToken: requiredSmokeCredential(t, "MANAGEMENT_SETUP_TOKEN"),
 		}))
 		if err == nil || connect.CodeOf(err) == connect.CodeFailedPrecondition {
 			return

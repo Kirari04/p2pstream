@@ -179,11 +179,11 @@ defineExpose({ openCreate, openEdit, close });
     @update:show="handleDrawerVisibility"
     placement="right"
     :width="editorDrawerWidth('36rem')"
-    :aria-label="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+    :aria-label="listenerForm.id ? 'Edit listener' : 'Add listener'"
     class="editor-drawer"
   >
     <NDrawerContent
-      :title="listenerForm.id ? 'Edit Listener' : 'Add Listener'"
+      :title="listenerForm.id ? 'Edit listener' : 'Add listener'"
       closable
     >
       <form
@@ -191,13 +191,13 @@ defineExpose({ openCreate, openEdit, close });
         class="editor-drawer-form layout-grid space-lg mq-sm-cols-two"
       >
         <label
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+          class="layout-grid space-xs copy-xs weight-medium muted-text"
         >
           Name
           <NInput v-model:value="listenerForm.name" size="small" required />
         </label>
         <label
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+          class="layout-grid space-xs copy-xs weight-medium muted-text"
         >
           Bind address
           <NInput
@@ -205,12 +205,12 @@ defineExpose({ openCreate, openEdit, close });
             size="small"
             placeholder="0.0.0.0"
           />
-          <p class="copy-xs weight-normal normal-text letter-normal muted-text">
+          <p class="copy-xs weight-normal muted-text">
             Leave empty to bind on all interfaces.
           </p>
         </label>
         <label
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+          class="layout-grid space-xs copy-xs weight-medium muted-text"
         >
           Port
           <NInputNumber
@@ -221,12 +221,12 @@ defineExpose({ openCreate, openEdit, close });
             :max="65535"
             required
           />
-          <p class="copy-xs weight-normal normal-text letter-normal muted-text">
+          <p class="copy-xs weight-normal muted-text">
             Ports below 1024 may require elevated privileges.
           </p>
         </label>
         <label
-          class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text"
+          class="layout-grid space-xs copy-xs weight-medium muted-text"
         >
           Protocol
           <AccessibleSelect
@@ -235,7 +235,7 @@ defineExpose({ openCreate, openEdit, close });
             size="small"
             :options="protocolOptions"
           />
-          <p class="copy-xs weight-normal normal-text letter-normal muted-text">
+          <p class="copy-xs weight-normal muted-text">
             Choose HTTPS to enable TLS termination.
           </p>
         </label>
@@ -258,7 +258,7 @@ defineExpose({ openCreate, openEdit, close });
               attr-type="submit"
               :disabled="Boolean(listenerSubmitDisabledReason)"
             >
-              {{ listenerForm.id ? "Save Changes" : "Create Listener" }}
+              {{ listenerForm.id ? "Save changes" : "Create listener" }}
             </NButton>
           </DisabledHint>
         </div>
@@ -266,3 +266,10 @@ defineExpose({ openCreate, openEdit, close });
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style scoped>
+/* Keep inputs under their labels when a sibling field has helper text. */
+.editor-drawer-form > label {
+  align-content: start;
+}
+</style>

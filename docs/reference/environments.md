@@ -6,7 +6,7 @@ The local instance is always available as the virtual **Local** environment in t
 
 ## API Tokens
 
-Create API tokens by choosing **API Tokens** under **System**. The page operates on the instance selected in the header environment selector. Tokens are shown once when created, start with `p2pat_`, and grant admin management API access.
+Create API tokens by choosing **API tokens** under **System**. The page operates on the instance selected in the header environment selector. Tokens are shown once when created, start with `p2pat_`, and grant admin management API access.
 
 API tokens are general admin API credentials for the selected instance. They can be used by remote environments, scripts, or other API clients that need management API access.
 
@@ -17,12 +17,12 @@ API tokens are general admin API credentials for the selected instance. They can
 | Enabled | Disabled tokens cannot authenticate. |
 | Last used | Updated after successful bearer authentication. |
 
-Choose **Create Token** to open the creation drawer. Set a name, optional expiry, and whether the token is enabled immediately. After creation, copy the secret from the one-time confirmation before choosing **Done**; closing without copying requires an explicit discard confirmation. The issued-token table shows name, expiry, last use, and status. Use the revoke action to invalidate a credential immediately.
+Choose **Create token** to open the creation drawer. Set a name, optional expiry, and whether the token is enabled immediately. After creation, copy the secret from the one-time confirmation before choosing **Done**; closing without copying requires an explicit discard confirmation. The issued-token table shows name, expiry, last use, and status. Use the revoke action to invalidate a credential immediately.
 
 Expired, disabled, revoked, and malformed tokens are rejected.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/settings_api_tokens.png" alt="p2pstream API Tokens page under System showing the selected environment, issued-token table, status, expiry, last-used time, Create Token action, and revoke actions">
+  <img src="../assets/new/settings_api_tokens.png" alt="p2pstream API tokens page under System showing the selected environment, issued-token table, status, expiry, last-used time, Create Token action, and revoke actions">
   <figcaption>API tokens are created on the selected target instance and then pasted into remote environment configuration or external API clients that need admin management access. The secret itself appears only in the post-creation confirmation.</figcaption>
 </figure>
 
@@ -31,12 +31,12 @@ Expired, disabled, revoked, and malformed tokens are rejected.
 Use direct transport when the control-plane server can reach the target management URL itself.
 
 1. On the target p2pstream instance, create an admin access token.
-2. On the control-plane instance, choose **Environments** under **System**, then choose **Add Environment**.
+2. On the control-plane instance, choose **Environments** under **System**, then choose **Add environment**.
 3. Enter a unique name and an absolute `https://` management URL with no fragment.
 4. Select **Direct** transport.
 5. Paste the target access token.
-6. Choose **Create Environment**.
-7. Choose **Discover certificate**, then **Review trust**. Verify the full SHA-256 fingerprint and certificate identity before choosing **Trust Certificate**.
+6. Choose **Create environment**.
+7. Choose **Discover certificate**, then **Review trust**. Verify the full SHA-256 fingerprint and certificate identity before choosing **Trust certificate**.
 8. Choose **Test**, then select the remote from the header environment selector.
 
 The URL is normalized without a trailing slash. HTTP URLs are not accepted for environments.
@@ -57,7 +57,7 @@ Use agent transport when the control-plane server cannot reach the target direct
 
 1. Create or connect an agent on the control-plane instance.
 2. On the target instance, create an admin access token.
-3. Choose **Environments** under **System**, choose **Add Environment**, and select **Agent** transport.
+3. Choose **Environments** under **System**, choose **Add environment**, and select **Agent** transport.
 4. Pick the connected local agent that can reach the target management URL.
 5. Paste the target access token.
 6. Create the environment, discover the certificate through the agent, choose **Review trust**, verify its identity, and trust it.
@@ -92,7 +92,7 @@ For certificate rotation, rediscover the certificate, confirm the new fingerprin
 
 ## Operational Behavior
 
-The header environment selector controls selected-instance views such as Overview, Monitor, Proxy, Agents, Traffic Policy, Templates, TLS, and API Tokens. Setup, login, logout, current user, and the Environments registry always stay local.
+The header environment selector controls selected-instance views such as Overview, Monitor, Proxy, Agents, Traffic policy, Templates, TLS, and API tokens. Setup, login, logout, current user, and the Environments registry always stay local.
 
 The Environments table separates certificate trust from reachability. Depending on state, the primary certificate action is **Discover certificate**, **Review trust**, or **Refresh certificate**. **Test** checks the trusted endpoint. **More** contains **Edit environment** and **Delete environment**; deleting removes the saved endpoint and access token from the control-plane instance.
 

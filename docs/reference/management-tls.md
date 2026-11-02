@@ -56,6 +56,21 @@ AGENT_TLS_CERT_FILE=/etc/p2pstream/agent.crt.pem
 AGENT_TLS_KEY_FILE=/etc/p2pstream/agent.key.pem
 ```
 
+The client CA applies to agent authentication. The shared HTTPS listener accepts
+connections without client certificates so browsers can reach setup and login.
+When a client CA is configured, agent stats and tunnel authentication require a
+verified certificate whose identity matches the agent, in addition to its token.
+Updater Enroll, Check, and Report RPCs use their Ed25519 authentication protocol
+and do not require a client certificate; configuring the client CA does not add
+mTLS enforcement to those RPCs.
+Administrator UI/API authentication remains session- or API-token-based; setting
+the client CA does not turn it into administrator mTLS.
+
+TLS 1.2 is the minimum for compatibility; TLS 1.3 is negotiated when both peers
+support it. Cipher selection follows the supported Go toolchain's defaults.
+Keep the runtime updated rather than copying a fixed cipher list from an older
+deployment guide.
+
 ## Certificate Rotation
 
 Open **Settings → Management TLS** to regenerate the auto certificate or stage a custom server certificate, private key, and CA bundle. The management UI, API, agent stats endpoint, and agent tunnel continue to share this one certificate.

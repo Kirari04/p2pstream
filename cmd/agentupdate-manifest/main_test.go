@@ -82,6 +82,18 @@ func TestCreateAndVerifyRoundTrip(t *testing.T) {
 	if err := run(wrongIdentity); err == nil || !strings.Contains(err.Error(), "release identity") {
 		t.Fatalf("verify-release identity error = %v", err)
 	}
+	for _, sequence := range []string{"10202", "10204"} {
+		wrongSequence := append([]string(nil), verifyArguments...)
+		for i, argument := range wrongSequence {
+			if argument == "--expected-sequence" {
+				wrongSequence[i+1] = sequence
+				break
+			}
+		}
+		if err := run(wrongSequence); err == nil || !strings.Contains(err.Error(), "release identity") {
+			t.Fatalf("verify-release expected sequence %s: %v", sequence, err)
+		}
+	}
 
 	tamperedIndex := filepath.Join(directory, "image-index-tampered.json")
 	if err := os.WriteFile(tamperedIndex, []byte(strings.Replace(ociIndex, strings.Repeat("1", 64), strings.Repeat("3", 64), 1)), 0o644); err != nil {

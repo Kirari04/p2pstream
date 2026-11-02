@@ -45,13 +45,13 @@ Cache rules store eligible public `GET`/`HEAD` responses for proxy targets after
 Retry rules are first-match policies for agent-backed proxy targets. They keep the selected target fixed and exclude previously attempted agents. The safest rule covers `GET`/`HEAD`, allows one retry, and retries connection-establishment failures only. See [Request Retries](./request-retries) for replay limits and duplicate-request safety.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF tab showing filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
+  <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF tab showing filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
   <figcaption>The WAF tab keeps filterable WAF rules and captcha providers above the separate Visitor identity &amp; GeoIP configuration used by country restrictions and client identity.</figcaption>
 </figure>
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper tab showing a filterable compact rule table with matches, budgets, scope, priority, and state">
-  <figcaption>Traffic Shaper has its own tab and filter. Cache rules and cache storage operations remain on the separate Cache tab because cache is evaluated after route and target selection.</figcaption>
+  <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic policy Traffic shaper tab showing a filterable compact rule table with matches, budgets, scope, priority, and state">
+  <figcaption>Traffic shaper has its own tab and filter. Cache rules and cache storage operations remain on the separate Cache tab because cache is evaluated after route and target selection.</figcaption>
 </figure>
 
 ## Common Mistakes

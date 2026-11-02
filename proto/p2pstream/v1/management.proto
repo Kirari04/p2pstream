@@ -269,6 +269,19 @@ enum PublicTlsCertificateStatus {
   PUBLIC_TLS_CERTIFICATE_STATUS_ERROR = 4;
 }
 
+// Describes whether the leaf certificate facts on PublicTlsCertificate could be
+// read from the certificate material currently stored for the mapping.
+enum PublicTlsCertificateLeafState {
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_UNSPECIFIED = 0;
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_AVAILABLE = 1;
+  // No certificate material is stored yet, or the file does not exist.
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_MISSING = 2;
+  // The certificate file exists but could not be read.
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_UNREADABLE = 3;
+  // The certificate file does not contain a parseable X.509 certificate.
+  PUBLIC_TLS_CERTIFICATE_LEAF_STATE_INVALID = 4;
+}
+
 enum TrafficTraceLevel {
   TRAFFIC_TRACE_LEVEL_UNSPECIFIED = 0;
   TRAFFIC_TRACE_LEVEL_BASIC = 1;
@@ -874,6 +887,17 @@ message PublicTlsCertificate {
   int64 expires_at_unix_millis = 17;
   int64 next_renewal_at_unix_millis = 18;
   int64 last_renewal_attempt_at_unix_millis = 19;
+  // Read-only facts about the leaf certificate currently stored for this
+  // mapping. Empty unless leaf_state is AVAILABLE.
+  PublicTlsCertificateLeafState leaf_state = 20;
+  // Issuer distinguished name, formatted like ManagementTlsCertificateSummary.issuer.
+  string leaf_issuer = 21;
+  repeated string leaf_dns_names = 22;
+  repeated string leaf_ip_addresses = 23;
+  // Lowercase hex SHA-256 of the DER leaf, like ManagementTlsCertificateSummary.sha256.
+  string leaf_sha256 = 24;
+  // Uppercase hex serial number without separators.
+  string leaf_serial_number = 25;
 }
 
 message PublicTlsDnsCredential {
@@ -2322,6 +2346,43 @@ message GetAgentAvailabilityResponse {
   repeated AgentAvailabilityInterval intervals = 12;
 }
 
+message ListAgentAvailabilityRequest {
+  // Same labels as GetAgentAvailabilityRequest.window_label: 24h (default), 7d, 30d.
+  string window_label = 1;
+}
+
+// Per-agent facts are computed exactly like GetAgentAvailabilityResponse for
+// the same agent, window, and evaluation instant.
+message AgentAvailabilitySummary {
+  string agent_public_id = 1;
+  string agent_name = 2;
+  int64 observed_since_unix_millis = 3;
+  int64 observed_until_unix_millis = 4;
+  int64 uptime_millis = 5;
+  int64 downtime_millis = 6;
+  double uptime_percent = 7;
+  int64 disconnect_count = 8;
+  int64 longest_downtime_millis = 9;
+  bool connected = 10;
+  // Merged connected intervals, oldest first. When more than the server cap
+  // exist, only the newest are returned and intervals_truncated is set; the
+  // uptime and downtime figures above always cover the full window.
+  repeated AgentAvailabilityInterval intervals = 11;
+  bool intervals_truncated = 12;
+  bool enabled = 13;
+}
+
+message ListAgentAvailabilityResponse {
+  string window_label = 1;
+  // Shared time axis: the window start (clamped to observability retention)
+  // and the evaluation instant. An agent created inside the window has a later
+  // observed_since_unix_millis than window_since_unix_millis.
+  int64 window_since_unix_millis = 2;
+  int64 window_until_unix_millis = 3;
+  // Ordered like ListAgents: name, then public id.
+  repeated AgentAvailabilitySummary agents = 4;
+}
+
 message GetDashboardResponse {
   reserved 7;
   reserved "top_backends";
@@ -3216,8 +3277,24 @@ message CreateAgentUpdateCampaignRequest {
 }
 
 message CreateAgentUpdateCampaignResponse { AgentUpdateCampaign campaign = 1; }
-message ListAgentUpdateCampaignsRequest { int64 limit = 1; }
-message ListAgentUpdateCampaignsResponse { repeated AgentUpdateCampaign campaigns = 1; }
+message ListAgentUpdateCampaignsRequest {
+  // 0 means 50; otherwise 1..100.
+  int64 limit = 1;
+  // Number of matching campaigns to skip; must be >= 0.
+  int64 offset = 2;
+  // Case-insensitive literal substring match on campaign name, target version,
+  // or target commit. Trimmed; at most 200 characters.
+  string query = 3;
+  // Restrict to these states; empty means all states. UNSPECIFIED is rejected.
+  repeated AgentUpdateCampaignState states = 4;
+}
+message ListAgentUpdateCampaignsResponse {
+  // Campaigns needing attention (running, paused, or still holding unfinished
+  // or cordoned assignments) first, then newest first.
+  repeated AgentUpdateCampaign campaigns = 1;
+  // Number of campaigns matching query and states, ignoring limit and offset.
+  int64 total_count = 2;
+}
 
 message ChangeAgentUpdateCampaignStateRequest {
   int64 campaign_id = 1;
@@ -3352,6 +3429,7 @@ service AgentManagementService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse) {}
   rpc GetDashboard(GetDashboardRequest) returns (GetDashboardResponse) {}
   rpc GetAgentAvailability(GetAgentAvailabilityRequest) returns (GetAgentAvailabilityResponse) {}
+  rpc ListAgentAvailability(ListAgentAvailabilityRequest) returns (ListAgentAvailabilityResponse) {}
   rpc GetDashboardDiagnostics(GetDashboardDiagnosticsRequest) returns (GetDashboardDiagnosticsResponse) {}
   rpc GetTrafficTraceSettings(GetTrafficTraceSettingsRequest) returns (GetTrafficTraceSettingsResponse) {}
   rpc SetTrafficTraceSettings(SetTrafficTraceSettingsRequest) returns (SetTrafficTraceSettingsResponse) {}

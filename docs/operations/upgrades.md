@@ -1,5 +1,62 @@
 # Upgrades
 
+## Coordinated Docker deployment ownership
+
+Existing server-updater enrollments retain their pinned executor and original
+Compose workflow after a server-only upgrade. Update the server to a published
+release supporting coordinated deployment first, then use **System → Server
+Updates → Upgrade host updater** (called **Upgrade deployment integration** in
+older UI versions). Its host command installs
+the matching executor and migrates the original Compose entry points to the
+current canonical deployment. It preserves the current image, installation ID,
+credentials, data and release floors. Fresh enrollment uses this layout directly.
+
+The host updater does not self-update. An ordinary server update keeps it pinned,
+and repeating setup only validates an already healthy installation. The one-time
+migration is the explicit upgrade path for the legacy deployment integration;
+later host-updater upgrades require the applicable release's host procedure.
+
+After migration, ordinary `docker compose up -d --force-recreate` keeps the
+updater and current image. Edit the saved `.p2pstream-input-…` files and `.env`,
+then use `manage apply` to activate settings. The new server takes a lifetime
+data-volume lock; the updater also records which deployment generation may
+start. These runtime files survive snapshot restoration. Previous binaries do
+not understand that protection: remove enrollment through `manage remove`
+before any manual change to an incompatible image. Managed rollback continues
+to restore the full application snapshot and matching supported previous image.
+See [server update operations](./server-updates) for migration and interruption
+recovery. The private updater HTTP protocol and database schema are unchanged.
+
+### Recover an enrollment that never completed
+
+If initial setup restored the original server and remains `rolled_back`, a saved
+executor defect may also make `manage repair` fail repeatedly. In particular,
+the `v0.1.53-staging.103` duplicate-network-alias receipt error requires a fixed
+executor; repair keeps the original pinned one.
+
+After a fixed release with cancellation support is published, follow
+[Cancel a never-completed enrollment](./server-updates#cancel-a-never-completed-enrollment).
+Its verified bootstrap checks the old restored deployment and privately archives
+only eligible failed enrollment state, retaining enforced trust floors. It refuses
+completed enrollments, saved updater state (including previews) and unresolved runtime work.
+Cancellation does not change the running image or data. Then manually deploy the
+fixed published image with the same restored Compose configuration and named data
+volume, refresh the Updates page, and enroll again using its fresh setup command.
+Do not delete updater state or use an old copied setup command to bypass recovery.
+
+If the server was manually upgraded **before** cancellation, leave it running. A blocked startup marker can prevent it from starting again; avoid container restarts and host reboots until verified recovery completes.
+The saved enrollment still belongs to the old image; repeating `repair` or
+`rollback` cannot adopt the upgrade. Use the explicit
+[upgraded-deployment recovery](./server-updates#if-the-server-was-already-manually-upgraded)
+from a published recovery release that supports it. It separately verifies the
+current published image, permits only an image change to the original settings,
+restores any proven setup-owned Compose entry points, and retires only an exact
+blocked startup marker left by that failed enrollment. It preserves the stable
+writer lock and archives the failed enrollment without restarting the server or
+changing application data. Then run fresh
+setup from the current server. `.106` includes the alias fix and original-image
+cancellation, but does not include this later recovery mode.
+
 ## Legacy support ends with v0.1.53
 
 **Legacy support ends with v0.1.53-staging.91 and the stable v0.1.53 release.**

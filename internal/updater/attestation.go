@@ -200,12 +200,16 @@ func persistHealthyActivation(paths Paths, journal activationJournal, readyPath 
 	if err := verifyRootActionReceiptRecord(paths, *journal.Receipt, journal.Authorization, previousCounter, time.Now().UTC()); err != nil {
 		return err
 	}
+	artifactDigest, err := parseArtifactDigest(journal.Receipt.Receipt.ResultArtifactSHA256)
+	if err != nil {
+		return fmt.Errorf("parse root activation artifact digest: %w", err)
+	}
 	activated := releaseSlotMetadata(VerifiedRelease{
 		Version: journal.Version, Commit: journal.Receipt.Receipt.ResultCommit,
 		ManifestSHA256: journal.Receipt.Receipt.ResultManifestSHA256,
 		Sequence:       journal.Sequence, SecurityEpoch: journal.SecurityEpoch,
 		Artifact: Artifact{Name: journal.Receipt.Receipt.ResultArtifactName, Size: journal.Receipt.Receipt.ResultArtifactSize,
-			SHA256: mustArtifactDigest(journal.Receipt.Receipt.ResultArtifactSHA256)},
+			SHA256: artifactDigest},
 	})
 	activated.Target = journal.CandidateTarget
 	state := completedActivation{Authorization: journal.Authorization, Receipt: *journal.Receipt, PreviousSlot: journal.PreviousSlot, ActivatedSlot: activated}
@@ -238,11 +242,17 @@ func persistHealthyActivation(paths Paths, journal activationJournal, readyPath 
 	return pruneObsoleteSlots(paths)
 }
 
-func mustArtifactDigest(value string) [sha256.Size]byte {
+func parseArtifactDigest(value string) ([sha256.Size]byte, error) {
 	var result [sha256.Size]byte
-	decoded, _ := hex.DecodeString(value)
+	decoded, err := hex.DecodeString(value)
+	if err != nil {
+		return result, fmt.Errorf("invalid artifact SHA-256: %w", err)
+	}
+	if len(decoded) != sha256.Size {
+		return result, errors.New("artifact SHA-256 must contain exactly 32 bytes")
+	}
 	copy(result[:], decoded)
-	return result
+	return result, nil
 }
 
 func validateSlotMetadata(slot slotMetadata) error {

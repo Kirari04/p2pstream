@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	"p2pstream/internal/buildinfo"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 	"p2pstream/internal/logger"
@@ -29,11 +30,14 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start the p2pstream proxy server",
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg, err := config.Load()
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		cfg, dataLease, err := loadServerConfig(ctx)
 		if err != nil {
 			os.Stderr.WriteString("Failed to load config: " + err.Error() + "\n")
 			os.Exit(1)
 		}
+		defer dataLease.Close()
 
 		logger.Init(cfg.Env)
 		log.Info().
@@ -138,8 +142,6 @@ var serverCmd = &cobra.Command{
 		}
 		server.ConfigureManagementHTTPServer(mgmtSrv)
 
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
 		if err := app.StartServerUpdateRuntime(ctx); err != nil {
 			log.Fatal().Err(err).Msg("Failed to initialize server update readiness")
 		}
@@ -212,6 +214,31 @@ var serverCmd = &cobra.Command{
 
 		log.Info().Msg("Servers stopped cleanly")
 	},
+}
+
+func loadServerConfig(ctx context.Context) (*config.Config, *serverupdate.RuntimeLease, error) {
+	var lease *serverupdate.RuntimeLease
+	cfg, err := config.LoadWithGuard(func(cfg *config.Config) error {
+		var err error
+		lease, err = serverupdate.AcquireRuntimeLease(ctx, cfg.ConfigDir)
+		if err != nil {
+			return err
+		}
+		owner, err := serverupdate.ReadRuntimeOwner(cfg.ConfigDir)
+		if err != nil {
+			return err
+		}
+		return serverupdate.ValidateRuntimeAdmission(owner, serverupdate.RuntimeAdmission{
+			Protocol: cfg.ServerUpdateRuntimeProtocol, InstanceID: cfg.ServerUpdateInstanceID,
+			Generation: cfg.ServerUpdateGeneration, Version: buildinfo.Version, Commit: buildinfo.Commit,
+			Socket: cfg.ServerUpdateSocket, GateFile: cfg.ServerUpdateGateFile, TokenFile: cfg.ServerUpdateTokenFile,
+		})
+	})
+	if err != nil {
+		_ = lease.Close()
+		return nil, nil, err
+	}
+	return cfg, lease, nil
 }
 
 func managementListenAddress(cfg *config.Config) string {

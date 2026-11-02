@@ -29,9 +29,11 @@ import (
 const (
 	publicACMEProductionDirectory = acme.LetsEncryptURL
 	publicACMEStagingDirectory    = "https://acme-staging-v02.api.letsencrypt.org/directory"
-	publicACMERenewBefore         = 30 * 24 * time.Hour
-	publicACMERetryAfterFailure   = time.Hour
-	publicACMESchedulerInterval   = 30 * time.Minute
+	// publicACMEMaxRenewBefore caps how early a certificate is renewed. The
+	// actual window is lifetime-relative; see publicACMERenewBefore.
+	publicACMEMaxRenewBefore    = 30 * 24 * time.Hour
+	publicACMERetryAfterFailure = time.Hour
+	publicACMESchedulerInterval = 30 * time.Minute
 )
 
 const (
@@ -360,6 +362,53 @@ func (m *publicACMEManager) queueDueCertificates(ctx context.Context, trigger st
 	).Msg("ACME renewal scheduler scan completed")
 }
 
+// publicACMERenewBefore returns how long before expiry a certificate should
+// be renewed: when one third of its lifetime remains, capped at
+// publicACMEMaxRenewBefore. 90-day certificates keep the 30-day window, while
+// short-lived certificates (45-day, 6-day) renew proportionally instead of
+// being due immediately after issuance. An unknown or inverted validity
+// period falls back to the cap.
+//
+// The lifetime is rounded to the nearest minute because CAs such as Let's
+// Encrypt express "90 days" with an inclusive end second (90 days minus one
+// second), which must still map to exactly 30 days.
+func publicACMERenewBefore(notBefore time.Time, notAfter time.Time) time.Duration {
+	if notBefore.IsZero() || notAfter.IsZero() || !notAfter.After(notBefore) {
+		return publicACMEMaxRenewBefore
+	}
+	renewBefore := notAfter.Sub(notBefore).Round(time.Minute) / 3
+	if renewBefore <= 0 || renewBefore > publicACMEMaxRenewBefore {
+		return publicACMEMaxRenewBefore
+	}
+	return renewBefore
+}
+
+func publicACMERenewBeforeForCertificate(cert db.PublicTlsCertificate) time.Duration {
+	var notBefore, notAfter time.Time
+	if cert.IssuedAt.Valid {
+		notBefore = cert.IssuedAt.Time
+	}
+	if cert.ExpiresAt.Valid {
+		notAfter = cert.ExpiresAt.Time
+	}
+	return publicACMERenewBefore(notBefore, notAfter)
+}
+
+// publicACMEEffectiveNextRenewalAt reports the renewal time the scheduler will
+// actually use. For ready ACME certificates that is derived from the stored
+// validity, so rows persisted under an older renewal window still show the
+// current schedule. Every other state keeps the persisted value (retry time,
+// cleared while renewing, or unset while pending).
+func publicACMEEffectiveNextRenewalAt(cert db.PublicTlsCertificate) sql.NullTime {
+	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME ||
+		cert.Enabled == 0 ||
+		normalizePublicTLSCertificateStatus(cert.Status) != publicTLSCertificateStatusReady ||
+		cert.CertPath == "" || cert.KeyPath == "" || !cert.ExpiresAt.Valid {
+		return cert.NextRenewalAt
+	}
+	return sql.NullTime{Time: cert.ExpiresAt.Time.UTC().Add(-publicACMERenewBeforeForCertificate(cert)), Valid: true}
+}
+
 func publicACMECertificateDue(cert db.PublicTlsCertificate, now time.Time) bool {
 	return publicACMECertificateScheduleDecision(cert, now).Due
 }
@@ -393,11 +442,12 @@ func publicACMECertificateScheduleDecision(cert db.PublicTlsCertificate, now tim
 		return publicACMEScheduleDecision{Due: true, Reason: "missing_expiry"}
 	}
 	expiresAt := cert.ExpiresAt.Time.UTC()
-	nextAttemptAt := sql.NullTime{Time: expiresAt.Add(-publicACMERenewBefore), Valid: true}
+	renewBefore := publicACMERenewBeforeForCertificate(cert)
+	nextAttemptAt := sql.NullTime{Time: expiresAt.Add(-renewBefore), Valid: true}
 	if !expiresAt.After(now) {
 		return publicACMEScheduleDecision{Due: true, Reason: "expired", NextAttemptAt: nextAttemptAt}
 	}
-	if !expiresAt.After(now.Add(publicACMERenewBefore)) {
+	if !expiresAt.After(now.Add(renewBefore)) {
 		return publicACMEScheduleDecision{Due: true, Reason: "renewal_window", NextAttemptAt: nextAttemptAt}
 	}
 	return publicACMEScheduleDecision{Reason: "scheduled", NextAttemptAt: nextAttemptAt}
@@ -491,7 +541,8 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 	if !result.Leaf.NotBefore.IsZero() {
 		issuedAt = result.Leaf.NotBefore.UTC()
 	}
-	nextRenewalAt := expiresAt.Add(-publicACMERenewBefore)
+	// Use the persisted validity so this matches publicACMECertificateScheduleDecision.
+	nextRenewalAt := expiresAt.Add(-publicACMERenewBefore(issuedAt, expiresAt))
 	if nextRenewalAt.Before(attemptAt) {
 		nextRenewalAt = attemptAt.Add(publicACMERetryAfterFailure)
 	}

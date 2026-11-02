@@ -17,6 +17,7 @@ import (
 )
 
 const InstallationAsset = "p2pstream_install.json"
+const SetupAsset = "setup-server-updater.sh"
 const IdentityFile = "server-installation-id"
 
 // InstallationIdentity exists before enrollment and survives container recreation.
@@ -77,6 +78,7 @@ func (i Installation) Validate(repository string) error {
 type InstallationRecipe struct {
 	Descriptor     Installation
 	Bundle         agentupdate.ReleaseAsset
+	Setup          agentupdate.ReleaseAsset
 	ManifestSHA256 string
 	ExpiresAt      time.Time
 }
@@ -118,7 +120,18 @@ func verifyInstallation(manifest, descriptor []byte, repository, version, commit
 	if err != nil {
 		return InstallationRecipe{}, err
 	}
-	return InstallationRecipe{Descriptor: i, Bundle: bundle, ManifestSHA256: hash(manifest), ExpiresAt: expires}, nil
+	// Older, immutable releases retain the verified inline installation recipe.
+	// New releases explicitly advertise the standalone bootstrap in their manifest.
+	var setup agentupdate.ReleaseAsset
+	for _, asset := range m.ReleaseAssets {
+		if asset.Name == SetupAsset {
+			if asset.Size > 64<<10 {
+				return InstallationRecipe{}, errors.New("installation bootstrap exceeds size limit")
+			}
+			setup = asset
+		}
+	}
+	return InstallationRecipe{Descriptor: i, Bundle: bundle, Setup: setup, ManifestSHA256: hash(manifest), ExpiresAt: expires}, nil
 }
 func (s *GitHubSource) Installation(ctx context.Context, current RuntimeStatus) (InstallationRecipe, error) {
 	manifest, metadata, err := s.releaseInputs(ctx, current.Version)
@@ -137,6 +150,9 @@ func (s *GitHubSource) Installation(ctx context.Context, current RuntimeStatus) 
 }
 
 // SetupCommand contains only publisher-verified identity and a local data ID.
+// The standalone bootstrap is trusted through the operator's explicit execution
+// of this HTTPS release URL. Its downstream manifest pin binds deployment inputs;
+// it cannot retroactively authenticate the already executed bootstrap bytes.
 // Compose options are supplied by the UI as individually shell-quoted arguments.
 func (s *GitHubSource) SetupCommand(recipe InstallationRecipe, id string) (string, error) {
 	if _, err := uuid.Parse(id); err != nil {
@@ -147,6 +163,12 @@ func (s *GitHubSource) SetupCommand(recipe InstallationRecipe, id string) (strin
 	}
 	if !digestPattern.MatchString(recipe.Bundle.SHA256) || !digestPattern.MatchString(recipe.ManifestSHA256) || recipe.Bundle.Name != recipe.Descriptor.Bundle {
 		return "", errors.New("invalid recipe")
+	}
+	if recipe.Setup.Name != "" {
+		if recipe.Setup.Name != SetupAsset || recipe.Setup.Size == 0 || recipe.Setup.Size > 64<<10 || !digestPattern.MatchString(recipe.Setup.SHA256) {
+			return "", errors.New("invalid installation bootstrap")
+		}
+		return fmt.Sprintf("(set -o pipefail; curl -fsSL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 120 --max-filesize 65536 '%s/%s/releases/download/%s/%s' | sudo sh -s -- '%s@%s' '%s' '%s' '%s' --COMPOSE_OPTIONS--)", s.download, s.Repository, recipe.Descriptor.Version, SetupAsset, s.Repository, recipe.Descriptor.Version, id, recipe.ManifestSHA256, s.Arch), nil
 	}
 	return fmt.Sprintf(`(
   set -eu

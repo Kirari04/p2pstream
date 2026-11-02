@@ -43,6 +43,108 @@ func TestAgentUpdateRateLimiterBoundsKeysWithoutPerRequestEvictionScan(t *testin
 	}
 }
 
+func TestAgentUpdateAdmissionRequiresInitializedControls(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		unset func(*App)
+	}{
+		{"gate", func(a *App) { a.agentUpdateRequestGate = nil }},
+		{"peer capacity", func(a *App) { a.agentUpdatePeerRequests = nil }},
+		{"identity capacity", func(a *App) { a.agentUpdateIdentityRequests = nil }},
+		{"global rate", func(a *App) { a.agentUpdateGlobalRate = nil }},
+		{"peer rate", func(a *App) { a.agentUpdatePeerRate = nil }},
+		{"identity rate", func(a *App) { a.agentUpdateIdentityRate = nil }},
+		{"all", func(a *App) { *a = App{} }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app := NewApp(&config.Config{ManagementUIDisabled: true}, nil)
+			test.unset(app)
+			for _, ctx := range []context.Context{context.Background(), context.WithValue(context.Background(), agentUpdateAdmissionContextKey{}, true)} {
+				if release, err := app.beginAgentUpdateRequest(ctx); connect.CodeOf(err) != connect.CodeUnavailable {
+					if release != nil {
+						release()
+					}
+					t.Fatalf("uninitialized method admission: %v", err)
+				}
+			}
+			var handled bool
+			handler := app.agentUpdateHTTPAdmission(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				handled = true
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			for _, procedure := range []string{
+				p2pstreamv1connect.AgentManagementServiceEnrollAgentUpdaterProcedure,
+				p2pstreamv1connect.AgentManagementServiceCheckAgentUpdateProcedure,
+				p2pstreamv1connect.AgentManagementServiceReportAgentUpdateProcedure,
+			} {
+				recorder := httptest.NewRecorder()
+				handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, procedure, strings.NewReader("{}")))
+				if recorder.Code != http.StatusServiceUnavailable || handled {
+					t.Fatalf("%s: status=%d handled=%v, want unavailable before decode", procedure, recorder.Code, handled)
+				}
+			}
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, p2pstreamv1connect.AgentManagementServiceReportStatsProcedure, nil))
+			if recorder.Code != http.StatusNoContent || !handled {
+				t.Fatal("unset update controls blocked ordinary management traffic")
+			}
+		})
+	}
+}
+
+func TestAgentUpdateUninitializedRateLimiterAndGateFailClosed(t *testing.T) {
+	var limiter *agentUpdateRateLimiter
+	if limiter.allow("peer", time.Now()) {
+		t.Fatal("nil rate limiter admitted a request")
+	}
+	for _, app := range []*App{nil, {}} {
+		if release, err := app.beginAgentUpdateRequest(context.Background()); err == nil {
+			release()
+			t.Fatal("uninitialized app admitted a direct update request")
+		}
+	}
+}
+
+func TestAgentUpdateConstructorAdmissionReservesAndReleasesGate(t *testing.T) {
+	app := NewApp(&config.Config{ManagementUIDisabled: true}, nil)
+	var handled int
+	handler := app.agentUpdateHTTPAdmission(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handled++
+		if len(app.agentUpdateRequestGate) != 1 {
+			t.Fatal("HTTP admission did not reserve the request gate")
+		}
+		release, err := app.beginAgentUpdateRequest(r.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		release()
+		if len(app.agentUpdateRequestGate) != 1 {
+			t.Fatal("method admission changed the HTTP gate reservation")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	for range 2 {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, p2pstreamv1connect.AgentManagementServiceCheckAgentUpdateProcedure, strings.NewReader("{}")))
+		if recorder.Code != http.StatusNoContent || len(app.agentUpdateRequestGate) != 0 || len(app.agentUpdatePeerRequests.inUse) != 0 {
+			t.Fatalf("status=%d or admission reservation leaked", recorder.Code)
+		}
+	}
+	if handled != 2 {
+		t.Fatalf("handler calls=%d, want 2", handled)
+	}
+	// A direct method call still reserves its own gate slot without requiring
+	// an HTTP admission marker in the context.
+	release, err := app.beginAgentUpdateRequest(context.Background())
+	if err != nil || len(app.agentUpdateRequestGate) != 1 {
+		t.Fatalf("direct admission: %v", err)
+	}
+	release()
+	if len(app.agentUpdateRequestGate) != 0 {
+		t.Fatal("direct admission leaked its gate reservation")
+	}
+}
+
 func TestAgentUpdatePeerThrottleCannotDrainFleetRateBudget(t *testing.T) {
 	app := NewApp(&config.Config{ManagementUIDisabled: true}, nil)
 	app.agentUpdatePeerRate = newAgentUpdateRateLimiter(1, time.Hour, 1, 16)

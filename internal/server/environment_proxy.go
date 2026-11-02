@@ -35,6 +35,7 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"GetStatus":                         {},
 	"GetDashboard":                      {},
 	"GetAgentAvailability":              {},
+	"ListAgentAvailability":             {},
 	"GetDashboardDiagnostics":           {},
 	"GetTrafficTraceSettings":           {},
 	"SetTrafficTraceSettings":           {},

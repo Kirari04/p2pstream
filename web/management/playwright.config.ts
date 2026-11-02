@@ -1,6 +1,9 @@
+import { initializeFixtureCredentials } from "./playwright.credentials";
 import { defineConfig } from "@playwright/test";
 import { createManagementWebServer, repoDir } from "./playwright.shared";
 import { resolve } from "node:path";
+
+initializeFixtureCredentials();
 
 const managementPort = portFromEnv(process.env.PLAYWRIGHT_MANAGEMENT_PORT, "19081");
 const frontendPort = portFromEnv(process.env.PLAYWRIGHT_FRONTEND_PORT, "5173");
@@ -30,10 +33,8 @@ export default defineConfig({
     dataDir,
     cacheDir,
     binaryPath: e2eBinary,
-    setupToken: "playwright-setup-token-not-for-production",
     agentId: "playwright-agent",
     agentName: "Playwright Agent",
-    agentToken: "playwright-agent-token-not-for-production",
   }),
   use: {
     ignoreHTTPSErrors: true,

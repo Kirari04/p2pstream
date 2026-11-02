@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -160,5 +161,128 @@ func TestInterruptedHostTransactionBlocksUpdateAcceptance(t *testing.T) {
 		if _, err = engine.Start(context.Background(), StartRequest{OperationID: uuid.NewString(), Actor: "admin"}); err == nil || !strings.Contains(err.Error(), "host deployment setup is incomplete") {
 			t.Fatalf("accepted interrupted %s: %v", phase, err)
 		}
+	}
+}
+
+func standaloneInstallationFixture(t *testing.T) InstallationRecipe {
+	t.Helper()
+	raw, _, descriptor, current := installationFixture(t, "v1.0.1", "stable")
+	manifest, err := agentupdate.ParseManifest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.ReleaseAssets = append(manifest.ReleaseAssets, agentupdate.ReleaseAsset{Name: SetupAsset, Size: 8192, SHA256: strings.Repeat("c", 64)})
+	slices.SortFunc(manifest.ReleaseAssets, func(a, b agentupdate.ReleaseAsset) int { return strings.Compare(a.Name, b.Name) })
+	raw, err = agentupdate.CanonicalManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recipe, err := verifyInstallation(raw, descriptor, "test/repo", current.Version, current.Commit, "stable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return recipe
+}
+
+func TestStandaloneSetupUsesManifestAdvertisedReleaseAsset(t *testing.T) {
+	recipe := standaloneInstallationFixture(t)
+	source, _ := NewGitHubSource("test/repo", "stable", "arm64")
+	command, err := source.SetupCommand(recipe, "11111111-1111-4111-8111-111111111111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.ContainsAny(command, "\r\n") || len(command) > 650 {
+		t.Fatalf("standalone command is not a compact physical line: %s", command)
+	}
+	for _, expected := range []string{"(set -o pipefail; curl -fsSL ", "--proto '=https' --proto-redir '=https'", "--max-time 120 --max-filesize 65536", "/test/repo/releases/download/v1.0.1/setup-server-updater.sh' | sudo sh -s -- 'test/repo@v1.0.1'", "'" + recipe.ManifestSHA256 + "' 'arm64' --COMPOSE_OPTIONS--)"} {
+		if !strings.Contains(command, expected) {
+			t.Fatalf("standalone recipe omitted %q", expected)
+		}
+	}
+	for _, asset := range []agentupdate.ReleaseAsset{
+		{Name: "other.sh", Size: 1, SHA256: strings.Repeat("c", 64)},
+		{Name: SetupAsset, Size: 65537, SHA256: strings.Repeat("c", 64)},
+		{Name: SetupAsset, Size: 1, SHA256: "invalid"},
+	} {
+		recipe.Setup = asset
+		if _, err := source.SetupCommand(recipe, uuid.NewString()); err == nil {
+			t.Fatalf("accepted invalid bootstrap: %+v", asset)
+		}
+	}
+}
+
+func TestStandaloneSetupPipelinePreservesArgumentsAndFailsClosed(t *testing.T) {
+	recipe := standaloneInstallationFixture(t)
+	source, _ := NewGitHubSource("test/repo", "stable", "amd64")
+	id := "11111111-1111-4111-8111-111111111111"
+	command, err := source.SetupCommand(recipe, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := t.TempDir()
+	receipt := filepath.Join(work, "receipt.json")
+	for name, contents := range map[string]string{
+		"curl": "#!/bin/sh\ncat -- \"$SETUP_BODY\"\nexit \"${CURL_EXIT:-0}\"\n",
+		"sudo": "#!/bin/sh\nexec \"$@\"\n",
+	} {
+		if err := os.WriteFile(filepath.Join(work, name), []byte(contents), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	body := `main() {
+python3 -I - "$@" <<'PY'
+import json, pathlib, sys
+pathlib.Path(sys.argv[-1]).write_text(json.dumps(sys.argv[1:-1]))
+PY
+}
+main "$@"
+`
+	bodyPath := filepath.Join(work, "bootstrap.sh")
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
+	hostile := "project ' $(touch " + filepath.Join(work, "injected") + "); *"
+	options := "-- -p " + quote(hostile) + " -f " + quote("relative compose.yaml") + " " + quote(receipt)
+	command = strings.Replace(command, "--COMPOSE_OPTIONS--", options, 1)
+	for _, test := range []struct {
+		name, body, curlExit     string
+		wantFailure, wantReceipt bool
+	}{
+		{"complete", body, "0", false, true},
+		{"curl-failed", "", "22", true, false},
+		// A successful empty HTTP response gives sh no program; it cannot
+		// install anything or print a success claim, although sh exits zero.
+		{"empty", "", "0", false, false},
+		{"truncated-function", body[:strings.Index(body, "PY\n}")], "0", true, false},
+		{"truncated-before-invocation", body[:strings.LastIndex(body, "main ")], "18", true, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			os.Remove(receipt)
+			if err := os.WriteFile(bodyPath, []byte(test.body), 0600); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("bash", "-c", command)
+			cmd.Env = append(os.Environ(), "PATH="+work+":"+os.Getenv("PATH"), "SETUP_BODY="+bodyPath, "CURL_EXIT="+test.curlExit)
+			output, err := cmd.CombinedOutput()
+			if (err != nil) != test.wantFailure {
+				t.Fatalf("pipeline failure=%v; want %v: %s", err, test.wantFailure, output)
+			}
+			raw, readErr := os.ReadFile(receipt)
+			if !test.wantReceipt {
+				if !os.IsNotExist(readErr) {
+					t.Fatalf("partial pipeline invoked installer: %s, %v", raw, readErr)
+				}
+				return
+			}
+			var got []string
+			if readErr != nil || json.Unmarshal(raw, &got) != nil {
+				t.Fatalf("missing host receipt: %s, %v", raw, readErr)
+			}
+			want := []string{"test/repo@v1.0.1", id, recipe.ManifestSHA256, "amd64", "--", "-p", hostile, "-f", "relative compose.yaml"}
+			if !slices.Equal(got, want) {
+				t.Fatalf("changed shell argument boundaries: got %#v want %#v", got, want)
+			}
+			if _, err := os.Stat(filepath.Join(work, "injected")); !os.IsNotExist(err) {
+				t.Fatal("executed hostile Compose value")
+			}
+		})
 	}
 }

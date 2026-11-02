@@ -36,10 +36,10 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
-Manage both parts under **Traffic Policy → Cache**. The filterable rules table determines eligibility and cache keys. The separate **Cache storage & operations** section controls shared storage budgets and cleanup, and contains the destructive purge action. Unsaved storage changes are kept distinct from the last server response so operators can review them before saving.
+Manage both parts under **Traffic policy → Cache**. The filterable rules table determines eligibility and cache keys. The separate **Cache storage & operations** section controls shared storage budgets and cleanup, and contains the destructive purge action. Unsaved storage changes are kept distinct from the last server response so operators can review them before saving.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing a filterable cache-rules table and separate Cache storage and operations settings">
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic policy Cache tab showing a filterable cache-rules table and separate Cache storage and operations settings">
   <figcaption>The Cache tab separates response eligibility rules from global storage budgets, cleanup behavior, and purge operations.</figcaption>
 </figure>
 

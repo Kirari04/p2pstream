@@ -1,6 +1,7 @@
 import {
   CACHE_KEY,
   RATE_LIMIT_KEY,
+  SITES_REDIRECT_KEY,
   TRAFFIC_SHAPER_KEY,
   WAF_KEY,
   agentKey,
@@ -16,8 +17,11 @@ import {
   routeConfigForRequest,
   routeKey,
   routeTargetAssignments,
+  siteKey,
+  sitesViewRouteNodeKey,
   targetKey,
   type TrafficFlowConfigIndex,
+  type TrafficFlowDetail,
   type TrafficRequestPathCacheEntry,
 } from "@/lib/trafficFlowLayout";
 import { motionEdgeKey, type MotionPoint } from "@/lib/trafficMotion";
@@ -57,6 +61,7 @@ import {
   type GetPublicProxyConfigResponse,
   type PublicRoute,
   type PublicRouteTarget,
+  type PublicSite,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRequest } from "@/types/trafficTrace";
@@ -66,7 +71,10 @@ export function buildTrafficFlowGraph(input: {
   requests: readonly TraceRequest[];
   configIndex: TrafficFlowConfigIndex;
   requestPath: (request: TraceRequest) => TrafficRequestPathCacheEntry;
+  /** Defaults to "routes". In "sites" view `requestPath` must return Sites-view paths (see `mapTrafficFlowPathToSites`). */
+  detail?: TrafficFlowDetail;
 }): TrafficFlowGraph {
+  const sitesView = input.detail === "sites";
   const nodes = new Map<string, Omit<DiagramNode, "x" | "y">>();
   const edges: DiagramEdge[] = [];
 
@@ -103,6 +111,113 @@ export function buildTrafficFlowGraph(input: {
   const showRateLimitNode = index.hasEnabledRateLimitRules || input.requests.some((request) => requestUsesRateLimitNode(request, index));
   const showTrafficShaperNode = index.hasEnabledTrafficShaperRules || input.requests.some((request) => requestUsesTrafficShaperNode(request, index));
   const showCacheNode = index.hasEnabledCacheRules || input.requests.some((request) => requestUsesCacheNode(request, index));
+
+  // Downstream of one target: static response, agents and upstream, or the cache. `from` is the target node
+  // in the Routes view and the route, default-route or site node in the Sites view.
+  const addTargetDownstream = (from: string, target: PublicRouteTarget) => {
+    const isStatic = target.targetType === PublicRouteTargetType.STATIC;
+    const isAgentTarget = target.transport === PublicRouteTargetTransport.AGENT;
+    if (isStatic) {
+      addStaticNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Static"));
+      addEdge(from, "static-response", "agent-bypass");
+      addEdge("static-response", "response");
+      return;
+    }
+
+    if (isAgentTarget) {
+      const matchedAgents = agentsMatchingTarget(target, input.config?.agents ?? []);
+      if (matchedAgents.length) {
+        for (const agent of matchedAgents) {
+          const agentNodeKey = agentKey(agent.id);
+          addNode({
+            key: agentNodeKey,
+            label: agent.name || `Agent ${agent.id.toString()}`,
+            subLabel: agent.publicId,
+            column: 8,
+            kind: "agent",
+            agentStatus: agentNodeStatus(agent),
+            editTargets: [agentEditTarget(agent.id, agent.name || `Agent ${agent.id.toString()}`, agent.publicId)],
+          });
+          addUpstreamNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Agent selected"));
+          if (showCacheNode) {
+            addEdge(from, CACHE_KEY);
+            addEdge(CACHE_KEY, "response", "intermediate-bypass");
+          }
+          addEdge(from, agentNodeKey);
+          addEdge(agentNodeKey, "upstream");
+          addEdge("upstream", "response");
+        }
+      } else {
+        if (showCacheNode) {
+          addEdge(from, CACHE_KEY);
+          addEdge(CACHE_KEY, "response", "agent-bypass");
+        }
+        addEdge(from, "response", "agent-bypass");
+      }
+      return;
+    }
+
+    addUpstreamNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Direct"));
+    if (showCacheNode) {
+      addEdge(from, CACHE_KEY);
+      addEdge(CACHE_KEY, "response", "intermediate-bypass");
+    }
+    addEdge(from, "upstream", "agent-bypass");
+    addEdge("upstream", "response");
+  };
+
+  // Sites view only: one node per site, one shared redirect node, and route nodes wired straight to the
+  // downstream of their enabled targets.
+  const routeCountBySiteId = new Map<string, number>();
+  for (const route of input.config?.routes ?? []) {
+    if (route.siteId <= 0n) continue;
+    const key = route.siteId.toString();
+    routeCountBySiteId.set(key, (routeCountBySiteId.get(key) ?? 0) + 1);
+  }
+  const exposedRedirectRoutes = [...new Map([...index.routesByListenerId.values()].flat()
+    .filter(isRedirectRoute)
+    .map((route) => [route.id.toString(), route])).values()];
+  const addSiteNode = (siteId: bigint) => {
+    const site = index.siteById.get(siteId.toString());
+    const label = site?.name || `Site ${siteId.toString()}`;
+    const subLabel = site ? siteSubLabel(site, routeCountBySiteId.get(siteId.toString()) ?? 0) : "Observed";
+    addNode({
+      key: siteKey(siteId),
+      label,
+      subLabel,
+      column: 5,
+      kind: "site",
+      editTargets: [siteEditTarget(siteId, label, subLabel)],
+    });
+  };
+  const addSitesRedirectNode = (route: PublicRoute | undefined) => {
+    addNode({
+      key: SITES_REDIRECT_KEY,
+      label: "Redirect",
+      subLabel: exposedRedirectRoutes.length === 1
+        ? redirectNodeSubLabel(exposedRedirectRoutes[0])
+        : exposedRedirectRoutes.length > 1
+          ? `${exposedRedirectRoutes.length.toString()} routes`
+          : route ? redirectNodeSubLabel(route) : "Observed",
+      column: 6,
+      kind: "redirect",
+      editTargets: route ? [routeEditTarget(route)] : [],
+    });
+  };
+  const addSitesRouteEdges = (from: string, route: PublicRoute) => {
+    if (isRedirectRoute(route)) {
+      addSitesRedirectNode(route);
+      addEdge(from, SITES_REDIRECT_KEY);
+      addEdge(SITES_REDIRECT_KEY, "response", "intermediate-bypass");
+      return;
+    }
+    const assignments = routeTargetAssignments(route, index).filter((target) => target.enabled);
+    if (!assignments.length) {
+      addEdge(from, "response", "agent-bypass");
+      return;
+    }
+    for (const target of assignments) addTargetDownstream(from, target);
+  };
 
   if (showWafNode) {
     addNode({
@@ -181,7 +296,9 @@ export function buildTrafficFlowGraph(input: {
         editTargets: defaultRoute ? [routeEditTarget(defaultRoute)] : [],
       });
       addEdge(routeEntryKey, defaultRouteKey);
-      if (defaultRoute && isRedirectRoute(defaultRoute)) {
+      if (sitesView && defaultRoute) {
+        addSitesRouteEdges(defaultRouteKey, defaultRoute);
+      } else if (defaultRoute && isRedirectRoute(defaultRoute)) {
         addRedirectNode(defaultRoute, addNode);
         addEdge(defaultRouteKey, redirectKey(defaultRoute.id));
         addEdge(redirectKey(defaultRoute.id), "response", "intermediate-bypass");
@@ -196,6 +313,13 @@ export function buildTrafficFlowGraph(input: {
 
     for (const route of listenerRoutes) {
       if (route.isDefault && route.siteId === 0n) continue;
+      if (sitesView && route.siteId > 0n) {
+        const key = siteKey(route.siteId);
+        addSiteNode(route.siteId);
+        addEdge(routeEntryKey, key);
+        addSitesRouteEdges(key, route);
+        continue;
+      }
       const key = routeKey(route.id);
       const siteName = index.siteById.get(route.siteId.toString())?.name;
       addNode({
@@ -207,7 +331,9 @@ export function buildTrafficFlowGraph(input: {
         editTargets: [routeEditTarget(route)],
       });
       addEdge(routeEntryKey, key);
-      if (isRedirectRoute(route)) {
+      if (sitesView) {
+        addSitesRouteEdges(key, route);
+      } else if (isRedirectRoute(route)) {
         addRedirectNode(route, addNode);
         addEdge(key, redirectKey(route.id));
         addEdge(redirectKey(route.id), "response", "intermediate-bypass");
@@ -222,7 +348,7 @@ export function buildTrafficFlowGraph(input: {
     }
   }
 
-  for (const target of targets) {
+  for (const target of sitesView ? [] : targets) {
     const key = targetKey(target.id);
     const isStatic = target.targetType === PublicRouteTargetType.STATIC;
     const isAgentTarget = target.transport === PublicRouteTargetTransport.AGENT;
@@ -234,61 +360,18 @@ export function buildTrafficFlowGraph(input: {
       kind: "target",
       editTargets: [targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, isStatic ? "Static" : isAgentTarget ? "Agent selected" : "Direct")],
     });
-
-    if (isStatic) {
-      addStaticNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Static"));
-      addEdge(key, "static-response", "agent-bypass");
-      addEdge("static-response", "response");
-      continue;
-    }
-
-    if (isAgentTarget) {
-      const matchedAgents = agentsMatchingTarget(target, input.config?.agents ?? []);
-      if (matchedAgents.length) {
-        for (const agent of matchedAgents) {
-          const agentNodeKey = agentKey(agent.id);
-          addNode({
-            key: agentNodeKey,
-            label: agent.name || `Agent ${agent.id.toString()}`,
-            subLabel: agent.publicId,
-            column: 8,
-            kind: "agent",
-            agentStatus: agentNodeStatus(agent),
-            editTargets: [agentEditTarget(agent.id, agent.name || `Agent ${agent.id.toString()}`, agent.publicId)],
-          });
-          addUpstreamNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Agent selected"));
-          if (showCacheNode) {
-            addEdge(key, CACHE_KEY);
-            addEdge(CACHE_KEY, "response", "intermediate-bypass");
-          }
-          addEdge(key, agentNodeKey);
-          addEdge(agentNodeKey, "upstream");
-          addEdge("upstream", "response");
-        }
-      } else {
-        if (showCacheNode) {
-          addEdge(key, CACHE_KEY);
-          addEdge(CACHE_KEY, "response", "agent-bypass");
-        }
-        addEdge(key, "response", "agent-bypass");
-      }
-      continue;
-    }
-
-    addUpstreamNode(addNode, targetEditTarget(target.id, target.name || `Target ${target.id.toString()}`, "Direct"));
-    if (showCacheNode) {
-      addEdge(key, CACHE_KEY);
-      addEdge(CACHE_KEY, "response", "intermediate-bypass");
-    }
-    addEdge(key, "upstream", "agent-bypass");
-    addEdge("upstream", "response");
+    addTargetDownstream(key, target);
   }
 
   for (const request of input.requests) {
-    addObservedNodes(request, addNode, index);
+    addObservedNodes(request, addNode, index, sitesView ? { addSiteNode, addRedirectNode: addSitesRedirectNode } : null);
     const path = input.requestPath(request).path;
+    // The node a target's downstream edges start from: the target itself, or its route/site in the Sites view.
+    const targetSourceKey = request.routeTargetId <= 0n
+      ? ""
+      : sitesView ? sitesViewRouteNodeKey(request, index) : targetKey(request.routeTargetId);
     for (let index = 0; index < path.length - 1; index += 1) {
-      addEdge(path[index], path[index + 1], routeForRequestSegment(request, path[index], path[index + 1]));
+      addEdge(path[index], path[index + 1], routeForRequestSegment(path[index], path[index + 1], request, targetSourceKey));
     }
   }
 
@@ -316,6 +399,12 @@ export function buildTrafficFlowGraph(input: {
     byColumn.set(node.column, group);
   }
 
+  // The Sites view closes the gaps left by columns it doesn't use (targets, unused policy stages).
+  const usedColumns = [...byColumn.keys()].sort((a, b) => a - b);
+  const columnX = (column: number) => sitesView
+    ? COLUMN_X[usedColumns.indexOf(column)] ?? COLUMN_X[0]
+    : COLUMN_X[column] ?? COLUMN_X[0];
+
   const positioned: DiagramNode[] = [];
   for (const [column, group] of byColumn.entries()) {
     group.sort((a, b) => kindOrder(a.kind) - kindOrder(b.kind) || a.label.localeCompare(b.label));
@@ -323,7 +412,7 @@ export function buildTrafficFlowGraph(input: {
       const centerY = node.key === CACHE_KEY ? CACHE_SIDE_CENTER_Y : yPosition(index, group.length);
       positioned.push({
         ...node,
-        x: COLUMN_X[column] ?? COLUMN_X[0],
+        x: columnX(column),
         y: centerY - NODE_HEIGHT / 2,
       });
     });
@@ -414,10 +503,16 @@ export function cacheTonePriority(tone: CacheNodeTone): number {
   }
 }
 
+type SitesViewNodeBuilders = {
+  addSiteNode: (siteId: bigint) => void;
+  addRedirectNode: (route: PublicRoute | undefined) => void;
+};
+
 function addObservedNodes(
   request: TraceRequest,
   addNode: (node: DiagramNodeInput) => void,
   index: TrafficFlowConfigIndex,
+  sites: SitesViewNodeBuilders | null,
 ) {
   if (requestUsesWafNode(request, index)) {
     addNode({
@@ -482,16 +577,23 @@ function addObservedNodes(
   }
 
   if (request.routeId > 0n) {
-    addNode({
-      key: routeKey(request.routeId),
-      label: request.routeLabel || `Route ${request.routeId.toString()}`,
-      subLabel: "Observed",
-      column: 5,
-      kind: "route",
-      editTargets: [routeEditTargetByID(request.routeId, request.routeLabel || `Route ${request.routeId.toString()}`, "Observed")],
-    });
     const route = routeConfigForRequest(request, index);
-    if (route && isRedirectRoute(route)) addRedirectNode(route, addNode);
+    if (sites && route && route.siteId > 0n) {
+      sites.addSiteNode(route.siteId);
+    } else {
+      addNode({
+        key: routeKey(request.routeId),
+        label: request.routeLabel || `Route ${request.routeId.toString()}`,
+        subLabel: "Observed",
+        column: 5,
+        kind: "route",
+        editTargets: [routeEditTargetByID(request.routeId, request.routeLabel || `Route ${request.routeId.toString()}`, "Observed")],
+      });
+    }
+    if (route && isRedirectRoute(route)) {
+      if (sites) sites.addRedirectNode(route);
+      else addRedirectNode(route, addNode);
+    }
   } else if (request.defaultRoute && request.listenerId > 0n) {
     addNode({
       key: listenerDefaultRouteKey(request.listenerId),
@@ -506,7 +608,7 @@ function addObservedNodes(
   }
 
   const selectedTargetId = requestTargetID(request);
-  if (selectedTargetId > 0n) {
+  if (selectedTargetId > 0n && !sites) {
     addNode({
       key: targetKey(selectedTargetId),
       label: requestTargetLabel(request),
@@ -538,13 +640,12 @@ function addObservedNodes(
   }
 }
 
-function routeForRequestSegment(request: TraceRequest, from: string, to: string): DiagramEdgeRoute {
+function routeForRequestSegment(from: string, to: string, request: TraceRequest, targetSourceKey: string): DiagramEdgeRoute {
   if (from.startsWith("redirect:") && to === "response") return "intermediate-bypass";
   if (from === RATE_LIMIT_KEY && to === "response") return "intermediate-bypass";
   if (from === TRAFFIC_SHAPER_KEY && to === "response") return "intermediate-bypass";
   if (from === CACHE_KEY && to === "response") return "intermediate-bypass";
-  const targetNode = request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "";
-  if (from !== targetNode) return "default";
+  if (!targetSourceKey || from !== targetSourceKey) return "default";
   if (to === CACHE_KEY) return "default";
   if (request.agentId > 0n) return "default";
   if (to === "static-response" || to === "upstream" || to === "response") return "agent-bypass";
@@ -598,7 +699,7 @@ function bypassBoundsForEdge(layout: TrafficFlowGraph, edge: DiagramEdge): Bound
   if (edge.route === "intermediate-bypass") {
     return boundsForNodes(layout.nodes.filter((node) => {
       if (node.key === edge.from || node.key === edge.to) return false;
-      return node.kind === "route" || node.kind === "target" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
+      return node.kind === "route" || node.kind === "site" || node.kind === "target" || node.kind === "redirect" || node.kind === "agent" || node.kind === "upstream";
     }));
   }
   return null;
@@ -836,6 +937,7 @@ function kindOrder(kind: TrafficNodeKind): number {
     case "waf": return 2;
     case "rate-limit": return 3;
     case "traffic-shaper": return 4;
+    case "site": return 4.5;
     case "route": return 5;
     case "target": return 6;
     case "redirect": return 6;
@@ -850,6 +952,22 @@ function kindOrder(kind: TrafficNodeKind): number {
 function routeLabel(hostPattern: string, pathPrefix: string, id: bigint): string {
   const parts = [hostPattern, pathPrefix].filter(Boolean);
   return parts.length ? parts.join(" ") : `Route ${id.toString()}`;
+}
+
+function siteSubLabel(site: PublicSite, routeCount: number): string {
+  const routes = `${routeCount.toString()} ${routeCount === 1 ? "route" : "routes"}`;
+  const host = site.defaultSite
+    ? "Any hostname"
+    : site.canonicalHostname || primaryOrFirstHost(site.hosts ?? []);
+  return [routes, host].filter(Boolean).join(" · ");
+}
+
+function primaryOrFirstHost(hosts: PublicSite["hosts"]): string {
+  return (hosts.find((item) => item.primary) ?? hosts[0])?.hostnamePattern ?? "";
+}
+
+function siteEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {
+  return { kind: "site", id: id.toString(), label, subLabel };
 }
 
 function listenerEditTarget(id: bigint | string | number, label: string, subLabel?: string): TrafficFlowEditTarget {

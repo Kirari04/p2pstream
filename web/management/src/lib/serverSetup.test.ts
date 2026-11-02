@@ -14,3 +14,10 @@ test('a missing or legacy server recipe cannot fabricate an install command', ()
   expect(serverSetupCommand('sudo ./scripts/install-server-updater.sh', defaults)).toBe('');
   expect(serverSetupCommand(recipe, defaults)).toContain('v2.3.4 --\n');
 });
+
+test('one-line installer preserves release bindings and shell-safe custom arguments', () => {
+  const recipe = "(set -o pipefail; curl -fsSL 'https://github.com/server/repository/releases/download/v2.3.4/setup-server-updater.sh' | sudo sh -s -- 'server/repository@v2.3.4' 'server-id' 'manifest-sha' 'arm64' --migrate-deployment --COMPOSE_OPTIONS--)";
+  const command = serverSetupCommand(recipe, { project: "prod 'west'", files: "compose.yaml\nprod 'quoted' $(touch never).yaml", envFiles: '.env.prod', directory: '/srv/my deployment' });
+  expect(command).toBe("(set -o pipefail; curl -fsSL 'https://github.com/server/repository/releases/download/v2.3.4/setup-server-updater.sh' | sudo sh -s -- 'server/repository@v2.3.4' 'server-id' 'manifest-sha' 'arm64' --migrate-deployment -- -p 'prod '\\''west'\\''' -f 'compose.yaml' -f 'prod '\\''quoted'\\'' $(touch never).yaml' --env-file '.env.prod' --project-directory '/srv/my deployment')");
+  expect(command).not.toMatch(/[\r\n]/);
+});

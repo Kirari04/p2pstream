@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NButton, NModal } from "naive-ui";
-import { modalCardStyle } from "@/lib/naiveUi";
+import { modalCardStyle, modalScrollableContentStyle } from "@/lib/naiveUi";
 import type { TrafficFlowEditRequest, TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 
 defineProps<{
@@ -26,6 +26,8 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
   switch (kind) {
     case "listener":
       return "Listener";
+    case "site":
+      return "Site";
     case "route":
       return "Route";
     case "target":
@@ -50,8 +52,9 @@ function kindLabel(kind: TrafficFlowEditTarget["kind"]): string {
   <NModal
     :show="modelValue"
     preset="card"
-    :title="request ? `Edit ${request.nodeLabel}` : 'Edit Settings'"
+    :title="request ? `Edit ${request.nodeLabel}` : 'Edit settings'"
     :style="modalCardStyle('34rem')"
+    :content-style="modalScrollableContentStyle()"
     :bordered="false"
     @update:show="emit('update:modelValue', $event)"
   >

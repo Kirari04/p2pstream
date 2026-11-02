@@ -71,11 +71,46 @@ func TestPublicPathDotScanSplitEquivalence(t *testing.T) {
 			if got := containsPublicPathDotSegment(tc.path); got != tc.want {
 				t.Fatalf("candidate = %v, want %v", got, tc.want)
 			}
-			// A manually built request makes this check cover arbitrary decoded
-			// bytes without asking URL parsing to accept invalid UTF-8 or NUL.
+			// Build URL.Path directly so invalid UTF-8 and NUL are covered
+			// independently of what a URL parser accepts. The classifier also
+			// inspects decoded escapes and backslash-separated traversal.
+			wantClassified := tc.want
+			switch tc.name {
+			case "literal_percent_dots", "literal_percent_separators", "literal_backslash":
+				wantClassified = true
+			}
 			r := &http.Request{URL: &url.URL{Path: tc.path}, RequestURI: tc.path}
-			if got := classifyPublicRequestPath(r).DecodedDotSegment; got != tc.want {
-				t.Fatalf("decoded path classification = %v, want %v", got, tc.want)
+			issues := classifyPublicRequestPath(r)
+			if issues.DecodedDotSegment != wantClassified {
+				t.Fatalf("decoded path classification = %v, want %v", issues.DecodedDotSegment, wantClassified)
+			}
+			if issues.NUL != strings.ContainsRune(tc.path, 0) {
+				t.Fatalf("NUL classification = %v for %q", issues.NUL, tc.path)
+			}
+		})
+	}
+}
+
+func TestPublicPathClassificationRepresentationAgreement(t *testing.T) {
+	// No individual representation can conceal traversal present in another,
+	// even if a manually assembled request has a RawPath Go would discard.
+	for _, representation := range []string{"path", "raw_path", "request_uri"} {
+		t.Run(representation, func(t *testing.T) {
+			r := &http.Request{URL: &url.URL{Path: "/safe/file"}, RequestURI: "/safe/file"}
+			switch representation {
+			case "path":
+				r.URL.Path = "/safe/../admin"
+			case "raw_path":
+				r.URL.RawPath = "/safe/%2e%2e/admin"
+			case "request_uri":
+				r.RequestURI = "/safe/%252e%252e/admin"
+			}
+			beforeURL, beforeURI := *r.URL, r.RequestURI
+			if !classifyPublicRequestPath(r).DecodedDotSegment {
+				t.Fatal("representation discrepancy hid traversal")
+			}
+			if *r.URL != beforeURL || r.RequestURI != beforeURI {
+				t.Fatal("classification changed the original request")
 			}
 		})
 	}

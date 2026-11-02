@@ -16,7 +16,7 @@ Use this on a new installation, after restoring an empty database, or when you n
 ## Steps
 
 :::warning 5-minute setup window
-The **Setup Admin** form is only available for 5 minutes after server start when no users exist. If you miss the window, restart the server to reopen it:
+The **Setup admin** form is only available for 5 minutes after server start when no users exist. If you miss the window, restart the server to reopen it:
 
 ```bash
 docker compose restart p2pstream
@@ -25,10 +25,10 @@ docker compose restart p2pstream
 
 1. Open the management URL in a browser.
 2. Include the setup token in the URL, for example `https://your-server:8081/?setup_token=<token>`.
-3. On **Setup Admin**, create the primary administrator account.
+3. On **Setup admin**, create the primary administrator account.
 4. Use a username with 3 to 64 lowercase letters, numbers, underscores, or hyphens.
 5. Use a password with at least 12 characters.
-6. Log in and open **Overview**, then use **Proxy -> Listeners** to configure public endpoints and **Proxy -> Sites** to manage hostnames, listener assignments, routes, and route targets. New Sites stay as drafts until you publish them.
+6. Log in and open **Overview**, then use **Proxy -> Listeners** to configure public endpoints and **Proxy -> Sites** to manage hostnames, listener assignments, routes, and route targets. New sites stay as drafts until you publish them.
 
 ## Runtime Rules
 
@@ -45,8 +45,8 @@ docker compose restart p2pstream
 After login, the **Overview** dashboard should load with live proxy status, request totals, and traffic trends. The sidebar is grouped as follows:
 
 - **Observe**: **Overview** and **Monitor**, with **Traffic** and **Diagnostics** under Monitor.
-- **Configure**: **Proxy**, with **Sites** and **Listeners**, plus **Agents**, **Traffic Policy**, **Templates**, and **TLS**. Routes are managed inside their Site. Traffic Policy contains separate **Rate Limits**, **WAF**, **Access**, **Cache**, **Retries**, and **Traffic Shaper** tabs.
-- **System**: **Environments** and **API Tokens**.
+- **Configure**: **Proxy**, with **Sites** and **Listeners**, plus **Agents**, **Traffic policy**, **Templates**, and **TLS**. Routes are managed inside their site. Traffic policy contains separate **Rate limits**, **WAF**, **Access**, **Cache**, **Retries**, and **Traffic shaper** tabs.
+- **System**: **Environments** and **API tokens**.
 
 <figure class="doc-screenshot">
   <img src="../assets/new/first_login_setup_admin.png" alt="p2pstream Setup Admin screen showing setup token, username, password, and confirm password fields">

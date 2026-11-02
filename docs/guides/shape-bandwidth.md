@@ -13,11 +13,11 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
 
 ## Steps
 
-1. Open **Traffic Policy -> Traffic Shaper** and select **Add Traffic Shaper**.
+1. Open **Traffic policy -> Traffic shaper** and select **Add traffic shaper**.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper page showing its separate tab, rule filters, and compact rule table">
-     <figcaption>Traffic Shaper and Cache are separate Traffic Policy tabs. The execution-order strip shows shaping before route resolution and cache after route-target selection.</figcaption>
+     <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic policy Traffic shaper page showing its separate tab, rule filters, and compact rule table">
+     <figcaption>Traffic shaper and Cache are separate Traffic policy tabs. The execution-order strip shows shaping before route resolution and cache after route-target selection.</figcaption>
    </figure>
 
 2. Match the traffic. Example for a downloads path:
@@ -67,7 +67,7 @@ Use traffic shaping for large uploads, public file downloads, or protecting smal
    :::
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream Edit Traffic Shaper drawer showing WebSocket request scope, per-key scope, KiB bandwidth budgets, CEL match, and key parts">
+  <img src="../assets/new/edit_traffic_shaper.png" alt="p2pstream Edit Traffic shaper drawer showing WebSocket request scope, per-key scope, KiB bandwidth budgets, CEL match, and key parts">
   <figcaption>The traffic-shaper drawer defines which request protocols are slowed, whether budgets are shared per key or per request, and the upload, download, burst, and free-data amounts in KiB.</figcaption>
 </figure>
 

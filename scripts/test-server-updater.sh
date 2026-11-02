@@ -7,6 +7,7 @@ set -Eeuo pipefail
 repo_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_dir"
 command -v docker >/dev/null
+command -v timeout >/dev/null
 [[ $(docker info --format '{{.OSType}}') == linux ]] || {
   echo "The server updater rehearsal requires a Linux Docker engine." >&2
   exit 1
@@ -28,8 +29,8 @@ baseline_version=v0.1.53-staging.9000
 candidate_version=v0.1.53-staging.9001
 baseline_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 candidate_commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-dind_image=docker:28.3.3-dind
-registry_image=registry:2
+dind_image=docker:28.3.3-dind@sha256:a56b3bdde89315ed2cc0e4906e582b5033d93bf20d9cb9510c2cdd4e7f7690b1
+registry_image=registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
 
 cleanup() {
   local result=$?
@@ -52,6 +53,9 @@ cleanup() {
       [[ $result -ne 0 ]] || result=1
     }
     docker cp "$daemon:/etc/p2pstream-server-updater/helper-failure.log" "$artifact_dir/helper-failure.log" >>"$artifact_dir/collect.log" 2>&1 || true
+    # This small summary is safe for handoff. The existing full guest diagnostics
+    # remain private and are not a sanitized qualification report.
+    docker cp "$daemon:/review/lifecycle/summary.json" "$artifact_dir/lifecycle-summary.json" >>"$artifact_dir/collect.log" 2>&1 || true
     docker rm --force --volumes "$daemon" >"$artifact_dir/cleanup.log" 2>&1 || {
       echo "Could not remove disposable daemon $daemon; remove it manually." >&2
       [[ $result -ne 0 ]] || result=1
@@ -109,8 +113,31 @@ docker cp scripts/test-server-updater-docker.py "$daemon:/review/test-server-upd
 docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" "$registry_image" \
   | guest docker load >"$artifact_dir/load-images.log"
 
-# Use precisely the Compose executable shipped in the tested updater. Enrolled
-# config hashes differ between Compose versions even for equivalent models.
+# Use a genuinely different, checksum-pinned upstream Compose release for
+# operator compatibility checks. The daemon image currently ships the same
+# version as our updater, so retaining its plugin would not test this boundary.
+# Checksums: https://github.com/docker/compose/releases/download/v2.39.1/checksums.txt
+native_compose_release=2.39.1
+case $(guest uname -m) in
+  x86_64) native_compose_arch=x86_64; native_compose_sha256=a5ea28722d5da628b59226626f7d6c33c89a7ed19e39f750645925242044c9d2 ;;
+  aarch64) native_compose_arch=aarch64; native_compose_sha256=7b2627ed76f7dcb0d93f649f185af912372229b4c09762a3cd1db5be5255632b ;;
+  *) echo "Unsupported native Compose fixture architecture." >&2; exit 1 ;;
+esac
+native_compose_url="https://github.com/docker/compose/releases/download/v$native_compose_release/docker-compose-linux-$native_compose_arch"
+guest mkdir -p /review/native-docker/cli-plugins
+guest wget -q -O /review/native-docker/cli-plugins/docker-compose "$native_compose_url"
+guest python3 - "$native_compose_sha256" <<'PY'
+import hashlib
+from pathlib import Path
+import sys
+assert hashlib.sha256(Path('/review/native-docker/cli-plugins/docker-compose').read_bytes()).hexdigest() == sys.argv[1], 'Native Compose checksum mismatch'
+PY
+guest chmod 0755 /review/native-docker/cli-plugins/docker-compose
+native_compose_version=$(guest docker --config /review/native-docker compose version --short)
+[[ ${native_compose_version#v} == "$native_compose_release" ]] || { echo "Unexpected native Compose version." >&2; exit 1; }
+
+# Use precisely the Compose executable shipped in the tested updater for
+# managed setup and deterministic operation hashes.
 copy_container=$(guest docker create --entrypoint /bin/true "$helper_image")
 guest docker cp "$copy_container:/usr/local/bin/docker" /tmp/review-docker
 guest docker cp "$copy_container:/usr/local/lib/docker/cli-plugins/docker-compose" /tmp/review-compose
@@ -121,6 +148,14 @@ guest mv /tmp/review-compose /usr/local/lib/docker/cli-plugins/docker-compose
 guest chmod 0755 /usr/local/bin/docker /usr/local/lib/docker/cli-plugins/docker-compose
 compose_version=$(guest docker compose version --short)
 [[ ${compose_version#v} == 2.39.2 ]] || { echo "Expected updater Compose 2.39.2, got $compose_version." >&2; exit 1; }
+[[ ${compose_version#v} != "${native_compose_version#v}" ]] || { echo "Native and managed Compose versions must differ." >&2; exit 1; }
+guest python3 - "$compose_version" "$native_compose_version" "$native_compose_url" "$native_compose_sha256" <<'PY'
+import json
+from pathlib import Path
+import sys
+Path('/review/compose-versions.json').write_text(json.dumps({'managed': sys.argv[1], 'native': sys.argv[2], 'native_url': sys.argv[3], 'native_sha256': sys.argv[4]}))
+PY
+echo "Managed Compose $compose_version; native recreation Compose $native_compose_version."
 
 guest docker run --detach --name review-registry --publish 127.0.0.1:80:5000 "$registry_image" >/dev/null
 guest python3 - <<'PY'
@@ -169,11 +204,20 @@ for source in scripts/server-updater-host.py scripts/install-server-updater.sh s
   docker cp "$source" "$daemon:/review/install-bundle/$(basename "$source")"
 done
 docker cp scripts/test-server-install-docker.py "$daemon:/review/test-server-install-docker.py"
+docker cp scripts/test-server-lifecycle-docker.py "$daemon:/review/test-server-lifecycle-docker.py"
 echo "Running release-based installation and host management boundary rehearsal."
 guest python3 -I /review/test-server-install-docker.py 2>&1 | tee "$artifact_dir/installation.log"
 
+# This is source-built qualification against the isolated registry, not the
+# published-pair release gate. Keep that gate pending until two feature-bearing
+# published releases and their verified installation bundles are available.
+echo "Running source-built canonical single-file host lifecycle qualification."
+timeout --signal=TERM --kill-after=30s 45m docker exec -i "$daemon" \
+  python3 -I /review/test-server-lifecycle-docker.py 2>&1 | tee "$artifact_dir/lifecycle.log"
+docker cp "$daemon:/review/lifecycle/summary.json" "$artifact_dir/lifecycle-summary.json"
+
 if [[ ${SERVER_UPDATER_TEST_INSTALL_ONLY:-0} == 1 ]]; then
-  echo "PASS isolated release installation and host management rehearsal."
+  echo "PASS isolated legacy installation and source-built canonical host lifecycle rehearsal."
   exit 0
 fi
 

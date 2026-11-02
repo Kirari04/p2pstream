@@ -14,6 +14,7 @@ type Querier interface {
 	AssignDefaultLocalAccessLoginTemplate(ctx context.Context, localAuthLoginTemplateID sql.NullInt64) (int64, error)
 	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
 	CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error
+	CountAgentUpdateCampaignsFiltered(ctx context.Context, arg CountAgentUpdateCampaignsFilteredParams) (int64, error)
 	CountPublicListeners(ctx context.Context) (int64, error)
 	CountPublicRoutesBySite(ctx context.Context, siteID sql.NullInt64) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
@@ -138,7 +139,16 @@ type Querier interface {
 	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)
 	ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error)
 	ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error)
+	// Campaigns needing operator attention (running/paused, or still owning an
+	// unfinished, cordoned, or rollback-failed assignment) sort first so recovery
+	// controls stay reachable; everything else is newest first. states_csv is a
+	// comma-separated list of validated state names. query is matched as a literal,
+	// ASCII case-insensitive substring; an empty query disables the text filter.
+	ListAgentUpdateCampaignsFiltered(ctx context.Context, arg ListAgentUpdateCampaignsFilteredParams) ([]AgentUpdateCampaign, error)
 	ListAgents(ctx context.Context) ([]Agent, error)
+	// Fleet variant of ListAgentConnectionsSince: one scan for every agent,
+	// grouped by agent so callers can split rows without re-sorting.
+	ListAllAgentConnectionsSince(ctx context.Context, since time.Time) ([]ListAllAgentConnectionsSinceRow, error)
 	ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error)
 	ListEnvironments(ctx context.Context) ([]Environment, error)
 	ListManagementAccessTokens(ctx context.Context) ([]ManagementAccessToken, error)

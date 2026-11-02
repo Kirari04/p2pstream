@@ -392,6 +392,18 @@ func (e *Engine) commit(ctx context.Context, op Operation) error {
 	if err := e.driver.Commit(ctx); err != nil {
 		return err
 	}
+	op.Detail = ""
+	// Retention is maintenance, not an activation condition. Run it only after
+	// the candidate has passed health checks and regained its restart policy.
+	// Keep the operation nonterminal until cleanup finishes so another update
+	// cannot replace the journal while this one is still writing its outcome.
+	if cleaner, ok := e.driver.(interface {
+		CleanupBackups(context.Context, string) error
+	}); ok {
+		if err := cleaner.CleanupBackups(ctx, op.ID); err != nil {
+			op.Detail = "Update completed, but old backup cleanup could not finish: " + err.Error()
+		}
+	}
 	e.mu.Lock()
 	next := e.state
 	r := op.Plan.Release

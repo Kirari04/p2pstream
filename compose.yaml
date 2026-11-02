@@ -3,9 +3,19 @@ services:
     image: ghcr.io/kirari04/p2pstream:latest
     container_name: p2pstream
     restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,mode=1777
     environment:
       CONFIG_DIR: /data
       MANAGEMENT_PORT: "8081"
+      # Default accepts Docker forwarding; preserve explicit operator overrides.
       MANAGEMENT_BIND_ADDRESS: "${MANAGEMENT_BIND_ADDRESS:-0.0.0.0}"
       MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
       MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
@@ -24,7 +34,7 @@ services:
     ports:
       - "${P2PSTREAM_HTTP_PORT:-80}:80"
       - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-      - "${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
+      - "${P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS:-}:${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
     volumes:
       - p2pstream-data:/data
 

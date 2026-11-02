@@ -1052,12 +1052,8 @@ func TestDashboardCacheColdAndRollupOnlyPathsDoNotReadRawEvents(t *testing.T) {
 
 	req := connect.NewRequest(&p2pstreamv1.GetDashboardRequest{})
 	req.Header().Set("Cookie", header.Get("Cookie"))
-	coldResp, err := app.GetDashboard(ctx, req)
-	if err != nil {
-		t.Fatalf("get cold dashboard: %v", err)
-	}
-	if dashboardTestWindow(t, coldResp.Msg.Windows, "5m").ProxyRequests != 0 {
-		t.Fatalf("cold cache should not fall back to raw events: %+v", coldResp.Msg.Windows)
+	if resp, err := app.GetDashboard(ctx, req); connect.CodeOf(err) != connect.CodeUnavailable || resp != nil {
+		t.Fatalf("cold dashboard = %v, %v; want unavailable without a response", resp, err)
 	}
 
 	app.refreshDashboardCache(ctx)

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPartsEditor.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
@@ -58,6 +59,16 @@ const form = reactive({
   match: defaultPolicyMatchForm() as PolicyMatchForm,
   keyParts: [{ source: PublicRateLimitKeySource.REMOTE_IP, name: "" }] as KeyPartForm[],
 });
+
+const budgetScopeOptions = [
+  { label: "Per key", value: PublicTrafficShaperBudgetScope.PER_KEY },
+  { label: "Per request", value: PublicTrafficShaperBudgetScope.PER_REQUEST },
+];
+const protocolScopeOptions = [
+  { label: "All requests", value: PublicTrafficShaperProtocolScope.ALL },
+  { label: "WebSockets only", value: PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY },
+  { label: "Exclude WebSockets", value: PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED },
+];
 
 const keyPartsDisabledReason = computed(() =>
   form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST
@@ -192,17 +203,17 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('60rem')"
-    :aria-label="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'"
+    :aria-label="form.id ? 'Edit traffic shaper' : 'Add traffic shaper'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Traffic Shaper' : 'Add Traffic Shaper'" closable>
+    <NDrawerContent :title="form.id ? 'Edit traffic shaper' : 'Add traffic shaper'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Priority
           <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
@@ -211,85 +222,46 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <section class="layout-grid space-lg">
-        <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="Traffic-shaper budget scope">
-          <NButton
-            attr-type="button"
-            :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY ? 'primary' : 'default'"
-            :aria-pressed="form.budgetScope === PublicTrafficShaperBudgetScope.PER_KEY"
-            @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_KEY"
-          >
-            Per key
-          </NButton>
-          <NButton
-            attr-type="button"
-            :type="form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST ? 'primary' : 'default'"
-            :aria-pressed="form.budgetScope === PublicTrafficShaperBudgetScope.PER_REQUEST"
-            @click="form.budgetScope = PublicTrafficShaperBudgetScope.PER_REQUEST"
-          >
-            Per request
-          </NButton>
-        </NButtonGroup>
+      <section class="editor-group layout-grid space-lg">
+        <div class="layout-row wrap-items align-center spread-items space-md">
+          <h3 class="copy-sm weight-semibold base-text">Bandwidth budget</h3>
+          <SegmentedControl v-model="form.budgetScope" :options="budgetScopeOptions" label="Traffic-shaper budget scope" />
+        </div>
 
-        <div class="layout-grid space-xs">
-          <p class="copy-xs weight-medium label-case letter-wide muted-text">Applies to</p>
-          <NButtonGroup class="layout-grid cols-one mq-sm-cols-three" size="small" role="group" aria-label="Traffic-shaper protocol scope">
-            <NButton
-              attr-type="button"
-              :type="form.protocolScope === PublicTrafficShaperProtocolScope.ALL ? 'primary' : 'default'"
-              :aria-pressed="form.protocolScope === PublicTrafficShaperProtocolScope.ALL"
-              @click="form.protocolScope = PublicTrafficShaperProtocolScope.ALL"
-            >
-              All requests
-            </NButton>
-            <NButton
-              attr-type="button"
-              :type="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY ? 'primary' : 'default'"
-              :aria-pressed="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY"
-              @click="form.protocolScope = PublicTrafficShaperProtocolScope.WEBSOCKET_ONLY"
-            >
-              WebSockets only
-            </NButton>
-            <NButton
-              attr-type="button"
-              :type="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED ? 'primary' : 'default'"
-              :aria-pressed="form.protocolScope === PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED"
-              @click="form.protocolScope = PublicTrafficShaperProtocolScope.WEBSOCKET_EXCLUDED"
-            >
-              Exclude WebSockets
-            </NButton>
-          </NButtonGroup>
-          <p class="copy-xs muted-text">
+        <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Applies to
+          <SegmentedControl v-model="form.protocolScope" :options="protocolScopeOptions" label="Traffic-shaper protocol scope" />
+          <span class="weight-normal muted-text">
             Successful WebSocket upgrades keep separate upload and download shaping for the life of the connection.
-          </p>
+          </span>
         </div>
 
         <div class="layout-grid space-lg mq-sm-cols-five">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Upload KiB/s
             <NInputNumber :show-button="false" v-model:value="form.uploadKibPerSecond" size="small" :min="0" :step="1" />
-            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Client-to-server bandwidth cap.</p>
+            <span class="weight-normal muted-text">Client-to-server bandwidth cap.</span>
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Download KiB/s
             <NInputNumber :show-button="false" v-model:value="form.downloadKibPerSecond" size="small" :min="0" :step="1" />
-            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Server-to-client bandwidth cap.</p>
+            <span class="weight-normal muted-text">Server-to-client bandwidth cap.</span>
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Burst KiB
             <NInputNumber :show-button="false" v-model:value="form.burstKib" size="small" :min="0" :step="1" />
-            <p class="copy-xs weight-normal normal-text letter-normal muted-text">Extra data allowed in a burst before throttling.</p>
+            <span class="weight-normal muted-text">Extra data allowed in a burst before throttling.</span>
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Request free KiB
             <NInputNumber :show-button="false" v-model:value="form.requestFreeKib" size="small" :min="0" :step="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Response free KiB
             <NInputNumber :show-button="false" v-model:value="form.responseFreeKib" size="small" :min="0" :step="1" />
           </label>
         </div>
-        <p class="round-md framed frame-standard muted-bg pad-x-md pad-y-sm copy-xs muted-text">
+        <p class="copy-xs line-normal muted-text">
           A value of 0 leaves that direction unlimited. Free KiB are sent without delay and do not consume the shaper budget.
         </p>
       </section>
@@ -299,10 +271,10 @@ defineExpose({ openCreate, openEdit, close });
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" :disabled-reason="keyPartsDisabledReason" />
 
       <div class="editor-drawer-actions margin-top-sm layout-row align-end-row space-md">
-        <NButton secondary @click="close">Cancel</NButton>
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="shaperSubmitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-            {{ form.id ? 'Save Changes' : 'Create Shaper' }}
+            {{ form.id ? 'Save changes' : 'Create shaper' }}
           </NButton>
         </DisabledHint>
       </div>
@@ -312,15 +284,17 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
-.row-remove-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0 !important;
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
 }
 
-@media (max-width: 720px) {
-  .row-remove-button {
-    width: 100%;
-  }
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
 }
 </style>

@@ -13,11 +13,11 @@ Use rate limits for login forms, expensive API endpoints, public probes, or clie
 
 ## Steps
 
-1. Open **Traffic Policy -> Rate Limits** and select **Add Rate-Limit Rule**.
+1. Open **Traffic policy -> Rate limits** and select **Add rate-limit rule**.
 
    <figure class="doc-screenshot">
-     <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF page showing separate Rate Limits, WAF, Cache, and Traffic Shaper tabs">
-     <figcaption>Rate Limits and WAF are separate Traffic Policy tabs. Both evaluate before route resolution and can reject or challenge a request before it reaches an upstream.</figcaption>
+     <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF page showing separate Rate limits, WAF, Cache, and Traffic shaper tabs">
+     <figcaption>Rate limits and WAF are separate Traffic policy tabs. Both evaluate before route resolution and can reject or challenge a request before it reaches an upstream.</figcaption>
    </figure>
 
 2. Configure the match:

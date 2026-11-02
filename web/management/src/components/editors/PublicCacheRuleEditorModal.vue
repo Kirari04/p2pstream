@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref } from "vue";
-import { NAlert, NButton, NCheckbox, NDrawer, NDrawerContent, NDynamicTags, NInput, NInputNumber, NRadioButton, NRadioGroup, NTransfer } from "naive-ui";
+import { NAlert, NButton, NCheckbox, NDrawer, NDrawerContent, NDynamicTags, NInput, NInputNumber, NRadioButton, NRadioGroup, NTag, NTransfer } from "naive-ui";
 import type { TransferOption } from "naive-ui";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
@@ -436,17 +436,17 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('64rem')"
-    :aria-label="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'"
+    :aria-label="form.id ? 'Edit cache rule' : 'Add cache rule'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit Cache Rule' : 'Add Cache Rule'" closable>
+    <NDrawerContent :title="form.id ? 'Edit cache rule' : 'Add cache rule'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Priority
           <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
@@ -457,123 +457,115 @@ defineExpose({ openCreate, openEdit, close });
 
       <PublicPolicyMatchEditor :form="form.match" />
 
-      <section class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
-        <h4 class="copy-sm weight-semibold base-text">Cache behavior</h4>
-        <p class="copy-xs line-normal muted-text">
-          Authorization and Cookie requests always bypass shared cache. Responses with Set-Cookie, no-store, private, or no-cache are never cached.
-        </p>
+      <section class="editor-group layout-grid space-lg">
+        <div class="layout-grid space-2xs">
+          <h3 class="copy-sm weight-semibold base-text">Cache behavior</h3>
+          <p class="copy-xs line-normal muted-text">
+            Authorization and Cookie requests always bypass shared cache. Responses with Set-Cookie, private, no-store, no-cache, Vary: Cookie, or Vary: Authorization are never stored.
+          </p>
+        </div>
         <div class="layout-grid space-lg mq-sm-cols-four">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             TTL mode
             <AccessibleSelect v-model:value="form.ttlMode" accessible-label="TTL mode" size="small" :options="ttlModeOptions" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Default TTL minutes
             <NInputNumber :show-button="false" v-model:value="form.ttlMinutes" size="small" :min="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Scope
             <AccessibleSelect v-model:value="form.scope" accessible-label="Cache scope" size="small" :options="scopeOptions" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Max object MiB
             <NInputNumber :show-button="false" v-model:value="form.maxObjectMiB" size="small" :min="1" />
           </label>
         </div>
-        <p class="copy-xs line-normal muted-text">
-          Responses with Set-Cookie, private/no-store/no-cache, Vary: Cookie, or Vary: Authorization are never stored.
-        </p>
       </section>
 
-      <section class="cache-filter-section">
+      <section class="editor-group layout-grid space-lg">
         <div class="cache-filter-header">
-          <div>
-            <h4 class="copy-sm weight-semibold base-text">Keys and filters</h4>
-            <p class="margin-top-xs copy-xs line-normal muted-text">Empty route or target filters match every available target.</p>
+          <div class="layout-grid space-2xs min-width-zero">
+            <h3 class="copy-sm weight-semibold base-text">Keys and filters</h3>
+            <p class="copy-xs line-normal muted-text">Empty route or target filters match every available target.</p>
           </div>
           <div class="cache-summary-chips" aria-label="Cache key summary">
-            <span class="cache-summary-chip">{{ filterSelectionSummary }}</span>
-            <span class="cache-summary-chip">{{ queryModeSummary }}</span>
-            <span class="cache-summary-chip">{{ normalizedVaryHeaders.length.toString() }} vary</span>
-            <span class="cache-summary-chip">{{ normalizedCacheStatusCodes.length.toString() }} status</span>
-            <span class="cache-summary-chip">{{ cacheScopeLabel(form.scope) }}</span>
+            <NTag size="small" :bordered="false">{{ filterSelectionSummary }}</NTag>
+            <NTag size="small" :bordered="false">{{ queryModeSummary }}</NTag>
+            <NTag size="small" :bordered="false">{{ normalizedVaryHeaders.length.toString() }} vary</NTag>
+            <NTag size="small" :bordered="false">{{ normalizedCacheStatusCodes.length.toString() }} status</NTag>
+            <NTag size="small" :bordered="false">{{ cacheScopeLabel(form.scope) }}</NTag>
           </div>
         </div>
 
         <NAlert
           v-if="unavailableRouteIds.length || unavailableTargetIds.length"
           type="warning"
+          :bordered="false"
           title="Saved scope contains unavailable entries"
         >
           One or more routes or targets were removed after this rule was saved. Remove the entries marked unavailable below before saving.
         </NAlert>
 
-        <div class="target-grid">
-          <div class="target-panel">
-            <div class="target-panel-head">
-              <div class="min-width-zero">
-                <p class="panel-eyebrow">Routes</p>
-                <h5 class="panel-heading">{{ routeSelectionSummary }}</h5>
-              </div>
-            </div>
-            <p v-if="routeSelectionValidationReason" class="field-error">{{ routeSelectionValidationReason }}</p>
-            <NTransfer
-              :value="form.routeIds"
-              :options="routeTransferOptions"
-              source-title="Available routes"
-              target-title="Filtered routes"
-              select-all-text="Select available"
-              clear-text="Clear selected"
-              source-filterable
-              target-filterable
-              virtual-scroll
-              size="small"
-              :filter="transferFilter"
-              @update:value="updateRouteIds"
-            />
+        <div class="cache-field">
+          <div class="cache-field-head">
+            <span class="copy-xs weight-medium muted-text">Routes</span>
+            <span class="copy-xs muted-text">{{ routeSelectionSummary }}</span>
           </div>
-
-          <div class="target-panel">
-            <div class="target-panel-head">
-              <div class="min-width-zero">
-                <p class="panel-eyebrow">Targets</p>
-                <h5 class="panel-heading">{{ targetSelectionSummary }}</h5>
-              </div>
-            </div>
-            <p v-if="targetSelectionValidationReason" class="field-error">{{ targetSelectionValidationReason }}</p>
-            <NTransfer
-              :value="form.targetIds"
-              :options="targetTransferOptions"
-              source-title="Available targets"
-              target-title="Filtered targets"
-              select-all-text="Select available"
-              clear-text="Clear selected"
-              source-filterable
-              target-filterable
-              virtual-scroll
-              size="small"
-              :filter="transferFilter"
-              @update:value="updateTargetIds"
-            />
-          </div>
+          <p v-if="routeSelectionValidationReason" class="field-error">{{ routeSelectionValidationReason }}</p>
+          <NTransfer
+            :value="form.routeIds"
+            :options="routeTransferOptions"
+            source-title="Available routes"
+            target-title="Filtered routes"
+            select-all-text="Select available"
+            clear-text="Clear selected"
+            source-filterable
+            target-filterable
+            virtual-scroll
+            size="small"
+            :filter="transferFilter"
+            @update:value="updateRouteIds"
+          />
         </div>
 
-        <div class="query-mode-panel">
-          <div class="query-mode-head">
-            <p class="panel-eyebrow">Query mode</p>
-            <h5 class="panel-heading">{{ queryModeSummary }}</h5>
+        <div class="cache-field">
+          <div class="cache-field-head">
+            <span class="copy-xs weight-medium muted-text">Targets</span>
+            <span class="copy-xs muted-text">{{ targetSelectionSummary }}</span>
+          </div>
+          <p v-if="targetSelectionValidationReason" class="field-error">{{ targetSelectionValidationReason }}</p>
+          <NTransfer
+            :value="form.targetIds"
+            :options="targetTransferOptions"
+            source-title="Available targets"
+            target-title="Filtered targets"
+            select-all-text="Select available"
+            clear-text="Clear selected"
+            source-filterable
+            target-filterable
+            virtual-scroll
+            size="small"
+            :filter="transferFilter"
+            @update:value="updateTargetIds"
+          />
+        </div>
+
+        <div class="cache-field">
+          <div class="cache-field-head">
+            <span class="copy-xs weight-medium muted-text">Query mode</span>
+            <span class="copy-xs muted-text">{{ queryModeSummary }}</span>
           </div>
           <NRadioGroup v-model:value="form.queryMode" class="fill-width" name="cache-query-mode" size="small">
             <NRadioButton v-for="option in queryModeOptions" :key="option.value" :value="option.value" :label="option.label" />
           </NRadioGroup>
         </div>
 
-        <div v-if="queryParamsEditorVisible" class="value-editor">
-          <div class="value-editor-head">
-            <div class="min-width-zero">
-              <p class="panel-eyebrow">Query params</p>
-              <h5 class="panel-heading">{{ normalizedQueryParams.length.toString() }} active</h5>
-            </div>
+        <div v-if="queryParamsEditorVisible" class="cache-field">
+          <div class="cache-field-head">
+            <span class="copy-xs weight-medium muted-text">Query params</span>
+            <span class="copy-xs muted-text">{{ normalizedQueryParams.length.toString() }} active</span>
           </div>
           <p v-if="queryParamsValidationReason" class="field-error">{{ queryParamsValidationReason }}</p>
           <NDynamicTags
@@ -587,12 +579,10 @@ defineExpose({ openCreate, openEdit, close });
         </div>
 
         <div class="value-editor-grid">
-          <div class="value-editor">
-            <div class="value-editor-head">
-              <div class="min-width-zero">
-                <p class="panel-eyebrow">Vary headers</p>
-                <h5 class="panel-heading">{{ normalizedVaryHeaders.length.toString() }} active</h5>
-              </div>
+          <div class="cache-field">
+            <div class="cache-field-head">
+              <span class="copy-xs weight-medium muted-text">Vary headers</span>
+              <span class="copy-xs muted-text">{{ normalizedVaryHeaders.length.toString() }} active</span>
             </div>
             <p v-if="varyHeadersValidationReason" class="field-error">{{ varyHeadersValidationReason }}</p>
             <NDynamicTags
@@ -605,12 +595,10 @@ defineExpose({ openCreate, openEdit, close });
             />
           </div>
 
-          <div class="value-editor">
-            <div class="value-editor-head">
-              <div class="min-width-zero">
-                <p class="panel-eyebrow">Cache status codes</p>
-                <h5 class="panel-heading">{{ normalizedCacheStatusCodes.length.toString() }} active</h5>
-              </div>
+          <div class="cache-field">
+            <div class="cache-field-head">
+              <span class="copy-xs weight-medium muted-text">Cache status codes</span>
+              <span class="copy-xs muted-text">{{ normalizedCacheStatusCodes.length.toString() }} active</span>
             </div>
             <p v-if="cacheStatusCodesValidationReason" class="field-error">{{ cacheStatusCodesValidationReason }}</p>
             <NDynamicTags
@@ -624,18 +612,18 @@ defineExpose({ openCreate, openEdit, close });
           </div>
         </div>
 
-        <NCheckbox v-model:checked="form.addCacheStatusHeader" class="cache-status-toggle">
-          <span class="min-width-zero">
-            <span class="toggle-title">Expose cache status</span>
-            <span class="toggle-detail">X-p2pstream-Cache response header</span>
+        <NCheckbox v-model:checked="form.addCacheStatusHeader">
+          <span class="layout-grid space-2xs">
+            <span class="copy-sm base-text">Expose cache status</span>
+            <span class="copy-xs muted-text">Adds the <span class="mono-text">X-p2pstream-Cache</span> response header</span>
           </span>
         </NCheckbox>
       </section>
 
-      <div class="editor-drawer-actions layout-row align-end-row space-md divider-top frame-standard pad-top-lg">
+      <div class="editor-drawer-actions layout-row align-end-row space-md">
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <NButton type="primary" attr-type="submit" :disabled="submitDisabled" :title="submitDisabledReason">
-          {{ form.id ? 'Save Rule' : 'Create Rule' }}
+          {{ form.id ? 'Save rule' : 'Create rule' }}
         </NButton>
       </div>
     </form>
@@ -644,22 +632,30 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
-.cache-filter-section {
-  display: grid;
-  gap: 1rem;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 1rem;
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
 }
 
 .cache-filter-header,
-.target-panel-head,
-.value-editor-head {
+.cache-field-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.85rem;
+  gap: 0.75rem;
+}
+
+.cache-field-head {
+  align-items: baseline;
 }
 
 .cache-summary-chips {
@@ -667,108 +663,25 @@ defineExpose({ openCreate, openEdit, close });
   max-width: 100%;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.35rem;
+  gap: 0.375rem;
 }
 
-.cache-summary-chip {
-  min-height: 1.6rem;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-panel-muted);
-  color: var(--app-text);
-  padding: 0.25rem 0.55rem;
-  font-size: 0.68rem;
-  font-weight: 650;
-  line-height: 1.1;
-  white-space: nowrap;
-}
-
-.target-grid {
+.cache-field {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+  min-width: 0;
+  gap: 0.5rem;
 }
 
 .value-editor-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.target-panel,
-.query-mode-panel,
-.value-editor {
-  display: grid;
-  min-width: 0;
-  gap: 0.75rem;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.85rem;
-}
-
-.panel-eyebrow {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.panel-heading {
-  margin-top: 0.18rem;
-  overflow: hidden;
-  color: var(--app-text);
-  font-size: 0.92rem;
-  font-weight: 650;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.query-mode-head {
-  min-width: 0;
+  gap: 1.25rem;
 }
 
 .field-error {
   color: var(--app-error);
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.75rem;
   line-height: 1.35;
-}
-
-.cache-status-toggle {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.85rem;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 0.75rem 0.85rem;
-  cursor: pointer;
-}
-
-.toggle-title,
-.toggle-detail {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.toggle-title {
-  color: var(--app-text);
-  font-size: 0.86rem;
-  font-weight: 650;
-}
-
-.toggle-detail {
-  margin-top: 0.15rem;
-  color: var(--app-text-muted);
-  font-size: 0.72rem;
 }
 
 @media (max-width: 860px) {
@@ -783,12 +696,6 @@ defineExpose({ openCreate, openEdit, close });
 
   .value-editor-grid {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 560px) {
-  .cache-status-toggle {
-    align-items: flex-start;
   }
 }
 </style>

@@ -54,24 +54,29 @@ test("configures agent labels and an agent-selected route target", async ({ page
   await moreActions.click();
   await expect(page.getByRole("menuitem", { name: /Disable agent/ })).toBeVisible();
   await page.keyboard.press("Escape");
-  await agentRow.getByText(/Identity & selectors/).click();
-  await expect(agentRow.getByText(`p2pstream.io/agent-id=${agentPublicID}`, { exact: true })).toBeVisible();
-  await agentRow.getByRole("button", { name: /Edit agent/ }).click();
-  await expect(page.getByRole("heading", { name: "Edit Agent", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Add Label" }).click();
+  await agentRow.getByText(/^Details · \d+ label/).click();
+  const detailsDrawer = page.getByRole("dialog", { name: "Agent details", exact: true });
+  await expect(detailsDrawer).toBeVisible();
+  await expect(detailsDrawer.getByText(`p2pstream.io/agent-id=${agentPublicID}`, { exact: true })).toBeVisible();
+  await expect(detailsDrawer.getByText("No user labels", { exact: true })).toBeVisible();
+  await detailsDrawer.getByRole("button", { name: "Edit agent", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Edit agent", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Add label" }).click();
   await page.getByTestId("agent-label-row").nth(0).getByTestId("agent-label-key").fill("site");
   await page.getByTestId("agent-label-row").nth(0).getByTestId("agent-label-value").fill("loopback");
-  await page.getByRole("button", { name: "Add Label" }).click();
+  await page.getByRole("button", { name: "Add label" }).click();
   await page.getByTestId("agent-label-row").nth(1).getByTestId("agent-label-key").fill("role");
   await page.getByTestId("agent-label-row").nth(1).getByTestId("agent-label-value").fill("app");
   await expect(page.getByTestId("agent-system-label")).toContainText(`p2pstream.io/agent-id=${agentPublicID}`);
   await Promise.all([
     page.waitForResponse((response) => response.url().includes("/p2pstream.v1.AgentManagementService/UpdateAgent") && response.status() === 200),
-    page.getByRole("button", { name: "Save Changes" }).click(),
+    page.getByRole("button", { name: "Save changes" }).click(),
   ]);
 
-  await expect(page.getByText("site=loopback", { exact: true })).toBeVisible();
-  await expect(page.getByText("role=app", { exact: true })).toBeVisible();
+  await expect(detailsDrawer.getByText("site=loopback", { exact: true })).toBeVisible();
+  await expect(detailsDrawer.getByText("role=app", { exact: true })).toBeVisible();
+  await detailsDrawer.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(detailsDrawer).toBeHidden();
   cfg = await connectRPC<GetPublicProxyConfigResponse>(page.request, baseURL, "GetPublicProxyConfig", {});
   const labelledAgent = cfg.agents.find((item) => item.publicId === agentPublicID);
   expect(labelledAgent?.labels.site).toBe("loopback");
@@ -89,7 +94,7 @@ test("configures agent labels and an agent-selected route target", async ({ page
   const siteWorkspace = page.getByRole("dialog", { name: "Site workspace", exact: true });
   await expect(siteWorkspace).toBeVisible();
   await siteWorkspace.getByRole("button", { name: "Add route", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Add Route", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Add route", exact: true })).toBeVisible();
   await page.getByLabel("Path prefix").fill(routePath);
   const targetRow = page.getByTestId("route-target-row").first();
   await targetRow.getByLabel("Name").fill(targetName);
@@ -101,7 +106,7 @@ test("configures agent labels and an agent-selected route target", async ({ page
 
   await page.getByTestId("target-selector-row").nth(0).getByTestId("target-selector-key").fill("site");
   await page.getByTestId("target-selector-row").nth(0).getByTestId("target-selector-value").fill("loopback");
-  await page.getByRole("button", { name: "Add Selector" }).click();
+  await page.getByRole("button", { name: "Add selector" }).click();
   await page.getByTestId("target-selector-row").nth(1).getByTestId("target-selector-key").fill("role");
   await page.getByTestId("target-selector-row").nth(1).getByTestId("target-selector-value").fill("app");
   await expect(page.getByTestId("selector-match-preview")).toContainText("Matches 1 enabled agents");
@@ -109,7 +114,7 @@ test("configures agent labels and an agent-selected route target", async ({ page
 
   await Promise.all([
     page.waitForResponse((response) => response.url().includes("/p2pstream.v1.AgentManagementService/CreatePublicRoute") && response.status() === 200),
-    page.getByRole("button", { name: "Create Route" }).click(),
+    page.getByRole("button", { name: "Create route" }).click(),
   ]);
   await expect(siteWorkspace).toBeVisible();
 
@@ -129,22 +134,22 @@ test("protects an uncopied one-time agent setup command", async ({ page, context
 
   const slug = testInfo.project.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   const agentName = `Setup handoff ${slug}`;
-  await page.getByRole("button", { name: "Add Agent" }).click();
-  await expect(page.getByRole("heading", { name: "Add Agent", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Add agent" }).click();
+  await expect(page.getByRole("heading", { name: "Add agent", exact: true })).toBeVisible();
   await page.getByLabel("Name").fill(agentName);
   await Promise.all([
     page.waitForResponse((response) => response.url().includes("/p2pstream.v1.AgentManagementService/CreateAgent") && response.status() === 200),
-    page.getByRole("button", { name: "Create Agent", exact: true }).click(),
+    page.getByRole("button", { name: "Create agent", exact: true }).click(),
   ]);
 
-  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Install agent", exact: true })).toBeVisible();
   const advancedSetup = page.locator("details.agent-advanced-options");
   await expect(advancedSetup).not.toHaveAttribute("open", "");
-  await expect(page.getByLabel("GitHub Repository")).not.toBeVisible();
+  await expect(page.getByLabel("GitHub repository")).not.toBeVisible();
 
   await page.setViewportSize({ width: 962, height: 700 });
   await advancedSetup.click();
-  await expect(page.getByLabel("GitHub Repository")).toBeVisible();
+  await expect(page.getByLabel("GitHub repository")).toBeVisible();
   const setupScroller = page.locator(".n-modal.n-card > .n-card-content");
   await expect(setupScroller).toBeVisible();
   const setupScrollRange = await setupScroller.evaluate((element) => element.scrollHeight - element.clientHeight);
@@ -155,14 +160,14 @@ test("protects an uncopied one-time agent setup command", async ({ page, context
   await expect(page.getByRole("button", { name: "Copy install command", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByText("Close Without Copying?", { exact: true })).toBeVisible();
+  await expect(page.getByText("Close without copying?", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Install agent", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Copy install command", exact: true }).click();
   await expect(page.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Done", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Install Agent", exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Install agent", exact: true })).toBeHidden();
 
   const cfg = await connectRPC<GetPublicProxyConfigResponse>(page.request, baseURL, "GetPublicProxyConfig", {});
   const createdAgent = cfg.agents.find((agent) => agent.name === agentName);

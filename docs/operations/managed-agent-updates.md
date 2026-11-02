@@ -21,7 +21,12 @@ assets, mutable channel tags, cross-channel releases, digest mismatches,
 incompatible builds, expired metadata, and rollback below persisted floors.
 
 There is no release signing key, threshold signature, or separate root
-metadata. The remaining Ed25519 identities protect privileged host actions:
+metadata. Someone able to publish arbitrary releases in the configured repository
+can supply an update that passes these checks. SHA-256 hashes detect changed
+content relative to trusted metadata; they do not provide an independent
+publisher identity. Protect publisher accounts and release workflows, and disable
+managed updates if this distribution trust is unsuitable for the deployment.
+The remaining Ed25519 identities protect privileged host actions:
 
 - the existing agent bearer opens the tunnel but cannot request, report, or
   approve an update;
@@ -64,6 +69,11 @@ one recovery unit. A missing, replaced, permissive, or mismatched key disables
 managed enrollment and campaign progression instead of silently generating a
 new identity for existing state.
 
+If the first startup stops after writing the key but before pinning it in the
+database, the next startup may adopt that protected key only while managed-update
+state is pristine. This recovery trusts the administrator-controlled local
+filesystem. Existing enrolled state cannot silently adopt a replacement identity.
+
 ## Remote environments
 
 Selecting a trusted remote environment scopes **Agents → Updates** to that
@@ -86,7 +96,7 @@ configuration; enabling updates on the parent does not configure the remote.
 ## Enroll hosts once
 
 Open **Agents → Updates**. An unenrolled host has an **Enable managed updates** action. The UI
-uses the same setup dialog as **Install Agent** and **Reinstall / Repair**, with
+uses the same setup dialog as **Install agent** and **Reinstall / repair**, with
 an editable Management URL, release details, and optional local files.
 Enrollment preserves the host's existing management CA and agent configuration.
 A remote server advertising localhost defaults to its saved environment
@@ -138,11 +148,24 @@ wave must complete before the next begins. Success requires the privileged
 activation receipt, a fresh tunnel carrying the exact target version and
 commit, a worker health report, and the configured healthy dwell.
 
+The signed receipt proves the privileged helper's installation result. Tunnel
+build identity and worker health are reports from the host, not independent
+attestation of the running process. A compromised agent can lie about its build;
+campaign success does not prove that the host is uncompromised. Revoke a suspected
+host's access and investigate it separately instead of treating an update as
+incident recovery.
+
 Pause stops new activation work while preserving durable state. Cancel removes
 work that has not activated and requests local rollback for activated
 assignments. Failed or blocked assignments can be retried with compare-and-swap
 campaign generations so stale browser actions cannot overwrite newer operator
 decisions.
+
+**Update campaigns** keeps running and paused campaigns pinned under **Active**,
+so **Pause**, **Resume**, and **Cancel** stay on screen. Finished campaigns are
+listed under **History**, ten per page, with campaigns that still need recovery
+first; search matches the campaign name, target version, or target commit, and
+the state filter narrows the list to completed or cancelled campaigns.
 
 ## Failure and recovery
 

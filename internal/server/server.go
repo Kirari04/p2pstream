@@ -395,7 +395,6 @@ func (a *App) closeStaleAgentConnections(ctx context.Context, now time.Time) {
 
 // RegisterManagementRoutes attaches the agent tunnel and ConnectRPC APIs (Port 8081).
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
-	mux.HandleFunc(sourceOfferPath, sourceOfferHandler)
 	mux.HandleFunc(tunnel.BootstrapPath, a.agentTunnelHandler)
 	mux.Handle(environmentProxyPrefix, a.environmentProxyHandler())
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a,

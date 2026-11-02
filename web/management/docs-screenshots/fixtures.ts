@@ -680,12 +680,6 @@ INSERT INTO connections (agent_id, connected_at, disconnected_at) VALUES
   (${offlineAgentId}, datetime('now', '-5 hours'), datetime('now', '-3 hours')),
   (${disabledAgentId}, datetime('now', '-2 days'), datetime('now', '-2 days'));
 
-UPDATE observability_rollup_state
-SET proxy_backfill_upper_id = COALESCE((SELECT MAX(id) FROM proxy_request_events), 0),
-    proxy_backfilled_through_id = 0,
-    agent_backfill_upper_id = COALESCE((SELECT MAX(id) FROM agent_stats), 0),
-    agent_backfilled_through_id = 0
-WHERE id = 1;
 `;
 
   runSqlite(databasePath, sql);

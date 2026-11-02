@@ -114,8 +114,8 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 	if updated.Status != publicTLSCertificateStatusReady || updated.CertPath == "" || updated.KeyPath == "" || !updated.ExpiresAt.Valid {
 		t.Fatalf("unexpected issued cert row: %+v", updated)
 	}
-	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMERenewBefore)) {
-		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMERenewBefore))
+	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMEMaxRenewBefore)) {
+		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMEMaxRenewBefore))
 	}
 	assertServerFileBytes(t, updated.CertPath, certPEM)
 	assertServerFileBytes(t, updated.KeyPath, keyPEM)
@@ -422,6 +422,21 @@ func TestPublicACMECanonicalizationDoesNotOverwriteConcurrentEdit(t *testing.T) 
 	}
 	if persisted.HostnamePattern != "edited.example" || persisted.LastError != "existing diagnostic" {
 		t.Fatalf("concurrent edit was changed: %+v", persisted)
+	}
+}
+
+func TestACMEHostValidationRejectsLocalDefaults(t *testing.T) {
+	for _, hostname := range []string{"localhost", "p2pstream.local", "service.local", "*.service.local", "*.local", "local"} {
+		t.Run(hostname, func(t *testing.T) {
+			if err := validateACMEHostPattern(hostname, publicACMEChallengeDNS01); err == nil {
+				t.Fatal("ACME accepted a nonpublic local hostname")
+			}
+		})
+	}
+	for _, hostname := range []string{"example.com", "*.example.com", "service.local.example.com"} {
+		if err := validateACMEHostPattern(hostname, publicACMEChallengeDNS01); err != nil {
+			t.Fatalf("ACME rejected public hostname %q: %v", hostname, err)
+		}
 	}
 }
 

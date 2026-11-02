@@ -177,6 +177,7 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 		Now:                       now,
 		RequiredChannel:           c.options.Channel,
 		CurrentSequence:           c.floor.Sequence,
+		CurrentManifestSHA256:     c.floor.ManifestSHA256,
 		CurrentSecurityEpoch:      c.floor.SecurityEpoch,
 		CurrentMinimumSafeVersion: c.floor.MinimumSafeVersion,
 		ServerVersion:             c.options.ServerVersion,
@@ -188,10 +189,6 @@ func (c *Catalog) refreshLocked(ctx context.Context, now time.Time) (*agentupdat
 	if verified.Manifest.Version != tag {
 		return nil, errors.New("manifest version does not match immutable release tag")
 	}
-	if c.floor.Sequence == verified.Manifest.Sequence && c.floor.ManifestSHA256 != "" && c.floor.ManifestSHA256 != verified.ManifestSHA256 {
-		return nil, errors.New("manifest changed at an already trusted release sequence")
-	}
-
 	nextFloor := persistedFloor{
 		SchemaVersion:      stateSchemaVersion,
 		Sequence:           verified.Manifest.Sequence,

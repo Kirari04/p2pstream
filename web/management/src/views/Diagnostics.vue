@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { NAlert, NButton, NButtonGroup, NDataTable, NDrawer, NDrawerContent, NEmpty, NSkeleton, NTab, NTabs, NTag } from "naive-ui";
+import { NAlert, NButton, NDataTable, NDrawer, NDrawerContent, NEmpty, NSkeleton, NTab, NTabs, NTag } from "naive-ui";
 import type { DataTableColumns } from "naive-ui";
 import RetryHealthPanel from "@/components/RetryHealthPanel.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import { useManagementClient } from "@/composables/useManagementClient";
 import type {
   DashboardDiagnosticsSample,
@@ -37,6 +42,7 @@ const managementClient = useManagementClient();
 const route = useRoute();
 const router = useRouter();
 const windowLabels: WindowLabel[] = ["5m", "1h", "24h", "30d"];
+const windowOptions = windowLabels.map((label) => ({ value: label, label }));
 const diagnosticsSections = DIAGNOSTICS_SECTIONS;
 const sampleOptions = [25, 50, 100];
 const sampleSelectOptions = sampleOptions.map((option) => ({
@@ -142,13 +148,13 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Time",
     key: "time",
-    width: 150,
-    render: (sample) => formatSampleTime(sample.occurredAtUnixMillis),
+    width: 112,
+    render: (sample) => h("span", { class: "diagnostic-time" }, formatSampleTime(sample.occurredAtUnixMillis)),
   },
   {
     title: "Request",
     key: "request",
-    width: 300,
+    width: 216,
     render: (sample) => {
       const method = diagnosticExcerpt(sample.method, 16);
       const host = diagnosticExcerpt(sample.host);
@@ -165,7 +171,7 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Outcome",
     key: "outcome",
-    width: 190,
+    width: 156,
     render: (sample) => h("span", { class: "diagnostic-outcome-cell" }, [
       h("span", { class: ["status-pill", `tone-${statusTone(sample.statusCode)}`] }, sampleStatusLabel(sample)),
       attackerCell(sample.errorKind, 48),
@@ -177,7 +183,7 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Resolved flow",
     key: "flow",
-    width: 300,
+    width: 208,
     render: (sample) => h("span", { class: "diagnostic-flow-cell" }, [
       flowLine("Listener", sample.listenerLabel),
       flowLine("Route", sample.routeLabel),
@@ -188,13 +194,13 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Duration",
     key: "duration",
-    width: 110,
-    render: (sample) => formatDuration(sample.durationMs),
+    width: 84,
+    render: (sample) => h("span", { class: "diagnostic-number" }, formatDuration(sample.durationMs)),
   },
   {
     title: "Transfer",
     key: "transfer",
-    width: 150,
+    width: 96,
     render: (sample) => h("span", { class: "diagnostic-transfer" }, [
       h("span", `↓ ${formatBytes(sample.responseBytes)}`),
       h("span", `↑ ${formatBytes(sample.requestBytes)}`),
@@ -203,7 +209,7 @@ const sampleColumns = computed<DataTableColumns<DashboardDiagnosticsSample>>(() 
   {
     title: "Details",
     key: "details",
-    width: 90,
+    width: 72,
     fixed: "right",
     render: (sample) => h(
       NButton,
@@ -283,7 +289,7 @@ function rankDimensionRows(rows: DashboardProxyDimensionSummary[] | undefined): 
 }
 
 function sampleStatusLabel(sample: DashboardDiagnosticsSample): string {
-  return sample.statusCode > 0n ? sample.statusCode.toString() : "-";
+  return sample.statusCode > 0n ? sample.statusCode.toString() : "—";
 }
 
 function retrySampleLabel(sample: DashboardDiagnosticsSample): string {
@@ -339,7 +345,7 @@ function inspectionValue(value: string): string {
 
 function formatSampleTime(value: bigint): string {
   const millis = toNumber(value);
-  if (millis <= 0) return "-";
+  if (millis <= 0) return "—";
   const date = new Date(millis);
   if (Number.isNaN(date.getTime())) return "Invalid timestamp";
   return new Intl.DateTimeFormat(undefined, {
@@ -406,29 +412,14 @@ function capacityConstraintLabel(constraint: string): string {
 
 <template>
   <div class="diagnostics-page">
-    <section class="diagnostics-header">
-      <div>
-        <h3>Diagnostics</h3>
-        <p>{{ activeDiagnosticsSectionMeta.description }}</p>
-      </div>
-      <div class="header-controls">
-        <NButtonGroup class="window-tabs" role="group" aria-label="Diagnostics window" size="small">
-          <NButton
-            v-for="label in windowLabels"
-            :key="label"
-            attr-type="button"
-            :aria-pressed="selectedWindowLabel === label"
-            :type="selectedWindowLabel === label ? 'primary' : 'default'"
-            @click="selectedWindowLabel = label"
-          >
-            {{ label }}
-          </NButton>
-        </NButtonGroup>
+    <PageHeader title="Diagnostics" :description="activeDiagnosticsSectionMeta.description">
+      <template #actions>
+        <SegmentedControl v-model="selectedWindowLabel" :options="windowOptions" label="Diagnostics window" />
         <NButton secondary size="small" attr-type="button" :loading="isLoading && Boolean(diagnostics)" @click="loadDiagnostics(false)">
           Refresh
         </NButton>
-      </div>
-    </section>
+      </template>
+    </PageHeader>
 
     <NTabs
       class="diagnostics-section-tabs"
@@ -445,7 +436,7 @@ function capacityConstraintLabel(constraint: string): string {
       />
     </NTabs>
 
-    <NAlert v-if="error" :type="diagnostics ? 'warning' : 'error'" :show-icon="false">
+    <NAlert v-if="error" :type="diagnostics ? 'warning' : 'error'" :show-icon="false" :bordered="false">
       <div class="diagnostics-alert">
         <div>
           <strong>{{ diagnostics ? "Refresh failed. Showing the last server snapshot." : "Diagnostics could not be loaded." }}</strong>
@@ -462,12 +453,9 @@ function capacityConstraintLabel(constraint: string): string {
         <NSkeleton text :repeat="2" />
       </div>
       <div class="diagnostics-skeleton__facts">
-        <NSkeleton v-for="index in 5" :key="index" text :repeat="2" />
+        <NSkeleton v-for="index in 5" :key="index" height="4.25rem" :sharp="false" />
       </div>
-      <NSkeleton height="12rem" />
-      <div class="diagnostics-skeleton__grid">
-        <NSkeleton v-for="index in 5" :key="index" height="10rem" />
-      </div>
+      <NSkeleton height="12rem" :sharp="false" />
     </section>
 
     <NEmpty v-else-if="!diagnostics" size="large" description="No authoritative diagnostics snapshot is available.">
@@ -480,113 +468,111 @@ function capacityConstraintLabel(constraint: string): string {
       <p v-if="isLoading" class="diagnostics-refresh-state" role="status">
         Refreshing from the server. Values below remain the snapshot generated {{ generatedAtLabel }} until a new response arrives.
       </p>
-      <section v-if="activeDiagnosticsSection === 'overview'" class="incident-summary" :aria-busy="isLoading">
-        <div class="incident-summary__lead">
-          <div class="incident-summary__eyebrow">
-            <span>Incident snapshot</span>
-            <small><bdi dir="ltr">{{ diagnostics.label ? diagnosticInspectionText(diagnostics.label) : selectedWindowLabel }}</bdi> · generated {{ generatedAtLabel }}</small>
-          </div>
-          <h4>{{ incidentTitle }}</h4>
-          <p>{{ incidentSummary }}</p>
-        </div>
-        <dl class="incident-facts">
-          <div>
-            <dt>Requests</dt>
-            <dd>{{ formatNumber(outcome?.requests) }}</dd>
-            <small>{{ formatPercent(outcome && outcome.requests > 0n ? toNumber(outcome.success) / Math.max(1, toNumber(outcome.requests)) : 0) }} successful</small>
-          </div>
-          <div>
-            <dt>Successful</dt>
-            <dd>{{ formatNumber(outcome?.success) }}</dd>
-            <small>2xx + 3xx</small>
-          </div>
-          <div>
-            <dt>Non-success</dt>
-            <dd>{{ formatNumber(outcome?.nonSuccess) }}</dd>
-            <small>4xx + 5xx</small>
-          </div>
-          <div>
-            <dt>Proxy failures</dt>
-            <dd>{{ formatNumber(outcome?.proxyFailure) }}</dd>
-            <small>error kind set</small>
-          </div>
-          <div>
-            <dt>Latency</dt>
-            <dd>{{ formatDuration(outcome?.avgDurationMs) }}</dd>
-            <small>max {{ formatDuration(outcome?.maxDurationMs) }}</small>
-          </div>
-        </dl>
-      </section>
 
-      <section v-if="activeDiagnosticsSection === 'overview' && streamCapacity && capacitySignal" class="capacity-observatory" :class="{ 'capacity-observatory--pressure': capacitySignal.constrained }">
-        <div class="capacity-observatory__heading">
-          <div>
-            <span class="capacity-observatory__kicker">Live admission state</span>
-            <h4>Tunnel capacity</h4>
-            <p>Current stream allowance and application reservations. These values are live at refresh time and are not scoped to the selected incident window.</p>
-          </div>
+      <SectionCard
+        v-if="activeDiagnosticsSection === 'overview'"
+        class="incident-summary"
+        :title="incidentTitle"
+        :description="incidentSummary"
+        :aria-busy="isLoading"
+      >
+        <template #actions>
+          <span class="diagnostics-meta">Incident snapshot · <bdi dir="ltr">{{ diagnostics.label ? diagnosticInspectionText(diagnostics.label) : selectedWindowLabel }}</bdi> · generated {{ generatedAtLabel }}</span>
+        </template>
+        <MetricStrip variant="tiles" label="Incident snapshot">
+          <MetricCard
+            label="Requests"
+            :value="formatNumber(outcome?.requests)"
+            :detail="`${formatPercent(outcome && outcome.requests > 0n ? toNumber(outcome.success) / Math.max(1, toNumber(outcome.requests)) : 0)} successful`"
+          />
+          <MetricCard label="Successful" :value="formatNumber(outcome?.success)" detail="2xx + 3xx" />
+          <MetricCard label="Non-success" :value="formatNumber(outcome?.nonSuccess)" :tone="outcome && outcome.nonSuccess > 0n ? 'warning' : 'default'" detail="4xx + 5xx" />
+          <MetricCard label="Proxy failures" :value="formatNumber(outcome?.proxyFailure)" :tone="outcome && outcome.proxyFailure > 0n ? 'error' : 'default'" detail="error kind set" />
+          <MetricCard label="Latency" :value="formatDuration(outcome?.avgDurationMs)" :detail="`max ${formatDuration(outcome?.maxDurationMs)}`" />
+        </MetricStrip>
+      </SectionCard>
+
+      <SectionCard
+        v-if="activeDiagnosticsSection === 'overview' && streamCapacity && capacitySignal"
+        class="capacity-observatory"
+        title="Tunnel capacity"
+        description="Live admission state: current stream allowance and application reservations. These values are live at refresh time and are not scoped to the selected incident window."
+      >
+        <template #badge>
           <NTag size="small" :bordered="false" :type="capacitySignal.tone">
             {{ capacitySignal.label }}
           </NTag>
-        </div>
-        <dl class="capacity-observatory__meters">
+        </template>
+        <MetricStrip variant="tiles" label="Tunnel capacity" class="capacity-meters">
+          <MetricCard
+            :label="streamCapacity.adaptive ? 'Adaptive allowance' : 'Total streams'"
+            :value="`${formatNumber(streamCapacity.totalInUse)} / ${formatNumber(streamCapacity.adaptive ? streamCapacity.adaptiveAdmissionLimit : streamCapacity.totalCapacity)}`"
+          >
+            <template #detail>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing<span v-if="streamCapacity.adaptive"> · guard {{ formatNumber(streamCapacity.totalCapacity) }}</span></template>
+          </MetricCard>
+          <MetricCard
+            v-if="streamCapacity.adaptive"
+            label="Measured memory"
+            :value="streamCapacity.memoryLimitBytes > 0n ? `${((Number(streamCapacity.memoryUsedBytes) / Number(streamCapacity.memoryLimitBytes)) * 100).toFixed(1)}%` : 'Unknown'"
+            :text-value="streamCapacity.memoryLimitBytes <= 0n"
+            :detail="streamCapacity.memoryLimitBytes > 0n ? `${formatBytes(streamCapacity.memoryUsedBytes)} / ${formatBytes(streamCapacity.memoryLimitBytes)} · ${streamCapacity.memorySource}` : 'No valid memory sample'"
+          />
+          <MetricCard
+            v-if="streamCapacity.adaptive"
+            label="File descriptors"
+            :value="streamCapacity.fileDescriptorsLimit > 0n ? `${formatNumber(streamCapacity.fileDescriptorsUsed)} / ${formatNumber(streamCapacity.fileDescriptorsLimit)}` : 'Unknown'"
+            :text-value="streamCapacity.fileDescriptorsLimit <= 0n"
+          >
+            <template #detail>
+              <template v-if="streamCapacity.fileDescriptorsLimit > 0n">{{ ((Number(streamCapacity.fileDescriptorsUsed) / Number(streamCapacity.fileDescriptorsLimit)) * 100).toFixed(1) }}% used<span v-if="streamCapacity.resourcePressureReason"> · limiting signal {{ streamCapacity.resourcePressureReason }}</span></template>
+              <template v-else>Descriptor pressure signal unavailable</template>
+            </template>
+          </MetricCard>
+          <MetricCard
+            v-if="streamCapacity.adaptive"
+            label="Pre-stream reservations"
+            :value="formatBytes(streamCapacity.adaptiveExternalBytes)"
+            :detail="`${formatNumber(streamCapacity.adaptiveExternalFileDescriptors)} descriptors · raw allowance ${formatNumber(streamCapacity.adaptiveRawAdmissionLimit)}`"
+          />
+          <MetricCard
+            label="Public connections"
+            :value="formatNumber(streamCapacity.publicConnections)"
+            :detail="`${formatNumber(streamCapacity.publicConnectionLimitRejected)} peer/hard socket rejects · ${formatNumber(streamCapacity.publicConnectionResourceRejected)} resource rejects · ${formatNumber(streamCapacity.publicClientRequestRejected)} client request rejects`"
+          />
+          <MetricCard
+            v-if="streamCapacity.resourceSampleError"
+            label="Resource sensor"
+            value="Degraded"
+            tone="warning"
+            text-value
+            :detail="streamCapacity.resourceLastGoodUnixMillis > 0n ? `Last good sample ${formatSampleTime(streamCapacity.resourceLastGoodUnixMillis)}` : 'New stream admission is paused until sensing recovers'"
+          />
+          <MetricCard
+            label="Public lane"
+            :value="`${formatNumber(streamCapacity.publicInUse)} / ${formatNumber(streamCapacity.adaptive ? streamCapacity.adaptivePublicAdmissionLimit : streamCapacity.publicCapacity)}`"
+          >
+            <template #detail>{{ formatNumber(streamCapacity.publicWaiters) }} waiting<span v-if="streamCapacity.adaptive"> · structural guard {{ formatNumber(streamCapacity.publicCapacity) }}</span></template>
+          </MetricCard>
+          <MetricCard
+            label="Reusable lane"
+            :value="`${formatNumber(streamCapacity.pooledInUse)} / ${formatNumber(streamCapacity.pooledCapacity)}`"
+            :detail="`${formatNumber(streamCapacity.pooledTransportShards)} transport shards`"
+          />
+          <MetricCard
+            label="Busiest agent session"
+            :value="formatNumber(streamCapacity.maxSessionPublicInUse)"
+            :detail="streamCapacity.contendedSessionPublicLimit > 0n ? `shared-pressure limit ${formatNumber(streamCapacity.contendedSessionPublicLimit)}` : `${formatNumber(streamCapacity.registeredSessions)} registered sessions`"
+          />
+          <MetricCard
+            label="Terminal rejections"
+            :value="formatNumber(streamCapacity.terminalCapacityFailures)"
+            :tone="streamCapacity.terminalCapacityFailures > 0n ? 'error' : 'default'"
+            detail="customer-visible capacity failures since server start"
+          />
+        </MetricStrip>
+        <div class="capacity-constraints">
           <div>
-            <dt>{{ streamCapacity.adaptive ? "Adaptive allowance" : "Total streams" }}</dt>
-            <dd>{{ formatNumber(streamCapacity.totalInUse) }} / {{ formatNumber(streamCapacity.adaptive ? streamCapacity.adaptiveAdmissionLimit : streamCapacity.totalCapacity) }}</dd>
-            <small>{{ formatNumber(streamCapacity.opening) }} opening · {{ formatNumber(streamCapacity.live) }} live · {{ formatNumber(streamCapacity.closing) }} closing<span v-if="streamCapacity.adaptive"> · guard {{ formatNumber(streamCapacity.totalCapacity) }}</span></small>
-          </div>
-          <div v-if="streamCapacity.adaptive">
-            <dt>Measured memory</dt>
-            <dd>{{ streamCapacity.memoryLimitBytes > 0n ? `${((Number(streamCapacity.memoryUsedBytes) / Number(streamCapacity.memoryLimitBytes)) * 100).toFixed(1)}%` : "Unknown" }}</dd>
-            <small v-if="streamCapacity.memoryLimitBytes > 0n">{{ formatBytes(streamCapacity.memoryUsedBytes) }} / {{ formatBytes(streamCapacity.memoryLimitBytes) }} · {{ streamCapacity.memorySource }}</small>
-            <small v-else>No valid memory sample</small>
-          </div>
-          <div v-if="streamCapacity.adaptive">
-            <dt>File descriptors</dt>
-            <dd>{{ streamCapacity.fileDescriptorsLimit > 0n ? `${formatNumber(streamCapacity.fileDescriptorsUsed)} / ${formatNumber(streamCapacity.fileDescriptorsLimit)}` : "Unknown" }}</dd>
-            <small v-if="streamCapacity.fileDescriptorsLimit > 0n">{{ ((Number(streamCapacity.fileDescriptorsUsed) / Number(streamCapacity.fileDescriptorsLimit)) * 100).toFixed(1) }}% used<span v-if="streamCapacity.resourcePressureReason"> · limiting signal {{ streamCapacity.resourcePressureReason }}</span></small>
-            <small v-else>Descriptor pressure signal unavailable</small>
-          </div>
-          <div v-if="streamCapacity.adaptive">
-            <dt>Pre-stream reservations</dt>
-            <dd>{{ formatBytes(streamCapacity.adaptiveExternalBytes) }}</dd>
-            <small>{{ formatNumber(streamCapacity.adaptiveExternalFileDescriptors) }} descriptors · raw allowance {{ formatNumber(streamCapacity.adaptiveRawAdmissionLimit) }}</small>
-          </div>
-          <div>
-            <dt>Public connections</dt>
-            <dd>{{ formatNumber(streamCapacity.publicConnections) }}</dd>
-            <small>{{ formatNumber(streamCapacity.publicConnectionLimitRejected) }} peer/hard socket rejects · {{ formatNumber(streamCapacity.publicConnectionResourceRejected) }} resource rejects · {{ formatNumber(streamCapacity.publicClientRequestRejected) }} client request rejects</small>
-          </div>
-          <div v-if="streamCapacity.resourceSampleError">
-            <dt>Resource sensor</dt>
-            <dd>Degraded</dd>
-            <small>{{ streamCapacity.resourceLastGoodUnixMillis > 0n ? `Last good sample ${formatSampleTime(streamCapacity.resourceLastGoodUnixMillis)}` : "New stream admission is paused until sensing recovers" }}</small>
-          </div>
-          <div>
-            <dt>Public lane</dt>
-            <dd>{{ formatNumber(streamCapacity.publicInUse) }} / {{ formatNumber(streamCapacity.adaptive ? streamCapacity.adaptivePublicAdmissionLimit : streamCapacity.publicCapacity) }}</dd>
-            <small>{{ formatNumber(streamCapacity.publicWaiters) }} waiting<span v-if="streamCapacity.adaptive"> · structural guard {{ formatNumber(streamCapacity.publicCapacity) }}</span></small>
-          </div>
-          <div>
-            <dt>Reusable lane</dt>
-            <dd>{{ formatNumber(streamCapacity.pooledInUse) }} / {{ formatNumber(streamCapacity.pooledCapacity) }}</dd>
-            <small>{{ formatNumber(streamCapacity.pooledTransportShards) }} transport shards</small>
-          </div>
-          <div>
-            <dt>Busiest agent session</dt>
-            <dd>{{ formatNumber(streamCapacity.maxSessionPublicInUse) }}</dd>
-            <small v-if="streamCapacity.contendedSessionPublicLimit > 0n">shared-pressure limit {{ formatNumber(streamCapacity.contendedSessionPublicLimit) }}</small>
-            <small v-else>{{ formatNumber(streamCapacity.registeredSessions) }} registered sessions</small>
-          </div>
-          <div>
-            <dt>Terminal rejections</dt>
-            <dd>{{ formatNumber(streamCapacity.terminalCapacityFailures) }}</dd>
-            <small>customer-visible capacity failures since server start</small>
-          </div>
-        </dl>
-        <div class="capacity-observatory__constraints">
-          <div>
-            <strong>Exact admission constraints</strong>
+            <h3>Exact admission constraints</h3>
             <p>Admission misses are cumulative since server start and include pooled misses recovered by fallback.</p>
           </div>
           <ol v-if="capacityConstraintRows.length">
@@ -596,9 +582,9 @@ function capacityConstraintLabel(constraint: string): string {
               <small v-if="row.waiting > 0n">{{ formatNumber(row.waiting) }} waiting now</small>
             </li>
           </ol>
-          <NEmpty v-else size="small" description="No capacity admission misses since server start." />
+          <p v-else class="capacity-constraints__empty">No capacity admission misses since server start.</p>
         </div>
-      </section>
+      </SectionCard>
 
       <RetryHealthPanel
         v-if="activeDiagnosticsSection === 'retries'"
@@ -613,15 +599,9 @@ function capacityConstraintLabel(constraint: string): string {
         @select-dimension="inspectDimensionLabel"
       />
 
-      <section v-if="activeDiagnosticsSection === 'overview'" class="diagnostics-panel">
-        <div class="panel-heading">
-          <div>
-            <h4>Status Codes</h4>
-            <p>Exact response distribution for the selected window.</p>
-          </div>
-        </div>
-        <div v-if="statusCodes.length" class="status-list">
-          <div v-for="row in statusCodes" :key="row.statusCode.toString()" class="status-row">
+      <SectionCard v-if="activeDiagnosticsSection === 'overview'" title="Status codes" description="Exact response distribution for the selected window." :flush="statusCodes.length > 0">
+        <ul v-if="statusCodes.length" class="status-list">
+          <li v-for="row in statusCodes" :key="row.statusCode.toString()" class="status-row">
             <div class="status-label">
               <span class="status-pill" :class="`tone-${statusTone(row.statusCode)}`">{{ row.statusCode.toString() }}</span>
               <strong>{{ formatNumber(row.requests) }}</strong>
@@ -635,45 +615,41 @@ function capacityConstraintLabel(constraint: string): string {
               <span>{{ formatDuration(row.avgDurationMs) }}</span>
               <span>{{ formatBytes(row.responseBytes) }} down</span>
             </div>
-          </div>
-        </div>
-        <NEmpty v-else size="small" description="No status codes in this window." />
-      </section>
+          </li>
+        </ul>
+        <p v-else class="diagnostics-empty">No status codes in this window.</p>
+      </SectionCard>
 
-      <section v-if="activeDiagnosticsSection === 'overview'" class="investigation-section" aria-labelledby="investigation-lanes-heading">
-        <div class="panel-heading">
-          <div>
-            <h4 id="investigation-lanes-heading">Choose an investigation lane</h4>
-            <p>Each workspace has one job and keeps its own controls close to the evidence they affect.</p>
-          </div>
-        </div>
+      <SectionCard
+        v-if="activeDiagnosticsSection === 'overview'"
+        title="Choose an investigation lane"
+        description="Each workspace has one job and keeps its own controls close to the evidence they affect."
+        aria-label="Choose an investigation lane"
+      >
         <div class="investigation-grid">
-          <RouterLink class="investigation-lane investigation-lane--retry" to="/monitor/diagnostics/retries">
-            <span class="investigation-lane__index">01</span>
+          <RouterLink class="investigation-lane" to="/monitor/diagnostics/retries">
             <div>
               <strong>Retry health</strong>
               <p>Decide whether retries recovered transport failures or merely delayed exhaustion.</p>
             </div>
             <dl>
               <div><dt>Matched</dt><dd>{{ formatNumber(diagnostics.retryHealth?.matchedRequests) }}</dd></div>
-              <div><dt>Exhausted</dt><dd>{{ formatNumber(diagnostics.retryHealth?.exhaustedRequests) }}</dd></div>
+              <div><dt>Exhausted</dt><dd :class="{ 'lane-value--error': (diagnostics.retryHealth?.exhaustedRequests ?? 0n) > 0n }">{{ formatNumber(diagnostics.retryHealth?.exhaustedRequests) }}</dd></div>
             </dl>
             <span class="investigation-lane__action">Open retry health →</span>
           </RouterLink>
-          <RouterLink class="investigation-lane investigation-lane--failures" to="/monitor/diagnostics/failures">
-            <span class="investigation-lane__index">02</span>
+          <RouterLink class="investigation-lane" to="/monitor/diagnostics/failures">
             <div>
               <strong>Failure map</strong>
               <p>Rank the exact errors, listeners, routes, targets, and agents involved.</p>
             </div>
             <dl>
-              <div><dt>Proxy failures</dt><dd>{{ formatNumber(outcome?.proxyFailure) }}</dd></div>
+              <div><dt>Proxy failures</dt><dd :class="{ 'lane-value--error': (outcome?.proxyFailure ?? 0n) > 0n }">{{ formatNumber(outcome?.proxyFailure) }}</dd></div>
               <div><dt>Error kinds</dt><dd>{{ diagnostics.errorKinds.length.toString() }}</dd></div>
             </dl>
             <span class="investigation-lane__action">Explore dimensions →</span>
           </RouterLink>
-          <RouterLink class="investigation-lane investigation-lane--samples" to="/monitor/diagnostics/samples">
-            <span class="investigation-lane__index">03</span>
+          <RouterLink class="investigation-lane" to="/monitor/diagnostics/samples">
             <div>
               <strong>Request samples</strong>
               <p>Inspect concrete request evidence after the aggregate signal points somewhere.</p>
@@ -685,20 +661,17 @@ function capacityConstraintLabel(constraint: string): string {
             <span class="investigation-lane__action">Inspect requests →</span>
           </RouterLink>
         </div>
-      </section>
+      </SectionCard>
 
-      <section v-if="activeDiagnosticsSection === 'failures'" class="breakdown-section" aria-labelledby="failure-dimensions-heading">
-        <div class="panel-heading">
-          <div>
-            <h4 id="failure-dimensions-heading">Ranked failure dimensions</h4>
-            <p>Select a row to open request samples filtered by that exact value.</p>
-          </div>
-        </div>
+      <SectionCard
+        v-if="activeDiagnosticsSection === 'failures'"
+        variant="plain"
+        title="Ranked failure dimensions"
+        description="Select a row to open request samples filtered by that exact value."
+        aria-label="Ranked failure dimensions"
+      >
         <div class="breakdown-grid">
-          <div v-for="section in dimensionSections" :key="section.title" class="diagnostics-panel diagnostics-panel--dimension">
-            <div class="panel-heading compact">
-              <h5>{{ section.title }}</h5>
-            </div>
+          <SectionCard v-for="section in dimensionSections" :key="section.title" :title="section.title" :heading-level="3" flush>
             <ol v-if="section.rows.length" class="dimension-list">
               <li v-for="(row, index) in section.rows" :key="`${section.title}-${row.id.toString()}-${row.label}`">
                 <button
@@ -719,17 +692,19 @@ function capacityConstraintLabel(constraint: string): string {
                 </button>
               </li>
             </ol>
-            <NEmpty v-else size="small" class="panel-empty panel-empty--compact" :description="section.empty" />
-          </div>
+            <p v-else class="diagnostics-empty diagnostics-empty--compact">{{ section.empty }}</p>
+          </SectionCard>
         </div>
-      </section>
+      </SectionCard>
 
-      <section v-if="activeDiagnosticsSection === 'samples'" class="diagnostics-panel diagnostics-panel--table">
-        <div class="panel-heading diagnostics-samples-heading">
-          <div>
-            <h4>Request samples</h4>
-            <p>Newest retained non-success, proxy-failure, and retry requests. Filters are exact matches against this loaded sample set; they do not change the server-wide aggregates.</p>
-          </div>
+      <SectionCard
+        v-if="activeDiagnosticsSection === 'samples'"
+        class="diagnostics-samples"
+        title="Request samples"
+        description="Newest retained non-success, proxy-failure, and retry requests. Filters are exact matches against this loaded sample set; they do not change the server-wide aggregates."
+        flush
+      >
+        <template #actions>
           <div class="sample-controls">
             <NTag size="small" :bordered="false" :type="selectedDimension ? 'info' : 'default'">{{ sampleFilterSummary }}</NTag>
             <AccessibleSelect
@@ -740,15 +715,16 @@ function capacityConstraintLabel(constraint: string): string {
               :options="sampleSelectOptions"
             />
           </div>
-        </div>
-        <div v-if="selectedDimension" class="sample-filter" role="status">
-          <span>Exact filter · {{ selectedDimension.title }}</span>
-          <bdi dir="ltr">{{ inspectionValue(selectedDimension.label) }}</bdi>
-          <NButton quaternary size="small" attr-type="button" @click="selectedDimension = null">Show all loaded samples</NButton>
-        </div>
-        <div v-else class="sample-filter-guide">
-          <span>No exact-match filter is active.</span>
-          <p>Open <RouterLink to="/monitor/diagnostics/failures">Failure map</RouterLink> or <RouterLink to="/monitor/diagnostics/retries">Retry health</RouterLink>, then choose a dimension to inspect its matching samples here.</p>
+        </template>
+        <div class="sample-filter-bar">
+          <div v-if="selectedDimension" class="sample-filter" role="status">
+            <span>Exact filter · {{ selectedDimension.title }}</span>
+            <bdi dir="ltr">{{ inspectionValue(selectedDimension.label) }}</bdi>
+            <NButton quaternary size="small" attr-type="button" @click="selectedDimension = null">Show all loaded samples</NButton>
+          </div>
+          <p v-else class="sample-filter-guide">
+            No exact-match filter is active. Open <RouterLink to="/monitor/diagnostics/failures">Failure map</RouterLink> or <RouterLink to="/monitor/diagnostics/retries">Retry health</RouterLink>, then choose a dimension to inspect its matching samples here.
+          </p>
         </div>
         <div v-if="filteredRecentSamples.length" class="diagnostics-table-shell">
           <NDataTable
@@ -757,21 +733,22 @@ function capacityConstraintLabel(constraint: string): string {
             :row-key="sampleRowKey"
             :pagination="false"
             :bordered="false"
-            :single-line="false"
-            :scroll-x="1290"
+           
+            :scroll-x="944"
             size="small"
           />
         </div>
         <NEmpty
           v-else
           size="small"
+          class="diagnostics-table-empty"
           :description="recentSamples.length ? 'No retained samples match the selected failure dimension.' : 'No recent failure or retry samples in this window.'"
         >
           <template v-if="selectedDimension" #extra>
             <NButton secondary size="small" attr-type="button" @click="selectedDimension = null">Clear sample filter</NButton>
           </template>
         </NEmpty>
-      </section>
+      </SectionCard>
     </template>
 
     <NDrawer
@@ -801,39 +778,8 @@ function capacityConstraintLabel(constraint: string): string {
 <style scoped>
 .diagnostics-page {
   display: grid;
-  gap: 1.5rem;
-}
-
-.diagnostics-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 1rem;
-}
-
-.diagnostics-header > div:first-child {
   min-width: 0;
-}
-
-.diagnostics-header h3 {
-  color: var(--app-text);
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.diagnostics-header p,
-.panel-heading p {
-  color: var(--app-text-muted);
-  font-size: 0.82rem;
-}
-
-.header-controls {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: center;
-  gap: 0.5rem;
-  justify-content: end;
+  gap: 1.25rem;
 }
 
 .diagnostics-section-tabs {
@@ -854,142 +800,16 @@ function capacityConstraintLabel(constraint: string): string {
   margin-left: 1.25rem;
 }
 
-.window-tabs {
-  min-width: 15rem;
-}
-
-.window-tabs :deep(.n-button) {
-  min-width: 0;
-  height: 2rem;
-  font-size: 0.78rem;
-  font-weight: 650;
-  letter-spacing: 0;
-  padding: 0 0.75rem;
-}
-
-.sample-select {
-  width: 11rem;
-}
-
-.investigation-section {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.investigation-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
-.investigation-lane {
-  position: relative;
-  display: grid;
-  min-width: 0;
-  gap: 0.85rem;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 1rem;
-  color: inherit;
-  text-decoration: none;
-  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
-}
-
-.investigation-lane::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--lane-accent, var(--app-accent));
-  content: "";
-}
-
-.investigation-lane--retry {
-  --lane-accent: var(--app-warning);
-}
-
-.investigation-lane--failures {
-  --lane-accent: var(--app-error);
-}
-
-.investigation-lane--samples {
-  --lane-accent: var(--app-accent);
-}
-
-.investigation-lane:hover,
-.investigation-lane:focus-visible {
-  border-color: color-mix(in srgb, var(--lane-accent) 58%, var(--app-border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lane-accent) 22%, transparent);
-  transform: translateY(-1px);
-}
-
-.investigation-lane:focus-visible {
-  outline: 2px solid var(--app-accent);
-  outline-offset: 2px;
-}
-
-.investigation-lane__index {
-  color: var(--lane-accent);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-}
-
-.investigation-lane strong {
-  color: var(--app-text);
-  font-size: 0.95rem;
-}
-
-.investigation-lane p {
-  margin-top: 0.25rem;
+.diagnostics-meta {
   color: var(--app-text-muted);
   font-size: 0.75rem;
-  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
-.investigation-lane dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 0;
-  border-block: 1px solid var(--app-border-subtle);
-  padding-block: 0.6rem;
-}
-
-.investigation-lane dl > div {
-  min-width: 0;
-}
-
-.investigation-lane dl > div + div {
-  border-left: 1px solid var(--app-border-subtle);
-  padding-left: 0.65rem;
-}
-
-.investigation-lane dt {
-  color: var(--app-text-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.investigation-lane dd {
-  margin: 0.2rem 0 0;
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 0.9rem;
-  font-weight: 750;
-}
-
-.investigation-lane__action {
-  color: var(--lane-accent);
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.breakdown-grid {
-  display: grid;
-  gap: 0.75rem;
+.diagnostics-meta bdi,
+.diagnostics-alert bdi {
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .diagnostics-alert {
@@ -1008,367 +828,189 @@ function capacityConstraintLabel(constraint: string): string {
 
 .diagnostics-alert bdi,
 .diagnostics-alert small {
-  direction: ltr;
   color: inherit;
   font-size: 0.75rem;
-  unicode-bidi: isolate;
 }
 
 .diagnostics-refresh-state {
   margin: 0;
-  border-left: 3px solid var(--app-accent);
+  border-radius: 8px;
   background: var(--app-panel-muted);
-  padding: 0.625rem 0.75rem;
+  padding: 0.625rem 0.875rem;
   color: var(--app-text-muted);
   font-size: 0.8125rem;
 }
 
-.incident-summary__eyebrow bdi {
-  direction: ltr;
-  unicode-bidi: isolate;
+.diagnostics-empty {
+  color: var(--app-text-muted);
+  font-size: 0.8125rem;
 }
 
+.diagnostics-empty--compact {
+  padding: 0.75rem 1.25rem 1rem;
+}
+
+/* Loading */
 .diagnostics-skeleton {
   display: grid;
   gap: 1rem;
 }
 
-.diagnostics-skeleton__lead,
-.diagnostics-skeleton__facts,
-.diagnostics-skeleton__grid {
+.diagnostics-skeleton__lead {
   display: grid;
   gap: 0.75rem;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-  padding: 1rem;
 }
 
-.diagnostics-skeleton__facts,
-.diagnostics-skeleton__grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.incident-summary,
-.diagnostics-panel {
-  min-width: 0;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
-}
-
-.incident-summary {
+.diagnostics-skeleton__facts {
   display: grid;
-  gap: 1rem;
-  border-left: 3px solid var(--app-accent);
-  padding: 1rem;
-}
-
-.incident-summary__lead {
-  min-width: 0;
-}
-
-.incident-summary__eyebrow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.5rem;
 }
 
-.incident-summary__eyebrow span,
-.incident-facts dt {
-  color: var(--app-text-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
+/* Overview: incident and capacity tiles */
+.capacity-observatory .capacity-meters {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 }
 
-.incident-summary__eyebrow small,
-.incident-summary__lead > p,
-.incident-facts small {
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
+.capacity-meters :deep(.metric-card__detail) {
+  white-space: normal;
 }
 
-.incident-summary__lead h4 {
-  margin: 0.35rem 0 0.25rem;
-  color: var(--app-text);
-  font-size: 1.125rem;
-  font-weight: 700;
-}
-
-.incident-facts {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin: 0;
-  border-top: 1px solid var(--app-border-subtle);
-  padding-top: 0.75rem;
-}
-
-.incident-facts > div {
-  display: grid;
-  min-width: 0;
-  gap: 0.15rem;
-  padding-inline: 0.75rem;
-}
-
-.incident-facts > div:first-child {
-  padding-left: 0;
-}
-
-.incident-facts > div + div {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.incident-facts dd {
-  margin: 0;
-  color: var(--app-text);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.capacity-observatory {
-  --capacity-accent: var(--app-success);
-  display: grid;
-  min-width: 0;
-  gap: 1rem;
-  border: 1px solid color-mix(in srgb, var(--capacity-accent) 34%, var(--app-border));
-  border-left: 3px solid var(--capacity-accent);
-  border-radius: 6px;
-  background:
-    linear-gradient(110deg, color-mix(in srgb, var(--capacity-accent) 5%, transparent), transparent 42%),
-    var(--app-panel-muted);
-  padding: 1rem;
-}
-
-.capacity-observatory--pressure {
-  --capacity-accent: var(--app-warning);
-}
-
-.capacity-observatory__heading {
-  display: flex;
-  min-width: 0;
-  align-items: start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.capacity-observatory__heading > div {
-  min-width: 0;
-}
-
-.capacity-observatory__kicker,
-.capacity-observatory dt {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-}
-
-.capacity-observatory__heading h4 {
-  margin-top: 0.2rem;
-  color: var(--app-text);
-  font-size: 1rem;
-  font-weight: 750;
-}
-
-.capacity-observatory__heading p,
-.capacity-observatory__constraints p {
-  margin-top: 0.2rem;
-  color: var(--app-text-muted);
-  font-size: 0.75rem;
-  line-height: 1.45;
-}
-
-.capacity-observatory__meters {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin: 0;
-  border-block: 1px solid var(--app-border-subtle);
-  padding-block: 0.75rem;
-}
-
-.capacity-observatory__meters > div {
-  display: grid;
-  min-width: 0;
-  align-content: start;
-  gap: 0.15rem;
-  padding-inline: 0.75rem;
-}
-
-.capacity-observatory__meters > div:first-child {
-  padding-left: 0;
-}
-
-.capacity-observatory__meters > div + div {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.capacity-observatory__meters dd {
-  margin: 0;
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 750;
-}
-
-.capacity-observatory__meters small {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-  line-height: 1.4;
-}
-
-.capacity-observatory__constraints {
+.capacity-constraints {
   display: grid;
   grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.25fr);
-  gap: 1rem;
+  gap: 1rem 1.5rem;
   align-items: start;
+  margin-top: 1rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1rem;
 }
 
-.capacity-observatory__constraints > div > strong {
+.capacity-constraints h3 {
   color: var(--app-text);
-  font-size: 0.78rem;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.capacity-observatory__constraints ol {
+.capacity-constraints p {
+  margin-top: 0.125rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.capacity-constraints ol {
   display: grid;
-  gap: 0.35rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.capacity-observatory__constraints li {
+.capacity-constraints li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.15rem 0.75rem;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 4px;
-  padding: 0.5rem 0.625rem;
+  gap: 0.125rem 0.75rem;
+  padding: 0.5rem 0;
 }
 
-.capacity-observatory__constraints li > span {
+.capacity-constraints li + li {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
+.capacity-constraints li:first-child {
+  padding-top: 0;
+}
+
+.capacity-constraints li > span {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
   gap: 0.25rem 0.5rem;
   color: var(--app-text);
+  font-size: 0.8125rem;
+}
+
+.capacity-constraints code {
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
   font-size: 0.75rem;
 }
 
-.capacity-observatory__constraints code {
-  color: var(--app-text-muted);
-  font-size: 0.67rem;
-}
-
-.capacity-observatory__constraints li > strong {
-  color: var(--capacity-accent);
+.capacity-constraints li > strong {
+  color: var(--app-text);
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
-.capacity-observatory__constraints li > small {
+.capacity-constraints li > small {
   grid-column: 1 / -1;
   color: var(--app-warning);
-  font-size: 0.67rem;
+  font-size: 0.75rem;
 }
 
+.capacity-constraints__empty {
+  margin-top: 0;
+}
 
-.diagnostics-panel {
+/* Status code distribution */
+.status-list {
   display: grid;
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.diagnostics-panel--table {
-  overflow: hidden;
-}
-
-.panel-heading {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.panel-heading.compact {
-  display: block;
-}
-
-.panel-heading h4 {
-  color: var(--app-text);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.panel-heading h5 {
-  color: var(--app-text);
-  font-size: 0.8125rem;
-  font-weight: 700;
-}
-
-.breakdown-section {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.diagnostics-panel--dimension {
-  align-content: start;
-  gap: 0.5rem;
-  padding: 0.75rem;
-}
-
-.status-list,
-.dimension-list {
-  display: grid;
-  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .status-row {
   display: grid;
   grid-template-columns: 8rem minmax(10rem, 1fr);
-  gap: 0.55rem 0.75rem;
+  gap: 0.375rem 1rem;
   align-items: center;
-  border-top: 1px solid var(--app-border);
-  padding-top: 0.65rem;
+  padding: 0.625rem 1.25rem;
+}
+
+.status-row + .status-row {
+  border-top: 1px solid var(--app-border-subtle);
 }
 
 .status-label {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.625rem;
 }
 
 .status-label strong {
   color: var(--app-text);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .status-bar-track {
   overflow: hidden;
-  height: 0.65rem;
-  border: 1px solid var(--app-border);
+  height: 0.375rem;
   border-radius: 999px;
   background: var(--app-panel-muted);
 }
 
 .status-bar {
   height: 100%;
-  min-width: 0.4rem;
+  min-width: 0.375rem;
+  border-radius: 999px;
+  background: var(--tone-color);
 }
 
 .status-meta {
   display: grid;
   grid-column: 2;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.4rem;
+  gap: 0.5rem;
   color: var(--app-text-muted);
-  font-size: 0.74rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .status-meta span {
@@ -1378,52 +1020,125 @@ function capacityConstraintLabel(constraint: string): string {
   white-space: nowrap;
 }
 
-.status-pill {
+/* Status pills are shared by the status list and the samples table (rendered via h()). */
+.status-pill,
+.diagnostics-samples :deep(.status-pill) {
   display: inline-flex;
-  min-width: 3rem;
-  height: 1.45rem;
+  min-width: 2.75rem;
+  height: 1.375rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tone-color) 14%, transparent);
+  color: var(--tone-color);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tone-success,
+.diagnostics-samples :deep(.tone-success) { --tone-color: var(--app-success); }
+.tone-redirect,
+.diagnostics-samples :deep(.tone-redirect) { --tone-color: var(--app-accent); }
+.tone-client-error,
+.diagnostics-samples :deep(.tone-client-error) { --tone-color: var(--app-warning); }
+.tone-server-error,
+.diagnostics-samples :deep(.tone-server-error) { --tone-color: var(--app-error); }
+.tone-neutral,
+.diagnostics-samples :deep(.tone-neutral) { --tone-color: var(--app-text-muted); }
+
+/* Investigation lanes: muted tiles inside one card */
+.investigation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.investigation-lane {
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+  border-radius: 8px;
   background: var(--app-panel-muted);
+  padding: 0.875rem 1rem;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 140ms ease;
+}
+
+.investigation-lane:hover {
+  background: var(--app-hover);
+}
+
+.investigation-lane:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
+}
+
+.investigation-lane strong {
   color: var(--app-text);
-  font-size: 0.72rem;
-  font-weight: 750;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.tone-success {
-  background: var(--app-success);
-  border-color: var(--app-success);
-  color: white;
+.investigation-lane p {
+  margin-top: 0.25rem;
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
-.tone-redirect {
-  background: var(--app-accent);
-  border-color: var(--app-accent);
-  color: white;
+.investigation-lane dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
 }
 
-.tone-client-error {
-  background: var(--app-warning);
-  border-color: var(--app-warning);
-  color: white;
+.investigation-lane dl > div {
+  min-width: 0;
 }
 
-.tone-server-error {
-  background: var(--app-error);
-  border-color: var(--app-error);
-  color: white;
+.investigation-lane dt {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
 }
 
-.tone-neutral {
-  background: var(--app-border-subtle);
-  border-color: var(--app-border);
+.investigation-lane dd {
+  margin: 0.125rem 0 0;
   color: var(--app-text);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
+.investigation-lane dd.lane-value--error {
+  color: var(--app-error);
+}
+
+.investigation-lane__action {
+  color: var(--app-accent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* Failure map */
 .breakdown-grid {
-  grid-template-columns: repeat(1, minmax(0, 1fr));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.dimension-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dimension-list li + li {
+  border-top: 1px solid var(--app-border-subtle);
 }
 
 .dimension-row {
@@ -1432,88 +1147,70 @@ function capacityConstraintLabel(constraint: string): string {
   min-width: 0;
   grid-template-columns: 1.25rem minmax(0, 1fr);
   gap: 0.25rem 0.5rem;
-  border-top: 1px solid var(--app-border);
-  border-right: 0;
-  border-bottom: 0;
-  border-left: 0;
+  border: 0;
   background: transparent;
-  padding: 0.55rem 0;
+  padding: 0.625rem 1.25rem;
   color: var(--app-text);
   cursor: pointer;
+  font: inherit;
   text-align: left;
 }
 
-.dimension-row:hover,
-.dimension-row--selected {
-  color: var(--app-accent);
+.dimension-row:hover {
+  background: var(--app-hover);
+}
+
+.dimension-row:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: -2px;
 }
 
 .dimension-row--selected {
+  background: var(--app-accent-soft);
   box-shadow: inset 2px 0 0 var(--app-accent);
-  padding-left: 0.5rem;
 }
 
 .dimension-rank {
   color: var(--app-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .dimension-name {
   min-width: 0;
   overflow: hidden;
   color: var(--app-text);
-  font-size: 0.82rem;
-  font-weight: 650;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
   text-overflow: ellipsis;
   unicode-bidi: isolate;
   white-space: nowrap;
 }
 
+.dimension-row--selected .dimension-name {
+  color: var(--app-accent);
+}
+
 .dimension-counts {
-  display: grid;
+  display: flex;
   grid-column: 2;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.75rem;
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .dimension-action {
   grid-column: 2;
-  margin-top: 0.1rem;
   color: var(--app-accent);
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
-.dimension-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.dimension-counts span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.diagnostics-table-shell {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  overflow-x: auto;
-}
-
-.diagnostics-table-shell :deep(.n-data-table) {
-  min-width: 0;
-}
-
-.diagnostics-samples-heading {
-  align-items: center;
-}
-
+/* Request samples */
 .sample-controls {
   display: flex;
   flex: none;
@@ -1521,20 +1218,28 @@ function capacityConstraintLabel(constraint: string): string {
   gap: 0.5rem;
 }
 
+.sample-select {
+  width: 11rem;
+}
+
+.sample-filter-bar {
+  border-bottom: 1px solid var(--app-border-subtle);
+  padding: 0.75rem 1.25rem;
+}
+
 .sample-filter {
   display: grid;
-  min-width: min(100%, 19rem);
+  min-width: 0;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.15rem 0.5rem;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: var(--app-panel);
-  padding: 0.4rem 0.5rem;
+  gap: 0.125rem 0.75rem;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
+  padding: 0.5rem 0.5rem 0.5rem 0.75rem;
 }
 
 .sample-filter > span {
   color: var(--app-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
 }
 
 .sample-filter bdi {
@@ -1543,7 +1248,7 @@ function capacityConstraintLabel(constraint: string): string {
   direction: ltr;
   color: var(--app-text);
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   text-overflow: ellipsis;
   unicode-bidi: isolate;
   white-space: nowrap;
@@ -1552,77 +1257,50 @@ function capacityConstraintLabel(constraint: string): string {
 .sample-filter :deep(.n-button) {
   grid-column: 2;
   grid-row: 1 / span 2;
+  align-self: center;
 }
 
 .sample-filter-guide {
-  display: grid;
-  gap: 0.2rem;
-  border-left: 3px solid var(--app-border);
-  background: var(--app-panel);
-  padding: 0.6rem 0.75rem;
-}
-
-.sample-filter-guide > span {
-  color: var(--app-text);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.sample-filter-guide p {
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .sample-filter-guide a {
   color: var(--app-accent);
-  font-weight: 700;
+  font-weight: 500;
 }
 
-.diagnostic-request-stack,
-.diagnostic-outcome-cell,
-.diagnostic-flow-cell,
-.diagnostic-transfer {
+.sample-filter-guide a:hover {
+  text-decoration: underline;
+}
+
+.diagnostics-table-shell {
+  min-width: 0;
+}
+
+.diagnostics-table-empty {
+  padding: 2rem 1rem;
+}
+
+/* Cells rendered by NDataTable via h() do not carry this component's scope id; reach them with :deep(). */
+.diagnostics-samples :deep(.diagnostic-time),
+.diagnostics-samples :deep(.diagnostic-number) {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.diagnostics-samples :deep(.diagnostic-request-stack),
+.diagnostics-samples :deep(.diagnostic-outcome-cell),
+.diagnostics-samples :deep(.diagnostic-flow-cell),
+.diagnostics-samples :deep(.diagnostic-transfer) {
   display: grid;
   min-width: 0;
   gap: 0.25rem;
 }
 
-.diagnostic-request-path {
-  color: var(--app-text-muted);
-}
-
-.diagnostic-outcome-cell {
-  grid-template-columns: max-content minmax(0, 1fr);
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.diagnostic-retry-outcome {
-  grid-column: 1 / -1;
-  color: var(--app-accent);
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-}
-
-.diagnostic-flow-line {
-  display: grid;
-  min-width: 0;
-  grid-template-columns: 3.5rem minmax(0, 1fr);
-  gap: 0.4rem;
-}
-
-.diagnostic-flow-key {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-}
-
-.diagnostic-transfer {
-  color: var(--app-text-muted);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-}
-
-.diagnostic-request-excerpt {
+.diagnostics-samples :deep(.diagnostic-request-excerpt) {
   display: grid;
   min-width: 0;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -1630,16 +1308,16 @@ function capacityConstraintLabel(constraint: string): string {
   gap: 0.5rem;
 }
 
-.diagnostic-request-method {
+.diagnostics-samples :deep(.diagnostic-request-method) {
   color: var(--app-text);
   direction: ltr;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 600;
   unicode-bidi: isolate;
 }
 
-.diagnostic-attacker-excerpt {
+.diagnostics-samples :deep(.diagnostic-attacker-excerpt) {
   display: block;
   min-width: 0;
   overflow: hidden;
@@ -1652,19 +1330,59 @@ function capacityConstraintLabel(constraint: string): string {
   white-space: nowrap;
 }
 
+.diagnostics-samples :deep(.diagnostic-request-path) {
+  color: var(--app-text-muted);
+}
+
+.diagnostics-samples :deep(.diagnostic-outcome-cell) {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.diagnostics-samples :deep(.diagnostic-retry-outcome) {
+  grid-column: 1 / -1;
+  color: var(--app-accent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.diagnostics-samples :deep(.diagnostic-flow-cell) {
+  gap: 0.125rem;
+}
+
+.diagnostics-samples :deep(.diagnostic-flow-line) {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  gap: 0.375rem;
+}
+
+.diagnostics-samples :deep(.diagnostic-flow-key) {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+}
+
+.diagnostics-samples :deep(.diagnostic-transfer) {
+  color: var(--app-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sample details drawer */
 .diagnostic-sample-details {
   display: grid;
   gap: 1rem;
 }
 
 .diagnostic-sample-details__note {
-  border: 1px solid var(--app-border);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--app-panel-muted);
   color: var(--app-text-muted);
   font-size: 0.8125rem;
   line-height: 1.55;
-  padding: 0.75rem;
+  padding: 0.75rem 0.875rem;
 }
 
 .diagnostic-sample-details dl {
@@ -1683,7 +1401,7 @@ function capacityConstraintLabel(constraint: string): string {
 .diagnostic-sample-details dt {
   color: var(--app-text-muted);
   font-size: 0.75rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .diagnostic-sample-details dd {
@@ -1705,42 +1423,7 @@ function capacityConstraintLabel(constraint: string): string {
   white-space: pre-wrap;
 }
 
-.panel-empty {
-  align-self: start;
-}
-
-@media (min-width: 900px) {
-  .breakdown-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1180px) {
-  .breakdown-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 860px) {
-  .diagnostics-header {
-    align-items: stretch;
-    grid-template-columns: 1fr;
-  }
-
-  .header-controls {
-    grid-template-columns: 1fr;
-    justify-content: stretch;
-  }
-
-  .window-tabs {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .sample-select {
-    width: 100%;
-  }
-
   .investigation-grid {
     grid-template-columns: 1fr;
   }
@@ -1754,73 +1437,48 @@ function capacityConstraintLabel(constraint: string): string {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .incident-facts,
-  .capacity-observatory__meters,
-  .diagnostics-skeleton__facts,
-  .diagnostics-skeleton__grid {
+  .diagnostics-skeleton__facts {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .capacity-observatory__meters > div {
-    border-left: 0 !important;
-    border-top: 1px solid var(--app-border-subtle);
-    padding: 0.65rem 0;
-  }
-
-  .capacity-observatory__constraints {
+  .capacity-constraints {
     grid-template-columns: 1fr;
-  }
-
-  .incident-facts > div {
-    border-left: 0 !important;
-    border-top: 1px solid var(--app-border-subtle);
-    padding: 0.65rem 0;
-  }
-
-  .diagnostics-samples-heading {
-    display: grid;
   }
 
   .sample-controls {
     display: grid;
+    width: 100%;
     grid-template-columns: 1fr;
-    width: 100%;
   }
 
-  .sample-filter {
+  .sample-select {
     width: 100%;
   }
-
 }
 
-@media (max-width: 520px) {
-  .incident-facts,
-  .capacity-observatory__meters,
-  .diagnostics-skeleton__facts,
-  .diagnostics-skeleton__grid {
-    grid-template-columns: 1fr;
+@media (max-width: 639px) {
+  .diagnostics-samples :deep(.section-card__actions) {
+    align-self: stretch;
   }
 
-  .capacity-observatory__heading {
-    display: grid;
+  .status-row,
+  .dimension-row,
+  .sample-filter-bar {
+    padding-inline: 1rem;
   }
 
-  .window-tabs :deep(.n-button) {
-    padding-inline: 0.5rem;
+  .diagnostics-empty--compact {
+    padding-inline: 1rem;
   }
-
 }
 
 @media (pointer: coarse) {
-  .header-controls :deep(.n-button),
-  .header-controls :deep(.n-base-selection),
+  .diagnostics-page :deep(.page-header__actions .n-button),
+  .sample-controls :deep(.n-base-selection),
   .dimension-row,
   .sample-filter :deep(.n-button),
   .diagnostics-table-shell :deep(.n-button),
-  .diagnostic-sample-drawer :deep(.n-base-close) {
-    min-height: 44px;
-  }
-
+  .diagnostic-sample-drawer :deep(.n-base-close),
   .diagnostics-section-tabs :deep(.n-tabs-tab),
   .investigation-lane {
     min-height: 44px;

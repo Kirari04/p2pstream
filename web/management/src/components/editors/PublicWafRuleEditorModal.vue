@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, reactive, ref, watch } from "vue";
+import { RouterLink } from "vue-router";
 import { Trash2 as TrashIcon } from "@lucide/vue";
-import { NButton, NButtonGroup, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber } from "naive-ui";
+import { NButton, NCheckbox, NDrawer, NDrawerContent, NInput, NInputNumber, NTag } from "naive-ui";
 import { isBusyKey, runManagementActionKey } from "@/composables/managementContextKeys";
 import { useManagementClient } from "@/composables/useManagementClient";
 import DisabledHint from "@/components/DisabledHint.vue";
@@ -9,6 +10,7 @@ import PublicPolicyKeyPartsEditor from "@/components/editors/PublicPolicyKeyPart
 import PublicPolicyMatchEditor from "@/components/editors/PublicPolicyMatchEditor.vue";
 import PublicWafGeoRestrictionEditor from "@/components/editors/PublicWafGeoRestrictionEditor.vue";
 import AccessibleSelect from "@/components/ui/AccessibleSelect.vue";
+import SegmentedControl from "@/components/ui/SegmentedControl.vue";
 import { BUSY_REASON } from "@/lib/disabledReasons";
 import { editorDrawerWidth } from "@/lib/naiveUi";
 import {
@@ -142,6 +144,10 @@ const actionOptions = [
 const activationOptions = [
   { label: "Always", value: PublicWafActivationMode.ALWAYS },
   { label: "Automatic", value: PublicWafActivationMode.AUTOMATIC },
+];
+const responseBodySourceOptions = [
+  { label: "Inline", value: PublicResponseBodyMode.INLINE },
+  { label: "Template", value: PublicResponseBodyMode.TEMPLATE },
 ];
 const automaticFlowSteps = [
   {
@@ -506,17 +512,17 @@ defineExpose({ openCreate, openEdit, close });
     v-model:show="isOpen"
     placement="right"
     :width="editorDrawerWidth('64rem')"
-    :aria-label="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'"
+    :aria-label="form.id ? 'Edit WAF rule' : 'Add WAF rule'"
     class="editor-drawer"
   >
-    <NDrawerContent :title="form.id ? 'Edit WAF Rule' : 'Add WAF Rule'" closable>
+    <NDrawerContent :title="form.id ? 'Edit WAF rule' : 'Add WAF rule'" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submitRule">
       <section class="layout-grid space-lg mq-sm-cols-four">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
           Name
           <NInput v-model:value="form.name" size="small" required />
         </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Priority
           <NInputNumber :show-button="false" v-model:value="form.priority" size="small" required />
         </label>
@@ -525,39 +531,24 @@ defineExpose({ openCreate, openEdit, close });
         </NCheckbox>
       </section>
 
-      <section class="layout-grid space-lg">
-        <NButtonGroup class="layout-grid cols-one mq-sm-cols-three" size="small" role="group" aria-label="WAF action">
-          <NButton
-            v-for="option in actionOptions"
-            :key="option.value"
-            attr-type="button"
-            :type="form.action === option.value ? 'primary' : 'default'"
-            :aria-pressed="form.action === option.value"
-            @click="form.action = option.value"
-          >
-            {{ option.label }}
-          </NButton>
-        </NButtonGroup>
-        <p class="copy-xs line-normal muted-text">{{ selectedActionDescription }}</p>
-        <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="WAF activation mode">
-          <NButton
-            v-for="option in activationOptions"
-            :key="option.value"
-            attr-type="button"
-            :type="form.activationMode === option.value ? 'primary' : 'default'"
-            :aria-pressed="form.activationMode === option.value"
-            @click="form.activationMode = option.value"
-          >
-            {{ option.label }}
-          </NButton>
-        </NButtonGroup>
-        <div class="layout-grid space-2xs divider-left frame-standard pad-left-md">
-          <p class="copy-xs weight-semibold base-text">{{ selectedActivationTitle }}</p>
-          <p class="copy-xs line-normal muted-text">{{ selectedActivationDescription }}</p>
-          <p class="copy-xs line-normal muted-text">
-            WAF runs before rate limits, traffic shaping, routing, cache, and target forwarding. Lower priority numbers are evaluated first.
-          </p>
+      <section class="editor-group layout-grid space-lg">
+        <h3 class="copy-sm weight-semibold base-text">Action</h3>
+        <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Response
+          <SegmentedControl v-model="form.action" :options="actionOptions" label="WAF action" />
+          <span class="weight-normal line-normal muted-text">{{ selectedActionDescription }}</span>
         </div>
+        <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Activation
+          <SegmentedControl v-model="form.activationMode" :options="activationOptions" label="WAF activation mode" />
+          <span class="weight-normal line-normal muted-text">
+            <span class="base-text weight-medium">{{ selectedActivationTitle }}.</span>
+            {{ selectedActivationDescription }}
+          </span>
+        </div>
+        <p class="copy-xs line-normal muted-text">
+          WAF runs before rate limits, traffic shaping, routing, cache, and target forwarding. Lower priority numbers are evaluated first.
+        </p>
       </section>
 
       <PublicPolicyMatchEditor :form="form.match" />
@@ -569,10 +560,10 @@ defineExpose({ openCreate, openEdit, close });
       />
       <PublicPolicyKeyPartsEditor :key-parts="form.keyParts" />
 
-      <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
-        <h4 class="copy-sm weight-semibold base-text">Captcha</h4>
+      <section v-if="form.action === PublicWafRuleAction.CAPTCHA" class="editor-group layout-grid space-lg">
+        <h3 class="copy-sm weight-semibold base-text">Captcha</h3>
         <div class="layout-grid space-lg mq-sm-cols-two">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Provider
             <AccessibleSelect
               v-model:value="form.captchaProviderId"
@@ -582,96 +573,98 @@ defineExpose({ openCreate, openEdit, close });
               :placeholder="providers.length ? 'Select provider' : 'No captcha providers configured'"
               :disabled="!providers.length"
             />
-            <span v-if="!providers.length" class="copy-xs normal-text letter-normal muted-text">
-              Add a captcha provider in the WAF section before creating a captcha rule.
+            <span v-if="!providers.length" class="weight-normal muted-text">
+              Add a captcha provider in
+              <RouterLink to="/policies/waf/captcha-providers" @click="isOpen = false">WAF → Captcha providers</RouterLink>
+              before creating a captcha rule.
             </span>
-            <span v-else-if="!enabledProviders.length" class="copy-xs normal-text letter-normal warning-text">
+            <span v-else-if="!enabledProviders.length" class="weight-normal warning-text">
               All configured captcha providers are disabled.
             </span>
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Pass TTL minutes
             <NInputNumber :show-button="false" v-model:value="form.captchaPassMinutes" size="small" :min="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
             Page template
             <AccessibleSelect v-model:value="form.captchaPageTemplateId" accessible-label="Captcha page template" size="small" :options="captchaTemplateOptions" />
           </label>
         </div>
       </section>
 
-      <section v-if="form.action === PublicWafRuleAction.WAITING_ROOM" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
-        <h4 class="copy-sm weight-semibold base-text">Waiting room</h4>
+      <section v-if="form.action === PublicWafRuleAction.WAITING_ROOM" class="editor-group layout-grid space-lg">
+        <h3 class="copy-sm weight-semibold base-text">Waiting room</h3>
         <div class="layout-grid space-lg mq-sm-cols-five">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Capacity
             <NInputNumber :show-button="false" v-model:value="form.waitingRoomMaxAdmitted" size="small" :min="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Admit/sec
             <NInputNumber :show-button="false" v-model:value="form.waitingRoomAdmissionRate" size="small" :min="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             TTL minutes
             <NInputNumber :show-button="false" v-model:value="form.waitingRoomAdmissionTtlMinutes" size="small" :min="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Poll seconds
             <NInputNumber :show-button="false" v-model:value="form.waitingRoomPollSeconds" size="small" :min="1" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Timeout minutes
             <NInputNumber :show-button="false" v-model:value="form.waitingRoomTimeoutMinutes" size="small" :min="1" />
           </label>
         </div>
         <div class="layout-grid space-lg mq-sm-cols-two">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Page title
             <NInput v-model:value="form.waitingRoomPageTitle" size="small" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Page body
             <NInput v-model:value="form.waitingRoomPageBody" size="small" />
           </label>
         </div>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+        <label class="layout-grid space-xs copy-xs weight-medium muted-text">
           Page template
           <AccessibleSelect v-model:value="form.waitingRoomPageTemplateId" accessible-label="Waiting room page template" size="small" :options="waitingRoomTemplateOptions" />
         </label>
       </section>
 
-      <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="layout-grid space-xl round-md framed frame-standard muted-bg pad-lg">
+      <section v-if="form.activationMode === PublicWafActivationMode.AUTOMATIC" class="editor-group layout-grid space-xl">
         <div class="layout-grid space-2xs">
-          <h4 class="copy-sm weight-semibold base-text">Automatic trigger behavior</h4>
+          <h3 class="copy-sm weight-semibold base-text">Automatic trigger behavior</h3>
           <p class="copy-xs line-normal muted-text">
             These settings decide when the selected WAF action temporarily turns on for matching traffic.
             Enabled metrics are combined as OR conditions; disabled metrics are saved as 0 and ignored.
           </p>
         </div>
-        <div class="layout-grid space-md mq-sm-cols-four">
-          <div v-for="step in automaticFlowSteps" :key="step.label" class="divider-left frame-standard pad-left-md">
+        <ol class="waf-flow-steps">
+          <li v-for="step in automaticFlowSteps" :key="step.label">
             <p class="copy-xs weight-semibold base-text">{{ step.label }}</p>
             <p class="margin-top-xs copy-xs line-normal muted-text">{{ step.body }}</p>
-          </div>
-        </div>
+          </li>
+        </ol>
         <div class="layout-grid space-lg mq-sm-cols-three">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Window seconds
             <NInputNumber :show-button="false" v-model:value="form.triggers.requestWindowSeconds" size="small" :min="1" />
-            <p class="copy-xs weight-normal normal-text line-normal letter-normal muted-text">Rolling window used by request-volume metrics.</p>
+            <span class="weight-normal line-normal muted-text">Rolling window used by request-volume metrics.</span>
           </label>
         </div>
-        <div v-for="group in automaticTriggerGroups" :key="group.title" class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
+        <div v-for="group in automaticTriggerGroups" :key="group.title" class="waf-trigger-group layout-grid space-md">
           <div class="layout-grid space-2xs">
-            <h5 class="copy-xs weight-semibold label-case letter-wide muted-text">{{ group.title }}</h5>
+            <h4 class="copy-sm weight-semibold base-text">{{ group.title }}</h4>
             <p class="copy-xs line-normal muted-text">{{ group.body }}</p>
           </div>
           <div class="layout-grid space-md mq-md-cols-two mq-xl-cols-three">
             <div
               v-for="metric in group.metrics"
               :key="metric.key"
-              class="layout-grid space-md round-sm framed frame-standard muted-bg pad-md"
-              :class="form.triggers.metrics[metric.key].enabled ? 'frame-standard' : 'disabled-fade'"
+              class="waf-metric layout-grid space-sm"
+              :class="{ 'waf-metric--off': !form.triggers.metrics[metric.key].enabled }"
             >
               <div class="layout-row align-center spread-items space-md">
                 <NCheckbox
@@ -681,12 +674,9 @@ defineExpose({ openCreate, openEdit, close });
                 >
                   <span class="clip-text copy-sm weight-medium">{{ metric.label }}</span>
                 </NCheckbox>
-                <span
-                  class="no-shrink round-sm framed pad-x-sm pad-y-2xs copy-2xs weight-semibold label-case letter-wide"
-                  :class="form.triggers.metrics[metric.key].enabled ? 'success-border success-text' : 'frame-standard muted-text'"
-                >
+                <NTag size="small" :bordered="false" :type="form.triggers.metrics[metric.key].enabled ? 'success' : 'default'">
                   {{ form.triggers.metrics[metric.key].enabled ? 'Enabled' : 'Disabled' }}
-                </span>
+                </NTag>
               </div>
               <div class="layout-grid space-xs">
                 <div class="layout-row align-center space-sm">
@@ -706,86 +696,69 @@ defineExpose({ openCreate, openEdit, close });
             </div>
           </div>
         </div>
-        <div class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
+        <div class="waf-trigger-group layout-grid space-md">
           <div class="layout-grid space-2xs">
-            <h5 class="copy-xs weight-semibold label-case letter-wide muted-text">Activation timing</h5>
+            <h4 class="copy-sm weight-semibold base-text">Activation timing</h4>
             <p class="copy-xs line-normal muted-text">Timing controls prevent brief spikes from rapidly turning the rule on and off. They are not detection metrics.</p>
           </div>
           <div class="layout-grid space-lg mq-sm-cols-two">
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Minimum active seconds
               <NInputNumber :show-button="false" v-model:value="form.triggers.minimumActiveSeconds" size="small" :min="1" />
-              <p class="copy-xs weight-normal normal-text line-normal letter-normal muted-text">Pressure must persist this long before the action begins.</p>
+              <span class="weight-normal line-normal muted-text">Pressure must persist this long before the action begins.</span>
             </label>
-            <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+            <label class="layout-grid space-xs copy-xs weight-medium muted-text">
               Quiet seconds
               <NInputNumber :show-button="false" v-model:value="form.triggers.quietSeconds" size="small" :min="1" />
-              <p class="copy-xs weight-normal normal-text line-normal letter-normal muted-text">The action stays active this long after all pressure clears.</p>
+              <span class="weight-normal line-normal muted-text">The action stays active this long after all pressure clears.</span>
             </label>
           </div>
         </div>
       </section>
 
-      <section v-if="form.action === PublicWafRuleAction.BLOCK" class="layout-grid space-lg round-md framed frame-standard muted-bg pad-lg">
-        <h4 class="copy-sm weight-semibold base-text">Block response</h4>
+      <section v-if="form.action === PublicWafRuleAction.BLOCK" class="editor-group layout-grid space-lg">
+        <h3 class="copy-sm weight-semibold base-text">Block response</h3>
         <div class="layout-grid space-lg mq-sm-cols-three">
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
             Status
             <NInputNumber :show-button="false" v-model:value="form.blockResponseStatusCode" size="small" :min="400" :max="599" />
           </label>
-          <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text mq-sm-span-two">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text mq-sm-span-two">
             Content type
             <NInput v-model:value="form.blockResponseContentType" size="small" />
           </label>
         </div>
-        <div class="layout-grid space-md round-md framed frame-standard muted-bg pad-md">
-          <div class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Body source
-            <NButtonGroup class="layout-grid cols-two" size="small" role="group" aria-label="Blocked response body source">
-              <NButton
-                attr-type="button"
-                :type="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE ? 'primary' : 'default'"
-                :aria-pressed="form.blockResponseBodyMode === PublicResponseBodyMode.INLINE"
-                @click="form.blockResponseBodyMode = PublicResponseBodyMode.INLINE"
-              >
-                Inline
-              </NButton>
-              <NButton
-                attr-type="button"
-                :type="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE ? 'primary' : 'default'"
-                :aria-pressed="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE"
-                @click="form.blockResponseBodyMode = PublicResponseBodyMode.TEMPLATE"
-              >
-                Template
-              </NButton>
-            </NButtonGroup>
-          </div>
-          <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Template
-            <AccessibleSelect
-              v-model:value="form.blockResponseTemplateId"
-              accessible-label="Block response template"
-              size="small"
-              :options="genericTemplateOptions"
-              :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
-              :disabled="!genericTemplates.length"
-            />
-          </label>
-          <label v-else class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-            Body
-            <NInput v-model:value="form.blockResponseBody" type="textarea" class="mono-text" :autosize="{ minRows: 4, maxRows: 8 }" />
-          </label>
+        <div class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Body source
+          <SegmentedControl v-model="form.blockResponseBodyMode" :options="responseBodySourceOptions" label="Blocked response body source" />
         </div>
+        <label v-if="form.blockResponseBodyMode === PublicResponseBodyMode.TEMPLATE" class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Template
+          <AccessibleSelect
+            v-model:value="form.blockResponseTemplateId"
+            accessible-label="Block response template"
+            size="small"
+            :options="genericTemplateOptions"
+            :placeholder="genericTemplates.length ? 'Select template' : 'No generic templates'"
+            :disabled="!genericTemplates.length"
+          />
+        </label>
+        <label v-else class="layout-grid space-xs copy-xs weight-medium muted-text">
+          Body
+          <NInput v-model:value="form.blockResponseBody" type="textarea" class="mono-text" :autosize="{ minRows: 4, maxRows: 8 }" />
+        </label>
         <div class="layout-grid space-sm">
           <div class="layout-row align-center spread-items space-md">
-            <span class="copy-xs weight-medium label-case letter-wide muted-text">Headers</span>
-            <NButton secondary size="small" attr-type="button" @click="addBlockHeader">Add Header</NButton>
+            <span class="copy-xs weight-medium muted-text">Headers</span>
+            <NButton secondary size="small" attr-type="button" @click="addBlockHeader">Add header</NButton>
           </div>
+          <p v-if="!form.blockResponseHeaders.length" class="copy-xs muted-text">No extra response headers.</p>
           <div v-for="(header, index) in form.blockResponseHeaders" :key="index" class="layout-grid space-sm mq-sm-two-auto">
             <NInput v-model:value="header.name" size="small" placeholder="Name" />
             <NInput v-model:value="header.value" size="small" placeholder="Value" />
             <NButton
               type="error"
+              secondary
               size="small"
               class="row-remove-button"
               aria-label="Remove response header"
@@ -793,7 +766,8 @@ defineExpose({ openCreate, openEdit, close });
               attr-type="button"
               @click="removeBlockHeader(index)"
             >
-              <template #icon><TrashIcon class="icon-sm icon-sm" /></template>
+              <template #icon><TrashIcon class="icon-sm" /></template>
+              Remove
             </NButton>
           </div>
         </div>
@@ -803,7 +777,7 @@ defineExpose({ openCreate, openEdit, close });
         <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="submitDisabled" :reason="submitDisabledReason">
           <NButton type="primary" attr-type="submit" :disabled="submitDisabled">
-            {{ form.id ? 'Save Changes' : 'Create Rule' }}
+            {{ form.id ? 'Save changes' : 'Create rule' }}
           </NButton>
         </DisabledHint>
       </div>
@@ -813,9 +787,44 @@ defineExpose({ openCreate, openEdit, close });
 </template>
 
 <style scoped>
-.row-remove-button {
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0 !important;
+/* Field labels stack from the top so helper text in a sibling column never stretches the input row. */
+label.layout-grid {
+  align-content: start;
+}
+
+/* Segmented controls keep their natural width inside stacked field groups. */
+.segmented {
+  justify-self: start;
+}
+
+:deep(.disabled-hint-full > .n-input-number) {
+  flex: 1 1 auto;
+}
+
+.waf-flow-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.waf-trigger-group + .waf-trigger-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1rem;
+}
+
+.waf-metric {
+  min-width: 0;
+  align-content: start;
+  border-radius: 8px;
+  padding: 0.75rem 0.875rem;
+  background: var(--app-panel-muted);
+  transition: opacity 140ms ease;
+}
+
+.waf-metric--off {
+  opacity: 0.72;
 }
 </style>

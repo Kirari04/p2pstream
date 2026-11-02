@@ -68,14 +68,12 @@ func (a *App) dashboardCacheActive() bool {
 	return a != nil && a.DashboardCache != nil && a.DashboardCache.started.Load()
 }
 
-func (a *App) dashboardResponseFromCache(now time.Time) *p2pstreamv1.GetDashboardResponse {
+func (a *App) dashboardResponseFromCache(now time.Time) (*p2pstreamv1.GetDashboardResponse, bool) {
 	if resp, ok := a.DashboardCache.clone(); ok {
 		a.overlayDashboardLive(resp, now)
-		return resp
+		return resp, true
 	}
-	resp := a.emptyDashboardResponse(now)
-	a.overlayDashboardLive(resp, now)
-	return resp
+	return nil, false
 }
 
 func (c *dashboardResponseCache) clone() (*p2pstreamv1.GetDashboardResponse, bool) {
@@ -136,24 +134,6 @@ func (a *App) refreshDashboardCache(ctx context.Context) {
 		return
 	}
 	cache.store(resp)
-}
-
-func (a *App) emptyDashboardResponse(now time.Time) *p2pstreamv1.GetDashboardResponse {
-	windows := make([]*p2pstreamv1.DashboardWindowSummary, 0, len(dashboardWindows))
-	for _, window := range dashboardWindows {
-		windows = append(windows, &p2pstreamv1.DashboardWindowSummary{
-			Label:           window.Label,
-			SinceUnixMillis: rollupBucketUnixMillis(now.Add(-window.Since)),
-		})
-	}
-	return &p2pstreamv1.GetDashboardResponse{
-		Windows:                windows,
-		AgentConnections:       &p2pstreamv1.AgentConnectionSummary{},
-		RetentionDays:          int64(a.observabilityRetentionDays()),
-		GeneratedAtUnixMillis:  now.UnixMilli(),
-		AgentUptimeSummaries:   []*p2pstreamv1.AgentUptimeSummary{},
-		RecentAgentConnections: []*p2pstreamv1.AgentConnectionSession{},
-	}
 }
 
 func (a *App) overlayDashboardLive(resp *p2pstreamv1.GetDashboardResponse, now time.Time) {
@@ -298,34 +278,35 @@ func (a *App) buildDashboardCacheSnapshot(ctx context.Context, now time.Time) (*
 
 	rows, _, err := a.cachedOrLoadPublicConfig(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard public configuration: %w", err)
 	}
 	labels := dashboardLabelsFromPublicRows(rows)
 
 	sinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardMaxWindow()))
 	proxyRows, err := a.DB.ListProxyRequestRollupMinutesSince(ctx, sinceUnixMillis)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard proxy rollup minutes: %w", err)
 	}
 	agentRows, err := a.DB.ListAgentStatRollupMinutesSince(ctx, sinceUnixMillis)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard agent rollup minutes: %w", err)
 	}
-	tupleRows, err := a.DB.ListProxyRequestTupleRollupMinutesSince(ctx, sinceUnixMillis)
+	// Tuple data serves only the top dimensions; long windows use totals above.
+	topSinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardTopWindow))
+	tupleRows, err := a.DB.ListProxyRequestTupleRollupMinutesSince(ctx, topSinceUnixMillis)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard proxy tuple rollup minutes: %w", err)
 	}
 
 	agentConnections, err := a.agentConnectionSummary(ctx, now)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard agent connection summary: %w", err)
 	}
 	agentUptimeSummaries, recentAgentConnections, err := a.agentUptimeDashboard(ctx, now)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard agent uptime: %w", err)
 	}
 
-	topSinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardTopWindow))
 	resp := &p2pstreamv1.GetDashboardResponse{
 		Status:                 a.statusResponse(),
 		Windows:                dashboardRollupWindows(now, proxyRows, agentRows),

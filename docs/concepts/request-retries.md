@@ -62,7 +62,7 @@ Use an application idempotency key when retrying operations with side effects. A
 
 Rules can filter by HTTP methods, route IDs, agent target IDs, and the shared request-only CEL matcher. Empty route and target filters mean all agent-backed proxy targets. Direct proxy targets, static responses, and redirects never match retry rules.
 
-The **Traffic Policy → Retries** table shows exact scope, failure boundary, replay limit, priority, state, and duplicate-risk warnings. The Request Tester previews method, matcher, route, target, and agent-transport eligibility without sending traffic.
+The **Traffic policy → Retries** table shows exact scope, failure boundary, replay limit, priority, state, and duplicate-risk warnings. The Request tester previews method, matcher, route, target, and agent-transport eligibility without sending traffic.
 
 ## Observability
 

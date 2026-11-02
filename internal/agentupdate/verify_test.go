@@ -45,9 +45,11 @@ func TestVerifyCatalogPreservesAllArtifactsAndDigest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	manifestDigest := sha256.Sum256(manifestJSON)
 	verified, err := VerifyCatalog(manifestJSON, CatalogVerifyPolicy{
 		Now:                       time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
 		CurrentSequence:           10203,
+		CurrentManifestSHA256:     hex.EncodeToString(manifestDigest[:]),
 		CurrentSecurityEpoch:      2,
 		CurrentMinimumSafeVersion: "v1.0.0",
 		ServerVersion:             "v1.5.0",
@@ -62,6 +64,89 @@ func TestVerifyCatalogPreservesAllArtifactsAndDigest(t *testing.T) {
 	wantDigest := sha256.Sum256(manifestJSON)
 	if verified.ManifestSHA256 != hex.EncodeToString(wantDigest[:]) {
 		t.Fatalf("catalog digest = %q", verified.ManifestSHA256)
+	}
+}
+
+func TestVerifyCatalogSequencePin(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
+	digest := sha256.Sum256(manifestJSON)
+	pin := hex.EncodeToString(digest[:])
+	for _, test := range []struct {
+		name     string
+		sequence uint64
+		pin      string
+		want     string
+	}{
+		{"bootstrap", 0, "", ""},
+		{"newer without pin", 10202, "", ""},
+		{"newer with old pin", 10202, strings.Repeat("a", 64), ""},
+		{"exact same sequence", 10203, pin, ""},
+		{"missing pin", 10203, "", "valid trusted manifest SHA-256"},
+		{"malformed pin", 10203, strings.Repeat("g", 64), "valid trusted manifest SHA-256"},
+		{"short pin", 10203, pin[:62], "valid trusted manifest SHA-256"},
+		{"uppercase pin", 10203, strings.ToUpper(pin), "valid trusted manifest SHA-256"},
+		{"different pin", 10203, strings.Repeat("a", 64), "manifest changed"},
+		{"rollback with matching pin", 10204, pin, "sequence floor"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := VerifyCatalog(manifestJSON, CatalogVerifyPolicy{
+				Now: testPolicy().Now, ServerVersion: "v1.5.0", ProtocolVersion: 1,
+				CurrentSequence: test.sequence, CurrentManifestSHA256: test.pin,
+			})
+			if test.want == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error=%v, want %q", err, test.want)
+			}
+		})
+	}
+
+	manifest, err := ParseManifest(manifestJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Artifacts[0].SHA256 = strings.Repeat("b", 64)
+	changed, err := CanonicalManifest(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyCatalog(changed, CatalogVerifyPolicy{
+		Now: testPolicy().Now, ServerVersion: "v1.5.0", CurrentSequence: manifest.Sequence, CurrentManifestSHA256: pin,
+	}); err == nil || !strings.Contains(err.Error(), "manifest changed") {
+		t.Fatalf("changed equal-sequence manifest: %v", err)
+	}
+	manifest.Sequence = 0
+	if _, err := CanonicalManifest(manifest); err == nil {
+		t.Fatal("zero-floor bootstrap allowed a zero manifest sequence")
+	}
+}
+
+func TestVerifyCatalogPinPreservesPolicyChecks(t *testing.T) {
+	manifestJSON, _ := testBundle(t, "stable")
+	digest := sha256.Sum256(manifestJSON)
+	for _, test := range []struct {
+		name   string
+		mutate func(*CatalogVerifyPolicy)
+		want   string
+	}{
+		{"channel", func(p *CatalogVerifyPolicy) { p.RequiredChannel = "staging" }, "channel"},
+		{"expiry", func(p *CatalogVerifyPolicy) { p.Now = p.Now.AddDate(0, 1, 0) }, "expired"},
+		{"epoch", func(p *CatalogVerifyPolicy) { p.CurrentSecurityEpoch = 3 }, "epoch"},
+		{"minimum safe version", func(p *CatalogVerifyPolicy) { p.CurrentMinimumSafeVersion = "v1.1.0" }, "minimum safe"},
+		{"invalid minimum safe version", func(p *CatalogVerifyPolicy) { p.CurrentMinimumSafeVersion = "invalid" }, "minimum safe"},
+		{"server", func(p *CatalogVerifyPolicy) { p.ServerVersion = "v3.0.0" }, "server version"},
+		{"protocol", func(p *CatalogVerifyPolicy) { p.ProtocolVersion = 3 }, "protocol version"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			policy := CatalogVerifyPolicy{Now: testPolicy().Now, ServerVersion: "v1.5.0", ProtocolVersion: 1,
+				CurrentSequence: 10203, CurrentManifestSHA256: hex.EncodeToString(digest[:])}
+			test.mutate(&policy)
+			if _, err := VerifyCatalog(manifestJSON, policy); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error=%v, want %q", err, test.want)
+			}
+		})
 	}
 }
 

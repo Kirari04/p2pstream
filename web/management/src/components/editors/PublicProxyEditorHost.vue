@@ -56,6 +56,9 @@ function openTarget(target: TrafficFlowEditTarget) {
     case "listener":
       openListener(target.id);
       break;
+    case "site":
+      openSite(target.id);
+      break;
     case "route":
       openRoute(target.id);
       break;

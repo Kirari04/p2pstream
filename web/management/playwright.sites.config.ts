@@ -1,5 +1,8 @@
+import { initializeFixtureCredentials } from "./playwright.credentials";
 import { defineConfig } from "@playwright/test";
 import { repoDir } from "./playwright.shared";
+
+initializeFixtureCredentials();
 
 const port = process.env.PLAYWRIGHT_MANAGEMENT_PORT ?? "19481";
 if (!/^\d+$/.test(port) || Number(port) < 1024 || Number(port) > 65535) {

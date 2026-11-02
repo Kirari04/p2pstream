@@ -1,6 +1,8 @@
 import type {
+  AgentAvailabilitySummary,
   AgentConnectionSession,
   GetAgentAvailabilityResponse,
+  ListAgentAvailabilityResponse,
 } from "@/gen/proto/p2pstream/v1/management_pb";
 
 export type AvailabilityWindow = "24h" | "7d" | "30d";
@@ -23,8 +25,14 @@ export type AvailabilitySessionMatch = {
   relation: "session" | "disconnect" | "reconnect";
 };
 
+/** The part of a single-agent or fleet availability response that describes one agent's timeline. */
+export type AvailabilityTimeline = Pick<
+  GetAgentAvailabilityResponse,
+  "observedSinceUnixMillis" | "observedUntilUnixMillis" | "intervals"
+>;
+
 export function availabilitySegments(
-  availability: GetAgentAvailabilityResponse | null | undefined,
+  availability: AvailabilityTimeline | null | undefined,
 ): AvailabilitySegment[] {
   if (!availability) return [];
   const observedStart = safeEpochMillis(availability.observedSinceUnixMillis);
@@ -210,4 +218,157 @@ function safeEpochMillis(value: bigint): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+/**
+ * Fleet lanes add two states to the single-agent timeline:
+ * - "unobserved": the agent did not exist yet (or was outside retention), so
+ *   the time is neither uptime nor downtime;
+ * - "omitted": the server dropped this agent's oldest intervals to bound the
+ *   fleet response, so the state before the first kept interval is unknown.
+ */
+export type FleetLaneState = AvailabilityState | "unobserved" | "omitted";
+
+export type FleetLaneSegment = {
+  startMillis: number;
+  endMillis: number;
+  state: FleetLaneState;
+  active: boolean;
+};
+
+export type FleetAvailabilityLane = {
+  summary: AgentAvailabilitySummary;
+  segments: FleetLaneSegment[];
+  observedMillis: number;
+  /** Uptime as a 0..1 fraction, or null when nothing was observed in the window. */
+  uptimeFraction: number | null;
+};
+
+export type FleetAvailabilityOverview = {
+  agentCount: number;
+  enabledCount: number;
+  disabledCount: number;
+  /** Mean uptime fraction across enabled agents with observed time, or null. */
+  averageUptimeFraction: number | null;
+  disconnectCount: number;
+  truncatedCount: number;
+};
+
+export function fleetAvailabilityRange(
+  response: ListAgentAvailabilityResponse | null | undefined,
+): AvailabilityRange {
+  if (!response) return { startMillis: 0, endMillis: 0 };
+  return {
+    startMillis: safeEpochMillis(response.windowSinceUnixMillis),
+    endMillis: safeEpochMillis(response.windowUntilUnixMillis),
+  };
+}
+
+/** Segments for one agent on the fleet's shared time axis, covering the whole range. */
+export function fleetLaneSegments(
+  summary: AgentAvailabilitySummary,
+  range: AvailabilityRange,
+): FleetLaneSegment[] {
+  if (range.endMillis <= range.startMillis) return [];
+  const observedStart = clamp(safeEpochMillis(summary.observedSinceUnixMillis), range.startMillis, range.endMillis);
+  const observedEnd = clamp(safeEpochMillis(summary.observedUntilUnixMillis), range.startMillis, range.endMillis);
+  if (observedEnd <= observedStart) {
+    return [{ ...range, state: "unobserved", active: false }];
+  }
+
+  let knownStart = observedStart;
+  if (summary.intervalsTruncated && summary.intervals.length) {
+    const earliestKept = Math.min(...summary.intervals.map((interval) => safeEpochMillis(interval.connectedAtUnixMillis)));
+    knownStart = clamp(earliestKept, observedStart, observedEnd);
+  }
+
+  const segments: FleetLaneSegment[] = [];
+  if (observedStart > range.startMillis) {
+    segments.push({ startMillis: range.startMillis, endMillis: observedStart, state: "unobserved", active: false });
+  }
+  if (knownStart > observedStart) {
+    segments.push({ startMillis: observedStart, endMillis: knownStart, state: "omitted", active: false });
+  }
+  segments.push(...availabilitySegments({
+    observedSinceUnixMillis: BigInt(knownStart),
+    observedUntilUnixMillis: BigInt(observedEnd),
+    intervals: summary.intervals,
+  }));
+  if (observedEnd < range.endMillis) {
+    segments.push({ startMillis: observedEnd, endMillis: range.endMillis, state: "unobserved", active: false });
+  }
+  return segments;
+}
+
+/** One lane per agent: enabled agents first, worst uptime first, never-observed agents after observed ones. */
+export function fleetAvailabilityLanes(
+  response: ListAgentAvailabilityResponse | null | undefined,
+): FleetAvailabilityLane[] {
+  if (!response) return [];
+  const range = fleetAvailabilityRange(response);
+  return response.agents
+    .map((summary) => {
+      const observedMillis = Math.max(
+        0,
+        safeEpochMillis(summary.observedUntilUnixMillis) - safeEpochMillis(summary.observedSinceUnixMillis),
+      );
+      return {
+        summary,
+        segments: fleetLaneSegments(summary, range),
+        observedMillis,
+        uptimeFraction: observedMillis > 0 && Number.isFinite(summary.uptimePercent)
+          ? clamp(summary.uptimePercent, 0, 1)
+          : null,
+      };
+    })
+    .sort(compareFleetLanes);
+}
+
+function compareFleetLanes(left: FleetAvailabilityLane, right: FleetAvailabilityLane): number {
+  const enabledRank = (lane: FleetAvailabilityLane) => (lane.summary.enabled ? 0 : 1);
+  const observedRank = (lane: FleetAvailabilityLane) => (lane.uptimeFraction === null ? 1 : 0);
+  return enabledRank(left) - enabledRank(right)
+    || observedRank(left) - observedRank(right)
+    || (left.uptimeFraction ?? 0) - (right.uptimeFraction ?? 0)
+    || Number(right.summary.disconnectCount - left.summary.disconnectCount)
+    || left.summary.agentName.localeCompare(right.summary.agentName)
+    || left.summary.agentPublicId.localeCompare(right.summary.agentPublicId);
+}
+
+export function fleetAvailabilityOverview(lanes: FleetAvailabilityLane[]): FleetAvailabilityOverview {
+  const enabled = lanes.filter((lane) => lane.summary.enabled);
+  const observed = enabled.filter((lane) => lane.uptimeFraction !== null);
+  return {
+    agentCount: lanes.length,
+    enabledCount: enabled.length,
+    disabledCount: lanes.length - enabled.length,
+    averageUptimeFraction: observed.length
+      ? observed.reduce((sum, lane) => sum + (lane.uptimeFraction ?? 0), 0) / observed.length
+      : null,
+    disconnectCount: lanes.reduce((sum, lane) => sum + Number(lane.summary.disconnectCount), 0),
+    truncatedCount: lanes.filter((lane) => lane.summary.intervalsTruncated).length,
+  };
+}
+
+/** The lane segment under a 0..1 position along the shared axis. */
+export function fleetLaneSegmentAt(
+  segments: FleetLaneSegment[],
+  range: AvailabilityRange,
+  ratio: number,
+): FleetLaneSegment | null {
+  if (!segments.length || range.endMillis <= range.startMillis) return null;
+  const millis = range.startMillis + clamp(ratio, 0, 1) * (range.endMillis - range.startMillis);
+  return segments.find((segment) => millis >= segment.startMillis && millis < segment.endMillis)
+    ?? segments.at(-1)
+    ?? null;
+}
+
+/** Uptime with one decimal so 99.2% and 99.9% stay distinguishable; exact 0 and 100 stay whole. */
+export function formatUptimeFraction(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  const percent = clamp(value, 0, 1) * 100;
+  if (percent >= 100) return "100%";
+  if (percent <= 0) return "0%";
+  // Never round a lossy agent up to 100%.
+  return `${(Math.floor(percent * 10) / 10).toFixed(1)}%`;
 }

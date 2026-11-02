@@ -54,7 +54,7 @@ const props = withDefaults(defineProps<{
   description?: string;
   ariaLabel?: string;
 }>(), {
-  title: "Execution Order",
+  title: "Execution order",
   description: "",
   ariaLabel: "Traffic policy execution order",
 });
@@ -74,13 +74,13 @@ const defaultExecutionStages: readonly ExecutionStage[] = [
   },
   {
     key: "rate-limit",
-    label: "Rate Limits",
+    label: "Rate limits",
     description: "Request budgets",
     icon: "rate-limit",
   },
   {
     key: "traffic-shaper",
-    label: "Traffic Shaper",
+    label: "Traffic shaper",
     description: "Bandwidth budgets",
     icon: "traffic-shaper",
   },
@@ -180,7 +180,7 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
 </script>
 
 <template>
-  <section class="tp-order-strip surface-card" :aria-label="ariaLabel">
+  <section class="tp-order-strip" :aria-label="ariaLabel">
     <div v-if="title || description" class="tp-order-strip__header">
       <div class="tp-order-strip__heading">
         <h3 v-if="title" class="tp-order-strip__title">{{ title }}</h3>
@@ -228,7 +228,10 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
 
 <style scoped>
 .tp-order-strip {
-  overflow: hidden;
+  display: grid;
+  min-width: 0;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
 }
 
 .tp-order-strip__header {
@@ -236,36 +239,37 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  border-bottom: 1px solid var(--app-border-subtle);
-  padding: 0.875rem 1rem;
 }
 
 .tp-order-strip__heading {
+  display: grid;
   min-width: 0;
+  gap: 0.25rem;
 }
 
 .tp-order-strip__title {
   margin: 0;
   color: var(--app-text);
-  font-size: 0.95rem;
-  font-weight: 650;
-  letter-spacing: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
 }
 
 .tp-order-strip__description {
-  margin: 0.25rem 0 0;
+  margin: 0;
   color: var(--app-text-muted);
-  font-size: 0.78rem;
-  line-height: 1.45;
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .tp-order-strip__rail {
   display: grid;
-  grid-auto-columns: minmax(9.5rem, 1fr);
+  grid-auto-columns: minmax(9rem, 1fr);
   grid-auto-flow: column;
   gap: 0;
   margin: 0;
   overflow-x: auto;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
   padding: 0;
   list-style: none;
 }
@@ -275,67 +279,40 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
   min-width: 0;
 }
 
-.tp-order-strip__item::after {
-  position: absolute;
-  top: 1.75rem;
-  right: -0.5rem;
-  z-index: 1;
-  width: 1rem;
-  height: 1px;
-  background: var(--app-border);
-  content: "";
-}
-
-.tp-order-strip__item--last::after {
-  display: none;
+.tp-order-strip__item + .tp-order-strip__item {
+  border-left: 1px solid var(--app-border-subtle);
 }
 
 .tp-order-strip__stage {
   position: relative;
   display: grid;
-  grid-template-columns: 1.875rem minmax(0, 1fr);
-  grid-template-rows: minmax(2.5rem, auto) auto;
-  gap: 0.5rem 0.625rem;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 0.5rem;
   width: 100%;
-  min-height: 6.5rem;
-  border: 0;
-  border-right: 1px solid var(--app-border-subtle);
-  border-left: 3px solid transparent;
-  background: var(--app-panel);
+  height: 100%;
+  min-height: 5.5rem;
   color: var(--app-text);
-  cursor: default;
   padding: 0.75rem 0.875rem;
   text-align: left;
-  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .tp-order-strip__stage--disabled {
-  cursor: not-allowed;
   opacity: 0.58;
-}
-
-.tp-order-strip__stage--match {
-  border-left-color: var(--app-success);
-}
-
-.tp-order-strip__stage--unknown {
-  border-left-color: var(--app-warning);
-}
-
-.tp-order-strip__stage--no-match {
-  border-left-color: var(--app-border);
 }
 
 .tp-order-strip__icon {
   display: inline-flex;
-  width: 1.875rem;
-  height: 1.875rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-panel-muted);
+  padding-top: 0.0625rem;
   color: var(--app-text-muted);
+}
+
+.tp-order-strip__stage--match .tp-order-strip__icon {
+  color: var(--app-success);
+}
+
+.tp-order-strip__stage--unknown .tp-order-strip__icon {
+  color: var(--app-warning);
 }
 
 .tp-order-strip__icon-svg {
@@ -353,10 +330,9 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
 .tp-order-strip__label {
   overflow: hidden;
   color: var(--app-text);
-  font-size: 0.84rem;
-  font-weight: 650;
-  letter-spacing: 0;
-  line-height: 1.25;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -365,20 +341,23 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
   display: -webkit-box;
   overflow: hidden;
   color: var(--app-text-muted);
-  font-size: 0.72rem;
-  letter-spacing: 0;
-  line-height: 1.3;
+  font-size: 0.75rem;
+  line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
 .tp-order-strip__status {
   display: flex;
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
   min-width: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
+}
+
+.tp-order-strip__status:empty {
+  display: none;
 }
 
 .tp-order-strip__status :deep(.n-tag) {
@@ -393,11 +372,7 @@ function attentionTagType(tone?: AttentionTone): NaiveTagType {
 
 @media (max-width: 760px) {
   .tp-order-strip__rail {
-    grid-auto-columns: minmax(12rem, 76vw);
-  }
-
-  .tp-order-strip__stage {
-    min-height: 6rem;
+    grid-auto-columns: minmax(11rem, 72vw);
   }
 }
 </style>

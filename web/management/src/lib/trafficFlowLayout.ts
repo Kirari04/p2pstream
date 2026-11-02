@@ -28,6 +28,14 @@ export const RATE_LIMIT_KEY = "rate-limit";
 export const WAF_KEY = "waf";
 export const CACHE_KEY = "cache";
 export const TRAFFIC_SHAPER_KEY = "traffic-shaper";
+/** Shared redirect node of the Sites view; keeps the `redirect:` prefix so redirect-specific routing still applies. */
+export const SITES_REDIRECT_KEY = "redirect:sites";
+
+/**
+ * How much routing detail the traffic flow diagram shows. "sites" groups site routes into one node per
+ * site and collapses the per-route target column; "routes" shows every route and target.
+ */
+export type TrafficFlowDetail = "sites" | "routes";
 
 export type TrafficFlowConfigIndex = {
   routesByListenerId: Map<string, PublicRoute[]>;
@@ -55,18 +63,17 @@ export type TrafficRequestPathCacheEntry = {
 export class TrafficRequestPathCache {
   private readonly cache = new Map<string, TrafficRequestPathCacheEntry>();
 
-  get(request: TraceRequest, index: TrafficFlowConfigIndex | null): TrafficRequestPathCacheEntry {
-    const signature = trafficRequestPathSignature(request);
+  get(request: TraceRequest, index: TrafficFlowConfigIndex | null, detail: TrafficFlowDetail = "routes"): TrafficRequestPathCacheEntry {
+    const signature = `${trafficRequestPathSignature(request)}|${detail}`;
     const cached = this.cache.get(request.requestId);
     if (cached?.signature === signature) {
       return cached;
     }
     const path = buildTrafficFlowRequestPath(request, index);
-    const entry = {
-      signature,
-      path,
-      targetIndex: targetIndexForTraceRequest(request, path),
-    };
+    const targetIndex = targetIndexForTraceRequest(request, path);
+    const entry = detail === "sites"
+      ? { signature, ...mapTrafficFlowPathToSites(request, index, path, targetIndex) }
+      : { signature, path, targetIndex };
     this.cache.set(request.requestId, entry);
     return entry;
   }
@@ -245,6 +252,43 @@ export function buildTrafficFlowRequestPath(request: TraceRequest, index: Traffi
   return dedupeConsecutive(path);
 }
 
+/**
+ * Maps a Routes-view request path onto the Sites view: the route node becomes its owning site (when the
+ * route belongs to one), the per-route target node is dropped, and per-route redirect nodes become the
+ * shared redirect node. The target index follows the node it pointed at, or the node before a dropped one.
+ */
+export function mapTrafficFlowPathToSites(
+  request: TraceRequest,
+  index: TrafficFlowConfigIndex | null,
+  path: readonly string[],
+  targetIndex: number,
+): { path: string[]; targetIndex: number } {
+  const routeNodeKey = request.routeId > 0n ? routeKey(request.routeId) : "";
+  const selectedTargetKey = request.routeTargetId > 0n ? targetKey(request.routeTargetId) : "";
+  const mappedRouteKey = routeNodeKey ? sitesViewRouteNodeKey(request, index) : "";
+  const mapped: string[] = [];
+  let mappedTargetIndex = 0;
+  path.forEach((key, position) => {
+    let next: string | null = key;
+    if (routeNodeKey && key === routeNodeKey) next = mappedRouteKey;
+    else if (selectedTargetKey && key === selectedTargetKey) next = null;
+    else if (key.startsWith("redirect:")) next = SITES_REDIRECT_KEY;
+    if (next !== null && mapped[mapped.length - 1] !== next) mapped.push(next);
+    if (position === targetIndex) mappedTargetIndex = Math.max(0, mapped.length - 1);
+  });
+  return { path: mapped, targetIndex: mappedTargetIndex };
+}
+
+/** Node key a traced request's route resolves to in the Sites view. */
+export function sitesViewRouteNodeKey(request: TraceRequest, index: TrafficFlowConfigIndex | null): string {
+  if (request.routeId > 0n) {
+    const route = routeConfigForRequest(request, index);
+    return route && route.siteId > 0n ? siteKey(route.siteId) : routeKey(request.routeId);
+  }
+  if (request.defaultRoute && request.listenerId > 0n) return listenerDefaultRouteKey(request.listenerId);
+  return "";
+}
+
 export function targetIndexForTraceRequest(request: TraceRequest, path: string[]): number {
   if (request.stage === TraceStage.CACHE_STORED) {
     const responseIndex = path.indexOf("response");
@@ -336,6 +380,10 @@ export function listenerDefaultRouteKey(listenerId: bigint | string | number): s
 
 export function routeKey(id: bigint | string | number): string {
   return `route:${id.toString()}`;
+}
+
+export function siteKey(id: bigint | string | number): string {
+  return `site:${id.toString()}`;
 }
 
 export function targetKey(id: bigint | string | number): string {

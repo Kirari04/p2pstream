@@ -78,13 +78,6 @@ function closeNavigationAtDesktop(event: MediaQueryListEvent | MediaQueryList) {
   if (event.matches) mobileNavigationOpen.value = false;
 }
 
-const sourceOfferHref = "/.well-known/p2pstream/source";
-const sourceOfferTitle = computed(() => {
-  const repository = import.meta.env.VITE_RELEASE_REPOSITORY?.trim();
-  const ref = import.meta.env.VITE_RELEASE_REF?.trim();
-  if (repository && ref) return `View source for ${repository}@${ref}`;
-  return "View source and license";
-});
 const releaseChannel = computed(() => {
   const configured = import.meta.env.VITE_RELEASE_CHANNEL?.trim().toLowerCase();
   return configured || dashboard.value?.status?.releaseChannel?.trim().toLowerCase() || "development";
@@ -291,15 +284,6 @@ watch(() => route.fullPath, async () => {
             :title="`Selected environment: ${selectedEnvironmentLabel}`"
           />
         </label>
-        <a
-          :href="sourceOfferHref"
-          :title="sourceOfferTitle"
-          class="app-sidebar__source-link"
-          target="_blank"
-          rel="noreferrer"
-        >
-          View source and license
-        </a>
       </template>
     </ManagementSidebar>
 
@@ -371,16 +355,6 @@ watch(() => route.fullPath, async () => {
               </label>
             </div>
             <div class="app-header__tools">
-              <a
-                :href="sourceOfferHref"
-                :title="sourceOfferTitle"
-                :aria-label="sourceOfferTitle"
-                class="app-source-link"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Source
-              </a>
               <ThemeToggle />
               <DisabledHint v-if="currentUser" :disabled="Boolean(refreshDisabledReason)" :reason="refreshDisabledReason">
                 <NButton
@@ -430,7 +404,7 @@ watch(() => route.fullPath, async () => {
 
       <div v-else-if="setupState?.setupRequired && setupState.setupAvailable" class="max-auth-width centered-block pad-y-4xl">
         <NCard :bordered="false" class="surface-shadow">
-          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup Admin</h1>
+          <h1 class="margin-bottom-sm copy-2xl weight-semibold letter-normal">Setup admin</h1>
           <p class="margin-bottom-xl copy-sm line-relaxed muted-text">Create the administrator account that will manage this p2pstream instance.</p>
           <NForm :model="setupForm" class="layout-grid space-lg" @submit.prevent="submitSetup">
               <NFormItem label="Username" path="username">
