@@ -47,22 +47,15 @@ func (s *Session) monitorAggregatePressure() {
 			a.mu.Lock()
 			for stream := a.ownerHead; stream != nil; stream = stream.aggregateOwnerNext {
 				units := stream.pressureUnits
-				// Progress is a material NET reduction in held units, not bytes read or
-				// cumulative refunds. Trickle/refill must not renew a monopolized share.
-				if units <= stream.pressureBaseline/2 {
-					stream.pressureSince = now
-					stream.pressureBaseline = units
-				} else if units > stream.pressureBaseline {
-					stream.pressureBaseline = units
-				}
-				if a.freeUnits <= a.totalUnits/4 && units > 0 && now.Sub(stream.pressureSince) >= timeout && n < available {
+				stream.sampleAggregateProgressLocked(now, timeout)
+				if a.freeUnits <= a.totalUnits/4 && units > 0 && stream.pressureStalled && n < available {
 					candidates[n] = stream
 					n++
 				}
 			}
 			a.mu.Unlock()
 			for _, stream := range candidates[:n] {
-				if !stream.evictAggregatePressure(now, timeout) {
+				if !stream.evictAggregatePressure() {
 					continue
 				}
 				for i := range pending {
@@ -76,7 +69,7 @@ func (s *Session) monitorAggregatePressure() {
 	}
 }
 
-func (s *Stream) evictAggregatePressure(now time.Time, timeout time.Duration) bool {
+func (s *Stream) evictAggregatePressure() bool {
 	// All receive paths use state -> recv -> aggregate. Try-locks keep a partial
 	// physical frame or a concurrent Read/Reset from blocking this worker.
 	if !s.stateLock.TryLock() {
@@ -89,7 +82,7 @@ func (s *Stream) evictAggregatePressure(now time.Time, timeout time.Duration) bo
 	a := s.session.aggregate
 	a.mu.Lock()
 	eligible := !a.poolClosed && a.freeUnits <= a.totalUnits/4 && s.aggregateBufferTracked && s.pressureUnits > 0 &&
-		now.Sub(s.pressureSince) >= timeout && s.pressureUnits > s.pressureBaseline/2
+		s.pressureStalled && s.pressureReadUnits < s.pressureReadTarget
 	if eligible {
 		a.pressureResets++
 	}
@@ -109,4 +102,46 @@ func (s *Stream) evictAggregatePressure(now time.Time, timeout time.Duration) bo
 	s.notifyWaiting()
 	s.session.closeStream(s.id)
 	return true
+}
+
+// Require one quarter of the stream allowance per interval, capped at 128KiB.
+// Large historical growth must not manufacture a huge minimum transfer rate.
+// Small windows still require at least one completely consumed allocation unit.
+func (s *Stream) aggregateProgressTargetLocked() uint32 {
+	units := s.allocationRecvLimit / AggregateWindowUnitSize / 4
+	if units < 1 {
+		return 1
+	}
+	if units > 32 {
+		return 32
+	}
+	return units
+}
+
+// Called only for chunks actually consumed by Read, not discard/reset/Close or
+// publisher accounting. Saturation avoids overflow and prevents banking an
+// arbitrarily fast burst for future intervals. Caller holds aggregate.mu.
+func (s *Stream) recordAggregateConsumptionLocked(units uint32) {
+	target := s.pressureReadTarget
+	if target == 0 {
+		return
+	}
+	if s.pressureReadUnits >= target || units >= target-s.pressureReadUnits {
+		s.pressureReadUnits = target
+	} else {
+		s.pressureReadUnits += units
+	}
+	if s.pressureReadUnits == target {
+		s.pressureStalled = false
+	}
+}
+
+func (s *Stream) sampleAggregateProgressLocked(now time.Time, interval time.Duration) {
+	if now.Sub(s.pressureSince) < interval {
+		return
+	}
+	s.pressureStalled = s.pressureReadUnits < s.pressureReadTarget
+	s.pressureSince = now
+	s.pressureReadUnits = 0
+	s.pressureReadTarget = s.aggregateProgressTargetLocked()
 }

@@ -28,7 +28,7 @@ func coalescingReceive(t *testing.T, session *Session, stream *Stream, length ui
 }
 
 func coalescingReturn(session *Session, stream *Stream, chunks coalescingChunks) {
-	session.returnAggregateChunks(stream, chunks.head, chunks.tail, chunks.units, true, true)
+	session.returnAggregateChunks(stream, chunks.head, chunks.tail, chunks.units, true, true, true)
 }
 
 func coalescingWake(t *testing.T, session *Session, want bool) {

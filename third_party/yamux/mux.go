@@ -60,8 +60,8 @@ type Config struct {
 	// growth.
 	MaxStreamAllocationWindowSize uint32
 
-	// AggregateReceivePressureTimeout bounds sustained buffer ownership under
-	// low aggregate free-pool capacity. Zero selects one second. This local
+	// AggregateReceivePressureTimeout is the useful-unit consumption interval
+	// under low aggregate free-pool capacity. Zero selects one second. This local
 	// receiver policy uses ordinary RST and needs no wire negotiation change.
 	AggregateReceivePressureTimeout time.Duration
 

@@ -69,17 +69,42 @@ allocation allowance cannot exceed one quarter of the session limit, preserving
 room for other streams when one peer fragments or stalls its data. Pool memory
 accounting includes chunk and slab overhead rather than payload bytes alone.
 
-Aggregate receivers also enforce a local retained-share pressure lease. The
-session has one monitor, ticking every quarter of
-`AggregateReceivePressureTimeout` (zero selects a one-second lease). When free
-units fall to one quarter of the pool or below, a buffered owner is eligible for
-eviction if its sampled retained-unit count has not fallen by at least half
-within that lease. Empty streams are never candidates. Bytes read without
-returning units, and units immediately refilled into the same retained share,
-do not renew the lease. A materially smaller sampled share renews it. This is
-an isolation policy on sustained ownership, not a throughput measurement: a
-continuously backlogged stream can be reset under pressure despite some reads.
+Aggregate receivers detect stalled holders using **actual allocation units
+consumed by Read**, independently of sender fairness. One session monitor ticks
+every quarter of `AggregateReceivePressureTimeout` (zero selects one second).
+Each nonempty owner must consume one quarter of its stream allocation allowance
+per observation interval, capped at 32 units (128 KiB) and floored at one unit.
+This is a documented minimum consumption policy only under low pool reserve,
+not a maximum transfer duration. Healthy drain/refill counts even when sampled
+occupancy remains full. Partial reads that free no unit do not count. Reset,
+cancellation, shutdown, growth and credit publication do not count as reading.
 
+Interval counters saturate at the target and are cleared at each observation
+boundary, so past high throughput cannot buy an arbitrarily long idle lease.
+Only an insufficient completed interval makes an owner eligible for eviction,
+and only when free units are at or below one quarter of the pool. New useful
+consumption that reaches the target fences a pending eviction. Empty buffers
+leave monitoring. With normal monitor scheduling, absence of useful consumption
+becomes detectable within two intervals plus two quarter-interval ticks of the
+last productive burst; lock contention and physical I/O are not wall-clock
+progress guarantees. Small whole-unit trickles below the interval target remain
+eligible. The earlier sampled-occupancy-halving policy is superseded.
+
+On each sender, an intrusive FIFO orders **eligible waiting writers** (byte and
+per-stream allocation credit available). Only its head may reserve session
+credit. Each reservation is at most one 32 KiB DATA frame; a backlogged writer
+rejoins behind waiters on the next write step. New arrivals cannot overtake an
+existing waiter, and a writer lacking its own credit cannot block eligible
+streams. A waiter with N eligible predecessors needs at most N earlier grants,
+consuming at most N*32 KiB of returned credit, before its own next positive grant
+(minimum allocation quantum 4 KiB). Cancellation, deadline, close and shutdown
+remove waiters and wake the next head. This grant-order bound assumes goroutine
+scheduling and a functioning transport/refund path; it is not a network latency
+bound. It uses existing DATA and credit frames, no protocol negotiation change,
+no scheduler goroutine, and one embedded node per active stream. The guarantee
+requires the corrected sender; wire compatibility does not repair an old peer's
+scheduler. F3's bounded immutable-send ownership and separate memory charge are
+unchanged.
 Eviction explicitly sets `ErrReceivePressure` on local reads, discards the
 owned buffer once, and returns only physically freed units through the existing
 refund publisher. This also applies to unread FIN/FIN buffers: graceful close

@@ -68,8 +68,10 @@ type aggregateWindow struct {
 	protocolMax   uint32
 	mu            sync.Mutex
 
-	sendWindow uint32
-	sendLimit  uint32
+	sendWindow   uint32
+	sendLimit    uint32
+	sendWaitHead *Stream
+	sendWaitTail *Stream
 	// sendNotify is closed and replaced for every credit generation. Closing
 	// broadcasts to all competing writers; no writer can consume another's
 	// only wakeup. sendNotifyRegistered avoids allocating a replacement for
@@ -239,7 +241,17 @@ func (s *Stream) reserveAggregateSend(max uint32) (uint32, <-chan struct{}) {
 		max = AggregateMaxDataFrameSize
 	}
 	a.mu.Lock()
+	// A stream without its own allocation credit must not block eligible
+	// writers. It joins the FIFO only when it can spend returned session units.
+	if s.allocationSendWindow >= AggregateWindowUnitSize {
+		a.enqueueAggregateSendLocked(s)
+	} else {
+		a.removeAggregateSendLocked(s)
+	}
 	available := a.sendWindow
+	if a.sendWaitHead != s {
+		available = 0
+	}
 	if s.allocationSendWindow < available {
 		available = s.allocationSendWindow
 	}
@@ -252,6 +264,7 @@ func (s *Stream) reserveAggregateSend(max uint32) (uint32, <-chan struct{}) {
 		charge = max
 	}
 	if max > 0 {
+		a.removeAggregateSendLocked(s)
 		a.sendWindow -= charge
 		s.allocationSendWindow -= charge
 		if qualificationAggregateSendCountersEnabled {
@@ -420,7 +433,10 @@ func (s *Session) borrowAggregateChunks(charge uint32) (head, tail *aggregateChu
 	return head, tail, units, nil
 }
 
-func (s *Session) returnAggregateChunks(stream *Stream, head, tail *aggregateChunk, units uint32, refund, refundStream bool) {
+// consumed is true only for chunks drained by Read. It is distinct from
+// refundStream: a buffered FIN read consumes units but returns no stream credit.
+// Discards and shutdown must never renew useful-consumption progress.
+func (s *Session) returnAggregateChunks(stream *Stream, head, tail *aggregateChunk, units uint32, refund, refundStream, consumed bool) {
 	if head == nil || units == 0 || s.aggregate == nil {
 		return
 	}
@@ -432,6 +448,9 @@ func (s *Session) returnAggregateChunks(stream *Stream, head, tail *aggregateChu
 	}
 	if refund && stream != nil {
 		stream.pressureUnits = stream.aggregateUnits
+		if consumed {
+			stream.recordAggregateConsumptionLocked(units)
+		}
 	}
 	tail.next = a.free
 	a.free = head
@@ -535,7 +554,9 @@ func (s *Session) trackAggregateBuffer(stream *Stream) {
 	stream.pressureUnits = stream.aggregateUnits
 	if !stream.aggregateBufferTracked && !a.poolClosed {
 		stream.pressureSince = time.Now()
-		stream.pressureBaseline = stream.pressureUnits
+		stream.pressureReadTarget = stream.aggregateProgressTargetLocked()
+		stream.pressureReadUnits = 0
+		stream.pressureStalled = false
 		stream.aggregateBufferTracked = true
 		stream.aggregateOwnerNext = a.ownerHead
 		if a.ownerHead != nil {
@@ -555,6 +576,8 @@ func (s *Session) untrackAggregateBuffer(stream *Stream) {
 	if stream.aggregateBufferTracked {
 		stream.pressureUnits = 0
 		stream.pressureSince = time.Time{}
+		stream.pressureReadUnits = 0
+		stream.pressureStalled = false
 		if stream.aggregateOwnerPrev == nil {
 			a.ownerHead = stream.aggregateOwnerNext
 		} else {

@@ -45,6 +45,10 @@ type Stream struct {
 	aggregateBuffered int
 	aggregateUnits    uint32
 
+	aggregateSendQueued bool // guarded by aggregate.mu; one waiter per Write
+	aggregateSendPrev   *Stream
+	aggregateSendNext   *Stream
+
 	allocationSendWindow uint32
 	allocationSendLimit  uint32
 	allocationRecvWindow uint32
@@ -56,10 +60,12 @@ type Stream struct {
 	allocationRefundTerminal   bool // guarded by session.aggregate.mu
 	allocationRefundNext       *Stream
 
-	pressureUnits    uint32 // guarded by aggregate.mu; mirrors retained buffer units
-	pressureBaseline uint32
-	pressureSince    time.Time
-	pressureErr      error // guarded by stateLock; survives FIN and session shutdown
+	pressureUnits      uint32 // guarded by aggregate.mu; mirrors retained buffer units
+	pressureReadUnits  uint32 // saturated useful consumption in the current interval
+	pressureReadTarget uint32
+	pressureStalled    bool
+	pressureSince      time.Time
+	pressureErr        error // guarded by stateLock; survives FIN and session shutdown
 
 	aggregateBufferTracked bool
 	aggregateOwnerPrev     *Stream
@@ -194,7 +200,7 @@ START:
 	if s.session.aggregateEnabled() {
 		n, drainedHead, drainedTail, drainedUnits = s.readAggregateLocked(b)
 		if drainedUnits > 0 {
-			s.session.returnAggregateChunks(s, drainedHead, drainedTail, drainedUnits, true, refundAllocation)
+			s.session.returnAggregateChunks(s, drainedHead, drainedTail, drainedUnits, true, refundAllocation, true)
 			drainedHead, drainedTail, drainedUnits = nil, nil, 0
 		}
 		if s.aggregateBuffered == 0 {
@@ -343,6 +349,9 @@ func (s *Stream) Write(b []byte) (n int, err error) {
 // write is used to write to the stream, may return on
 // a short write.
 func (s *Stream) write(b []byte) (n int, err error) {
+	if s.session.aggregateEnabled() {
+		defer s.cancelAggregateSendWait()
+	}
 	var flags uint16
 	var max uint32
 	var body []byte
@@ -837,7 +846,7 @@ func (s *Stream) discardReceiveBufferLocked(refund bool) uint32 {
 		s.aggregateHead, s.aggregateTail = nil, nil
 		s.aggregateBuffered, s.aggregateUnits = 0, 0
 		if aggregateUnits > 0 {
-			s.session.returnAggregateChunks(s, aggregateHead, aggregateTail, aggregateUnits, refund, false)
+			s.session.returnAggregateChunks(s, aggregateHead, aggregateTail, aggregateUnits, refund, false, false)
 			aggregateHead, aggregateTail, aggregateUnits = nil, nil, 0
 		}
 		s.session.untrackAggregateBuffer(s)
@@ -1022,14 +1031,14 @@ func (s *Stream) readAggregateDataPayload(length, charge uint32, conn io.Reader)
 	}
 	if length > s.recvWindow {
 		s.recvLock.Unlock()
-		s.session.returnAggregateChunks(s, head, tail, units, false, false)
+		s.session.returnAggregateChunks(s, head, tail, units, false, false, false)
 		return 0, true, ErrRecvWindowExceeded
 	}
 	copied, err := readAggregateFrame(conn, head, length)
 	s.recvWindow -= copied
 	if err != nil {
 		s.recvLock.Unlock()
-		s.session.returnAggregateChunks(s, head, tail, units, false, false)
+		s.session.returnAggregateChunks(s, head, tail, units, false, false, false)
 		return copied, true, err
 	}
 	if s.aggregateTail == nil {

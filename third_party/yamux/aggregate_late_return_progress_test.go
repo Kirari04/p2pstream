@@ -107,7 +107,7 @@ func TestAggregateLateReturnedChunksAfterTerminalPublishSessionCredit(t *testing
 			// refundStream=true is deliberately the pre-terminal captured value.
 			// No further Read/frame/manual wake follows. The timer only bounds a
 			// failure; it cannot notify or publish credit.
-			session.returnAggregateChunks(stream, head, tail, units, true, refundStream)
+			session.returnAggregateChunks(stream, head, tail, units, true, refundStream, true)
 			select {
 			case <-conn.wrote:
 			case <-time.After(time.Second):
