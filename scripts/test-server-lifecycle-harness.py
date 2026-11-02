@@ -814,7 +814,7 @@ class DefaultYamlFixture(unittest.TestCase):
                     patch.object(harness, 'default_yaml_case') as default_case:
                 with self.assertRaises(harness.CheckFailure) as caught:
                     harness.main()
-                self.assertEqual(caught.exception.check, 'canonical-default-yaml-requires-zero-oom-floor')
+                self.assertEqual(str(caught.exception), 'canonical-default-yaml-requires-zero-oom-floor')
                 default_case.assert_not_called()
             self.assertEqual(marker.read_text(), 'retained')
             self.assertFalse((root / 'run/completed-legacy-state').exists())
