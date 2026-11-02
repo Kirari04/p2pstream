@@ -147,7 +147,7 @@ guest mv /tmp/review-docker /usr/local/bin/docker
 guest mv /tmp/review-compose /usr/local/lib/docker/cli-plugins/docker-compose
 guest chmod 0755 /usr/local/bin/docker /usr/local/lib/docker/cli-plugins/docker-compose
 compose_version=$(guest docker compose version --short)
-[[ ${compose_version#v} == 2.39.2 ]] || { echo "Expected updater Compose 2.39.2, got $compose_version." >&2; exit 1; }
+[[ ${compose_version#v} == 5.6.1 ]] || { echo "Expected updater Compose 5.6.1, got $compose_version." >&2; exit 1; }
 [[ ${compose_version#v} != "${native_compose_version#v}" ]] || { echo "Native and managed Compose versions must differ." >&2; exit 1; }
 guest python3 - "$compose_version" "$native_compose_version" "$native_compose_url" "$native_compose_sha256" <<'PY'
 import json
