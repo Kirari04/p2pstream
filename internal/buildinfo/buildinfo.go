@@ -2,15 +2,9 @@
 
 package buildinfo
 
-import (
-	"net/url"
-	"strings"
-)
+import "strings"
 
-const (
-	DefaultRepository = "Kirari04/p2pstream"
-	License           = "AGPL-3.0-or-later"
-)
+const DefaultRepository = "Kirari04/p2pstream"
 
 var (
 	Version    = "dev"
@@ -34,31 +28,4 @@ func RepositorySlug() string {
 		return DefaultRepository
 	}
 	return repository
-}
-
-func RepositoryURL() string {
-	return "https://github.com/" + RepositorySlug()
-}
-
-func SourceURL() string {
-	base := RepositoryURL()
-	ref := strings.TrimSpace(Version)
-	if ref == "" || ref == "dev" || ref == "nightly" {
-		ref = strings.TrimSpace(Commit)
-	}
-	if ref == "" {
-		return base
-	}
-	return base + "/tree/" + url.PathEscape(ref)
-}
-
-func SourceReference() string {
-	ref := strings.TrimSpace(Version)
-	if ref == "" || ref == "dev" || ref == "nightly" {
-		ref = strings.TrimSpace(Commit)
-	}
-	if ref == "" {
-		return "repository default branch"
-	}
-	return ref
 }

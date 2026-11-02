@@ -527,7 +527,8 @@ export function trafficShaperKeySummary(rule: PublicTrafficShaperRule): string {
 }
 
 export function isDefaultSelfSignedCertificate(cert: PublicTlsCertificate): boolean {
-  return cert.hostnamePattern === "p2pstream.local";
+  // Keep recognizing persisted defaults created before the localhost seed.
+  return cert.hostnamePattern === "localhost" || cert.hostnamePattern === "p2pstream.local";
 }
 
 export function tlsCertificateSummary(cert: PublicTlsCertificate): string {

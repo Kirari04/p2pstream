@@ -197,7 +197,7 @@ const certificateColumns = computed<DataTableColumns<TlsTableRow>>(() => [
     render: (row) => {
       if (row.kind === "fallback") {
         return h("div", { class: "tls-cell" }, [
-          h("span", { class: "clip-text mono-text copy-sm weight-medium base-text" }, "p2pstream.local"),
+          h("span", { class: "clip-text mono-text copy-sm weight-medium base-text" }, "localhost"),
           h("bdi", { class: "clip-text copy-xs muted-text", dir: "ltr" }, diagnosticExcerpt(row.listenerName, 48).text),
         ]);
       }
