@@ -990,11 +990,9 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		} else {
 			releaseSessionResource, ok = capacityRuntime.tryReserveAggregateSessionResource(poolBytes, metadataBytes)
 		}
-		if !ok && registration.lane == 0 && (registration.negotiation == nil || !registration.negotiation.known.Load()) {
-			// Keep the legacy primary/control path available when a new aggregate
-			// pool cannot be promised. Bulk lanes never downgrade independently.
-			aggregateOffered = false
-		} else if !ok {
+		if !ok {
+			// Local pressure says nothing about peer capability. Retry the same
+			// offer; a legacy envelope would require substantially more memory.
 			return errTunnelSessionResourceUnavailable
 		}
 	}

@@ -1194,3 +1194,20 @@ func waitForHealthStatus(t *testing.T, monitor *publicRouteTargetHealthMonitor, 
 	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: targetID, enabled: true})
 	t.Fatalf("health status = %+v, want %s", snapshot, want)
 }
+
+func TestAgentHealthMissingControlIsInconclusiveOnlyWithLiveBulk(t *testing.T) {
+	bulk, _ := newAggregateAgentTunnelTestSession(t)
+	agent := &AgentConn{AgentID: 42, PublicID: "health-generation", AggregateFlowControl: true, Done: make(chan struct{})}
+	agent.installTunnel(1, bulk)
+	app := &App{}
+	target := testHealthTarget(t, 1, publicRouteTargetTransportAgent, "http://127.0.0.1:8080")
+	attempt := app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), target, agent)
+	if !attempt.Skipped || attempt.ErrorKind != "agent_control_unavailable" {
+		t.Fatalf("live bulk generation: %+v", attempt)
+	}
+	bulk.Close()
+	attempt = app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), target, agent)
+	if attempt.Skipped || attempt.ErrorKind != "agent_disconnected" {
+		t.Fatalf("disconnected generation: %+v", attempt)
+	}
+}

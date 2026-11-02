@@ -91,6 +91,8 @@ type aggregateWindow struct {
 
 	// publishMu preserves wire order between session growth, stream growth and
 	// receiver-only refunds.
+	// growthMu serializes slab preparation without blocking credit refunds.
+	growthMu    sync.Mutex
 	publishMu   sync.Mutex
 	publishWake chan struct{}
 	publishDone chan struct{}
@@ -544,6 +546,10 @@ func (s *Session) closeAggregatePool() {
 	if a == nil {
 		return
 	}
+	// Join any prepared-but-unpublished slab before callers can release the
+	// session's resource lease. Use the same lock order as growth publication.
+	a.growthMu.Lock()
+	defer a.growthMu.Unlock()
 	a.publishMu.Lock()
 	defer a.publishMu.Unlock()
 	a.mu.Lock()
@@ -827,8 +833,8 @@ func (s *Session) GrowReceiveWindow(window uint32) error {
 	if window%AggregateWindowUnitSize != 0 || window > a.protocolMax {
 		return fmt.Errorf("yamux: invalid aggregate receive window %d", window)
 	}
-	a.publishMu.Lock()
-	defer a.publishMu.Unlock()
+	a.growthMu.Lock()
+	defer a.growthMu.Unlock()
 	a.mu.Lock()
 	if a.poolClosed || s.IsClosed() {
 		a.mu.Unlock()
@@ -840,9 +846,11 @@ func (s *Session) GrowReceiveWindow(window uint32) error {
 	}
 	delta := window - a.recvLimit
 	a.mu.Unlock()
-	// publishMu excludes pool cleanup, while the second shutdown check below
-	// handles Close beginning during this potentially expensive allocation.
+	// Only growthMu is held during allocation. Refund publication and physical
+	// cleanup can continue; recheck shutdown before attaching the prepared slab.
 	slab := makeAggregateSlab(delta)
+	a.publishMu.Lock()
+	defer a.publishMu.Unlock()
 	a.mu.Lock()
 	if a.poolClosed || s.IsClosed() {
 		a.mu.Unlock()

@@ -2126,3 +2126,65 @@ func TestAggregateGrowAfterAndConcurrentWithCloseRetainsNoSlabs(t *testing.T) {
 		})
 	}
 }
+
+func TestAggregateConcurrentGrowthPublishesExactlyOneBackedDelta(t *testing.T) {
+	left, right := net.Pipe()
+	client, err := Client(left, smallAggregateTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := Server(right, smallAggregateTestConfig())
+	if err != nil {
+		client.Close()
+		t.Fatal(err)
+	}
+	defer client.Close()
+	defer server.Close()
+	initial := client.AggregateReceiveWindowStats().ReceiveLimit
+	target := initial * 2
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := client.GrowReceiveWindow(target); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	stats := client.AggregateReceiveWindowStats()
+	if stats.ReceiveLimit != target || stats.TotalUnits != target/AggregateWindowUnitSize || stats.FreeUnits != stats.TotalUnits {
+		t.Fatalf("duplicate or unbacked growth: %+v", stats)
+	}
+	server.aggregate.mu.Lock()
+	defer server.aggregate.mu.Unlock()
+	if server.aggregate.sendLimit != target || server.aggregate.sendWindow != target {
+		t.Fatalf("peer credit = %d/%d, want %d", server.aggregate.sendWindow, server.aggregate.sendLimit, target)
+	}
+}
+
+func TestAggregateCleanupJoinsSlabPreparation(t *testing.T) {
+	config := smallAggregateTestConfig()
+	session := &Session{aggregate: newAggregateWindow(config)}
+	session.aggregate.growthMu.Lock()
+	done := make(chan struct{})
+	go func() { session.closeAggregatePool(); close(done) }()
+	select {
+	case <-done:
+		t.Fatal("cleanup returned while a growth slab could still own its lease")
+	case <-time.After(20 * time.Millisecond):
+	}
+	// Slab preparation must not hold publication hostage.
+	session.aggregate.publishMu.Lock()
+	session.aggregate.publishMu.Unlock()
+	session.aggregate.growthMu.Unlock()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("cleanup did not join preparation")
+	}
+	if stats := session.AggregateReceiveWindowStats(); !stats.Closed || stats.TotalUnits != 0 {
+		t.Fatalf("cleanup retained storage: %+v", stats)
+	}
+}
