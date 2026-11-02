@@ -2298,34 +2298,47 @@ class Lifecycle(DetachedStartResources, unittest.TestCase):
     def test_timed_out_helper_auto_removal_requires_confirmed_absence(self):
         self.install()
         original = host.read_json(self.state / 'host.json')
-        for outcome in ('absent', 'still-present', 'inventory-unavailable'):
+        for outcome in ('absent', 'delayed', 'still-present', 'inventory-unavailable', 'unexpected-helper', 'late-inventory', 'slow-kill'):
             with self.subTest(outcome=outcome):
                 host.atomic(self.state / 'host.json', original)
                 controller = host.Host()
                 base = host.Host.__mro__[1]
                 inventories = 0
+                clock = [0.0]
+                def sleep(seconds):
+                    clock[0] += seconds
                 def daemon(*args, **kwargs):
                     nonlocal inventories
+                    if args[0] != 'run':
+                        self.assertGreater(kwargs['timeout'], 0)
+                        self.assertLessEqual(kwargs['timeout'], 30 - clock[0])
                     if args[0] == 'run':
                         raise subprocess.TimeoutExpired(args, 1)
                     if args[0] == 'ps':
                         inventories += 1
                         if inventories > 1 and outcome == 'inventory-unavailable':
                             raise host.Failure('daemon unavailable')
-                        present = inventories == 1 or outcome == 'still-present'
+                        if inventories > 1 and outcome == 'unexpected-helper':
+                            return subprocess.CompletedProcess(args, 0, b'another-helper\n', b'')
+                        if inventories > 1 and outcome == 'late-inventory':
+                            clock[0] = 31
+                        present = inventories == 1 or outcome == 'still-present' or (outcome == 'delayed' and inventories < 4)
                         return subprocess.CompletedProcess(args, 0, (controller.helper_name() + '\n').encode() if present else b'', b'')
+                    if args[0] == 'kill' and outcome == 'slow-kill':
+                        clock[0] = 31
                     if args[0] == 'inspect':
                         return subprocess.CompletedProcess(args, 0, b'[{"State":{"Running":false}}]', b'')
                     if args[0] == 'rm':
                         self.assertFalse(kwargs['check'])
                         return subprocess.CompletedProcess(args, 1, b'', b'container auto-removed')
                     return subprocess.CompletedProcess(args, 0, b'', b'')
-                expected = subprocess.TimeoutExpired if outcome == 'absent' else host.UnsettledHelper
-                with controller.lock(), patch.object(host, 'docker', daemon), self.assertRaises(expected):
+                accepted = outcome in ('absent', 'delayed')
+                expected = subprocess.TimeoutExpired if accepted else host.UnsettledHelper
+                with controller.lock(), patch.object(host, 'docker', daemon), patch.object(host.time, 'monotonic', lambda: clock[0]), patch.object(host.time, 'sleep', sleep), self.assertRaises(expected):
                     base.run_helper(controller, '/bin/sh', ['-c', 'sleep 120'], timeout=1)
-                self.assertEqual((self.state / 'helper.json').exists(), outcome != 'absent')
+                self.assertEqual((self.state / 'helper.json').exists(), not accepted)
                 journal = host.read_json(self.state / 'host.json')
-                self.assertEqual(journal['phase'], 'healthy' if outcome == 'absent' else 'recovery_required')
+                self.assertEqual(journal['phase'], 'healthy' if accepted else 'recovery_required')
                 (self.state / 'helper.json').unlink(missing_ok=True)
 
     def test_helper_failure_retains_private_diagnostics_and_settles(self):

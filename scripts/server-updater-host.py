@@ -1277,27 +1277,45 @@ class Host:
         pending = read_json(path)
         name = self.helper_name()
         require(pending['name'] == name, 'Host helper record belongs to another installation')
+        # One budget covers inventory, termination, removal and confirmation.
+        # Docker may reject rm while its asynchronous --rm cleanup still owns
+        # the container. Exited is not absent: retain ownership until inventory
+        # proves removal, or fail closed when the budget/access is exhausted.
+        deadline = time.monotonic() + 30
+
+        def remaining():
+            seconds = deadline - time.monotonic()
+            require(seconds > 0, 'Host helper cleanup deadline exceeded')
+            return seconds
+
+        def bounded(*args, **kwargs):
+            result = docker(*args, timeout=remaining(), **kwargs)
+            remaining()
+            return result
+
+        def inventory():
+            names = bounded('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}').stdout.decode().split()
+            require(all(n == name for n in names), 'Unexpected duplicate host helper; inspect Docker on the host')
+            return names
+
+        def confirm_absence():
+            while name in inventory():
+                time.sleep(min(0.1, remaining()))
+
         try:
             # A successful daemon inventory, not a failed inspect, proves absence.
-            names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}').stdout.decode().split()
-            require(all(n == name for n in names), 'Unexpected duplicate host helper; inspect Docker on the host')
-            if name in names:
-                result = docker('kill', name, check=False, timeout=30)
+            if name in inventory():
+                bounded('kill', name, check=False)
                 # Already-exited helpers also appear in the inventory. Confirm
                 # the canonical state before removing; never race a live writer.
-                info = docker('inspect', name, check=False, timeout=30)
+                info = bounded('inspect', name, check=False)
                 if info.returncode == 0:
                     require(not decode(info.stdout)[0]['State']['Running'], 'Host helper is still running')
-                    removed = docker('rm', '--force', name, check=False, timeout=30)
+                    removed = bounded('rm', '--force', name, check=False)
                     if removed.returncode:
-                        # A --rm helper can disappear after inspect when Docker
-                        # finishes its automatic cleanup. Only a fresh successful
-                        # inventory proves this race safe; an rm error alone does not.
-                        names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}', timeout=30).stdout.decode().split()
-                        require(name not in names, 'Cannot confirm host helper termination')
+                        confirm_absence()
                 else:
-                    names = docker('ps', '--all', '--filter', 'label=p2pstream.server-update.host-helper=' + self.journal['installation'], '--format', '{{.Names}}', timeout=30).stdout.decode().split()
-                    require(name not in names, 'Cannot confirm host helper termination')
+                    confirm_absence()
             path.unlink()
         except Exception as error:
             previous = self.journal.get('recovery_phase') or pending.get('phase', self.journal['phase'])
