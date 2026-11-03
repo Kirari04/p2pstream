@@ -352,3 +352,34 @@ that contract to trigger old break-before-make cleanup; it is rejected before
 closing the serving owner. A genuine capability change establishes a fresh
 authenticated generation, with normal fencing and cleanup. Invalid, duplicate or
 orphaned interval/growth headers also fail closed without publishing ownership.
+
+### Physical session failure versus graceful stream FIN
+
+A completed stream Write/Close only commits bytes to the local transport, not
+receipt at the peer. The legacy shutdown-drain regression uses a subsequent
+bounded Ping acknowledgment and verifies the full unread buffer plus remote FIN
+before closing the sending session. Keepalive is disabled in that fixture so
+unrelated pings do not obscure the boundary. Real TCP/TLS and reversed endpoints
+retain exact payload/EOF assertions; a separate Linux TCP regression proves
+unread reverse control can reset the transport and truncate unsent queued data.
+
+Aggregate physical session teardown must reclaim the shared slabs. Before
+removing any unread owned buffer, including FIN/FIN owners absent from the
+stream map, it publishes `ErrSessionShutdown` under the stream state/receive
+locks. Missing remote FIN also produces that error after session failure, even
+if all DATA so far was consumed. Existing pressure errors and explicit Reset
+take precedence. A caller either drains the complete FIN payload before disposal
+or observes an explicit terminal error; no detached uncharged slabs are kept.
+Legacy accepted-buffer draining remains unchanged. This physical failure policy
+is distinct from normal retirement, which retains active/buffered owners until
+their exact-byte drain or explicit disposal.
+
+A fresh retirement offer without a predecessor ID does not prove that an
+existing serving owner is abandoned. While that owner remains, admission returns
+503 without evicting it or reserving another lane budget. In a half-open single
+lane, default keepalive detection takes the next20s ping plus its10s reply limit,
+then physical owner cleanup; reconnect also incurs the agent's bounded retry
+backoff. This deliberately favors preserving still-valid old requests over an
+unverified fresh offer. It is a bounded failure-recovery policy, not continuous
+service under transport loss. Authenticated predecessor handoff remains the
+make-before-break path; stale/malformed offers never evict live owners.

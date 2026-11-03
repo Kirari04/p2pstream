@@ -634,7 +634,19 @@ func (s *Session) closeAggregatePool() {
 	for stream := owners; stream != nil; {
 		next := stream.aggregateOwnerNext
 		stream.aggregateOwnerNext = nil
-		stream.discardReceiveBuffer(false)
+		// Physical session teardown releases the shared slabs. An application
+		// may still own unread FIN/FIN bytes after removal from the stream map;
+		// disposing them must report shutdown, never a successful truncated EOF.
+		// Publish the terminal state atomically with disposal against Read.
+		stream.stateLock.Lock()
+		stream.recvLock.Lock()
+		if stream.aggregateBuffered > 0 {
+			stream.receiveErr = ErrSessionShutdown
+		}
+		stream.discardReceiveBufferLocked(false)
+		stream.recvLock.Unlock()
+		stream.stateLock.Unlock()
+		stream.notifyWaiting()
 		stream = next
 	}
 	a.mu.Lock()

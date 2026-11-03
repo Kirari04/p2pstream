@@ -66,6 +66,9 @@ type Stream struct {
 	pressureStalled    bool
 	pressureSince      time.Time
 	pressureErr        error // guarded by stateLock; survives FIN and session shutdown
+	// receiveErr fences aggregate shutdown disposal or missing peer FIN.
+	// Explicit Reset and pressure failures take precedence. Guarded by stateLock.
+	receiveErr error
 
 	aggregateBufferTracked bool
 	aggregateOwnerPrev     *Stream
@@ -165,6 +168,11 @@ START:
 	s.stateLock.Lock()
 	if s.pressureErr != nil {
 		err := s.pressureErr
+		s.stateLock.Unlock()
+		return 0, err
+	}
+	if s.receiveErr != nil && s.state != streamReset {
+		err := s.receiveErr
 		s.stateLock.Unlock()
 		return 0, err
 	}
@@ -769,6 +777,11 @@ func (s *Stream) forceClose() {
 	// Reset is an explicit disposal error, including after FIN/FIN. A timer
 	// already racing Stop or session cleanup must not convert it into EOF.
 	if s.state != streamReset {
+		if s.session.aggregateEnabled() && s.state != streamRemoteClose && s.state != streamClosed {
+			// A transport/session failure is not a peer FIN. Empty or already
+			// consumed aggregate streams must not turn truncation into EOF.
+			s.receiveErr = ErrSessionShutdown
+		}
 		s.state = streamClosed
 	}
 	s.stateLock.Unlock()

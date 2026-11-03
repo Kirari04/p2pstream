@@ -2153,6 +2153,12 @@ func TestAggregateConcurrentGrowthPublishesExactlyOneBackedDelta(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	// Growth completion commits a backed local promise and writes its frame.
+	// Even net.Pipe can return before the peer applies that received header.
+	// A subsequent ping response is the protocol barrier for peer assertions.
+	if _, err := client.Ping(); err != nil {
+		t.Fatal(err)
+	}
 	stats := client.AggregateReceiveWindowStats()
 	if stats.ReceiveLimit != target || stats.TotalUnits != target/AggregateWindowUnitSize || stats.FreeUnits != stats.TotalUnits {
 		t.Fatalf("duplicate or unbacked growth: %+v", stats)
