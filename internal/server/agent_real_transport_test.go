@@ -34,7 +34,7 @@ type realAgentProxyFixture struct {
 	management   *httptest.Server
 }
 
-func newRealAgentProxyFixture(tb testing.TB, lanes int, window int64, rtt time.Duration) *realAgentProxyFixture {
+func newRealAgentProxyFixture(tb testing.TB, lanes int, window int64, rtt time.Duration, retirement ...time.Duration) *realAgentProxyFixture {
 	tb.Helper()
 	previousLevel := zerolog.GlobalLevel()
 	zerolog.SetGlobalLevel(zerolog.WarnLevel)
@@ -57,6 +57,9 @@ func newRealAgentProxyFixture(tb testing.TB, lanes int, window int64, rtt time.D
 		ServerTunnelMaxConcurrentStreams: tunnel.MaxServerConcurrentStreamsLimit,
 		ServerTunnelCapacityAuto:         true, TunnelMaxStreamWindowBytes: window,
 	}, database)
+	if len(retirement) > 0 {
+		app.agentTunnelRetirementInterval = retirement[0]
+	}
 	app.StartAdaptiveTunnelCapacity(ctx)
 	row, err := database.CreateAgent(ctx, db.CreateAgentParams{PublicID: "real-performance-agent", Name: "Real performance agent", TokenHash: hashAgentToken("test-token"), Enabled: 1})
 	if err != nil {

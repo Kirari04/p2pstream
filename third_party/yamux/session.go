@@ -31,7 +31,8 @@ var (
 type Session struct {
 	// remoteGoAway indicates the remote side does
 	// not want futher connections. Must be first for alignment.
-	remoteGoAway int32
+	remoteGoAway   int32
+	openingStopped bool // guarded by streamLock; local retirement fence
 
 	// localGoAway indicates that we should stop
 	// accepting futher connections. Must be first for alignment.
@@ -241,6 +242,11 @@ GET_ID:
 	// Register the stream
 	stream := newStream(s, id, streamInit)
 	s.streamLock.Lock()
+	if s.openingStopped {
+		s.streamLock.Unlock()
+		<-s.synCh
+		return nil, ErrRemoteGoAway
+	}
 	s.streams[id] = stream
 	s.inflight[id] = struct{}{}
 	s.streamLock.Unlock()
@@ -1051,4 +1057,28 @@ func (s *Session) establishStream(id uint32) {
 		s.logger.Printf("[ERR] yamux: established stream without inflight SYN (didn't have semaphore)")
 	}
 	s.streamLock.Unlock()
+}
+
+// StopOpening atomically fences new outbound streams while preserving existing
+// streams. Unlike GoAway this is a local routing fence, not a wire signal.
+func (s *Session) StopOpening() {
+	s.streamLock.Lock()
+	s.openingStopped = true
+	s.streamLock.Unlock()
+}
+
+// ReceiveOwnersDrained includes FIN/FIN buffers removed from the stream map.
+// Callers must first fence stream creation before using this for retirement.
+func (s *Session) ReceiveOwnersDrained() bool {
+	s.streamLock.Lock()
+	defer s.streamLock.Unlock()
+	if len(s.streams) != 0 {
+		return false
+	}
+	if s.aggregate == nil {
+		return true
+	}
+	s.aggregate.mu.Lock()
+	defer s.aggregate.mu.Unlock()
+	return s.aggregate.ownerHead == nil && s.aggregate.freeUnits == s.aggregate.totalUnits
 }

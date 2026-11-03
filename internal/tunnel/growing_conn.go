@@ -55,6 +55,11 @@ func NewAggregateGrowingConn(conn net.Conn, maximum int64, growth *AggregateRece
 	c := &GrowingConn{Conn: conn, stream: stream, maximum: window, aggregateGrowth: growth}
 	c.growth.start = time.Now()
 	if stream != nil && growth != nil {
+		growth.mu.Lock()
+		if growth.poolLimit != 0 {
+			c.maximum = min(c.maximum, growth.poolLimit/4)
+		}
+		growth.mu.Unlock()
 		if allocationMaximum, enabled := stream.AggregateReceiveAllocationMaximum(); enabled {
 			c.maximum = min(c.maximum, allocationMaximum)
 		}
@@ -155,15 +160,25 @@ func (c *GrowingConn) growMeasured(n uint64, now time.Time, rtt time.Duration) e
 // once accepted, their leases remain owned until Release after Session.Close
 // has completed, including when a later publication returns an error.
 type AggregateReceiveWindowGrowth struct {
-	session  *yamux.Session
-	reserve  func(int64) (func(), bool)
-	mu       sync.Mutex
-	closing  bool
-	releases []func()
+	session     *yamux.Session
+	reserve     func(int64) (func(), bool)
+	mu          sync.Mutex
+	closing     bool
+	releaseOnce sync.Once
+	poolLimit   uint32
+	allow       func() bool
+	releases    []func()
 }
 
 func NewAggregateReceiveWindowGrowth(session *yamux.Session, reserve func(int64) (func(), bool)) *AggregateReceiveWindowGrowth {
 	return &AggregateReceiveWindowGrowth{session: session, reserve: reserve}
+}
+
+// SetPoolLimit installs a local allocation ceiling before exposing the owner.
+func (g *AggregateReceiveWindowGrowth) SetPoolLimit(limit uint32) {
+	g.mu.Lock()
+	g.poolLimit = limit
+	g.mu.Unlock()
 }
 
 // Grow publishes credit in dependency order: session allocation, stream
@@ -191,6 +206,12 @@ func (g *AggregateReceiveWindowGrowth) Grow(stream *yamux.Stream, target uint32)
 	defer g.mu.Unlock()
 	if g.closing {
 		return false, yamux.ErrSessionShutdown
+	}
+	if g.allow != nil && !g.allow() {
+		return false, nil
+	}
+	if g.poolLimit != 0 && session64 > uint64(g.poolLimit) {
+		return false, nil
 	}
 	stats := g.session.AggregateReceiveWindowStats()
 	if !stats.Enabled || stats.Closed {
@@ -232,20 +253,20 @@ func (g *AggregateReceiveWindowGrowth) Release() {
 	if g == nil {
 		return
 	}
-	g.mu.Lock()
-	if g.closing {
+	// Concurrent shutdown owners must join the refund callbacks too, not just
+	// observe the closing bit while another goroutine still owns the leases.
+	g.releaseOnce.Do(func() {
+		g.mu.Lock()
+		g.closing = true
+		releases := g.releases
+		g.releases = nil
 		g.mu.Unlock()
-		return
-	}
-	g.closing = true
-	releases := g.releases
-	g.releases = nil
-	g.mu.Unlock()
-	for _, release := range releases {
-		if release != nil {
-			release()
+		for _, release := range releases {
+			if release != nil {
+				release()
+			}
 		}
-	}
+	})
 }
 
 func (c *GrowingConn) Close() error {
@@ -265,5 +286,25 @@ func (c *GrowingConn) Release() {
 		if release != nil {
 			release()
 		}
+	}
+}
+
+// Dispose ends application ownership after draining or abandoning a connection.
+// Close alone preserves half-close reads; disposal explicitly aborts leftovers.
+func (c *GrowingConn) Dispose() {
+	if c.stream != nil {
+		_ = c.stream.Reset()
+	}
+}
+
+// DisposeConn ends a tunnel application's receive ownership after its read/drain
+// loop terminates. Raw rejected streams need the same disposal as wrapped ones.
+func DisposeConn(conn net.Conn) {
+	if disposer, ok := conn.(interface{ Dispose() }); ok {
+		disposer.Dispose()
+		return
+	}
+	if resetter, ok := conn.(interface{ Reset() error }); ok {
+		_ = resetter.Reset()
 	}
 }

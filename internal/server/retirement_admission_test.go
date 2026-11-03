@@ -259,8 +259,8 @@ func TestServerAggregateLaneRetirementFencesCompetingAdmission(t *testing.T) {
 		t.Fatal("shutdown initiation did not hide only routing while retaining the physical raw slot")
 	}
 	resource = agent.tunnelResourceSnapshot()
-	if !resource.ControlConnected || resource.BulkSessions != 0 || resource.AggregateCurrentPoolBytes != 0 || resource.SessionResourceBytes != controlBytes {
-		t.Fatalf("closing lane remained in usable topology: %+v", resource)
+	if !resource.ControlConnected || resource.BulkSessions != 0 || resource.AggregateCurrentPoolBytes != int64(yamux.AggregateReceiveWindowMemory(flow.InitialSessionWindow)) || resource.SessionResourceBytes != controlBytes+bulkBytes {
+		t.Fatalf("closing lane routing/physical ownership diverged: %+v", resource)
 	}
 	select {
 	case <-closed:

@@ -1042,7 +1042,31 @@ func (a *App) dialViaAgentWithCapacity(
 	// the control lease, including when the caller cancels before Open returns.
 	controlOwned = false
 	openCh := startCapacityManagedAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
-		conn, err := session.Open()
+		openOwned := func(selected *yamux.Session) (net.Conn, *tunnel.LaneOwner, func(), error) {
+			owner := agent.tunnelOwners.Find(selected)
+			if owner != nil && !owner.BeginOpen() {
+				return nil, owner, func() {}, yamux.ErrRemoteGoAway
+			}
+			conn, err := selected.OpenStream()
+			unregister := func() {}
+			if owner != nil {
+				var registered bool
+				unregister, registered = owner.FinishOpen(conn)
+				if err == nil && !registered {
+					err = yamux.ErrSessionShutdown
+					conn = nil
+				}
+			}
+			return conn, owner, unregister, err
+		}
+		conn, owner, unregister, err := openOwned(session)
+		if errors.Is(err, yamux.ErrRemoteGoAway) || errors.Is(err, yamux.ErrSessionShutdown) {
+			if next := agent.tunnelSession(lane); next != nil && next != session && ctx.Err() == nil {
+				unregister()
+				session = next
+				conn, owner, unregister, err = openOwned(session)
+			}
+		}
 		if err != nil {
 			lease.release()
 			releaseStreamResources()
@@ -1050,13 +1074,20 @@ func (a *App) dialViaAgentWithCapacity(
 		}
 		if !lease.markLive() {
 			fenceFailedAgentStream(conn, agent, func() {
+				unregister()
 				lease.release()
 				releaseStreamResources()
 			})
 			return nil, errors.New("agent tunnel stream capacity lease left opening state")
 		}
-		aggregateGrowth := agent.tunnelAggregateGrowth(lane, session)
-		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseStreamResources, aggregateGrowth, maximumWindow), nil
+		var aggregateGrowth *tunnel.AggregateReceiveWindowGrowth
+		if owner != nil {
+			aggregateGrowth = owner.Growth()
+		} else {
+			aggregateGrowth = agent.tunnelAggregateGrowth(lane, session)
+		}
+		releaseOwned := func() { unregister(); releaseStreamResources() }
+		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseOwned, aggregateGrowth, maximumWindow), nil
 	})
 
 	var conn net.Conn

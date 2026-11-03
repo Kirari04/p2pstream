@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -36,6 +37,7 @@ type AgentConn struct {
 	Session                        *yamux.Session
 	TunnelGroup                    string
 	AggregateFlowControl           bool
+	tunnelOwners                   tunnel.LaneOwners
 	tunnelMu                       sync.RWMutex
 	tunnels                        [tunnel.MaxTunnelLaneSlots]*yamux.Session
 	tunnelResources                [tunnel.MaxTunnelLaneSlots]agentTunnelOwnedResource
@@ -92,6 +94,7 @@ func (c *AgentConn) signalDone() {
 		default:
 			close(c.Done)
 		}
+		c.tunnelOwners.Close()
 	})
 }
 
@@ -154,12 +157,13 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 }
 
 type App struct {
-	InstallationID      string
-	installationMu      sync.Mutex
-	installationCommand string
-	installationError   string
-	installationChecked time.Time
-	installationExpires time.Time
+	agentTunnelRetirementInterval time.Duration // immutable before serving; zero uses production default
+	InstallationID                string
+	installationMu                sync.Mutex
+	installationCommand           string
+	installationError             string
+	installationChecked           time.Time
+	installationExpires           time.Time
 
 	serverUpdateMu sync.RWMutex
 
@@ -790,6 +794,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	retirement, ownerID, replacesID, err := tunnel.ParseLaneRetirement(r.Header)
+	if err != nil || retirement && (!aggregateOffered || lane == 0) {
+		http.Error(w, "invalid lane retirement offer", http.StatusBadRequest)
+		return
+	}
 	capacityMode, err := tunnel.ParseCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -874,12 +883,33 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if retirement && replacesID != "" {
+		if a.isAgentUpdateCordoned(agent.AgentID) {
+			http.Error(w, "agent update drain in progress", http.StatusServiceUnavailable)
+			return
+		}
+		owner := agent.tunnelOwners.Predecessor(lane, replacesID)
+		if owner == nil {
+			http.Error(w, "lane replacement no longer current", http.StatusConflict)
+			return
+		}
+		grown := r.Header.Values(tunnel.LaneGrowthHeader)
+		if len(grown) > 1 || len(grown) == 1 && grown[0] != "1" {
+			http.Error(w, "invalid lane growth hint", http.StatusBadRequest)
+			return
+		}
+		if len(grown) == 0 && owner.State() == tunnel.LaneServing && owner.Session().AggregateReceiveWindowStats().ReceiveLimit <= tunnel.AggregateInitialSessionWindowBytes {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
 	effectiveStreamWindowBytes, err := effectiveServerTunnelStreamWindowBytes(a.Config)
 	if err != nil {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid resource-accounted agent tunnel yamux configuration")
 		http.Error(w, "invalid agent tunnel resource configuration", http.StatusInternalServerError)
 		return
 	}
+	var laneOwner *tunnel.LaneOwner
 	var releaseSessionResource func()
 	var sessionResourceBytes int64
 	var sessionResource agentTunnelOwnedResource
@@ -897,18 +927,38 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		var ok bool
-		releaseSessionResource, ok, _ = a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, sessionResourceBytes, 0)
-		if !ok {
-			// The first lane may safely remain a legacy control/traffic tunnel;
-			// an already-negotiated group and every bulk lane require exact mode
-			// agreement and are rejected without disturbing lane zero.
-			if lane == 0 && !joiningGroup && current == nil {
-				aggregateNegotiated = false
-				sessionResource = agentTunnelOwnedResource{}
-			} else {
-				http.Error(w, "aggregate tunnel resource capacity reached", http.StatusServiceUnavailable)
-				return
+		if aggregateNegotiated {
+			if !retirement {
+				ownerID = uuid.NewString()
+				// Old peers retain break-before-make behavior on reconnect;
+				// join the exact former owner before admitting another lease.
+				if old := agent.tunnelSession(lane); old != nil {
+					if owner := agent.tunnelOwners.Find(old); owner != nil {
+						owner.Close()
+					} else {
+						_ = old.Close()
+					}
+				}
 			}
+			slots := int64(1)
+			if retirement {
+				slots = 2
+			}
+			var ownerErr error
+			laneOwner, ownerErr = agent.tunnelOwners.Acquire(lane, ownerID, replacesID, slots*sessionResourceBytes, func() (func(), bool) {
+				release, allowed, _ := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, slots*sessionResourceBytes, 0)
+				return release, allowed
+			})
+			ok = ownerErr == nil
+			if ok {
+				releaseSessionResource = laneOwner.Close
+			}
+		} else {
+			releaseSessionResource, ok, _ = a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, sessionResourceBytes, 0)
+		}
+		if !ok {
+			http.Error(w, "aggregate tunnel resource capacity reached", http.StatusServiceUnavailable)
+			return
 		}
 	}
 	if releaseSessionResource == nil {
@@ -981,6 +1031,18 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = rw.WriteString(tunnel.TunnelAllocationWindowMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxStreamWindow), 10) + "\r\n")
 		_, _ = rw.WriteString(tunnel.TunnelDataFrameMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxDataFrame), 10) + "\r\n")
 	}
+	if retirement {
+		interval := tunnel.DefaultLaneRetirementInterval
+		if a.agentTunnelRetirementInterval > 0 {
+			interval = a.agentTunnelRetirementInterval
+		}
+		_, _ = rw.WriteString(tunnel.LaneRetirementHeader + ": 1\r\n")
+		_, _ = rw.WriteString(tunnel.LaneOwnerHeader + ": " + ownerID + "\r\n")
+		if replacesID != "" {
+			_, _ = rw.WriteString(tunnel.LaneReplacesHeader + ": " + replacesID + "\r\n")
+		}
+		_, _ = rw.WriteString(tunnel.LaneRetirementIntervalHeader + ": " + strconv.FormatInt(interval.Milliseconds(), 10) + "\r\n")
+	}
 	_, _ = rw.WriteString("\r\n")
 	if err := rw.Flush(); err != nil {
 		_ = rawConn.Close()
@@ -1009,11 +1071,32 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
 		return
 	}
+	if laneOwner != nil && lane == 0 {
+		if !laneOwner.Attach(session, nil) {
+			_ = session.Close()
+			return
+		}
+	}
 	if aggregateNegotiated && laneRole == tunnel.TunnelLaneRoleBulk {
-		sessionResource.AggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, func(bytes int64) (func(), bool) {
+		reserveGrowth := func(bytes int64) (func(), bool) {
 			release, ok, _ := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
 			return release, ok
-		})
+		}
+		if laneOwner != nil {
+			if !laneOwner.Attach(session, reserveGrowth) {
+				_ = session.Close()
+				return
+			}
+			sessionResource.AggregateGrowth = laneOwner.Growth()
+			if !retirement {
+				sessionResource.AggregateGrowth.SetPoolLimit(tunnel.AggregateInitialSessionWindowBytes)
+			}
+		} else {
+			sessionResource.AggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, reserveGrowth)
+			// Without negotiated lane retirement, published growth cannot be
+			// reclaimed without interrupting arbitrary active work.
+			sessionResource.AggregateGrowth.SetPoolLimit(tunnel.AggregateInitialSessionWindowBytes)
+		}
 	}
 	sessionCapacityKey := agentStreamCapacitySessionKey(agent, session)
 	sessionRegistered := !joiningGroup
@@ -1029,14 +1112,51 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	gatedConn.releaseReads()
+	var readiness *yamux.Stream
+	if retirement {
+		readiness, err = tunnel.PrepareLaneRetirement(session, ownerID)
+		if err != nil {
+			_ = session.Close()
+			return
+		}
+		defer func() {
+			// A successful commit can still be buffered at the peer. Reset would
+			// discard it before the agent reads it and turn readiness into failure.
+			if readiness != nil {
+				_ = readiness.Reset()
+			}
+		}()
+	}
 	if !joiningGroup {
 		agent.Session = session
 	}
-	if old := agent.installTunnel(lane, session, sessionResource); old != nil {
+	var old *yamux.Session
+	if laneOwner != nil {
+		var installed bool
+		old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
+		if !installed {
+			_ = session.Close()
+			return
+		}
+	} else {
+		old = agent.installTunnel(lane, session, sessionResource)
+	}
+	if old != nil {
 		a.AgentTransports.closeTunnelLane(agent, lane)
-		_ = old.Close()
+		if laneOwner == nil {
+			_ = old.Close()
+		}
 	}
 
+	if readiness != nil {
+		if err := tunnel.CommitLaneRetirement(readiness); err != nil {
+			_ = session.Close()
+			agent.removeTunnel(lane, session)
+			a.AgentTransports.closeTunnelLane(agent, lane)
+			return
+		}
+		readiness = nil // Commit closed the write half; the peer drains it.
+	}
 	if !joiningGroup {
 		if a.DB != nil {
 			id, err := a.DB.InsertConnection(r.Context(), sql.NullInt64{Int64: agentRow.ID, Valid: true})
@@ -1088,10 +1208,27 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Msg("Agent tunnel connected successfully")
 
 	go func() {
-		select {
-		case <-agent.Done:
-			_ = session.Close()
-		case <-session.CloseChan():
+		if laneOwner != nil {
+			tick := time.NewTicker(100 * time.Millisecond)
+		waitOwned:
+			for {
+				select {
+				case <-agent.Done:
+					break waitOwned
+				case <-session.CloseChan():
+					break waitOwned
+				case <-tick.C:
+					if laneOwner.State() == tunnel.LaneDraining && laneOwner.Quiescent() {
+						break waitOwned
+					}
+				}
+			}
+			tick.Stop()
+		} else {
+			select {
+			case <-agent.Done:
+			case <-session.CloseChan():
+			}
 		}
 		// CloseChan signals shutdown initiation. Complete all Yamux workers and
 		// clear the aggregate slabs before returning their lifetime reservation.
@@ -1171,6 +1308,7 @@ func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
 		a.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(agent, agent.Session))
 	}
 	agent.signalDone()
+	agent.tunnelOwners.Close()
 	if agent.Session != nil {
 		if err := agent.Session.Close(); err != nil {
 			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to close displaced agent tunnel session")

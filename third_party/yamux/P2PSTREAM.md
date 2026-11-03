@@ -219,3 +219,90 @@ terminal/growth races, ambiguous publication, mixed-version rollback and
 shutdown/deadline tests. Performance retention additionally requires the
 unchanged real-endpoint qualification gates; passing protocol tests alone is
 not a throughput or latency claim.
+
+Application lane retirement and disposal
+----------------------------------------
+
+The application optionally negotiates `X-P2PStream-Lane-Retirement: 1` on a
+bulk HTTP upgrade, with an exact owner ID and (for replacement) the ID being
+replaced. One bounded server-initiated readiness stream then exchanges the exact
+owner ID, an agent acknowledgment and a server commit after routing publication.
+Its metadata fits the fixed session envelope and its payload uses the reserved
+aggregate pool. Successful readiness uses FIN and preserves an unread commit;
+Reset is reserved for failed handshakes because it can discard peer-buffered
+bytes even after a physical write completes. Until commit, the agent cannot
+retire its old lane. A lost
+committed replacement can be retried against its still-owned draining predecessor
+when no successor serves; it cannot create another generation allowance. Duplicate/malformed acknowledgments fail closed. This does not change
+Yamux framing or reinterpret GoAway: the server already sends GoAway at setup
+to reject agent-initiated streams. The agent drives replacement; after the new
+lane is ready it sends its own GoAway in the opposite direction. The server
+atomically publishes the new routing slot with a local `StopOpening` fence on
+the old session. A caller that selected the old slot before that edge may retry
+one unopened stream on the current owner. Established streams retain their
+exact session and growth owner, even after leaving the serving array.
+
+A single generation registry owns handshaking, serving and draining sessions at
+each endpoint. At most two owners occupy a bulk lane. Before admitting its first
+session, the endpoint reserves two complete baseline envelopes, including the
+2 MiB receive pool, slab accounting, F3's 328 KiB sender reservation, session
+metadata and the endpoint's pending-stream metadata. One slot is replacement
+headroom, which growth cannot consume. Control owns its separate fixed envelope.
+Global admission remains authoritative for these reservations and every growth.
+
+Local growth policy caps each receive pool at 16 MiB (at most a 4 MiB stream
+allocation window). Per-lane additional slab charges are shared by all its
+owners: the charge for growth from 2 MiB to 16 MiB, rather than a new allowance
+for each replacement. All lanes additionally share a 64 MiB generation growth
+charge ceiling. Thus the receive/session reservation bound is the control
+envelope plus two baseline envelopes per bulk lane plus 64 MiB, with at most
+32 bulk lanes. Stream working reservations remain separately charged. These
+are upper ceilings, not allocation targets. Measured growth is clamped to the
+local lane ceiling; global or generation denial preserves existing credit.
+Publication failures retain their leases through physical cleanup.
+
+Every 30 seconds after readiness or a failed attempt, the agent probes whether
+either endpoint has grown. The server returns no-content if neither has; there
+is no need to replace pristine lanes. With a grown pool, prepaid replacement
+headroom permits make-before-break without a new growth-funded reservation.
+Failed upgrades leave the old lane serving and retry at the same bounded cadence.
+An update cordon rejects replacement; active/draining owners remain included in
+update readiness. No third owner is admitted while the old lane drains. A dead
+replacement transport may delay recovery while old active work finishes; no
+unconditional no-gap guarantee is made under resource denial or broken I/O.
+
+Once replacement is published, old growth is fenced. Idle pooled HTTP sockets
+are closed; active HTTP bodies and streams continue. The old session is closed
+only after stream creation is fenced, the stream map is empty, and the retained
+receive-owner list, borrowed chunks, application owners and pending opens are
+empty. FIN/FIN buffered bytes can
+outlive the stream map and remain readable. Normal retirement never silently
+discards them. An abandoned application connection drains through its cleanup
+wrapper; after any terminal drain error it explicitly disposes/reset its
+remaining buffer before returning the working lease. Explicit Reset after
+FIN/FIN yields a terminal reset error, not successful EOF for discarded bytes.
+A late close-timeout callback preserves a completed FIN/FIN buffer; an incomplete
+close that times out reports Reset while disposing unread data. This narrowly
+shared timeout correction also applies to legacy streams.
+Low-reserve pressure eviction retains the documented useful-consumption policy
+above; it is not a maximum transfer duration.
+
+Under healthy handshake and completed application drains, a quiescent grown lane
+returns to the prepaid baseline within the next 30-second probe, handshake and
+two 100 ms cleanup observations. Active streams can extend draining indefinitely
+while making useful progress; caps still apply. Shutdown/revocation fences the
+registry and joins all physical owners, including replacement and draining
+sessions. Server opens pin the exact owner through creation/registration; forced
+shutdown closes the socket, joins those opens, and resets registered application
+streams (including detached control FIN buffers) before refunding ownership. A fresh authenticated generation cannot start growing while its
+predecessor's owners remain unjoined. Close joins Yamux receive, pressure,
+refund, sender and slab-preparation ownership; concurrent growth-release callers
+also join lease-refund completion. Only then are grown and baseline reservations
+returned. Reservation diagnostics include prepaid headroom; they are not RSS.
+Physical `AggregateReceiveWindowStats` verifies that retired slabs are cleared.
+
+An aggregate peer without the optional retirement acknowledgment retains its
+initial pool but receives no adaptive pool growth; its ordinary compatible
+traffic continues. Legacy flow control remains distinct. Full mixed-version
+qualification and matched performance measurements are separate from the
+retirement correctness regressions.

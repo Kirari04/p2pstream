@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/yamux"
 	"p2pstream/internal/tunnel"
 )
 
@@ -43,7 +44,8 @@ func newCapacityManagedAgentTunnelStreamConnWithRelease(conn net.Conn, agent *Ag
 		maximum = window[0]
 	}
 	var growing *tunnel.GrowingConn
-	if aggregateGrowth != nil {
+	stream, isStream := conn.(*yamux.Stream)
+	if aggregateGrowth != nil || isStream && stream.Session().AggregateFlowControlEnabled() {
 		growing = tunnel.NewAggregateGrowingConn(conn, maximum, aggregateGrowth)
 	} else {
 		growing = tunnel.NewGrowingConn(conn, maximum, func(bytes int64) (func(), bool) {
@@ -138,6 +140,7 @@ func (c *agentTunnelStreamConn) releaseAfterStreamClosed() {
 	var buf [4 * 1024]byte
 	for {
 		if _, err := c.Conn.Read(buf[:]); err != nil {
+			tunnel.DisposeConn(c.Conn)
 			c.release()
 			return
 		}

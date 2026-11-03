@@ -705,6 +705,14 @@ func (s *Stream) Reset() error {
 
 	s.stateLock.Lock()
 	if s.state == streamReset || s.state == streamClosed {
+		// Explicit disposal is terminal even after FIN/FIN. A later read must
+		// not mistake intentionally discarded buffered bytes for successful EOF.
+		s.state = streamReset
+		if s.closeTimer != nil {
+			s.closeTimer.Stop()
+			s.closeTimer = nil
+		}
+		s.notifyWaiting()
 		// A terminal state may have been published by closeTimeout or session
 		// shutdown while the physical reader still owns recvLock. Wait for that
 		// accepted payload and discard it before Reset promises its caller that
@@ -731,8 +739,17 @@ func (s *Stream) Reset() error {
 // closeTimeout is called after StreamCloseTimeout during a close to
 // close this stream.
 func (s *Stream) closeTimeout() {
-	// Close our side forcibly
-	s.forceClose()
+	// Stop may race a callback already running. FIN/FIN transfers the final
+	// buffer to its reader; a late timeout must not revoke that ownership.
+	s.stateLock.Lock()
+	if s.state == streamClosed || s.state == streamReset {
+		s.stateLock.Unlock()
+		return
+	}
+	// An incomplete close is an abort, not a successful EOF after truncation.
+	s.state = streamReset
+	s.stateLock.Unlock()
+	s.notifyWaiting()
 	s.discardReceiveBuffer(true)
 
 	// Free the stream from the session map
@@ -749,7 +766,11 @@ func (s *Stream) closeTimeout() {
 // forceClose is used for when the session is exiting
 func (s *Stream) forceClose() {
 	s.stateLock.Lock()
-	s.state = streamClosed
+	// Reset is an explicit disposal error, including after FIN/FIN. A timer
+	// already racing Stop or session cleanup must not convert it into EOF.
+	if s.state != streamReset {
+		s.state = streamClosed
+	}
 	s.stateLock.Unlock()
 	s.notifyWaiting()
 }

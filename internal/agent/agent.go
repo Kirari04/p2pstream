@@ -241,6 +241,9 @@ func runTunnelGroupGeneration(ctx context.Context, tunnelURL string, count int, 
 	runLane := func(lane tunnelLaneRegistration) error {
 		lane.sessionObserver = observer
 		return runTunnelLaneLoop(groupCtx, tunnelURL, lane, func() error {
+			if lane.lane > 0 {
+				return serveRetiringTunnelLane(groupCtx, lane, connect)
+			}
 			return connect(groupCtx, lane)
 		}, wait)
 	}
@@ -273,6 +276,7 @@ func runTunnelGroupGeneration(ctx context.Context, tunnelURL string, count int, 
 	// never offered while an old session or receive-pool lease remains live.
 	cancel()
 	workers.Wait()
+	negotiation.owners.Close()
 	return err
 }
 
@@ -869,6 +873,9 @@ func managementTunnelHTTPClient(base *http.Client) (*http.Client, error) {
 }
 
 type tunnelLaneRegistration struct {
+	replaces        string
+	retireGrown     bool
+	ready           func(laneReady)
 	group           string
 	lane            int
 	negotiation     *tunnelGroupNegotiation
@@ -877,6 +884,7 @@ type tunnelLaneRegistration struct {
 }
 
 type tunnelGroupNegotiation struct {
+	owners    tunnel.LaneOwners
 	known     atomic.Bool
 	aggregate atomic.Bool
 }
@@ -948,6 +956,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	if registration.lane > 0 {
 		aggregateRole = tunnel.TunnelLaneRoleBulk
 	}
+	var laneOwner *tunnel.LaneOwner
 	var releaseSessionResource func()
 	var controlReservation *agentControlSessionReservation
 	controlStreamLimit := 0
@@ -988,7 +997,18 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 				releaseSessionResource = controlReservation.release
 			}
 		} else {
-			releaseSessionResource, ok = capacityRuntime.tryReserveAggregateSessionResource(poolBytes, metadataBytes)
+			if registration.negotiation != nil && registration.ready != nil {
+				var ownerErr error
+				laneOwner, ownerErr = registration.negotiation.owners.Acquire(registration.lane, uuid.NewString(), registration.replaces, 2*(poolBytes+metadataBytes), func() (func(), bool) {
+					return capacityRuntime.tryReserveAggregateSessionResource(2*poolBytes, 2*metadataBytes)
+				})
+				ok = ownerErr == nil
+				if ok {
+					releaseSessionResource = laneOwner.Close
+				}
+			} else {
+				releaseSessionResource, ok = capacityRuntime.tryReserveAggregateSessionResource(poolBytes, metadataBytes)
+			}
 		}
 		if !ok {
 			// Local pressure says nothing about peer capability. Retry the same
@@ -1000,6 +1020,16 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		if err := reserveLegacySession(); err != nil {
 			return err
 		}
+	}
+	if aggregateOffered && aggregateRole == tunnel.TunnelLaneRoleControl && registration.negotiation != nil {
+		releaseControl := releaseSessionResource
+		var ownerErr error
+		laneOwner, ownerErr = registration.negotiation.owners.Acquire(0, uuid.NewString(), "", controlReservation.bytes, func() (func(), bool) { return releaseControl, true })
+		if ownerErr != nil {
+			releaseControl()
+			return ownerErr
+		}
+		releaseSessionResource = laneOwner.Close
 	}
 	if releaseSessionResource == nil {
 		releaseSessionResource = func() {}
@@ -1023,6 +1053,16 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		tunnel.SetAggregateFlowControlHeaders(req.Header, aggregateRole, tunnel.DefaultAggregateFlowControlConfig())
 	}
 
+	if laneOwner != nil && registration.lane > 0 {
+		req.Header.Set(tunnel.LaneRetirementHeader, "1")
+		req.Header.Set(tunnel.LaneOwnerHeader, laneOwner.ID)
+		if registration.replaces != "" {
+			req.Header.Set(tunnel.LaneReplacesHeader, registration.replaces)
+			if registration.retireGrown {
+				req.Header.Set(tunnel.LaneGrowthHeader, "1")
+			}
+		}
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to dial tunnel: %w", err)
@@ -1051,6 +1091,20 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	if aggregateNegotiated && !aggregateOffered {
 		_ = resp.Body.Close()
 		return errors.New("server enabled unoffered aggregate tunnel flow control")
+	}
+	retirement, retirementID, retirementPrevious, retirementErr := tunnel.ParseLaneRetirement(resp.Header)
+	retirementInterval := time.Duration(0)
+	if retirementErr != nil || retirement && (laneOwner == nil || !aggregateNegotiated || retirementID != laneOwner.ID || retirementPrevious != registration.replaces) || registration.replaces != "" && !retirement {
+		_ = resp.Body.Close()
+		return errors.New("invalid lane retirement acknowledgment")
+	}
+	if retirement {
+		millis, parseErr := strconv.ParseInt(resp.Header.Get(tunnel.LaneRetirementIntervalHeader), 10, 64)
+		if len(resp.Header.Values(tunnel.LaneRetirementIntervalHeader)) != 1 || parseErr != nil || millis < 100 || millis > 60000 {
+			_ = resp.Body.Close()
+			return errors.New("invalid lane retirement interval")
+		}
+		retirementInterval = time.Duration(millis) * time.Millisecond
 	}
 	legacyParallelAcknowledged := false
 	if !aggregateNegotiated && registration.lane == 0 && registration.group != "" {
@@ -1088,6 +1142,7 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 	if aggregateOffered && !aggregateNegotiated {
 		releaseSessionResource()
 		releaseSessionResource = func() {}
+		laneOwner = nil
 		if err := reserveLegacySession(); err != nil {
 			_ = resp.Body.Close()
 			return err
@@ -1133,9 +1188,51 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		_ = rwc.Close()
 		return fmt.Errorf("failed to initialize tunnel session: %w", err)
 	}
+	watcherDone := make(chan struct{})
+	go func() {
+		defer close(watcherDone)
+		<-serveCtx.Done()
+		_ = session.Close()
+	}()
+	defer func() { cancel(); <-watcherDone }()
 	var aggregateGrowth *tunnel.AggregateReceiveWindowGrowth
+	if laneOwner != nil && registration.lane == 0 {
+		if !laneOwner.Attach(session, nil) {
+			_ = session.Close()
+			return tunnel.ErrLaneOwnerUnavailable
+		}
+		if _, ok := laneOwner.Publish(); !ok {
+			_ = session.Close()
+			return tunnel.ErrLaneOwnerUnavailable
+		}
+	}
 	if aggregateNegotiated && aggregateRole == tunnel.TunnelLaneRoleBulk {
-		aggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, capacityRuntime.tryReserveAggregateSessionGrowth)
+		if laneOwner != nil {
+			if !laneOwner.Attach(session, capacityRuntime.tryReserveAggregateSessionGrowth) {
+				_ = session.Close()
+				return tunnel.ErrLaneOwnerUnavailable
+			}
+			aggregateGrowth = laneOwner.Growth()
+			if !retirement {
+				aggregateGrowth.SetPoolLimit(tunnel.AggregateInitialSessionWindowBytes)
+			}
+			if retirement {
+				if err := tunnel.AcceptLaneRetirement(serveCtx, session, laneOwner.ID); err != nil {
+					_ = session.Close()
+					return err
+				}
+			}
+			if _, ok := laneOwner.Publish(); !ok {
+				_ = session.Close()
+				return tunnel.ErrLaneOwnerUnavailable
+			}
+		} else {
+			aggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, capacityRuntime.tryReserveAggregateSessionGrowth)
+			aggregateGrowth.SetPoolLimit(tunnel.AggregateInitialSessionWindowBytes)
+		}
+	}
+	if registration.ready != nil {
+		registration.ready(laneReady{session: session, id: retirementID, interval: retirementInterval})
 	}
 	observerConnected := registration.sessionObserver != nil
 	defer func() {
@@ -1174,11 +1271,6 @@ func connectAndServe(ctx context.Context, client *http.Client, tunnelURL string,
 		Bool("adaptive_capacity", adaptiveCapacity).
 		Bool("aggregate_flow_control", aggregateNegotiated).
 		Msg("Connected tunnel successfully")
-
-	go func() {
-		<-serveCtx.Done()
-		_ = session.Close()
-	}()
 
 	var activeControlReservation *agentControlSessionReservation
 	if aggregateNegotiated && aggregateRole == tunnel.TunnelLaneRoleControl {
@@ -1363,7 +1455,7 @@ func serveTunnelSessionWithPolicyCapacityAndResources(ctx context.Context, sessi
 			}
 			maximum, _ := ctx.Value(receiveWindowContextKey{}).(int64)
 			var growing *tunnel.GrowingConn
-			if sessionGrowth != nil {
+			if sessionGrowth != nil || session.AggregateFlowControlEnabled() {
 				growing = tunnel.NewAggregateGrowingConn(stream, maximum, sessionGrowth)
 			} else {
 				growing = tunnel.NewGrowingConn(stream, maximum, capacity.tryReserveWindowGrowth)
@@ -1380,6 +1472,7 @@ func releaseAgentTunnelCapacityAfterPeerClose(stream net.Conn, release func()) {
 		return
 	}
 	defer release()
+	defer tunnel.DisposeConn(stream)
 	if stream == nil {
 		return
 	}

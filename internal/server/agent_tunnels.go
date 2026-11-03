@@ -35,17 +35,20 @@ func (a *AgentConn) installTunnel(lane int, session *yamux.Session, resources ..
 func (a *AgentConn) removeTunnel(lane int, session *yamux.Session) (removed, last bool) {
 	a.tunnelMu.Lock()
 	defer a.tunnelMu.Unlock()
-	if a.tunnels[lane] != session {
-		return false, false
+	removed = a.tunnels[lane] == session
+	if removed {
+		a.tunnels[lane] = nil
+		a.tunnelResources[lane] = agentTunnelOwnedResource{}
 	}
-	a.tunnels[lane] = nil
-	a.tunnelResources[lane] = agentTunnelOwnedResource{}
 	for _, other := range a.tunnels {
 		if other != nil && !other.IsClosed() {
-			return true, false
+			return removed, false
 		}
 	}
-	return true, true
+	if len(a.tunnelOwners.Snapshot()) != 0 {
+		return removed, false
+	}
+	return removed, true
 }
 
 type agentTunnelResourceSnapshot struct {
@@ -57,6 +60,7 @@ type agentTunnelResourceSnapshot struct {
 	SessionMetadataBytes         int64
 	LegacyControlSupplementBytes int64
 	SessionResourceBytes         int64
+	ReplacementHeadroomBytes     int64
 }
 
 func (a *AgentConn) tunnelResourceSnapshot() agentTunnelResourceSnapshot {
@@ -75,6 +79,9 @@ func (a *AgentConn) tunnelResourceSnapshot() agentTunnelResourceSnapshot {
 		} else {
 			snapshot.BulkSessions++
 		}
+		if a.tunnelOwners.Find(session) != nil {
+			continue
+		}
 		resource := a.tunnelResources[lane]
 		snapshot.AggregateInitialPoolBytes += resource.AggregateInitialPoolBytes
 		snapshot.SessionMetadataBytes += resource.SessionMetadataBytes
@@ -83,7 +90,31 @@ func (a *AgentConn) tunnelResourceSnapshot() agentTunnelResourceSnapshot {
 			snapshot.AggregateCurrentPoolBytes += int64(yamux.AggregateReceiveWindowMemory(stats.ReceiveLimit))
 		}
 	}
-	snapshot.SessionResourceBytes = snapshot.AggregateCurrentPoolBytes + snapshot.SessionMetadataBytes + snapshot.LegacyControlSupplementBytes
+	legacyReserved := snapshot.AggregateCurrentPoolBytes + snapshot.SessionMetadataBytes + snapshot.LegacyControlSupplementBytes
+	var ownedPhysical int64
+	for _, owner := range a.tunnelOwners.Snapshot() {
+		session := owner.Session()
+		if session == nil {
+			continue
+		}
+		stats := session.AggregateReceiveWindowStats()
+		if stats.Enabled {
+			pool := int64(yamux.AggregateReceiveWindowMemory(stats.TotalUnits * yamux.AggregateWindowUnitSize))
+			baseline, _ := tunnel.AggregateSessionResourceBytes(tunnel.AggregateInitialSessionWindowBytes, 0)
+			metadata := baseline - int64(yamux.AggregateReceiveWindowMemory(tunnel.AggregateInitialSessionWindowBytes))
+			snapshot.AggregateInitialPoolBytes += int64(yamux.AggregateReceiveWindowMemory(tunnel.AggregateInitialSessionWindowBytes))
+			snapshot.AggregateCurrentPoolBytes += pool
+			snapshot.SessionMetadataBytes += metadata
+			ownedPhysical += pool + metadata
+		} else {
+			bytes := owner.ReservedBaselineBytes()
+			snapshot.LegacyControlSupplementBytes += bytes
+			ownedPhysical += bytes
+		}
+	}
+	reserved := a.tunnelOwners.ReservedBytes()
+	snapshot.ReplacementHeadroomBytes = max(int64(0), reserved-ownedPhysical)
+	snapshot.SessionResourceBytes = legacyReserved + reserved
 	return snapshot
 }
 
@@ -167,6 +198,9 @@ func (a *AgentConn) tunnelAggregateGrowth(lane int, session *yamux.Session) *tun
 	if a == nil || lane < 0 || lane >= len(a.tunnels) {
 		return nil
 	}
+	if owner := a.tunnelOwners.Find(session); owner != nil {
+		return owner.Growth()
+	}
 	a.tunnelMu.RLock()
 	defer a.tunnelMu.RUnlock()
 	if a.tunnels[lane] != session {
@@ -223,11 +257,32 @@ func (a *App) cleanupAgentTunnel(agent *AgentConn, lane int, session *yamux.Sess
 	unlock := a.lockAgentAuth(agent.AgentID)
 	defer unlock()
 	removed, last := agent.removeTunnel(lane, session)
-	if !removed {
+	if !removed && !last {
 		return
 	}
-	a.AgentTransports.closeTunnelLane(agent, lane)
+	if removed {
+		a.AgentTransports.closeTunnelLane(agent, lane)
+	}
 	if last {
 		a.cleanupAgentConnectionLocked(agent)
 	}
+}
+
+// Publish routing and the local Open fence under the same projection lock.
+// Requests selected before this edge may retry one unopened stream on the new
+// owner; established requests retain the old session and growth object.
+func (a *AgentConn) installOwnedTunnel(lane int, owner *tunnel.LaneOwner, resource agentTunnelOwnedResource) (*yamux.Session, bool) {
+	a.tunnelMu.Lock()
+	defer a.tunnelMu.Unlock()
+	if _, ok := owner.Publish(); !ok {
+		return nil, false
+	}
+	old := a.tunnels[lane]
+	if old != nil {
+		old.StopOpening()
+	}
+	a.tunnels[lane] = owner.Session()
+	a.tunnelResources[lane] = resource
+	a.tunnelsInitialized = true
+	return old, true
 }

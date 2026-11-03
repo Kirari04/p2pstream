@@ -1884,7 +1884,7 @@ func TestAggregateFinalFINCrossingLocalTimeoutDoesNotKillSession(t *testing.T) {
 		stream.stateLock.Lock()
 		state := stream.state
 		stream.stateLock.Unlock()
-		if state == streamClosed {
+		if state == streamReset {
 			break
 		}
 		if time.Now().After(deadline) {
