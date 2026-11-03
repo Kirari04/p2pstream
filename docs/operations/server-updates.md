@@ -18,6 +18,11 @@ This observation interface does not change deployment files or replace the host 
 
 Run the copied command in Bash on the selected environment's **local rootful Docker host**, from the existing Compose deployment's directory. Requires curl, sudo, Python 3.9+, Docker Engine and [Compose 2.20 or newer](https://docs.docker.com/reference/compose-file/include/). Custom projects, ordered Compose files, environment files and project-directory overrides can be entered in the setup card; use exactly the options which produced the running deployment. Remote Docker contexts, rootless Docker and unsupported layouts are refused.
 
+The current lifecycle rehearsal targets Docker Engine 29.9.2 with the updater's
+Docker CLI 29.9.2 and Compose 5.6.1, plus native Compose 2.39.1. Docker Engine
+28.3.3 has smoke-test coverage with the new tools, but full installation, update,
+removal and rollback compatibility on older engines remains unqualified.
+
 The one-liner executes the selected release's bootstrap script from GitHub over HTTPS. That script checks the manifest against the digest supplied by the server, verifies the release descriptor and bundle before extraction and host installation, pulls a publisher-bound prebuilt Linux amd64/arm64 updater, and cleans up temporary downloads. GitHub and the publisher are trusted to supply the bootstrap code; the later checksum checks verify release content, not the script already executing. SHA-256 metadata is not an independent publisher signature. Server and updater references are pinned by content digest, with no local image build. The older setup block retains its embedded bundle-hash check.
 
 Before activation, setup checks the selected installation ID, actual immutable running image ID and platform, release labels, real project/data volume and resolved Compose configuration hash. It repeats deployment checks after downloads, rejects pending Compose/.env changes and other data writers, then validates the supported layout. Identical version/commit on a different installation cannot satisfy the ID check. The ID lives in `/data/server-installation-id` before enrollment and survives container recreation and restore. A copied data volume intentionally retains that identity: do not run concurrent writable clones.
