@@ -54,12 +54,13 @@ const (
 	// AggregateRejectedStreamLimit bounds graceful capacity-error responses
 	// retained until peer FIN. Excess rejected streams are reset immediately.
 	AggregateRejectedStreamLimit = 16
-	// AgentLegacyAcceptBacklogStreams preserves the historical 256-stream SYN
-	// burst accepted by an old peer. One additional transition stream may have
-	// been removed from this queue while admission synchronously acquires its
-	// lifetime leases. The complete finite envelope is prepaid for legacy
-	// compatibility; aggregate-v1 removes this idle per-stream promise cost.
-	AgentLegacyAcceptBacklogStreams = 256
+	// AgentLegacyAcceptBacklogStreams permits one default-concurrency wave to
+	// await admission. Excess SYNs receive the existing bounded-backlog RST;
+	// active stream capacity and hard resident limits are not relaxed. Pending
+	// streams have only the protocol's initial 256KiB credit. One additional
+	// synchronous Accept transition can advertise the configured initial window
+	// before application admission, and must be prepaid at that larger size.
+	AgentLegacyAcceptBacklogStreams = 64
 	AgentLegacyPendingStreams       = AgentLegacyAcceptBacklogStreams + 1
 	AgentLegacyRejectedStreamLimit  = 16
 )
@@ -323,7 +324,11 @@ func NewAgentLegacyYamuxConfig(logger yamux.Logger, maxStreamWindowSizeBytes int
 	if resident > math.MaxInt32 {
 		return nil, errors.New("legacy incoming stream bound exceeds protocol range")
 	}
-	cfg, err := NewYamuxConfig(logger, maxStreamWindowSizeBytes)
+	initial, err := InitialReceiveWindow(maxStreamWindowSizeBytes)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := NewYamuxConfig(logger, initial)
 	if err != nil {
 		return nil, err
 	}
@@ -396,17 +401,20 @@ func AgentLegacySessionResourceBytes(windowBytes int64) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	perPending := receive + AggregatePendingStreamMetadataBytes
-	pending := int64(AgentLegacyPendingStreams)
-	rejected := int64(AgentLegacyRejectedStreamLimit)
+	perPending := int64(yamux.ReceiveWindowMemory(uint32(InitialStreamWindowSizeBytes))) + AggregatePendingStreamMetadataBytes
+	pending := int64(AgentLegacyAcceptBacklogStreams)
+	perAccepted := receive + AggregatePendingStreamMetadataBytes
+	// AcceptStream publishes its window before returning to the synchronous
+	// admission loop. The queue can refill while that one transition is owned.
+	accepted := int64(1 + AgentLegacyRejectedStreamLimit)
 	if perPending > (math.MaxInt64-AggregateSessionMetadataBytes)/pending {
 		return 0, errors.New("legacy session pending reservation exceeds accounting range")
 	}
 	total := AggregateSessionMetadataBytes + pending*perPending
-	if perPending > (math.MaxInt64-total)/rejected {
-		return 0, errors.New("legacy session rejection reservation exceeds accounting range")
+	if perAccepted > (math.MaxInt64-total)/accepted {
+		return 0, errors.New("legacy session accepted reservation exceeds accounting range")
 	}
-	return total + rejected*perPending, nil
+	return total + accepted*perAccepted, nil
 }
 
 func NormalizeMaxStreamWindowSizeBytes(sizeBytes int64) (uint32, error) {

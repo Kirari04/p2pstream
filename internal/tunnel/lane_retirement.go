@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/yamux"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -20,7 +21,8 @@ const DefaultLaneRetirementInterval = 30 * time.Second
 // are unchanged. Without an exact acknowledgment, a peer never overlaps lanes.
 func ParseLaneRetirement(h http.Header) (enabled bool, id, replaces string, err error) {
 	versions, ids, previous := h.Values(LaneRetirementHeader), h.Values(LaneOwnerHeader), h.Values(LaneReplacesHeader)
-	if len(versions) == 0 && len(ids) == 0 && len(previous) == 0 {
+	intervals, growth := h.Values(LaneRetirementIntervalHeader), h.Values(LaneGrowthHeader)
+	if len(versions) == 0 && len(ids) == 0 && len(previous) == 0 && len(intervals) == 0 && len(growth) == 0 {
 		return
 	}
 	bad := errors.New("invalid lane retirement contract")
@@ -32,6 +34,18 @@ func ParseLaneRetirement(h http.Header) (enabled bool, id, replaces string, err 
 		if !validLaneOwnerID(replaces) || replaces == ids[0] {
 			return false, "", "", bad
 		}
+	}
+	if len(intervals) > 1 || len(growth) > 1 {
+		return false, "", "", bad
+	}
+	if len(intervals) == 1 {
+		millis, parseErr := strconv.ParseInt(intervals[0], 10, 64)
+		if parseErr != nil || millis < 100 || millis > 60000 {
+			return false, "", "", bad
+		}
+	}
+	if len(growth) == 1 && (growth[0] != "1" || replaces == "") {
+		return false, "", "", bad
 	}
 	return true, ids[0], replaces, nil
 }

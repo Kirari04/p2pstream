@@ -464,6 +464,12 @@ func TestLegacyCapacityRejectionSlotsRetainReceiveSupplements(t *testing.T) {
 			if readErr != nil || response.OK || (response.ErrorKind != "agent_capacity" && response.ErrorKind != "agent_resource_pressure") {
 				t.Fatalf("bounded legacy rejection %d = %+v, %v", index, response, readErr)
 			}
+			// Accept has already published the full 512KiB promise, even though
+			// application admission and the per-stream supplement were denied.
+			// The prepaid rejection owner must cover that promise through FIN.
+			if n, err := stream.Write(make([]byte, tunnel.DefaultAdaptiveReceiveWindowBytes)); err != nil || int64(n) != tunnel.DefaultAdaptiveReceiveWindowBytes {
+				t.Fatalf("rejected stream full receive promise: %d %v", n, err)
+			}
 			peers = append(peers, stream)
 			continue
 		}

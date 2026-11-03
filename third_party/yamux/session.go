@@ -304,7 +304,14 @@ func (s *Session) Accept() (net.Conn, error) {
 func (s *Session) AcceptStream() (*Stream, error) {
 	select {
 	case stream := <-s.acceptCh:
+		if s.IsClosed() {
+			s.disposeUnaccepted(stream)
+			return nil, ErrSessionShutdown
+		}
 		if err := stream.sendWindowUpdate(); err != nil {
+			// Acceptance did not transfer ownership to the application. Dispose
+			// its pending receive promise before returning without a stream.
+			s.disposeUnaccepted(stream)
 			return nil, err
 		}
 		return stream, nil
@@ -320,13 +327,28 @@ func (s *Session) AcceptStreamWithContext(ctx context.Context) (*Stream, error) 
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case stream := <-s.acceptCh:
+		if s.IsClosed() {
+			s.disposeUnaccepted(stream)
+			return nil, ErrSessionShutdown
+		}
 		if err := stream.sendWindowUpdate(); err != nil {
+			// Acceptance did not transfer ownership to the application. Dispose
+			// its pending receive promise before returning without a stream.
+			s.disposeUnaccepted(stream)
 			return nil, err
 		}
 		return stream, nil
 	case <-s.shutdownCh:
 		return nil, s.shutdownErr
 	}
+}
+
+// disposeUnaccepted ends a receive promise that never reached an application.
+// Session shutdown may already have marked it closed without removing its map
+// entry, so the map cleanup is explicit and idempotent as well as the reset.
+func (s *Session) disposeUnaccepted(stream *Stream) {
+	_ = stream.Reset()
+	s.closeStream(stream.id)
 }
 
 // Close is used to close the session and all streams.
@@ -360,6 +382,18 @@ func (s *Session) Close() error {
 		s.closeAggregatePool()
 	}
 
+	// Pending incoming streams have no application drain owner. recvDone has
+	// joined, so the queue cannot refill. Reset each before its session envelope
+	// is released; a concurrent failed Accept also resets its removed stream.
+pending:
+	for {
+		select {
+		case stream := <-s.acceptCh:
+			s.disposeUnaccepted(stream)
+		default:
+			break pending
+		}
+	}
 	s.streamLock.Lock()
 	defer s.streamLock.Unlock()
 	for _, stream := range s.streams {

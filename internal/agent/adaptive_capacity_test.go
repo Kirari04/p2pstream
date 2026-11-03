@@ -1089,7 +1089,9 @@ func TestAgentLegacySessionEnvelopeFailsClosedAndReleases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	usage := sysmetrics.MemoryUsage{UsedBytes: 350 << 20, LimitBytes: 512 << 20, Source: "test"}
+	limit := int64(512 << 20)
+	hard := limit * sysmetrics.DefaultAdaptiveMemoryConfig().HardLimitPercent / 100
+	usage := sysmetrics.MemoryUsage{UsedBytes: hard - envelope + 1, LimitBytes: limit, Source: "test"}
 	capacity := newTestAgentAdaptiveCapacity(t, &usage)
 	capacity.forceRefresh()
 	if release, ok := capacity.tryReserveLegacySessionEnvelope(envelope); ok {

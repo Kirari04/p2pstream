@@ -301,7 +301,13 @@ func TestQualificationIdleAllocationProfiles(t *testing.T) {
 		}
 	})
 	for _, stage := range []string{"before", "after"} {
-		if err := os.WriteFile(filepath.Join(control, stage+".request"), []byte(stage+"\n"), 0600); err != nil {
+		// Publish the complete flag atomically: the worker can start before
+		// WriteFile fills a newly created file, and correctly rejects empty flags.
+		flag := filepath.Join(control, stage+".request")
+		if err := os.WriteFile(flag+".tmp", []byte(stage+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(flag+".tmp", flag); err != nil {
 			t.Fatal(err)
 		}
 		deadline := time.Now().Add(3 * time.Second)
@@ -310,6 +316,13 @@ func TestQualificationIdleAllocationProfiles(t *testing.T) {
 			data, err = os.ReadFile(filepath.Join(directory, stage+".json"))
 			if err == nil {
 				break
+			}
+			select {
+			case <-worker.done:
+				if worker.err != nil {
+					t.Fatalf("idle profile worker: %v", worker.err)
+				}
+			default:
 			}
 			time.Sleep(time.Millisecond)
 		}

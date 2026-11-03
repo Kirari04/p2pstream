@@ -65,7 +65,6 @@ func TestAgentLaneRetirementReclaimsGrownPoolAfterFINDrain(t *testing.T) {
 			stream, err := tunnel.PrepareLaneRetirement(peer, id)
 			if err == nil {
 				tunnel.CommitLaneRetirement(stream)
-				stream.Reset()
 			}
 		}()
 		response.Header.Set(tunnel.LaneRetirementHeader, "1")

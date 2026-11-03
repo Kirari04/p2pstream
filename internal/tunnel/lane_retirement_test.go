@@ -2,6 +2,8 @@ package tunnel
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"github.com/hashicorp/yamux"
 	"io"
 	"net/http"
@@ -32,6 +34,15 @@ func TestLaneRetirementContractStrictAndOptional(t *testing.T) {
 		"duplicate-old":     func(h http.Header) { h.Add(LaneReplacesHeader, "0123456789abcdef-old") },
 		"same-owner":        func(h http.Header) { h.Set(LaneReplacesHeader, h.Get(LaneOwnerHeader)) },
 		"missing-version":   func(h http.Header) { h.Del(LaneRetirementHeader) },
+		"duplicate-interval": func(h http.Header) {
+			h.Add(LaneRetirementIntervalHeader, "100")
+			h.Add(LaneRetirementIntervalHeader, "200")
+		},
+		"short-interval":    func(h http.Header) { h.Set(LaneRetirementIntervalHeader, "99") },
+		"overflow-interval": func(h http.Header) { h.Set(LaneRetirementIntervalHeader, "999999999999999999999") },
+		"orphan-interval":   func(h http.Header) { clear(h); h.Set(LaneRetirementIntervalHeader, "100") },
+		"duplicate-growth":  func(h http.Header) { h.Add(LaneGrowthHeader, "1"); h.Add(LaneGrowthHeader, "1") },
+		"initial-growth":    func(h http.Header) { h.Del(LaneReplacesHeader); h.Set(LaneGrowthHeader, "1") },
 	} {
 		t.Run(name, func(t *testing.T) {
 			h := good()
@@ -117,5 +128,35 @@ func TestLaneReadinessCommitSurvivesDelayedConsumption(t *testing.T) {
 	}
 	if err := stream.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLaneReadinessLateCommitAfterDeadlineIsRejected(t *testing.T) {
+	a, b, _, _ := ownerTestPair(t)
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	accepted := make(chan error, 1)
+	go func() { accepted <- AcceptLaneRetirement(ctx, b, "0123456789abcdef-owner") }()
+	stream, err := PrepareLaneRetirement(a, "0123456789abcdef-owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-accepted:
+		if err == nil {
+			t.Fatal("uncommitted timed-out owner became ready")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("readiness deadline did not join")
+	}
+	stream.SetReadDeadline(time.Now().Add(time.Second))
+	if _, err := stream.Read(make([]byte, 1)); !errors.Is(err, yamux.ErrConnectionReset) {
+		t.Fatalf("expired readiness not reset: %v", err)
+	}
+	if err := CommitLaneRetirement(stream); err == nil {
+		t.Fatal("late commit succeeded after readiness disposal")
+	}
+	if a.IsClosed() || b.IsClosed() {
+		t.Fatal("readiness disposal aborted unrelated session")
 	}
 }

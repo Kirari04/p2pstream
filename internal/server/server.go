@@ -934,6 +934,13 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 				// join the exact former owner before admitting another lease.
 				if old := agent.tunnelSession(lane); old != nil {
 					if owner := agent.tunnelOwners.Find(old); owner != nil {
+						// Optional capability can be absent on a fresh lane, but
+						// cannot withdraw an already-owned overlap contract and
+						// truncate its serving/draining work in the same generation.
+						if lane > 0 && owner.ReservedBaselineBytes() != sessionResourceBytes {
+							http.Error(w, "lane retirement capability changed", http.StatusConflict)
+							return
+						}
 						owner.Close()
 					} else {
 						_ = old.Close()

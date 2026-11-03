@@ -306,3 +306,49 @@ initial pool but receives no adaptive pool growth; its ordinary compatible
 traffic continues. Legacy flow control remains distinct. Full mixed-version
 qualification and matched performance measurements are separate from the
 retirement correctness regressions.
+
+Legacy admission envelope
+-------------------------
+
+The agent keeps a 64-stream legacy accept backlog: one default-concurrency wave
+may wait while application admission runs. Excess SYNs receive the existing
+backlog RST; the hard resident cap is admitted limit + 64 pending + 1 synchronous
+acceptance transition + 16 graceful rejections. No incoming cap is relaxed.
+Before Accept, each pending stream has only Yamux's implicit 256KiB byte credit.
+AcceptStream can advertise the configured initial window (at most512KiB) BEFORE
+application admission; its one transition is therefore prepaid at that larger
+window while the queue refills. All16 rejection owners also retain the full
+accepted window through peer FIN or explicit disposal. Admitted streams acquire
+a full separate receive supplement before leaving the synchronous transition;
+base/working admission follows. A rejected supplement is returned only after a
+prepaid rejection slot is acquired, or after synchronous Reset. The fixed
+session envelope remains charged, so these transfers have no unreserved interval.
+
+At the default512KiB accepted window, ReceiveWindowMemory includes64KiB chunk
+rounding, bookkeeping and two chunks of head/tail slack: pending storage393,600
+bytes and accepted storage656,000 bytes. Adding8,192 bytes of metadata per
+resident and262,144 bytes of fixed session metadata gives
+`262144 + 64*(393600+8192) + 17*(656000+8192) = 37,268,096` bytes (35.542MiB)
+per lane, versus181,586,560 bytes (173.174MiB) for the former273 full-window
+residents. Four idle legacy lane envelopes total142.167MiB. Application working
+and receive/growth reservations remain additional. The bounded chunk receiver
+has no geometrically doubled contiguous-copy allocation; its conservative
+ReceiveWindowMemory peak also covers retained chunk caches. These are memory
+bounds, not claims of optimal queue size or throughput. Unsupported peers may
+require legacy; local resource denial must retry/fail aggregate instead of
+selecting this larger envelope.
+
+Queued incoming streams have no application owner to drain them on shutdown.
+Session.Close now resets/disposes the accept queue after its physical receiver
+joins; failed Accept window publication also resets its removed stream. Accepted
+buffers remain application-owned for valid drain-after-close and must be disposed
+before the application lease is released. Shutdown cannot refund a pending
+promise while leaving its buffer readable. This correction applies to both
+Accept variants without adding wire messages or weakening successful FIN reads.
+
+Retirement capability may be absent on a fresh legacy or aggregate lane. Once a
+lane owns prepaid replacement headroom, an in-generation request cannot withdraw
+that contract to trigger old break-before-make cleanup; it is rejected before
+closing the serving owner. A genuine capability change establishes a fresh
+authenticated generation, with normal fencing and cleanup. Invalid, duplicate or
+orphaned interval/growth headers also fail closed without publishing ownership.
