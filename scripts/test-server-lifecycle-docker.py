@@ -956,6 +956,20 @@ def prove_stopped_legacy(info, config, journal):
             'default-yaml-legacy-data-mismatch')
 
 
+def prepare_deployment_directory():
+    # docker exec can inherit dockerd's zero umask. parents=True would create
+    # the intermediate /opt/p2pstream as 0777 regardless of the leaf mode.
+    # Declare its mode explicitly; never repair an unsafe existing ancestor.
+    # isolated() requires effective UID 0 before the live fixture runs.
+    DEPLOYMENT.parent.mkdir(mode=0o750, exist_ok=True)
+    parent = DEPLOYMENT.parent.lstat()
+    require(stat.S_ISDIR(parent.st_mode) and parent.st_uid == os.geteuid()
+            and not parent.st_mode & 0o022,
+            'unsafe-fixture-deployment-parent')
+    DEPLOYMENT.mkdir(mode=0o2750)
+    DEPLOYMENT.chmod(0o2750)
+
+
 def default_yaml_case(images, host):
     """One real bundle YAML initial stop/rollback/repair, before the JSON case."""
     global ROOT, PROJECT, VOLUME
@@ -1006,8 +1020,7 @@ def default_yaml_case(images, host):
         ROOT.mkdir(mode=0o700)
         docker('rename', legacy['Id'], saved_name, timeout=15, command_label='default-yaml-save-legacy')
         renamed = True
-        DEPLOYMENT.mkdir(parents=True, mode=0o2750)
-        DEPLOYMENT.chmod(0o2750)
+        prepare_deployment_directory()
         CANONICAL.write_bytes(source)
         CANONICAL.chmod(0o640)
         (DEPLOYMENT / '.env').write_bytes(env)
@@ -1154,6 +1167,10 @@ def main():
     images, host = read('/review/images.json'), load_host()
     require(docker('info', '--format', '{{.Architecture}}') in {'x86_64', 'amd64'},
             'catalog-fixture-requires-amd64')
+    resources = read('/review/fixture-resources.json')
+    # Exact published YAML has no OOM override. A positive nested floor changes
+    # its declared resource at start; qualify this case on a rootful daemon.
+    require(resources['oom_score_adj'] == 0, 'canonical-default-yaml-requires-zero-oom-floor')
     # The preceding legacy rehearsal finishes removed. Keep its private state
     # intact while giving this independent installation the production defaults.
     if STATE.exists():
@@ -1162,8 +1179,7 @@ def main():
     default_yaml_case(images, host)
     stage('fixture-setup')
     require(not CANONICAL.exists() and not INPUTS.exists(), 'canonical-fixture-requires-clean-paths')
-    DEPLOYMENT.mkdir(parents=True, mode=0o2750)
-    DEPLOYMENT.chmod(0o2750)
+    prepare_deployment_directory()
     model = {'name': PROJECT, 'services': {'p2pstream': {
         'image': images['baseline'], 'restart': 'unless-stopped', 'read_only': True,
         'tmpfs': ['/tmp:rw,nosuid,nodev,mode=1777'], 'cap_drop': ['ALL'],
@@ -1172,6 +1188,7 @@ def main():
         'ports': [{'target': 8081, 'published': '18101', 'host_ip': '127.0.0.1', 'protocol': 'tcp'}],
         'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
         'volumes': {'data': {'name': VOLUME}}}
+    model['services']['p2pstream']['oom_score_adj'] = resources['oom_score_adj']
     write(CANONICAL, model, 0o640)
     compose('up', '-d')
     wait(health)
@@ -1394,6 +1411,7 @@ def main():
     compose('stop', 'p2pstream')
     write(ROOT / 'summary.json', {'result': 'passed', 'qualification': 'source-built-real-docker',
                                  'published_pair_gate': 'pending-future-feature-bearing-releases',
+                                 'fixture_resources': resources,
                                  'checks': checks, 'candidate_image': images['candidate'],
                                  'candidate_manifest_sha256': expected_floor['manifest_sha256'],
                                  'limitations': ['synthetic-catalog', 'same-source-two-release-identities',

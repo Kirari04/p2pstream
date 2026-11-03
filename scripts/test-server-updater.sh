@@ -29,7 +29,7 @@ baseline_version=v0.1.53-staging.9000
 candidate_version=v0.1.53-staging.9001
 baseline_commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 candidate_commit=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-dind_image=docker:28.3.3-dind@sha256:a56b3bdde89315ed2cc0e4906e582b5033d93bf20d9cb9510c2cdd4e7f7690b1
+dind_image=docker:29.9.2-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977
 registry_image=registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
 
 cleanup() {
@@ -91,7 +91,7 @@ docker build --file Dockerfile.updater --build-arg "P2PSTREAM_IMAGE=$candidate_i
 docker pull "$registry_image" 2>&1 | tee "$artifact_dir/pull-registry.log"
 docker pull "$dind_image" 2>&1 | tee "$artifact_dir/pull-daemon.log"
 
-echo "Starting disposable Docker 28.3.3; no host ports or host Docker socket are mounted."
+echo "Starting disposable Docker 29.9.2; no host ports or host Docker socket are mounted."
 docker run --detach --privileged --name "$daemon" \
   --add-host ghcr.io:127.0.0.1 --env DOCKER_TLS_CERTDIR= \
   --env DOCKER_HOST=unix:///var/run/docker.sock \
@@ -103,12 +103,31 @@ for ((attempt=0; attempt<90; attempt++)); do
   sleep 1
 done
 [[ $ready == true ]] || { echo "Disposable Docker daemon did not become ready." >&2; exit 1; }
-[[ $(guest docker version --format '{{.Server.Version}}') == 28.3.3 ]] || {
+[[ $(guest docker version --format '{{.Server.Version}}') == 29.9.2 ]] || {
   echo "Unexpected guest Docker engine version." >&2; exit 1;
 }
 guest apk add --no-cache python3 2>&1 | tee "$artifact_dir/install-python.log"
 guest mkdir -p /review
 guest touch /review/ISOLATED_TEST_VM
+# A rootful daemon nested in rootless Docker cannot lower its inherited OOM
+# score. Declare that floor in test deployments before creation, rather than
+# weakening the production detached-target identity check after start.
+guest python3 - <<'PYRESOURCES'
+import json
+import subprocess
+from pathlib import Path
+pid = subprocess.check_output(['pidof', 'dockerd'], text=True, timeout=10).strip()
+assert pid.isdecimal(), 'Expected one disposable Docker daemon'
+uid_map = Path('/proc/' + pid + '/uid_map').read_text().split()
+nested = uid_map != ['0', '0', '4294967295']
+score = int(Path('/proc/' + pid + '/oom_score_adj').read_text())
+assert -1000 <= score <= 1000
+Path('/review/fixture-resources.json').write_text(json.dumps({
+    'rootful_in_user_namespace': nested, 'daemon_oom_score_adj': score,
+    'oom_score_adj': max(0, score) if nested else 0}))
+PYRESOURCES
+docker cp "$daemon:/review/fixture-resources.json" "$artifact_dir/fixture-resources.json"
+
 docker cp scripts/test-server-updater-docker.py "$daemon:/review/test-server-updater-docker.py"
 docker save "$baseline_image" "$candidate_image" "$helper_image" "$upstream_image" "$updater_image" "$candidate_updater_image" "$registry_image" \
   | guest docker load >"$artifact_dir/load-images.log"
@@ -147,7 +166,7 @@ guest mv /tmp/review-docker /usr/local/bin/docker
 guest mv /tmp/review-compose /usr/local/lib/docker/cli-plugins/docker-compose
 guest chmod 0755 /usr/local/bin/docker /usr/local/lib/docker/cli-plugins/docker-compose
 compose_version=$(guest docker compose version --short)
-[[ ${compose_version#v} == 2.39.2 ]] || { echo "Expected updater Compose 2.39.2, got $compose_version." >&2; exit 1; }
+[[ ${compose_version#v} == 5.6.1 ]] || { echo "Expected updater Compose 5.6.1, got $compose_version." >&2; exit 1; }
 [[ ${compose_version#v} != "${native_compose_version#v}" ]] || { echo "Native and managed Compose versions must differ." >&2; exit 1; }
 guest python3 - "$compose_version" "$native_compose_version" "$native_compose_url" "$native_compose_sha256" <<'PY'
 import json
@@ -177,15 +196,32 @@ guest docker tag "$candidate_image" "ghcr.io/review/p2pstream:$candidate_version
 guest docker tag "$upstream_image" p2pstream-review:upstream
 guest docker push "ghcr.io/review/p2pstream:$baseline_version" >"$artifact_dir/push-baseline.log" 2>&1
 guest docker push "ghcr.io/review/p2pstream:$candidate_version" >"$artifact_dir/push-candidate.log" 2>&1
-baseline_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream:$baseline_version")
-candidate_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream:$candidate_version")
+# Docker 29's image store can retain saved local aliases ahead of the pushed
+# repository in RepoDigests. Select by repository, never by array position.
+guest_image_ref() {
+  guest python3 - "$1" "$2" <<'PYREF'
+import json
+import re
+import subprocess
+import sys
+image, repository = sys.argv[1:]
+info = json.loads(subprocess.check_output(['docker', 'image', 'inspect', image]))
+assert len(info) == 1, 'Expected one inspected image'
+refs = {ref for ref in info[0].get('RepoDigests', [])
+        if re.fullmatch(re.escape(repository) + r'@sha256:[0-9a-f]{64}', ref)}
+assert len(refs) == 1, 'Expected one digest for the pushed repository'
+print(refs.pop())
+PYREF
+}
+baseline_ref=$(guest_image_ref "ghcr.io/review/p2pstream:$baseline_version" ghcr.io/review/p2pstream)
+candidate_ref=$(guest_image_ref "ghcr.io/review/p2pstream:$candidate_version" ghcr.io/review/p2pstream)
 helper_ref=$(guest docker image inspect --format '{{.Id}}' "$helper_image")
 guest docker tag "$updater_image" "ghcr.io/review/p2pstream-updater:$baseline_version"
 guest docker tag "$candidate_updater_image" "ghcr.io/review/p2pstream-updater:$candidate_version"
 guest docker push "ghcr.io/review/p2pstream-updater:$baseline_version" >"$artifact_dir/push-updater.log" 2>&1
 guest docker push "ghcr.io/review/p2pstream-updater:$candidate_version" >"$artifact_dir/push-candidate-updater.log" 2>&1
-updater_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream-updater:$baseline_version")
-candidate_updater_ref=$(guest docker image inspect --format '{{index .RepoDigests 0}}' "ghcr.io/review/p2pstream-updater:$candidate_version")
+updater_ref=$(guest_image_ref "ghcr.io/review/p2pstream-updater:$baseline_version" ghcr.io/review/p2pstream-updater)
+candidate_updater_ref=$(guest_image_ref "ghcr.io/review/p2pstream-updater:$candidate_version" ghcr.io/review/p2pstream-updater)
 guest python3 - "$baseline_ref" "$candidate_ref" "$helper_ref" "$updater_ref" "$candidate_updater_ref" <<'PY'
 import json
 from pathlib import Path

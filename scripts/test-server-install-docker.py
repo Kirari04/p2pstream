@@ -224,6 +224,7 @@ env = source / '.env'
 env.write_text('PUBLIC_URL=https://localhost:18091\n')
 env.chmod(0o600)
 model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name': 'p2pstream', 'restart': 'unless-stopped', 'read_only': True, 'tmpfs': ['/tmp:rw,noexec,nosuid,size=16m'], 'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'}, 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}, 'observer': {'image': images['baseline'], 'command': ['/bin/sh', '-c', 'sleep infinity'], 'volumes': [{'type': 'volume', 'source': 'data', 'target': '/read-only-data', 'read_only': True}]}}, 'volumes': {'data': {'name': project + '-data'}}}
+model['services']['p2pstream']['oom_score_adj'] = json.loads(Path('/review/fixture-resources.json').read_text())['oom_score_adj']
 base.write_text(json.dumps(model))
 extra = {'services': {'p2pstream': {'environment': {'MANAGEMENT_PUBLIC_URL': '${PUBLIC_URL}', 'SECRET': 'literal-$$HOME-$${SECRET}-$$$$'}, 'ports': [{'target': 8081, 'published': '18091', 'host_ip': '127.0.0.1'}]}}}
 override.write_text(json.dumps(extra))
@@ -611,6 +612,7 @@ def removal_recovery_boundaries():
         settings = lambda value: dict(item.split('=', 1) for item in value['Config']['Env'] if not item.startswith('SERVER_UPDATE_'))
         assert settings(current) == settings(before)
         assert current['HostConfig']['PortBindings'] == before['HostConfig']['PortBindings']
+        assert current['HostConfig']['OomScoreAdj'] == before['HostConfig']['OomScoreAdj'] == before_model['services']['p2pstream'].get('oom_score_adj', 0)
         assert [mount for mount in current['Mounts'] if mount['Destination'] == '/data'] == [mount for mount in before['Mounts'] if mount['Destination'] == '/data']
         assert docker('exec', current['Id'], '/app/p2pstream', 'server-installation-identity') == installation
         assert (host.STATE / 'config.json').read_bytes() == config
@@ -807,6 +809,7 @@ model = {'services': {'p2pstream': {'image': images['baseline'], 'container_name
                                   'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
          'volumes': {'data': {'name': project + '-data'}}}
 model['services']['p2pstream']['tmpfs'] = ['/tmp']
+model['services']['p2pstream']['oom_score_adj'] = json.loads(Path('/review/fixture-resources.json').read_text())['oom_score_adj']
 base.write_text(json.dumps(model))
 os.chdir(source)
 compose('up', '-d')
@@ -927,6 +930,7 @@ def start_standalone(name):
         'environment': {'CONFIG_DIR': '/data', 'MANAGEMENT_PORT': '8081'},
         'volumes': [{'type': 'volume', 'source': 'data', 'target': '/data'}]}},
         'volumes': {'data': {'name': project + '-data'}}}
+    model['services']['p2pstream']['oom_score_adj'] = json.loads(Path('/review/fixture-resources.json').read_text())['oom_score_adj']
     base.write_text(json.dumps(model))
     base.chmod(0o600)
     os.chdir(source)

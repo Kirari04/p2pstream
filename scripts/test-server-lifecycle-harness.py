@@ -135,7 +135,7 @@ class RemovalRecoveryBoundaries(unittest.TestCase):
             model = host.read_json(Path(config['deployment_file']))
             server = model['services']['p2pstream']
             fixture.info['Config'].update(Image=server['image'], Env=[key + '=' + str(value) for key, value in server['environment'].items()])
-            fixture.info['HostConfig'] = {'PortBindings': {str(port['target']) + '/tcp': [
+            fixture.info['HostConfig'] = {'OomScoreAdj': server.get('oom_score_adj', 0), 'PortBindings': {str(port['target']) + '/tcp': [
                 {'HostIp': port.get('host_ip', ''), 'HostPort': str(port['published'])}] for port in server.get('ports', [])}}
             fixture.info['Mounts'] = [{'Type': volume['type'], 'Destination': volume['target'],
                 'Name': model['volumes'][volume['source']]['name'] if volume['type'] == 'volume' else '',
@@ -800,6 +800,57 @@ class DefaultYamlFixture(unittest.TestCase):
                 self.assertIn(value.value, harness.COMMAND_LABELS)
                 self.assertNotEqual(value.value, 'command')
 
+    def test_exact_default_yaml_refuses_nested_oom_floor_before_moving_private_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / 'state'
+            state.mkdir()
+            marker = state / 'marker'
+            marker.write_text('retained')
+            with patch.multiple(harness, ROOT=root / 'run', STATE=state), \
+                    patch.object(harness, 'isolated'), patch.object(harness, 'load_host'), \
+                    patch.object(harness, 'docker', return_value='amd64'), \
+                    patch.object(harness, 'read', side_effect=lambda path: {'oom_score_adj': 200} if str(path).endswith('fixture-resources.json') else {}), \
+                    patch.object(harness, 'default_yaml_case') as default_case:
+                with self.assertRaises(harness.CheckFailure) as caught:
+                    harness.main()
+                self.assertEqual(str(caught.exception), 'canonical-default-yaml-requires-zero-oom-floor')
+                default_case.assert_not_called()
+            self.assertEqual(marker.read_text(), 'retained')
+            self.assertFalse((root / 'run/completed-legacy-state').exists())
+
+    def test_fixture_parent_is_protected_under_zero_umask(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory) / 'parent'
+            with patch.object(harness, 'DEPLOYMENT', parent / 'deployment'):
+                old = os.umask(0)
+                try:
+                    harness.prepare_deployment_directory()
+                finally:
+                    os.umask(old)
+                self.assertEqual(parent.stat().st_mode & 0o7777, 0o750)
+                self.assertEqual(harness.DEPLOYMENT.stat().st_mode & 0o7777, 0o2750)
+                harness.DEPLOYMENT.rmdir()
+                parent.chmod(0o777)
+                with self.assertRaises(harness.CheckFailure):
+                    harness.prepare_deployment_directory()
+                self.assertEqual(parent.stat().st_mode & 0o7777, 0o777)
+                self.assertFalse(harness.DEPLOYMENT.exists())
+
+    def test_fixture_parent_refuses_foreign_owner_without_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory) / 'parent'
+            parent.mkdir(mode=0o750)
+            original = parent.stat()
+            with patch.object(harness, 'DEPLOYMENT', parent / 'deployment'), \
+                    patch.object(harness.os, 'geteuid', return_value=original.st_uid + 1):
+                with self.assertRaises(harness.CheckFailure) as caught:
+                    harness.prepare_deployment_directory()
+                self.assertEqual(str(caught.exception), 'unsafe-fixture-deployment-parent')
+            self.assertEqual(parent.stat().st_uid, original.st_uid)
+            self.assertEqual(parent.stat().st_mode, original.st_mode)
+            self.assertFalse((parent / 'deployment').exists())
+
     def test_image_pin_changes_only_one_line_of_actual_bundle_source_template(self):
         template = (ROOT.parent / 'compose.yaml').read_bytes()
         replacement = harness.pinned_default_yaml(template, 'PRIVATE_PINNED_IMAGE')
@@ -1314,7 +1365,7 @@ class MainFailureSummary(unittest.TestCase):
             stack.enter_context(patch.object(harness, 'STAGE', 'setup', create=True))
             replacements = {'isolated': lambda: None, 'load_host': lambda: None,
                             'default_yaml_case': lambda *args: None,
-                            'read': lambda *a: {'baseline': 'baseline', 'candidate': 'candidate'},
+                            'read': lambda *a: ({'oom_score_adj': 0} if a[0] == '/review/fixture-resources.json' else {'baseline': 'baseline', 'candidate': 'candidate'}),
                             'docker': docker, 'compose': lambda *a: 'PRIVATE_MODEL',
                             'server_info': lambda **kw: info, 'owner_bytes': lambda *a: b'PRIVATE_OWNER',
                             'wait': lambda *a: None, 'fixture_catalog': lambda *a: releases,

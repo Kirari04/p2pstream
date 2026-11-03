@@ -1,7 +1,7 @@
 # Release CI supplies the exact server platform digest. The
 # management image remains free of the Docker CLI and daemon socket.
 ARG P2PSTREAM_IMAGE
-FROM docker:28.3.3-cli@sha256:0135662b510037ea581d99c2e5929c5e01185139c0b86986a418bd4da0b98a44 AS tools
+FROM docker:29.9.2-cli@sha256:5e6baf67325a79f64ed3bed6863954d5e05d0f3d4e57cbdb14809346814bbfdb AS tools
 FROM ${P2PSTREAM_IMAGE}
 LABEL p2pstream.image.role="server-updater"
 USER root

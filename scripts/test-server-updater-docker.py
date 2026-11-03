@@ -102,6 +102,7 @@ def main():
                 "ports": [{"target": 8081, "published": "18081", "host_ip": "127.0.0.1", "protocol": "tcp"},
                           {"target": 8080, "published": "18080", "host_ip": "127.0.0.1", "protocol": "tcp"}],
             }}, "volumes": {"data": {"name": project + "-data"}}}
+        model['services']['p2pstream']['oom_score_adj'] = json.loads(Path('/review/fixture-resources.json').read_text())['oom_score_adj']
         original = state / "original.json"
         original.write_text(json.dumps(model))
         compose(original, "up", "-d")
