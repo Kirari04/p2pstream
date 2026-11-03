@@ -101,11 +101,13 @@ jobs:
           P2PSTREAM_QUALIFICATION_MATCHED_OFFERED_ROUNDTRIP: "1"
         run: go test -count=1 -timeout=60s -run '^TestQualificationMatchedOfferedLoadRoundTrip$' ./internal/server
 
-      - name: Test proxy ownership lifetimes under race instrumentation
+      - name: Race-test proxy resource ownership and request lifetimes
+        # Retain dev's public-input races alongside lane-retirement coverage.
+        timeout-minutes: 8
         run: >-
-          go test -race -count=1 -timeout=60s
-          -run '^(TestAggregateConnectorRetirementFencesCompetingSessionAdmission|TestServerAggregateLaneRetirementFencesCompetingAdmission|TestExternalQualificationObserverConcurrentShutdown|TestQualificationObserverConcurrentAdminAndShutdown|TestPublicAgentTokenRotationTerminatesCommittedResponseAndFencesReconnect|TestPublicAgentTokenRotationOverManagementHTTP|TestPublicTargetStageOwnsHardSlotThroughForwarding|TestRealAgentPeerBorrowerYieldsQueuedStream|TestPublicConcurrentCloseRetainsCreditUntilPhysicalCompletion|TestAccountedConcurrentCloseRetainsCreditThroughFDReference|TestPublicAgentTokenRotationPreservesOtherAgentActiveAndNextRequests)$'
-          ./internal/agent ./internal/server ./internal/tcpsocket
+          go test -race -count=1 -timeout=5m
+          -run '^(TestAdaptiveAgentCapacityConcurrentAcquireReleaseConservesLeases|TestAdaptiveResourceOwnerLedgerConservesConcurrentReceiveCredit|TestServerAdaptiveRefresh|TestServerAdaptiveOverlappingSamples|TestServerAdaptiveAdmissionRechecks|TestPublicConcurrentClose|TestAccountedConcurrentClose|TestPublicConnectionPhaseLease|TestPublicHTTP2ConcurrentDecodedHeaders|TestPublicRequestChargesDecodedHeaders|TestPublicProxyContext|TestPublicProxyCleanup|TestPublicProxyResolutionPointer|TestResolvedIdentityContext|TestPreparePublicRetryRequestBody|TestPublicAgentRetryUnknownOversize|TestPublicRetryRequestWorkingCharge|TestPublicRetryResponse|TestPublicRetryWorkingChargeDenial|TestPublicAgentNoRule|TestPublicObservedResponseBody|TestPublicProxyCacheEvent|TestPublicDirectStreaming|TestPublicForwarded|TestTrafficShaperDecision|TestOwnedStreamResourceModels|TestAggregateConnectorRetirementFencesCompetingSessionAdmission|TestServerAggregateLaneRetirementFencesCompetingAdmission|TestExternalQualificationObserverConcurrentShutdown|TestQualificationObserverConcurrentAdminAndShutdown|TestPublicAgentTokenRotationTerminatesCommittedResponseAndFencesReconnect|TestPublicAgentTokenRotationOverManagementHTTP|TestPublicTargetStageOwnsHardSlotThroughForwarding|TestRealAgentPeerBorrowerYieldsQueuedStream|TestPublicConcurrentCloseRetainsCreditUntilPhysicalCompletion|TestAccountedConcurrentCloseRetainsCreditThroughFDReference|TestPublicAgentTokenRotationPreservesOtherAgentActiveAndNextRequests)'
+          ./internal/agent ./internal/server ./internal/tunnel ./internal/tcpsocket
 
       - name: Test public proxy throughput over a real TCP WAN
         timeout-minutes: 6
