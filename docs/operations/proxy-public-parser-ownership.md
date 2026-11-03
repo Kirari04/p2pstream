@@ -15,10 +15,20 @@ header limit (128 KiB by default). The 256 KiB component is not solely parser
 storage. The separate temporary 256 KiB handshake promise already returns on
 activation; the socket baseline and Linux autotuning remain separately owned.
 
-Source review used the actual build toolchain, Go 1.26.6. Its native H1 server
-calls `readRequest` before `StateActive` and before invoking the handler. After
-the response, `StateIdle` precedes a buffered peek and the next parse.
-[Native server source](https://github.com/golang/go/blob/go1.26.6/src/net/http/server.go#L1988).
+The original source review used Go 1.26.6; this ordering was rechecked against
+Go 1.27.3. Its native H1 server calls `readRequestLimit` before `StateActive`
+and before invoking the handler. After the response, `StateIdle` precedes a
+buffered peek and the next parse.
+[Native server source](https://github.com/golang/go/blob/go1.27.3/src/net/http/server.go).
+
+Go 1.27.3 also caps HTTP/1 header values at 500 by default. Production keeps that
+parser limit. The historical 8000-key empty-value burst is rejected with 431
+before admission, so it no longer measures admitted decoded-map pressure.
+The current admission-pressure fixture uses 400 distinct keys with 152-byte
+values, retaining roughly 64 KiB of wire headers below the count limit. It
+requires successful origin work and rejects any 431 result as qualification.
+Its results must not be compared as the same workload as the historical
+8000-key rows; matched comparisons must use the same fixture on both versions.
 
 That ordering creates two ownership gaps in the proposed design. Releasing at
 activation precedes this proxy's decoded-header admission. Closing a connection
@@ -40,7 +50,9 @@ tracks aggregate activity rather than individual requests.
 A parser integration or replacement would require independent qualification of
 TLS read-ahead, buffered pipelines, large and many-key headers on initial and
 reused connections, pressure rejection, cancellation, idle reclamation and
-races. The existing many-key probe already demonstrates that twice the wire
-limit is an allowance rather than a decoded-map bound. A concurrent hostile
-header burst under a real memory limit must therefore be part of that work;
-held-request success alone would not establish parser safety.
+races. The historical many-key probe showed that twice the wire limit was an
+allowance rather than a decoded-map bound under Go 1.26.6. Go 1.27.3 bounds that
+fan-out, but this does not establish a tighter permanent connection allowance.
+A concurrent header burst within the current parser limits, together with
+separate over-limit rejection tests under a real memory limit, must be part of
+that work; held-request success alone would not establish parser safety.

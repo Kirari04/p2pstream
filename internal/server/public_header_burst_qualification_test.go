@@ -31,6 +31,11 @@ import (
 	"time"
 )
 
+// Keep the roughly 64 KiB wire workload below Go 1.27's 500-value parser cap.
+// Historical 8000-key empty-value rows are a different workload.
+const headerBurstKeys = 400
+const headerBurstValueBytes = 152
+
 type headerBurstGate struct {
 	release chan struct{}
 	once    sync.Once
@@ -58,6 +63,7 @@ type headerBurstResult struct {
 	EstablishedTLSConnections     int               `json:"established_tls_connections"`
 	TLSFailures                   int               `json:"tls_failures"`
 	DistinctHeaderKeys            int               `json:"distinct_header_keys"`
+	HeaderValueBytes              int               `json:"header_value_bytes"`
 	WireRequestBytes              int               `json:"wire_request_bytes"`
 	StatusCodes                   map[string]int    `json:"status_codes"`
 	ClientErrors                  map[string]int    `json:"client_errors"`
@@ -227,10 +233,80 @@ func TestPublicHeaderBurstQualification(t *testing.T) {
 		if inspectErr != nil || !state.Running || state.OOMKilled || result.OOMEvents != 0 || result.OOMKillEvents != 0 {
 			t.Fatalf("stopping staircase after container failure: inspect=%v state=%+v; evidence=%s", inspectErr, state, resultFile.Name())
 		}
+		if result.OriginPeakInflight == 0 || result.StatusCodes[strconv.Itoa(http.StatusNoContent)] == 0 || result.StatusCodes[strconv.Itoa(http.StatusRequestHeaderFieldsTooLarge)] != 0 {
+			t.Fatalf("header burst did not establish admitted decoded-header pressure; parser rejections are not qualification; evidence=%s", resultFile.Name())
+		}
 		if result.RecoveredRequests != 32 || !result.PublicOwnersReleased {
 			t.Fatalf("header burst did not recover; evidence=%s", resultFile.Name())
 		}
 	}
+}
+
+func headerBurstRequest(token string) []byte {
+	var request strings.Builder
+	fmt.Fprintf(&request, "GET /direct/held?burst=%s HTTP/1.1\r\nHost: public.test\r\nConnection: close\r\n", token)
+	value := strings.Repeat("v", headerBurstValueBytes)
+	for index := range headerBurstKeys {
+		key := strconv.FormatInt(int64(index), 36)
+		request.WriteString("H" + strings.Repeat("0", 3-len(key)) + key + ": " + value + "\r\n")
+	}
+	request.WriteString("\r\n")
+	return []byte(request.String())
+}
+
+// Exercise the actual fixture through the native H1 parser and real request
+// admission. A parser-only 431 must never stand in for decoded-header pressure.
+func TestPublicHeaderBurstFixtureReachesAdmission(t *testing.T) {
+	a := newPublicOwnedResourceTestApp(t)
+	admitted := make(chan int64, 1)
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := newPublicProxyContext(a, 1, w, r)
+		defer ctx.runCleanup()
+		if publicRequestAdmissionStage(ctx) != publicProxyStageContinue {
+			return
+		}
+		admitted <- a.agentStreamCapacity.snapshot().AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicRequest]
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	configurePublicHTTPServer(srv.Config)
+	srv.Config.ConnState = publicResourceConnState
+	srv.Listener = resourceBoundedPublicListener{Listener: srv.Listener, acquirePhased: a.tryReservePublicConnectionPhased}
+	srv.Start()
+	defer srv.Close()
+	conn, err := net.DialTimeout("tcp", srv.Listener.Addr().String(), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	payload := headerBurstRequest("fixture")
+	if len(payload) < 60<<10 || len(payload) >= defaultPublicMaxHeaderBytes {
+		t.Fatalf("header fixture wire size outside qualification bounds: %d", len(payload))
+	}
+	if _, err := conn.Write(payload); err != nil {
+		t.Fatal(err)
+	}
+	response, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("header fixture failed native parsing or admission: %s", response.Status)
+	}
+	select {
+	case bytes := <-admitted:
+		if bytes <= 0 {
+			t.Fatal("header fixture did not acquire a decoded-request lease")
+		}
+	default:
+		t.Fatal("header fixture never reached admission")
+	}
+	_ = conn.Close()
+	waitPublicOwnedBytes(t, a, adaptiveResourceOwnerPublicRequest, 0)
+	waitPublicOwnedBytes(t, a, adaptiveResourceOwnerPublicConnection, 0)
 }
 
 func runHeaderBurstStep(t *testing.T, ready qualificationReady, pid int, roots *x509.CertPool, count int, token string, gate *headerBurstGate) headerBurstResult {
@@ -276,20 +352,12 @@ func runHeaderBurstStep(t *testing.T, ready qualificationReady, pid int, roots *
 			}
 		}
 	}()
-	var request strings.Builder
-	fmt.Fprintf(&request, "GET /direct/held?burst=%s HTTP/1.1\r\nHost: public.test\r\nConnection: close\r\n", token)
-	const keys = 8000
-	for index := range keys {
-		key := strconv.FormatInt(int64(index), 36)
-		request.WriteString("H" + strings.Repeat("0", 3-len(key)) + key + ": \r\n")
-	}
-	request.WriteString("\r\n")
-	payload := []byte(request.String())
+	payload := headerBurstRequest(token)
 	if len(payload) >= defaultPublicMaxHeaderBytes {
 		t.Fatalf("header fixture exceeds policy: %d >= %d", len(payload), defaultPublicMaxHeaderBytes)
 	}
 	result := headerBurstResult{SourceCommit: os.Getenv("P2PSTREAM_HEADER_BURST_SOURCE"), BinarySHA256: os.Getenv("P2PSTREAM_HEADER_BURST_BINARY_SHA256"), HarnessSHA256: os.Getenv("P2PSTREAM_HEADER_BURST_HARNESS_SHA256"),
-		RequestedConnections: count, DistinctHeaderKeys: keys, WireRequestBytes: len(payload), StatusCodes: make(map[string]int), ClientErrors: make(map[string]int)}
+		RequestedConnections: count, DistinctHeaderKeys: headerBurstKeys, HeaderValueBytes: headerBurstValueBytes, WireRequestBytes: len(payload), StatusCodes: make(map[string]int), ClientErrors: make(map[string]int)}
 	result.TLSAttempted = int(attempted.Load())
 	result.TLSUnattempted = count - result.TLSAttempted
 	result.TLSSetupSeconds = setupSeconds

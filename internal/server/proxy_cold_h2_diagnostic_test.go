@@ -24,6 +24,7 @@ import (
 	"time"
 )
 
+const coldH2DiagnosticGoVersion = "go1.27.3"
 const coldH2DiagnosticConnectionLimit = 8192
 const coldH2DiagnosticBucketCount = 121 // 120 x 250 ms, then [30s, infinity).
 const coldH2DiagnosticBucketWidth = 250 * time.Millisecond
@@ -111,7 +112,7 @@ func qualificationConfigureColdH2Diagnostic(t *testing.T, transport *http.Transp
 	if scenario != "capacity-3072-h2" || protocol != "h2" || concurrency != 3072 || requests != 3072 || os.Getenv("P2PSTREAM_QUALIFICATION_CAPACITY_ESTABLISHED_H2") == "1" || os.Getenv("P2PSTREAM_QUALIFICATION_H2_PREWARM") == "1" || !coldH2DiagnosticZeroEnv("P2PSTREAM_QUALIFICATION_DURATION_SECONDS") || !coldH2DiagnosticZeroEnv("P2PSTREAM_QUALIFICATION_WARMUP_SECONDS") || !coldH2DiagnosticZeroEnv("P2PSTREAM_QUALIFICATION_OFFERED_RPS") {
 		t.Fatal("cold-H2 diagnostic requires exactly 3072 cold finite remote-agent H2 requests without warmup")
 	}
-	if runtime.Version() != "go1.26.6" {
+	if runtime.Version() != coldH2DiagnosticGoVersion {
 		t.Fatalf("recheck source-derived HTTP/2 limits before using toolchain %s", runtime.Version())
 	}
 	transport.MaxConnsPerHost = cap
@@ -301,7 +302,7 @@ func (d *coldH2Diagnostic) finish(t *testing.T) {
 		"connection_usage_scope": "GotConn assignment until client.Do returns headers/error; retries counted; not actual wire-active streams or negotiated capacity",
 		"stream_capacity": map[string]any{
 			"wire_settings_observed": false, "reason": "stock net/http httptrace exposes ALPN but no peer SETTINGS_MAX_CONCURRENT_STREAMS",
-			"source_toolchain": "go1.26.6 src/net/http/h2_bundle.go", "client_initial_before_settings": 100,
+			"source_toolchain": coldH2DiagnosticGoVersion + " src/net/http/internal/http2/{transport,server}.go", "client_initial_before_settings": 100,
 			"client_default_if_setting_absent": 1000, "server_default_advertised_limit": 250,
 			"source_values_are_negotiation_evidence": false, "cap_times_initial_assumption": d.cap * 100,
 			"required_connections_at_initial_assumption": (3072 + 99) / 100,
@@ -447,8 +448,8 @@ func TestColdH2DiagnosticConcurrentSnapshotIsCoherent(t *testing.T) {
 }
 
 func TestColdH2DiagnosticCapAndRecoveryScope(t *testing.T) {
-	if runtime.Version() != "go1.26.6" {
-		t.Skipf("only the version-pinned diagnostic configuration test requires go1.26.6; running %s", runtime.Version())
+	if runtime.Version() != coldH2DiagnosticGoVersion {
+		t.Fatalf("recheck source-derived HTTP/2 limits for %s; diagnostic is pinned to %s", runtime.Version(), coldH2DiagnosticGoVersion)
 	}
 	t.Setenv("P2PSTREAM_COLD_H2_DIAGNOSTIC_MAX_CONNS", "64")
 	t.Setenv("P2PSTREAM_QUALIFICATION_PATH", "agent-external")

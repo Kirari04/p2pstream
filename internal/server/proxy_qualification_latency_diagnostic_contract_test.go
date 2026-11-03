@@ -478,8 +478,9 @@ func TestQualificationLatencyOwnedAdminBoundary(t *testing.T) {
 }
 
 func TestQualificationLatencyTraceLifecycle(t *testing.T) {
-	// A root-owned follow-up must parse this raw trace with pinned Go1.26.6
-	// cmd/trace -d=parsed and check the two anchors and ReadMemStats STW reason/
+	// A root-owned follow-up must parse this raw trace with the producing Go
+	// toolchain (currently Go1.27.3), using cmd/trace -d=parsed, and check the
+	// two anchors and ReadMemStats STW reason/
 	// stack. Magic/hash checks here are transport evidence, NOT a parse claim.
 	dir := os.Getenv("P2PSTREAM_QUALIFICATION_LATENCY_CONTRACT_DIR")
 	if dir == "" {
