@@ -62,8 +62,9 @@ func TestAggregateAgentCleanupDisposesAbandonedFINAfterReadError(t *testing.T) {
 }
 
 // Exercise the application's relay with a real TCP-backed aggregate stream.
-// A fully received FIN buffer disposed by peer session loss must not become a
-// successful zero-byte upload at the origin, even when HTTP framing is absent.
+// Disposing a fully received FIN buffer on peer session loss must make the relay
+// return an error. The origin still sees a normal EOF after the upstream closes;
+// detecting truncation there requires application framing.
 func TestAggregateRelayPropagatesSessionDisposalOverTCP(t *testing.T) {
 	config, err := tunnel.NewAggregateYamuxConfig(nil, 2<<20, 32)
 	if err != nil {
