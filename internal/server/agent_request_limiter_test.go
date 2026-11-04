@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/yamux"
 
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
 
@@ -197,6 +198,77 @@ func TestCapacityManagedStreamLeaseSurvivesUntilForcedYamuxCleanup(t *testing.T)
 	}
 	if state := lease.currentState(); state != agentStreamLeaseReleased {
 		t.Fatalf("lease state after forced cleanup = %s, want released", state)
+	}
+}
+
+func TestLegacyReceiveSupplementSurvivesUntilPeerCleanup(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 2 << 30, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 8, &usage)
+	manager.registerSessionWithLimit("legacy", 8)
+	defer manager.unregisterSession("legacy")
+	lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "route", "legacy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !lease.markLive() {
+		t.Fatal("capacity lease did not become live")
+	}
+	supplement, err := tunnel.LegacyReceiveWindowSupplementBytes(tunnel.DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	releaseSupplement, ok, constrained := manager.tryReserveLegacyStreamSupplement(supplement)
+	if !ok || !constrained {
+		t.Fatalf("legacy supplement reservation ok=%t constrained=%t", ok, constrained)
+	}
+	local, peer := net.Pipe()
+	defer local.Close()
+	defer peer.Close()
+	remoteClosed := make(chan struct{})
+	managed := newCapacityManagedAgentTunnelStreamConnWithRelease(&delayedRemoteCloseConn{
+		Conn:         local,
+		remoteClosed: remoteClosed,
+		readStarted:  make(chan struct{}),
+	}, nil, lease, releaseSupplement, nil)
+	if err := managed.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := manager.snapshot(); snapshot.LegacyStreamSupplementBytes != supplement || snapshot.Total.InUse != 1 {
+		t.Fatalf("legacy resources released at local FIN: %+v", snapshot)
+	}
+	close(remoteClosed)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		snapshot := manager.snapshot()
+		if snapshot.LegacyStreamSupplementBytes == 0 && snapshot.Total.InUse == 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("legacy resources retained after peer cleanup: %+v", manager.snapshot())
+}
+
+func TestFailedOpeningFallbackRetainsResourcesUntilPeerCleanup(t *testing.T) {
+	local, peer := net.Pipe()
+	defer local.Close()
+	defer peer.Close()
+	remoteClosed := make(chan struct{})
+	released := make(chan struct{})
+	fenceFailedAgentStream(&delayedRemoteCloseConn{
+		Conn:         local,
+		remoteClosed: remoteClosed,
+		readStarted:  make(chan struct{}),
+	}, nil, func() { close(released) })
+	select {
+	case <-released:
+		t.Fatal("failed opening released resources after local FIN")
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(remoteClosed)
+	select {
+	case <-released:
+	case <-time.After(time.Second):
+		t.Fatal("failed opening retained resources after peer cleanup")
 	}
 }
 

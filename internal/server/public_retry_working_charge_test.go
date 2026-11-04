@@ -102,31 +102,9 @@ func replayChargeAssert(t *testing.T, app *App, payload, working, owners int64) 
 	}
 }
 
-// Keep replay ownership tests independent of the deferred saturation fixture.
-func replayChargeAwait(t *testing.T, reason string, ready func() bool) {
-	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		if ready() {
-			return
-		}
-		time.Sleep(time.Millisecond)
-	}
-	t.Fatalf("timed out: %s", reason)
-}
-
-func replayChargeAwaitChannel(t *testing.T, reason string, ch <-chan struct{}) {
-	t.Helper()
-	select {
-	case <-ch:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("timed out: %s", reason)
-	}
-}
-
 func replayChargeAwaitZero(t *testing.T, app *App) {
 	t.Helper()
-	replayChargeAwait(t, "replay working owner joined and refunded", func() bool {
+	mixedSaturationAwait(t, "replay working owner joined and refunded", func() bool {
 		s := app.agentStreamCapacity.snapshot()
 		return app.retryReplayBudget.used.Load() == 0 && s.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReplayBuffer] == 0 && s.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerReplayBuffer] == 0
 	})
@@ -290,7 +268,7 @@ func replayChargeStartResponse(t *testing.T, app *App, body *replayChargeBody, l
 			gate.release()
 		}
 		_ = body.Close()
-		replayChargeAwaitChannel(t, "response preparation worker joined", joined)
+		mixedSaturationAwaitChannel(t, "response preparation worker joined", joined)
 		select {
 		case result := <-results:
 			if result.body.body != nil {
@@ -370,8 +348,8 @@ func TestPublicRetryResponseWorkingChargeWaitsForBlockedReadExit(t *testing.T) {
 				}
 				closed := make(chan struct{})
 				go func() { _ = result.body.body.Close(); close(closed) }()
-				t.Cleanup(func() { gate.release(); replayChargeAwaitChannel(t, "response Close worker joined", closed) })
-				replayChargeAwaitChannel(t, "Close returns before blocked source Read", closed)
+				t.Cleanup(func() { gate.release(); mixedSaturationAwaitChannel(t, "response Close worker joined", closed) })
+				mixedSaturationAwaitChannel(t, "Close returns before blocked source Read", closed)
 				_ = result.body.body.Close()
 			}
 			if original.closes.Load() != 1 {

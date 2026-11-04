@@ -72,3 +72,29 @@ func TestAgentAutotunedOriginSocketRechecksPressureAndOwnsCredit(t *testing.T) {
 		t.Fatal("rejected socket leaked credit")
 	}
 }
+
+func TestPrepaidControlSocketBypassesOnlyZeroExcessPressureCheck(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 15 << 30, LimitBytes: 16 << 30, Source: "test"}
+	capacity := newTestAgentAdaptiveCapacity(t, &usage)
+	if pressured := capacity.forceRefresh(); pressured.Pressure != sysmetrics.MemoryPressureCritical {
+		t.Fatalf("pressure snapshot = %+v", pressured)
+	}
+	base := context.WithValue(t.Context(), upstreamCapacityContextKey{}, capacity)
+	prepaid := context.WithValue(base, prepaidControlStreamContextKey{}, true)
+	release, ok := reserveUpstreamSocketExcess(prepaid, tcpsocket.BaseMemoryBytes, tcpsocket.BaseMemoryBytes)
+	if !ok {
+		t.Fatal("prepaid zero-excess control socket rechecked critical pressure")
+	}
+	release()
+	if release, ok := reserveUpstreamSocketExcess(prepaid, tcpsocket.BaseMemoryBytes+1, tcpsocket.BaseMemoryBytes); ok {
+		release()
+		t.Fatal("prepaid marker bypassed positive socket excess reservation")
+	}
+	if release, ok := reserveUpstreamSocketExcess(base, tcpsocket.BaseMemoryBytes, tcpsocket.BaseMemoryBytes); ok {
+		release()
+		t.Fatal("ordinary zero-excess socket bypassed critical pressure")
+	}
+	if got := capacity.snapshot().ReceiveWindowBytes; got != 0 {
+		t.Fatalf("socket pressure checks leaked %d bytes", got)
+	}
+}

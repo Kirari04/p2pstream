@@ -212,44 +212,57 @@ sudo journalctl -u p2pstream -n 100 --no-pager
 
 Substitute your configured service name and binary path. Verify listeners, agent connections, and public traffic as for Compose.
 
-## Roll out proxy admission changes
+## Roll out aggregate tunnel resource accounting
 
-The stream-accounting changes retain the existing tunnel wire format and
-per-stream receive reservations. Each server and agent enforces its own resource
-budget, including when a fixed concurrency ceiling is configured.
+Upgrade the **server first**, validate existing agent traffic, then update a
+small agent canary before the remaining fleet. Keep the previous server and
+agent builds, configuration, and a consistent database backup. Protocol fallback
+does not establish compatibility with every older release or override the
+legacy-data preparation and updater-removal steps above.
 
-Prefer a staged server-first rollout. Verify fleet readiness, ordinary requests,
-TLS, cancellation and capacity errors before updating a small agent cohort.
-Then expand only after checking both processes' memory and descriptor headroom.
-Matching builds remain the preferred final state; unchanged wire format does
-not establish a compatibility test matrix or bypass the cutover requirements
-above.
+Mixed versions have different resource requirements:
 
-Review explicit limits before rollout:
+| Combination | What to expect |
+| --- | --- |
+| New agent, older server without `aggregate-v1` | Legacy fallback reserves about **35.54 MiB per tunnel lane** with the default 512 KiB receive window: about **142.17 MiB for four lanes**, before active-stream charges. These are accounting promises, not measured RSS. A small agent can refuse the session for insufficient headroom even when the older agent connected successfully. |
+| Older agent, new server | Legacy streams need a separate receive-storage reservation, about **641 KiB per stream** at the default window, in addition to the server stream base. This extra check can fail immediately after ordinary stream admission and return a capacity 503; it does not wait in the fair admission queue. |
+| New agent, new server | Negotiated `aggregate-v1` uses a separate control lane and the configured number of bulk lanes. With the default four bulk lanes, expect five physical tunnel sessions. |
 
-- `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` is a floor for the complete initial
-  server-stream estimate. Zero selects the derived estimate; a positive value
-  cannot reduce it. Larger values reserve more and can lower concurrency.
-- `SERVER_TUNNEL_MAX_CONCURRENT_STREAMS` and `TUNNEL_MAX_CONCURRENT_REQUESTS`
-  remain ceilings. Resource pressure can reject work below those ceilings.
-- `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES=0` keeps kernel autotuning. An old
-  positive override still requests fixed buffers and can limit WAN throughput.
+Before continuing the rollout, check agent connection logs for the negotiated
+mode, exercise each important agent-backed route and its health checks, and
+check for capacity 503s, repeated reconnects, or resource-pressure rejections.
+Confirm the canary negotiates `aggregate_flow_control=true` and retains its
+control and bulk connections. A disconnected legacy lane zero replaces the
+whole tunnel group; allow that reconnect to finish before judging readiness.
+Keep adequate headroom during either mixed-version interval. Do not disable
+resource accounting to force a connection.
 
-The default initial promises are about 897 KiB per server stream and 1,409 KiB
-per agent stream, before additional receive-window growth and other owners.
-Small agents can reach their own budget before the server. Check rejection
-reasons rather than raising limits to reproduce an earlier concurrency count.
-See [Agent proxy performance](./agent-proxy-performance) for accounting details.
+Review any explicit `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` override. Its
+historical full-stream value is now retained as a conservative **base**, with
+aggregate session pools or legacy receive storage charged separately. An
+unchanged explicit value can therefore reserve more total memory and admit
+fewer streams. The default `0` selects the owned server base automatically;
+see [Configuration](../reference/configuration) before changing an override.
 
-Dashboard cache-bypass counts can rise after this upgrade without a caching-policy
-change. Forwarded requests now retain bypass attribution in their recorded event
-even when the cache decision stays on the request pipeline's stack. Previously,
-those requests could be omitted from the bypass count.
+Cache-bypass event counts can increase because bypass attribution is now
+retained when forwarding, including requests with caching unavailable or
+disabled. This reporting change alone does not mean that previously cacheable
+responses stopped being cached.
 
-If admission behavior requires rollback, retain the previous binary/image and
-configuration, drain affected work and use the supported update procedure.
-Binary rollback does not restore database compatibility across the v0.1.53
-cutover; the backup requirement below still applies.
+For a coordinated binary rollback, restore the previous agent builds while the
+new server is still available, verify their traffic and headroom, then use the
+supported server rollback procedure. Rolling the server back first can put new
+agents onto the larger legacy-session budget described above. Keep agent-updater
+receipts and security floors intact.
+
+Database migration **21** only replaces seven event-ID indexes with indexes
+excluding NULL IDs; it does not rewrite event rows. Its down migration restores
+the original full indexes. This index operation is distinct from a binary
+rollback: older schema-20 binaries do not automatically undo migration 21, and
+server rollback requires the matching pre-upgrade backup. It
+does not make the earlier schema cutovers reversible or relax the backup
+requirement below. Allow a maintenance window for index rebuilding on large
+event databases.
 
 ## Restore after a failed upgrade
 

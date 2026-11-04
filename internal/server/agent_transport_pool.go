@@ -111,7 +111,7 @@ func (p *agentTransportPool) publicRouteTargetTransport(app *App, agent *AgentCo
 	key := agentTransportKey{
 		Kind:                        agentTransportKindRouteTarget,
 		AgentID:                     agent.AgentID,
-		TunnelLane:                  agent.transportLane(),
+		TunnelLane:                  -1,
 		RouteTargetID:               target.ID,
 		TargetOrigin:                routeTargetTransportOrigin(target),
 		TLSSkipVerify:               target.TLSSkipVerify,
@@ -121,7 +121,92 @@ func (p *agentTransportPool) publicRouteTargetTransport(app *App, agent *AgentCo
 	if target.TLSSkipVerify {
 		tlsConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	return p.getOrCreate(app, agent, key, tlsConfig, timeout)
+	if p == nil {
+		key.TunnelLane = agent.transportLane()
+		return p.getOrCreate(app, agent, key, tlsConfig, timeout)
+	}
+	return &publicRouteAgentTransport{pool: p, app: app, agent: agent, key: key, tlsConfig: tlsConfig, timeout: timeout}
+}
+
+// A reusable factory carries no request ownership until RoundTrip is invoked.
+// Only public route targets prefer an idle same-key entry; environment and
+// trusted one-shot/control transports keep their existing selection semantics.
+type publicRouteAgentTransport struct {
+	pool      *agentTransportPool
+	app       *App
+	agent     *AgentConn
+	key       agentTransportKey
+	tlsConfig *tls.Config
+	timeout   time.Duration
+}
+
+func (rt *publicRouteAgentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if entry := rt.claimIdle(); entry != nil {
+		return entry.roundTripClaimed(req)
+	}
+	key := rt.key
+	key.TunnelLane = rt.agent.transportLane()
+	return rt.pool.getOrCreate(rt.app, rt.agent, key, rt.tlsConfig, rt.timeout).RoundTrip(req)
+}
+
+// claimIdle checks at most four full pool keys. Larger tunnel groups retain
+// ordinary round robin for lanes outside this bounded preference window.
+// Lock order is tunnelMu -> pool.mu; lane cleanup releases tunnelMu before
+// retiring pool entries. Neither lock spans dialing, HTTP I/O or idle closing.
+func (rt *publicRouteAgentTransport) claimIdle() *pooledAgentTransport {
+	a, p := rt.agent, rt.pool
+	if a == nil || p == nil {
+		return nil
+	}
+	a.tunnelMu.Lock()
+	defer a.tunnelMu.Unlock()
+	first, count := 0, len(a.tunnels)
+	if a.AggregateFlowControl {
+		first = 1
+		count--
+	}
+	start := a.nextTunnel
+	if start < first || start >= first+count {
+		start = first
+	}
+	if !a.tunnelsInitialized {
+		if a.AggregateFlowControl || a.Session == nil || a.Session.IsClosed() {
+			return nil
+		}
+		start, first, count = 0, 0, 1
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var preferred *pooledAgentTransport
+	checked := 0
+	for offset := 0; offset < count && checked < 4; offset++ {
+		lane := first + (start-first+offset)%count
+		if a.tunnelsInitialized {
+			if session := a.tunnels[lane]; session == nil || session.IsClosed() {
+				continue
+			}
+		}
+		checked++
+		key := rt.key
+		key.TunnelLane = lane
+		entry := p.entries[key]
+		if entry == nil || entry.agent != a || entry.retired || entry.transport == nil || entry.inFlight != 0 || !entry.idleHint {
+			continue
+		}
+		// lastUsed is request-start recency, not TCP activity or proof that
+		// net/http still owns an idle connection. A stale hint is safe.
+		if preferred == nil || entry.lastUsed.After(preferred.lastUsed) {
+			preferred = entry
+		}
+	}
+	if preferred != nil {
+		preferred.inFlight++
+		preferred.lastUsed = time.Now()
+		if a.tunnelsInitialized {
+			a.nextTunnel = first + (preferred.key.TunnelLane-first+1)%count
+		}
+	}
+	return preferred
 }
 
 func (p *agentTransportPool) publicRouteTargetOneShotTransport(app *App, agent *AgentConn, target publicRouteTargetConfig) http.RoundTripper {
@@ -360,8 +445,14 @@ func (entry *pooledAgentTransport) RoundTrip(req *http.Request) (*http.Response,
 	}
 	entry.inFlight++
 	entry.lastUsed = time.Now()
-	transport := entry.transport
 	entry.pool.mu.Unlock()
+	return entry.roundTripClaimed(req)
+}
+
+// The caller owns one inFlight claim, including if retirement happens before
+// this call. Existing draining/body ownership releases that claim exactly once.
+func (entry *pooledAgentTransport) roundTripClaimed(req *http.Request) (*http.Response, error) {
+	transport := entry.transport
 	if timing := agentTimingFromContext(req.Context()); timing != nil {
 		timing.lane.Store(int64(entry.key.TunnelLane))
 	}

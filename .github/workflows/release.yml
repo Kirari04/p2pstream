@@ -55,7 +55,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.2.18
+          bun-version: 1.4.4
 
       - name: Generate code
         run: make generate
@@ -207,7 +207,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.2.18
+          bun-version: 1.4.4
 
       - name: Build binary and source-complete archive
         shell: bash

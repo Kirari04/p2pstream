@@ -407,7 +407,7 @@ func TestRotateAgentTokenDisconnectsActiveAgent(t *testing.T) {
 	if err := app.AgentHub.connect(conn); err != nil {
 		t.Fatalf("connect agent: %v", err)
 	}
-	_ = app.agentTargetTransport(conn, publicRouteTargetConfig{
+	seedAgentRouteTransportForTest(app, conn, publicRouteTargetConfig{
 		ID:                            700,
 		URL:                           "http://upstream.test:9000",
 		UpstreamResponseHeaderTimeout: time.Second,
@@ -1071,7 +1071,7 @@ func TestAgentReplacementSerializesPriorDisconnectSideEffects(t *testing.T) {
 		t.Fatalf("connect old agent: %v", err)
 	}
 	target := agentReplacementTransportTarget()
-	_ = app.agentTargetTransport(old, target)
+	seedAgentRouteTransportForTest(app, old, target)
 
 	hubRemoved := make(chan struct{})
 	releaseCleanup := make(chan struct{})
@@ -1139,7 +1139,7 @@ func TestAgentReplacementSerializesPriorDisconnectSideEffects(t *testing.T) {
 			replacementDone <- replacementResult{err: fmt.Errorf("unexpected displaced connections: %d", len(displaced))}
 			return
 		}
-		_ = app.agentTargetTransport(newConn, target)
+		seedAgentRouteTransportForTest(app, newConn, target)
 		replacementDone <- replacementResult{conn: newConn}
 	}()
 	<-replacementStarted
@@ -1181,7 +1181,7 @@ func TestStaleAgentCleanupCannotAffectReplacementSideEffects(t *testing.T) {
 		t.Fatalf("connect old agent: %v", err)
 	}
 	target := agentReplacementTransportTarget()
-	_ = app.agentTargetTransport(old, target)
+	seedAgentRouteTransportForTest(app, old, target)
 
 	newConn := agentRegistryTestConn(agent)
 	newConn.ConnectedAt = time.Now()
@@ -1198,7 +1198,7 @@ func TestStaleAgentCleanupCannotAffectReplacementSideEffects(t *testing.T) {
 	for _, conn := range displaced {
 		app.retireDisplacedAgentConnection(conn)
 	}
-	_ = app.agentTargetTransport(newConn, target)
+	seedAgentRouteTransportForTest(app, newConn, target)
 	unlock()
 
 	if disconnected := app.cleanupAgentConnection(old); disconnected {
@@ -1565,4 +1565,13 @@ func (w *failingHijackResponseWriter) Write(p []byte) (int, error) {
 
 func (w *failingHijackResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return nil, nil, errors.New("hijack failed")
+}
+
+// Registry lifecycle tests need an existing shard, not a never-invoked lazy
+// public factory. Seed through the same keyed pool constructor without I/O.
+func seedAgentRouteTransportForTest(app *App, agent *AgentConn, target publicRouteTargetConfig) http.RoundTripper {
+	selector := app.agentTargetTransport(agent, target).(*publicRouteAgentTransport)
+	key := selector.key
+	key.TunnelLane = agent.transportLane()
+	return app.AgentTransports.getOrCreate(app, agent, key, selector.tlsConfig, selector.timeout)
 }

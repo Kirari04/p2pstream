@@ -57,7 +57,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.2.18
+          bun-version: 1.4.4
 
       - name: Generate code
         run: make generate
@@ -81,15 +81,30 @@ jobs:
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
 
+      - name: Test proxy qualification harness contracts
+        run: python3 -I scripts/test-qualification-harness.py
+
       - name: Run Go tests
         run: go test ./...
 
-      - name: Race-test proxy resource ownership and request lifetimes
-        timeout-minutes: 5
+      - name: Compile qualification instrumentation and test control-lane health
         run: >-
-          go test -race -timeout=3m
+          go test -tags=p2pstream_qualification -count=1 -timeout=60s
+          -run '^TestAgentHealthMissingControlIsInconclusiveOnlyWithLiveBulk$'
+          ./internal/agent ./internal/server ./internal/tunnel
+
+      - name: Test matched offered-load round trip
+        env:
+          P2PSTREAM_QUALIFICATION_MATCHED_OFFERED_ROUNDTRIP: "1"
+        run: go test -count=1 -timeout=60s -run '^TestQualificationMatchedOfferedLoadRoundTrip$' ./internal/server
+
+      - name: Race-test proxy resource ownership and request lifetimes
+        # Retain dev's public-input races alongside lane-retirement coverage.
+        timeout-minutes: 8
+        run: >-
+          go test -race -count=1 -timeout=5m
+          -run '^(TestDialViaAgentHandshake|TestDialViaAgentTransferredConnection|TestAgentOpenHandshakeStop|TestLaneIdle|TestLaneOpening|TestAuthenticatedRetirement|TestAuthenticatedIdleRetirement|TestRealAggregateRetirement|TestAdaptiveAgentCapacityConcurrentAcquireReleaseConservesLeases|TestAdaptiveResourceOwnerLedgerConservesConcurrentReceiveCredit|TestServerAdaptiveRefresh|TestServerAdaptiveOverlappingSamples|TestServerAdaptiveAdmissionRechecks|TestPublicConcurrentClose|TestAccountedConcurrentClose|TestPublicConnectionPhaseLease|TestPublicHTTP2ConcurrentDecodedHeaders|TestPublicRequestChargesDecodedHeaders|TestPublicProxyContext|TestPublicProxyCleanup|TestPublicProxyResolutionPointer|TestResolvedIdentityContext|TestPreparePublicRetryRequestBody|TestPublicAgentRetryUnknownOversize|TestPublicRetryRequestWorkingCharge|TestPublicRetryResponse|TestPublicRetryWorkingChargeDenial|TestPublicAgentNoRule|TestPublicObservedResponseBody|TestPublicProxyCacheEvent|TestPublicDirectStreaming|TestPublicForwarded|TestTrafficShaperDecision|TestOwnedStreamResourceModels|TestAggregateConnectorRetirementFencesCompetingSessionAdmission|TestServerAggregateLaneRetirementFencesCompetingAdmission|TestExternalQualificationObserverConcurrentShutdown|TestQualificationObserverConcurrentAdminAndShutdown|TestPublicAgentTokenRotationTerminatesCommittedResponseAndFencesReconnect|TestPublicAgentTokenRotationOverManagementHTTP|TestPublicTargetStageOwnsHardSlotThroughForwarding|TestRealAgentPeerBorrowerYieldsQueuedStream|TestPublicConcurrentCloseRetainsCreditUntilPhysicalCompletion|TestAccountedConcurrentCloseRetainsCreditThroughFDReference|TestPublicAgentTokenRotationPreservesOtherAgentActiveAndNextRequests)'
           ./internal/agent ./internal/server ./internal/tunnel ./internal/tcpsocket
-          -run '^(TestAdaptiveAgentCapacityConcurrentAcquireReleaseConservesLeases|TestAdaptiveResourceOwnerLedgerConservesConcurrentReceiveCredit|TestServerAdaptiveRefresh|TestServerAdaptiveOverlappingSamples|TestServerAdaptiveAdmissionRechecks|TestPublicConcurrentClose|TestAccountedConcurrentClose|TestPublicConnectionPhaseLease|TestPublicHTTP2ConcurrentDecodedHeaders|TestPublicRequestChargesDecodedHeaders|TestPublicProxyContext|TestPublicProxyCleanup|TestPublicProxyResolutionPointer|TestResolvedIdentityContext|TestPreparePublicRetryRequestBody|TestPublicAgentRetryUnknownOversize|TestPublicRetryRequestWorkingCharge|TestPublicRetryResponse|TestPublicRetryWorkingChargeDenial|TestPublicAgentNoRule|TestPublicObservedResponseBody|TestPublicProxyCacheEvent|TestPublicDirectStreaming|TestPublicForwarded|TestTrafficShaperDecision|TestOwnedStreamResourceModels)'
 
       - name: Test public proxy throughput over a real TCP WAN
         timeout-minutes: 6

@@ -30,15 +30,27 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 	}
 	defer tx.Rollback()
 
-	qtx := a.DB.WithTx(tx)
 	totals := make(map[int64]db.UpsertProxyRequestRollupMinuteParams)
 	tuples := make(map[proxyRequestTupleRollupKey]db.UpsertProxyRequestTupleRollupMinuteParams)
 	statuses := make(map[proxyRequestStatusRollupKey]db.UpsertProxyRequestStatusRollupMinuteParams)
 	retries := make(map[proxyRetryRollupKey]db.UpsertProxyRetryRollupMinuteParams)
-	for _, event := range events {
-		if _, err := qtx.InsertProxyRequestEventAt(ctx, event); err != nil {
+	var eventInserter *db.ProxyRequestEventInserter
+	if len(events) > 0 {
+		eventInserter, err = db.PrepareProxyRequestEventInserter(ctx, tx)
+		if err != nil {
 			return err
 		}
+	}
+	if eventInserter != nil {
+		if err := eventInserter.InsertBatch(ctx, events); err != nil {
+			_ = eventInserter.Close()
+			return err
+		}
+		if err := eventInserter.Close(); err != nil {
+			return err
+		}
+	}
+	for _, event := range events {
 		total, tuple, status := proxyRequestRollupParams(event)
 		mergeProxyRequestRollup(totals, total)
 		mergeProxyRequestTupleRollup(tuples, tuple)
@@ -47,31 +59,70 @@ func (a *App) insertProxyRequestEventsWithRollupsAndCacheTouches(ctx context.Con
 			mergeProxyRetryRollup(retries, retry)
 		}
 	}
+	qtx := a.DB.WithTx(tx)
+	var writes *observabilityPreparedWrites
+	var preparedQueries *db.Queries
+	defer func() {
+		if writes != nil {
+			_ = writes.Close()
+		}
+	}()
+	queriesForRows := func(rows int) *db.Queries {
+		if rows <= 1 {
+			return qtx
+		}
+		if writes == nil {
+			writes = &observabilityPreparedWrites{Tx: tx}
+			preparedQueries = db.New(writes)
+		}
+		return preparedQueries
+	}
+	// A single execution cannot amortize explicit statement ownership. Choose
+	// after aggregation so singleton families keep the direct transaction path.
+	totalQueries := queriesForRows(len(totals))
 	for _, total := range totals {
-		if err := qtx.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
+		if err := totalQueries.UpsertProxyRequestRollupMinute(ctx, total); err != nil {
 			return err
 		}
 	}
+	tupleQueries := queriesForRows(len(tuples))
 	for _, tuple := range tuples {
-		if err := qtx.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
+		if err := tupleQueries.UpsertProxyRequestTupleRollupMinute(ctx, tuple); err != nil {
 			return err
 		}
 	}
+	statusQueries := queriesForRows(len(statuses))
 	for _, status := range statuses {
-		if err := qtx.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
+		if err := statusQueries.UpsertProxyRequestStatusRollupMinute(ctx, status); err != nil {
 			return err
 		}
 	}
+	retryQueries := queriesForRows(len(retries))
 	for _, retry := range retries {
-		if err := qtx.UpsertProxyRetryRollupMinute(ctx, retry); err != nil {
+		if err := retryQueries.UpsertProxyRetryRollupMinute(ctx, retry); err != nil {
 			return err
 		}
 	}
+	validTouches := 0
+	for _, touch := range cacheTouches {
+		if touch.KeyDigest != "" && !touch.StoredAt.IsZero() && !touch.LastAccessedAt.IsZero() && touch.HitCount > 0 {
+			validTouches++
+			if validTouches > 1 {
+				break
+			}
+		}
+	}
+	touchQueries := queriesForRows(validTouches)
 	for _, touch := range cacheTouches {
 		if touch.KeyDigest == "" || touch.StoredAt.IsZero() || touch.LastAccessedAt.IsZero() || touch.HitCount <= 0 {
 			continue
 		}
-		if err := qtx.TouchPublicCacheEntry(ctx, touch); err != nil {
+		if err := touchQueries.TouchPublicCacheEntry(ctx, touch); err != nil {
+			return err
+		}
+	}
+	if writes != nil {
+		if err := writes.Close(); err != nil {
 			return err
 		}
 	}
