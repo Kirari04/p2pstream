@@ -14,7 +14,7 @@ SCRIPT = (SOURCE / "scripts/setup-server.sh").read_text()
 COMPOSE = (SOURCE / "compose.yaml").read_text()
 COMPOSE_KEYS = re.findall(r"\$\{([A-Z_]+)", COMPOSE)
 STUB = r'''
-import json, os, sys
+import json, os, sys, time
 from pathlib import Path
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
@@ -27,7 +27,7 @@ if name == 'docker':
     if args[:2] == ['compose', 'version']:
         sys.exit(int(os.environ.get('TEST_COMPOSE_VERSION_STATUS', '0')))
     if args[:2] == ['context', 'inspect']:
-        print(os.environ.get('TEST_ENDPOINT', 'unix:///var/run/docker.sock'))
+        print(os.environ.get('TEST_ENDPOINT', os.environ.get('DOCKER_HOST', 'unix:///var/run/docker.sock')))
         sys.exit(int(os.environ.get('TEST_CONTEXT_STATUS', '0')))
     if args[:2] == ['container', 'ls']:
         count = sum(1 for line in Path(os.environ['TEST_CALLS']).read_text().splitlines() if json.loads(line)['args'][:2] == ['container', 'ls'])
@@ -45,6 +45,17 @@ if name == 'docker':
     raise SystemExit('Unexpected Docker command: ' + repr(args))
 if name == 'curl':
     if 'https://api.ipify.org' in args:
+        if os.environ.get('TEST_STREAM_LOOKUP') == '1':
+            # A bounded streaming producer: the reader must close its pipe
+            # before it finishes. A missing capture cap cannot leave an orphan.
+            for _ in range(100):
+                try:
+                    os.write(sys.stdout.fileno(), b'x' * 4096)
+                except BrokenPipeError:
+                    os._exit(0)
+                time.sleep(0.01)
+            Path(os.environ['TEST_STREAM_COMPLETED']).touch()
+            sys.exit(0)
         sys.stdout.write(os.environ.get('TEST_PUBLIC_IP', '203.0.113.19'))
         sys.exit(int(os.environ.get('TEST_LOOKUP_STATUS', '0')))
     assert any(arg.startswith('https://127.0.0.1:') for arg in args), args
@@ -98,7 +109,8 @@ class SetupServerTests(unittest.TestCase):
     def test_piped_success_private_files_canonical_compose_and_clean_environment(self):
         hostile = dict.fromkeys(COMPOSE_KEYS, 'inherited-must-not-win')
         hostile.update(COMPOSE_FILE='evil.yaml', COMPOSE_PROJECT_NAME='evil',
-                       COMPOSE_ENV_FILES='evil.env', COMPOSE_PROFILES='evil', DOCKER_CONFIG='/kept-auth')
+                       COMPOSE_ENV_FILES='evil.env', COMPOSE_PROFILES='evil',
+                       COMPOSE_DISABLE_ENV_FILE='1', DOCKER_CONFIG='/kept-auth')
         result = self.run_setup(**hostile)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(set(p.name for p in self.destination.iterdir()), {'.env', 'compose.yaml'})
@@ -111,10 +123,12 @@ class SetupServerTests(unittest.TestCase):
         self.assertRegex(env['MANAGEMENT_SETUP_TOKEN'], r'^[0-9a-f]{64}$')
         self.assertIn(env['MANAGEMENT_SETUP_TOKEN'], result.stdout)
         self.assertIn('does not verify', result.stdout)
+        printed_directory = result.stdout.split('Deployment directory: ', 1)[1].splitlines()[0]
+        self.assertEqual(Path(printed_directory).resolve(), self.destination)
         commands = [c for c in self.calls('docker') if '--env-file' in c['args']]
         self.assertEqual([c['args'][-1] for c in commands], ['--quiet', 'pull', '-d'])
         for call in commands:
-            for key in COMPOSE_KEYS + ['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_ENV_FILES', 'COMPOSE_PROFILES']:
+            for key in COMPOSE_KEYS + ['COMPOSE_FILE', 'COMPOSE_PROJECT_NAME', 'COMPOSE_ENV_FILES', 'COMPOSE_PROFILES', 'COMPOSE_DISABLE_ENV_FILE']:
                 self.assertNotIn(key, call['env'])
             self.assertEqual(call['env']['DOCKER_CONFIG'], '/kept-auth')
             self.assertEqual(Path(call['args'][call['args'].index('--env-file') + 1]), self.destination / '.env')
@@ -125,6 +139,26 @@ class SetupServerTests(unittest.TestCase):
         self.assertIn('--max-filesize', lookup['args'])
         self.assertIn('--insecure', probe['args'])
         self.assertIn('--noproxy', probe['args'])
+        for call, connect_timeout, max_time in [(lookup, '3', '8'), (probe, '1', '2')]:
+            for flag, value in [('--connect-timeout', connect_timeout), ('--max-time', max_time),
+                                ('--proto', '=https'), ('--noproxy', '*')]:
+                self.assertIn(flag, call['args'])
+                self.assertEqual(call['args'][call['args'].index(flag) + 1], value)
+
+    def test_file_invocation_does_not_pass_caller_stdin_to_docker(self):
+        script = self.root / 'setup-server.sh'
+        script.write_text(SCRIPT)
+        result = subprocess.run(['sh', str(script), '--host', 'example.com'],
+                                input='caller input must remain private\n', text=True,
+                                capture_output=True, cwd=self.root, env=self.env, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_streaming_lookup_is_cut_off_before_producer_completes(self):
+        completed = self.root / 'lookup-completed'
+        result = self.run_setup(TEST_STREAM_LOOKUP='1', TEST_STREAM_COMPLETED=str(completed))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(completed.exists(), 'lookup response was consumed without a size bound')
+        self.assertEqual(self.dotenv()['MANAGEMENT_PUBLIC_URL'], 'https://192.168.1.20:8081')
 
     def test_explicit_host_custom_directory_channel_and_ports(self):
         destination = self.root / 'directory with spaces'
@@ -221,10 +255,13 @@ class SetupServerTests(unittest.TestCase):
                                 TEST_VOLUMES='p2pstream-data-old')
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_remote_docker_rejected_and_explicit_local_context_supported(self):
+    def test_remote_docker_rejected_and_reported_local_context_supported(self):
         self.assert_early_failure(self.run_setup(DOCKER_HOST='ssh://remote'))
         self.assert_early_failure(self.run_setup(TEST_ENDPOINT='tcp://remote:2376'))
-        result = self.run_setup('--host', 'example.com', DOCKER_HOST='ssh://ignored', DOCKER_CONTEXT='local')
+        # Docker 29 reports DOCKER_HOST for context inspect with default selected.
+        self.assert_early_failure(self.run_setup(DOCKER_HOST='ssh://remote', DOCKER_CONTEXT='default'))
+        result = self.run_setup('--host', 'example.com', DOCKER_CONTEXT='local',
+                                TEST_ENDPOINT='unix:///var/run/docker.sock')
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_config_pull_up_and_readiness_failures_retain_files_and_never_claim_success(self):
@@ -238,6 +275,8 @@ class SetupServerTests(unittest.TestCase):
                 self.assertNotIn('Setup token:', result.stdout)
                 self.assertIn('retained', result.stderr)
                 self.assertIn('docker logs p2pstream', result.stderr)
+                self.assertIn('docker compose pull p2pstream && docker compose up -d p2pstream', result.stderr)
+                self.assertIn('MANAGEMENT_SETUP_TOKEN', result.stderr)
                 self.assertTrue((destination / '.env').exists())
                 calls = self.calls('docker')[before:]
                 self.assertFalse(any(word in c['args'] for c in calls for word in ('rm', 'down')))

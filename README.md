@@ -18,6 +18,8 @@ curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/set
 
 Add `sh -s -- --host proxy.example.com` in place of `sh` to use your domain. The script refuses existing deployments; it does not install Docker or change firewall rules. See the [quickstart](docs/getting-started/quickstart.md#optional-one-command-setup) for staging and port overrides.
 
+The script URL becomes available when the helper reaches that release channel. Until then, use the two-file setup below. Run later Compose commands from the deployment directory printed by the helper; its private `.env` also retains the initial setup token.
+
 Or set up the files yourself. Save [compose.yaml](compose.yaml) and [.env.example](.env.example) in one directory, naming the latter `.env`. Set your address in `.env`:
 
 ```dotenv

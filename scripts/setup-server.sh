@@ -16,6 +16,9 @@ fail() {
     if [ "$created" = yes ]; then
         printf 'Files and any container data were retained in: %s\n' "$directory" >&2
         printf '%s\n' 'Inspect: docker logs p2pstream' 'Inspect: docker inspect p2pstream' >&2
+        printf '%s\n' 'After resolving the error, run from that directory:' \
+            '  docker compose pull p2pstream && docker compose up -d p2pstream' \
+            'If .env was created, it contains MANAGEMENT_SETUP_TOKEN. Keep it private.' >&2
     fi
     exit 1
 }
@@ -53,7 +56,7 @@ valid_port() {
 find_host() {
     # Both time and captured response size are bounded, including older curl
     # versions that do not enforce --max-filesize on chunked responses.
-    candidate=$({ curl -q --fail --silent --show-error --proto '=https' \
+    candidate=$({ curl -q --fail --silent --show-error --noproxy '*' --proto '=https' \
         --connect-timeout 3 --max-time 8 --max-filesize 64 \
         https://api.ipify.org 2>/dev/null && printf ':ok'; } | dd bs=1 count=68 2>/dev/null) || candidate=
     case "$candidate" in *:ok) candidate=${candidate%:ok} ;; *) candidate= ;; esac
@@ -203,11 +206,7 @@ main() {
         command -v "$program" >/dev/null 2>&1 || fail "Required command not found: $program."
     done
     docker compose version >/dev/null 2>&1 || fail 'Docker Compose is required.'
-    if [ -n "${DOCKER_HOST:-}" ] && [ -z "${DOCKER_CONTEXT:-}" ]; then
-        endpoint=$DOCKER_HOST
-    else
-        endpoint=$(docker context inspect --format '{{.Endpoints.docker.Host}}') || fail 'Cannot inspect the Docker context.'
-    fi
+    endpoint=$(docker context inspect --format '{{.Endpoints.docker.Host}}') || fail 'Cannot inspect the Docker context.'
     case "$endpoint" in unix://*) ;; *) fail 'Setup requires a local Docker daemon using a Unix socket.' ;; esac
     check_fresh_inventory
     [ -n "$host" ] || find_host
@@ -245,6 +244,7 @@ main() {
             --connect-timeout 1 --max-time 2 --output /dev/null \
             "https://127.0.0.1:$management_port/"; then
             printf '\nManagement HTTPS responded locally. Open: %s\n' "$management_url"
+            printf 'Deployment directory: %s\n' "$directory"
             printf 'Setup token: %s\n' "$token"
             printf '%s\n' 'Complete first-run setup in your browser. The initial certificate uses a private CA.'
             return 0

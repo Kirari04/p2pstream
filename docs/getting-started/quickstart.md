@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/set
 
 This creates `./p2pstream/compose.yaml` and a private `.env`, starts the server, and prints the management URL and initial admin setup token. It refuses an existing deployment directory, container, or data volume; existing installations use the normal upgrade commands below.
 
-By default it asks [ipify](https://www.ipify.org/) for the host's public IPv4 address and falls back to a local IPv4 address. For a domain, or to skip that lookup, supply the address yourself:
+By default it asks [ipify](https://www.ipify.org/) directly, bypassing configured HTTP proxies, for the host's public IPv4 address and falls back to a local IPv4 address. For a domain, or to skip that lookup, supply the address yourself:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/setup-server.sh | sh -s -- --host proxy.example.com
@@ -35,6 +35,10 @@ curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/staging/scripts/
 ```
 
 Use `--directory`, `--http-port`, `--https-port`, or `--management-port` to override the defaults. Address detection does not open firewalls or configure NAT forwarding. The generated management certificate uses a local CA, so an initial browser certificate warning is expected.
+
+Each script URL becomes available when the helper reaches that release channel. If it has not been published there yet, use the manual two-file setup below. The `setup-server.sh` release asset is the same channel installer: it installs the current stable image by default, or current staging with `--channel staging`, rather than pinning the release it was downloaded from. Use the manual path with an exact image tag or digest when a fixed version is needed.
+
+Keep using the deployment directory printed by the script for later Compose commands. If a download, startup, or readiness check fails, the generated files and data remain there. Resolve the reported Docker, port, or configuration error, then run `docker compose pull p2pstream && docker compose up -d p2pstream` from that directory. The first-run token is saved as `MANAGEMENT_SETUP_TOKEN` in the private `.env`; keep it private. Rerunning the fresh-install helper deliberately refuses those existing files and resources. There is no need to delete the data volume to resume.
 
 ## Create two files manually
 
