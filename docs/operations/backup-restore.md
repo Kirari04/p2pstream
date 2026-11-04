@@ -16,7 +16,7 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 
 Run every Compose command from your deployment directory, with the same project name, ordered `-f` files, and `--env-file` options you normally use. Confirm the actual volume name with `docker compose config --volumes` and `docker volume inspect`; substitute it below if you changed the default.
 
-Keep a private backup of `compose.yaml`, any overrides, `.env`, the release receipt, and the exact `P2PSTREAM_IMAGE` digest alongside the data archive. These inputs are needed to restore the matching application version and settings. Protect backups as secrets: they contain credentials, private keys, and user data.
+Keep a private backup of `compose.yaml`, any overrides, `.env`, the selected image tag or digest, and any optional release receipt alongside the data archive. These inputs are needed to restore the matching application version and settings. Protect backups as secrets: they contain credentials, private keys, and user data.
 
 1. Include at least:
 

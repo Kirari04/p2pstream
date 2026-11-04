@@ -12,7 +12,31 @@ Use this path for the normal self-hosted server deployment on a VPS, home lab ho
 - Host ports `80`, `443`, and `8081` available, or adjusted port mappings in `.env`.
 - A hostname or IP address that browsers and agents can reach.
 
-## Create two files
+## Optional one-command setup
+
+For a **new installation**, with Docker, Compose, and curl already installed:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/setup-server.sh | sh
+```
+
+This creates `./p2pstream/compose.yaml` and a private `.env`, starts the server, and prints the management URL and initial admin setup token. It refuses an existing deployment directory, container, or data volume; existing installations use the normal upgrade commands below.
+
+By default it asks [ipify](https://www.ipify.org/) for the host's public IPv4 address and falls back to a local IPv4 address. For a domain, or to skip that lookup, supply the address yourself:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/setup-server.sh | sh -s -- --host proxy.example.com
+```
+
+For staging:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/staging/scripts/setup-server.sh | sh -s -- --channel staging
+```
+
+Use `--directory`, `--http-port`, `--https-port`, or `--management-port` to override the defaults. Address detection does not open firewalls or configure NAT forwarding. The generated management certificate uses a local CA, so an initial browser certificate warning is expected.
+
+## Create two files manually
 
 Create a directory for the deployment. Save the following as `compose.yaml`:
 
@@ -30,7 +54,7 @@ P2PSTREAM_MANAGEMENT_PORT=8081
 
 Replace `your-server` with your reachable hostname or IP. Use `ghcr.io/kirari04/p2pstream:staging` for prereleases, or select an exact published version tag or digest. The [Docker reference](../reference/docker) describes the channels.
 
-No installer, Python, host updater, or `release.json` is required. The two files belong to you and can be edited directly.
+The setup script is optional. No Python, host updater, or `release.json` is required. The two files belong to you and can be edited directly.
 
 ## Start the server
 

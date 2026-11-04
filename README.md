@@ -10,7 +10,15 @@ p2pstream is a self-hosted public reverse proxy with a web management UI, option
 
 Prerequisites: Linux amd64/arm64 and Docker Engine with Compose. See [Docker installation](https://docs.docker.com/engine/install/).
 
-Save [compose.yaml](compose.yaml) and [.env.example](.env.example) in one directory, naming the latter `.env`. Set your address in `.env`:
+For a new installation, the optional setup script creates the two files, detects an IPv4 address, starts Compose, and prints the management URL and initial setup token:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Kirari04/p2pstream/main/scripts/setup-server.sh | sh
+```
+
+Add `sh -s -- --host proxy.example.com` in place of `sh` to use your domain. The script refuses existing deployments; it does not install Docker or change firewall rules. See the [quickstart](docs/getting-started/quickstart.md#optional-one-command-setup) for staging and port overrides.
+
+Or set up the files yourself. Save [compose.yaml](compose.yaml) and [.env.example](.env.example) in one directory, naming the latter `.env`. Set your address in `.env`:
 
 ```dotenv
 MANAGEMENT_PUBLIC_URL=https://your-server:8081
