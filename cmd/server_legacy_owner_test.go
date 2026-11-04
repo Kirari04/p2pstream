@@ -73,7 +73,7 @@ func TestStandaloneServerStartsWithAbandonedLegacyOwnerAndSchema20(t *testing.T)
 	wantRows := legacyOwnerSchema20Fixture(t, data)
 	var firstHistory [][]any
 	for _, phase := range []string{"upgrade", "restart"} {
-		t.Run(phase, func(t *testing.T) {
+		if !t.Run(phase, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
 			cfg, lease, err := loadServerConfig(ctx)
@@ -132,7 +132,9 @@ func TestStandaloneServerStartsWithAbandonedLegacyOwnerAndSchema20(t *testing.T)
 			if !errors.Is(err, context.DeadlineExceeded) || contender != nil {
 				t.Fatalf("competing startup was not excluded: err=%v lease=%v", err, contender)
 			}
-		})
+		}) {
+			return
+		}
 		// Subtest defers close the application, database, and lease before restart.
 		lockAfter, err := os.Stat(lockPath)
 		if err != nil || !os.SameFile(lockBefore, lockAfter) || lockAfter.Mode() != lockBefore.Mode() {

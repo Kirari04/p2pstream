@@ -66,6 +66,7 @@ jobs:
       - name: Check installer syntax
         run: |
           sh -n scripts/local-dev-env.sh
+          sh -n scripts/setup-server.sh
           for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do
             bash -n "$script" || exit 1
           done
@@ -73,6 +74,7 @@ jobs:
       - name: Test release installation and host lifecycle
         run: |
           python3 -I scripts/test-download-docker-release.py
+          python3 -I scripts/test-setup-server.py
           python3 -I scripts/test-docker-smoke-runner.py
           python3 -I scripts/test-local-fixtures.py
 
@@ -445,6 +447,7 @@ jobs:
           set -Eeuo pipefail
           mkdir -p dist/docker-install
           cp scripts/download-docker-release.py "dist/assets/p2pstream_${TAG}_docker.py"
+          cp scripts/setup-server.sh dist/assets/setup-server.sh
           cp compose.yaml .env.example dist/docker-install/
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C dist/docker-install -czf "dist/assets/p2pstream_${TAG}_docker.tar.gz" compose.yaml .env.example
 
@@ -483,7 +486,7 @@ jobs:
           published_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           expires_at="$(date -u -d "+${MANIFEST_VALIDITY_DAYS} days" +%Y-%m-%dT%H:%M:%SZ)"
           manifest=dist/assets/p2pstream_agent_update_manifest.json
-          (cd dist/assets && sha256sum p2pstream_* >checksums.txt)
+          (cd dist/assets && sha256sum p2pstream_* setup-server.sh >checksums.txt)
           go run ./cmd/agentupdate-manifest create \
             --channel "${CHANNEL}" \
             --version "${TAG}" \
@@ -503,6 +506,7 @@ jobs:
             --artifact "linux/arm64=dist/assets/p2pstream_${TAG}_linux_arm64" \
             --oci-index "${IMAGE}=dist/assets/p2pstream_${TAG}_image_index.json" \
             --release-asset dist/assets/checksums.txt \
+            --release-asset dist/assets/setup-server.sh \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.py" \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64" \
@@ -538,6 +542,7 @@ jobs:
             --artifact "linux/arm64=dist/assets/p2pstream_${TAG}_linux_arm64" \
             --oci-index "${IMAGE}=dist/assets/p2pstream_${TAG}_image_index.json" \
             --release-asset dist/assets/checksums.txt \
+            --release-asset dist/assets/setup-server.sh \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.py" \
             --release-asset "dist/assets/p2pstream_${TAG}_docker.tar.gz" \
             --release-asset "dist/assets/p2pstream_${TAG}_linux_amd64" \

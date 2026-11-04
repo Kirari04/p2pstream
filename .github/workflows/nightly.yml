@@ -48,7 +48,11 @@ jobs:
         run: git diff --exit-code
 
       - name: Check installer syntax
-        run: bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+        run: |
+          bash -n scripts/install-agent.sh
+          bash -n scripts/uninstall-agent.sh
+          sh -n scripts/setup-server.sh
+          python3 -I scripts/test-setup-server.py
 
       - name: Run installer lifecycle tests
         run: scripts/test-agent-lifecycle.sh
