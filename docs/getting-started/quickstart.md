@@ -8,81 +8,55 @@ Use this path for the normal self-hosted server deployment on a VPS, home lab ho
 
 ## Prerequisites
 
-- Linux amd64/arm64, Docker Engine with the Docker Compose plugin, Bash, curl, and Python 3.9+.
-- Host ports `80`, `443`, and `8081` available, or adjusted host port mappings in `.env`.
-- A management hostname or IP address that browsers and agents can reach.
+- Linux amd64/arm64 and Docker Engine with the Docker Compose plugin.
+- Host ports `80`, `443`, and `8081` available, or adjusted port mappings in `.env`.
+- A hostname or IP address that browsers and agents can reach.
 
-## Steps
+## Create two files
 
-1. Select an exact published release tag, then download and verify its small Docker deployment package. The block prepares `p2pstream/compose.yaml`, a private `.env`, and `release.json`, with an immutable server image digest:
+Create a directory for the deployment. Save the following as `compose.yaml`:
 
-   ```bash
-   export P2PSTREAM_RELEASE=vX.Y.Z # Replace with the exact published tag you selected.
-   (
-     set -eu
-     repo=Kirari04/p2pstream
-     release=${P2PSTREAM_RELEASE:?Set P2PSTREAM_RELEASE to an exact published release tag first}
-     python3 -I -c 'import re,sys; assert re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?",sys.argv[1])' "$release"
-     work=$(mktemp -d)
-     trap 'rm -rf -- "$work"' EXIT
-     trap 'exit 130' INT
-     trap 'exit 143' HUP TERM
-     base="https://github.com/$repo/releases/download/$release"
-     asset="p2pstream_${release}_docker.py"
-     curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/checksums.txt" -o "$work/checksums.txt"
-     curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/$asset" -o "$work/$asset" || { echo "This release has no Docker deployment package. Select a newer published release containing it." >&2; exit 1; }
-     python3 -I -c 'import hashlib,pathlib,re,sys; d=pathlib.Path(sys.argv[1]); n=sys.argv[2]; rows=[r.split() for r in (d/"checksums.txt").read_text().splitlines()]; hashes=[r[0] for r in rows if len(r)==2 and r[1]==n]; assert len(hashes)==1 and re.fullmatch(r"[0-9a-f]{64}",hashes[0]) and hashlib.sha256((d/n).read_bytes()).hexdigest()==hashes[0], "Deployment downloader checksum mismatch"' "$work" "$asset"
-     python3 -I "$work/$asset" --repository "$repo" --release "$release" --directory "${P2PSTREAM_DIRECTORY:-$PWD/p2pstream}"
-   )
-   ```
+<<< ../../compose.yaml
 
-   Stable tags use `vX.Y.Z`; staging tags use `vX.Y.Z-staging.N`. Select a published release containing the Docker installation assets. Set `P2PSTREAM_DIRECTORY` to use a new directory of your choice. Preparation writes operator-owned Compose inputs without starting Docker or replacing an existing deployment. GitHub and the publisher remain the trust source; checksums are not independent signatures.
+Next to it, create `.env`:
 
-2. Enter the prepared directory:
+```dotenv
+MANAGEMENT_PUBLIC_URL=https://your-server:8081
+P2PSTREAM_IMAGE=ghcr.io/kirari04/p2pstream:latest
+P2PSTREAM_HTTP_PORT=80
+P2PSTREAM_HTTPS_PORT=443
+P2PSTREAM_MANAGEMENT_PORT=8081
+```
 
-   ```bash
-   cd "${P2PSTREAM_DIRECTORY:-p2pstream}"
-   ```
+Replace `your-server` with your reachable hostname or IP. Use `ghcr.io/kirari04/p2pstream:staging` for prereleases, or select an exact published version tag or digest. The [Docker reference](../reference/docker) describes the channels.
 
-3. Edit `.env` so generated browser links and agent snippets use the real management URL:
+No installer, Python, host updater, or `release.json` is required. The two files belong to you and can be edited directly.
 
-   :::warning Set the public URL before starting
-   The default `MANAGEMENT_PUBLIC_URL=https://localhost:8081` only works when the browser and all agents run on the same host. Change it to the externally reachable address before first start:
+## Start the server
 
-   ```dotenv
-   # Before (default — only works on localhost)
-   MANAGEMENT_PUBLIC_URL=https://localhost:8081
+Run from that directory:
 
-   # After — use your server's real hostname or IP
-   MANAGEMENT_PUBLIC_URL=https://your-server:8081
-   ```
-   :::
+```bash
+docker compose up -d
+docker compose logs -f p2pstream
+```
 
-4. Start the server:
+Open `https://your-server:8081`. The management server uses HTTPS by default. It creates a local management CA and server certificate under `/data/certs/management`; browsers warn until you trust that CA or place management behind trusted TLS. The startup log contains the initial admin setup token unless you supplied `MANAGEMENT_SETUP_TOKEN`.
 
-   ```bash
-   docker compose up -d
-   docker compose logs -f p2pstream
-   ```
+## Configure and upgrade
 
-5. Open management:
+Edit `.env` or `compose.yaml`, then run `docker compose up -d` to apply settings. To disable the browser UI while keeping the management API and agents available, set `MANAGEMENT_UI_DISABLED=true` in `.env`.
 
-   ```text
-   https://your-server:8081
-   ```
+To update the selected channel, keep the same files and data volume:
 
-The management server uses HTTPS by default. In auto mode, p2pstream creates a local management CA and server certificate under `/data/certs/management`; browsers warn until you trust that CA or place management behind trusted TLS.
+```bash
+docker compose pull p2pstream
+docker compose up -d p2pstream
+```
 
-## Configuration and upgrades
+Supported database migrations run automatically at startup. Back up before upgrading and read [Upgrades](../operations/upgrades) for compatibility notes. An exact version tag or digest stays pinned until you change `P2PSTREAM_IMAGE`.
 
-If an earlier release enrolled this server in **Management Server Updates**,
-[leave server updater enrollment](../operations/upgrades#leave-server-updater-enrollment)
-**before changing its image or Compose configuration**. Complete removal on the
-enrolled image, then continue from the detached deployment it exports.
-
-Edit `compose.yaml` and `.env` directly, then run `docker compose up -d` to apply settings. Keep the current `P2PSTREAM_IMAGE` digest when changing configuration. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`; the management API and agents remain available.
-
-Server upgrades are manual: back up the full data volume and Compose inputs, prepare the chosen release in a separate directory, then update your image digest. Follow [Upgrades](../operations/upgrades) for the complete procedure. Managed agent updates remain available under **Agents → Updates**.
+If an old server updater still manages the deployment, follow [its transition procedure](../operations/upgrades#leave-server-updater-enrollment). If only abandoned updater metadata remains in a standalone deployment, [the normal image upgrade handles it](../operations/upgrades#standalone-deployments-with-leftover-updater-state) without deleting markers or repairing Compose.
 
 ## Verification
 

@@ -8,47 +8,13 @@ Use this page after the quickstart when you need to change ports, understand wha
 
 ## Prerequisites
 
-- The release deployment package prepared by the [quickstart](./quickstart), with `compose.yaml` and a digest pin in `.env`.
-- The private `.env` created during release preparation, with your management URL and settings.
+- The `compose.yaml` and `.env` files from the [quickstart](./quickstart).
+- Your management URL and any port overrides in `.env`.
 - A decision about which host ports should reach container ports `80`, `443`, and `8081`.
 
 ## Steps
 
-1. Review the included release `compose.yaml`:
-
-   ```yaml
-   services:
-     p2pstream:
-       image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"
-       container_name: p2pstream
-       restart: unless-stopped
-       read_only: true
-       security_opt:
-         - no-new-privileges:true
-       cap_drop:
-         - ALL
-       cap_add:
-         - NET_BIND_SERVICE
-       tmpfs:
-         - /tmp:rw,nosuid,nodev,mode=1777
-       environment:
-         CONFIG_DIR: /data
-         MANAGEMENT_PORT: "8081"
-         MANAGEMENT_BIND_ADDRESS: "${MANAGEMENT_BIND_ADDRESS:-0.0.0.0}"
-         MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
-         MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
-         MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
-       ports:
-         - "${P2PSTREAM_HTTP_PORT:-80}:80"
-         - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-         - "${P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS:-}:${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
-       volumes:
-         - p2pstream-data:/data
-
-   volumes:
-     p2pstream-data:
-       name: p2pstream-data
-   ```
+1. Review the Compose file from the quickstart. It selects `P2PSTREAM_IMAGE` from `.env`, defaulting to `ghcr.io/kirari04/p2pstream:latest` when unset. You can use `:staging`, an exact version tag, or a digest.
 
 2. Set the externally reachable management URL:
 
@@ -98,9 +64,9 @@ docker compose up -d
 docker compose ps
 ```
 
-Keep `P2PSTREAM_IMAGE` at its current digest during settings changes. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`. The management API and agent tunnels remain available.
+Keep `P2PSTREAM_IMAGE` unchanged when applying settings only. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`. The management API and agent tunnels remain available.
 
-Software upgrades require an explicit change to the image digest and a backup of application data and deployment inputs. Follow [Upgrades](../operations/upgrades).
+Update a channel with `docker compose pull p2pstream` followed by `docker compose up -d p2pstream`. For a pinned tag or digest, first change `P2PSTREAM_IMAGE`. Keep a backup of application data and deployment inputs; see [Upgrades](../operations/upgrades).
 
 ## Runtime Effects
 

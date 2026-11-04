@@ -1,6 +1,6 @@
 services:
   p2pstream:
-    image: ghcr.io/kirari04/p2pstream:latest
+    image: "${P2PSTREAM_IMAGE:-ghcr.io/kirari04/p2pstream:latest}"
     container_name: p2pstream
     restart: unless-stopped
     read_only: true

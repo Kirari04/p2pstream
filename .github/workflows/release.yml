@@ -445,8 +445,7 @@ jobs:
           set -Eeuo pipefail
           mkdir -p dist/docker-install
           cp scripts/download-docker-release.py "dist/assets/p2pstream_${TAG}_docker.py"
-          cp .env.example dist/docker-install/
-          sed 's|image: ghcr.io/kirari04/p2pstream:latest|image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"|' compose.yaml >dist/docker-install/compose.yaml
+          cp compose.yaml .env.example dist/docker-install/
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C dist/docker-install -czf "dist/assets/p2pstream_${TAG}_docker.tar.gz" compose.yaml .env.example
 
       - name: Generate canonical update manifest

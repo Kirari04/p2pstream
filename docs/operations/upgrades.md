@@ -1,11 +1,16 @@
 # Upgrades
 
-Server upgrades are operator-owned. Use the deployment's Compose file and `.env` to select and run an exact image digest. Managed agent updates remain available under **Agents → Updates** and have their own [rollout procedure](./managed-agent-updates).
+For a normal Compose deployment, keep `compose.yaml`, `.env`, and the existing data volume. After taking a backup, update the selected image channel:
 
-If an earlier release enrolled this server in **Management Server Updates**, first
-[leave server updater enrollment](#leave-server-updater-enrollment). Complete
-removal while the enrolled image is still running, before changing its image or
-Compose configuration.
+```bash
+docker compose pull p2pstream
+docker compose up -d p2pstream
+docker compose logs --tail=100 p2pstream
+```
+
+Supported database migrations run automatically at startup. No installer, host updater, or `release.json` is required. If `P2PSTREAM_IMAGE` selects an exact version tag or digest, change it to the desired release before pulling. Managed agent updates remain available under **Agents → Updates** with their own [rollout procedure](./managed-agent-updates).
+
+An installation still controlled by an old server updater needs [the enrolled-deployment transition](#leave-server-updater-enrollment). A standalone installation with only leftover updater files uses [the normal image upgrade](#standalone-deployments-with-leftover-updater-state).
 
 ## Legacy support ends with v0.1.53
 
@@ -88,9 +93,19 @@ fails.
 - Read the selected release's notes and check server, agent, and pinned agent-updater compatibility.
 - Finish active agent rollouts, rollback recovery, and management TLS rotations before restarting the server.
 - Schedule a maintenance window: the server restart interrupts public requests and agent tunnels.
-- Save the full `CONFIG_DIR` data volume and your Compose files, `.env`, release receipt, and current image digest. Stop application writers for a consistent SQLite backup; follow [Backup and restore](./backup-restore).
+- Save the full `CONFIG_DIR` data volume and your Compose files, `.env`, current image identity, and any optional release receipt. Stop application writers for a consistent SQLite backup; follow [Backup and restore](./backup-restore).
 
 Keep the backup with its matching image. Database migrations run at startup; replacing the image alone does not reverse those migrations. Do not run concurrent writable server containers against the same data volume.
+
+## Standalone deployments with leftover updater state
+
+Updater-era releases can refuse startup with `runtime start is blocked or does not match the enrolled deployment`. A volume may retain `.p2pstream-runtime-owner.json` with an older version and `allowed:false` even after the host updater and its managed deployment have disappeared.
+
+Once the deployment is standalone, the release that removes the server updater accepts that obsolete metadata without changing or deleting it. Keep the same data volume and Compose settings and upgrade the image normally. No marker edit, fabricated `SERVER_UPDATE_*` settings, replacement Compose model, or missing `manage remove` command is needed. The stable `.p2pstream-runtime.lock` remains in place and the new server holds it for its lifetime, excluding cooperating concurrent writers before database initialization.
+
+This is startup compatibility with abandoned enrollment, not reconstruction of lost recovery history. If an old update or data restore was interrupted, a free lock or a valid SQLite database cannot establish that every certificate and data file was restored. Preserve the full backup and any surviving updater history; a known incomplete restore still needs its matching recovery data. Verify existing users, routes, certificates and agent connections after startup. An empty new database is not recovery of the old installation.
+
+The procedure below applies when an updater still controls the deployment. It is not a prerequisite for a standalone deployment whose controller is absent.
 
 ## Leave server updater enrollment
 
@@ -159,39 +174,28 @@ Never delete or replace `.p2pstream-runtime.lock`. The database rollback rules
 
 ## Upgrade a Compose deployment
 
-1. Select an exact published stable tag (`vX.Y.Z`) or staging tag (`vX.Y.Z-staging.N`). Follow the verified download block in the [quickstart](../getting-started/quickstart), setting `P2PSTREAM_RELEASE` to that tag and `P2PSTREAM_DIRECTORY` to a **new, separate directory**. Preparation writes deployment inputs without starting Docker.
+1. Back up the complete data volume and keep your existing Compose files and `.env`. Run commands from that deployment directory with the same project name and any `-f` / `--env-file` options. Preserve the named data-volume mount.
 
-2. Inspect the prepared `.env` and release receipt. The `P2PSTREAM_IMAGE` value must refer to the intended repository and immutable digest:
+2. Choose the image in `.env`. A channel such as `ghcr.io/kirari04/p2pstream:latest` or `ghcr.io/kirari04/p2pstream:staging` follows published updates. To pin a release, set `P2PSTREAM_IMAGE` to its exact published tag or digest. If your older Compose file has a literal `services.p2pstream.image`, use that existing image setting instead.
 
-   ```dotenv
-   P2PSTREAM_IMAGE=ghcr.io/kirari04/p2pstream@sha256:REPLACE_WITH_VERIFIED_RELEASE_DIGEST
-   ```
-
-   Use the digest from the verified release preparation, never the literal placeholder. Moving `latest`, `staging`, and `nightly` tags do not preserve an exact image identity.
-
-3. In your **existing deployment directory**, update only `P2PSTREAM_IMAGE` in `.env` to the prepared value, or `services.p2pstream.image` if your detached Compose model pins the image directly. Compare the new release's `compose.yaml` and default settings in `.env` with your deployment and deliberately apply any required changes. Preserve your settings, secrets, project name, ports, and persistent data-volume mount. Keep the new release receipt with the deployment once the upgrade is verified.
-
-4. Validate and pull before stopping the current server, then recreate it:
+3. Pull and recreate the service:
 
    ```bash
    docker compose config --quiet
    docker compose pull p2pstream
    docker compose up -d p2pstream
-   docker compose ps
    docker compose logs --tail=100 p2pstream
    ```
 
-   Use the same project name, ordered `-f` files, and `--env-file` options as your normal deployment for every command. Do not run the newly prepared Compose project against the live data volume.
+   Startup runs supported database migrations automatically. Do not replace the data volume or run `docker compose down -v`. Optional [verified release preparation](../reference/docker#optional-verified-release-preparation) can select a digest for you, but is not required for an upgrade.
 
-5. Verify the running release and traffic before closing the maintenance window:
+4. Verify the running deployment:
 
-   - The container uses the intended digest and its logs show successful startup.
-   - The management UI and **Overview** load, or your management API responds if the UI is disabled.
-   - **Proxy → Listeners** shows the expected listeners running.
-   - Agents reconnect under **Agents → Fleet**, and managed updater check-ins succeed.
-   - TLS, WAF, access policies, and important public hostnames work as expected.
+   ```bash
+   docker compose ps
+   ```
 
-Keep the previous image and complete backup until the new version has been validated. Never use `docker compose down -v` during an upgrade: it removes persistent volumes.
+   Check the version in management and verify existing users, public listeners, TLS, important routes, and agent connections. Keep the previous image identity and complete backup until these checks pass.
 
 :::warning Compose files from v0.1.49 or earlier
 These files may inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256` even when

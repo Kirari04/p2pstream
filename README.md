@@ -8,38 +8,22 @@ p2pstream is a self-hosted public reverse proxy with a web management UI, option
 
 ## Quick Start With Docker Compose
 
-Prerequisites: Linux amd64/arm64, Docker Engine with Compose, Bash, curl, and Python 3.9+. See [Docker installation](https://docs.docker.com/engine/install/).
+Prerequisites: Linux amd64/arm64 and Docker Engine with Compose. See [Docker installation](https://docs.docker.com/engine/install/).
 
-Choose an exact published stable release (`vX.Y.Z`) or staging prerelease (`vX.Y.Z-staging.N`), then download and verify its deployment package. It prepares operator-owned `compose.yaml` and `.env` files with the server image pinned by digest. No checkout or image build is needed:
+Save [compose.yaml](compose.yaml) and [.env.example](.env.example) in one directory, naming the latter `.env`. Set your address in `.env`:
+
+```dotenv
+MANAGEMENT_PUBLIC_URL=https://your-server:8081
+```
+
+Then start the server from that directory:
 
 ```bash
-export P2PSTREAM_RELEASE=vX.Y.Z # Replace with the exact published tag you selected.
-(
-  set -eu
-  repo=Kirari04/p2pstream
-  release=${P2PSTREAM_RELEASE:?Set P2PSTREAM_RELEASE to an exact published release tag first}
-  python3 -I -c 'import re,sys; assert re.fullmatch(r"v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-staging\.[1-9][0-9]*)?",sys.argv[1])' "$release"
-  work=$(mktemp -d)
-  trap 'rm -rf -- "$work"' EXIT
-  trap 'exit 130' INT
-  trap 'exit 143' HUP TERM
-  base="https://github.com/$repo/releases/download/$release"
-  asset="p2pstream_${release}_docker.py"
-  curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/checksums.txt" -o "$work/checksums.txt"
-  curl --proto '=https' --proto-redir '=https' --tlsv1.2 -fsSL --connect-timeout 15 --max-time 120 --max-filesize 65536 "$base/$asset" -o "$work/$asset" || { echo "This release has no Docker deployment package. Select a newer published release containing it." >&2; exit 1; }
-  python3 -I -c 'import hashlib,pathlib,re,sys; d=pathlib.Path(sys.argv[1]); n=sys.argv[2]; rows=[r.split() for r in (d/"checksums.txt").read_text().splitlines()]; hashes=[r[0] for r in rows if len(r)==2 and r[1]==n]; assert len(hashes)==1 and re.fullmatch(r"[0-9a-f]{64}",hashes[0]) and hashlib.sha256((d/n).read_bytes()).hexdigest()==hashes[0], "Deployment downloader checksum mismatch"' "$work" "$asset"
-  python3 -I "$work/$asset" --repository "$repo" --release "$release" --directory "${P2PSTREAM_DIRECTORY:-$PWD/p2pstream}"
-)
-cd "${P2PSTREAM_DIRECTORY:-p2pstream}"
-# Edit .env: set MANAGEMENT_PUBLIC_URL=https://your-server:8081
-# Adjust P2PSTREAM_HTTP_PORT, P2PSTREAM_HTTPS_PORT, and P2PSTREAM_MANAGEMENT_PORT if needed.
 docker compose up -d
 docker compose logs -f p2pstream
 ```
 
-Use a published release containing `p2pstream_<version>_docker.py` and its Docker bundle. Set `P2PSTREAM_DIRECTORY` to choose a new deployment directory; preparation does not start Docker or replace an existing deployment.
-
-GitHub HTTPS and the release publisher are the trust source. SHA-256 checks detect changed downloads; they are not independent publisher signatures. The private `.env` records `P2PSTREAM_IMAGE=ghcr.io/...@sha256:...`; `release.json` records the selected version, commit, channel and manifest pin. Keep `/data` backups separately.
+That's the complete installation: `compose.yaml` and `.env`. No installer, Python, host updater, or `release.json` is required. The image defaults to `ghcr.io/kirari04/p2pstream:latest`. To use staging, set `P2PSTREAM_IMAGE=ghcr.io/kirari04/p2pstream:staging` in `.env`; an exact release tag or digest works too. See the [quickstart](docs/getting-started/quickstart.md) for the copyable files and port settings.
 
 Open the management UI:
 
@@ -77,29 +61,21 @@ Runtime state is stored in the named Docker volume `p2pstream-data`. It contains
 
 ## Common Operations
 
-If this installation enrolled in **Management Server Updates** on an earlier
-release, [remove server updater enrollment](docs/operations/upgrades.md#leave-server-updater-enrollment)
-**before changing its image or Compose configuration**. Removal needs the old
-image's recovery commands; continue from the detached deployment it exports.
+Edit `compose.yaml` and `.env` directly, then run `docker compose up -d` to apply settings. To update the selected image channel:
 
 ```bash
-docker compose logs -f p2pstream
-docker compose restart p2pstream
-docker compose up -d
-docker compose down
+docker compose pull p2pstream
+docker compose up -d p2pstream
+docker compose logs --tail=100 p2pstream
 ```
 
-`docker compose down` stops and removes the container and network, but it does not remove the named `p2pstream-data` volume. The downloaded deployment already pins an exact release digest. An explicit software update changes that pin.
+Supported database migrations run automatically at startup. Keep the `p2pstream-data` volume and your `.env`; back up before upgrading. Exact version tags and digests stay pinned until you change `P2PSTREAM_IMAGE`. See [Upgrades](docs/operations/upgrades.md) for compatibility notes and [Backup and restore](docs/operations/backup-restore.md).
 
-Edit your Compose file and `.env`, then run `docker compose up -d` to apply settings. Keep the current `P2PSTREAM_IMAGE` digest during configuration changes. Back up the full data volume, Compose inputs, and `.env` before manual software upgrades; see [Upgrades](docs/operations/upgrades.md) and [Backup and restore](docs/operations/backup-restore.md).
+If an old server updater still manages your deployment, follow [its transition procedure](docs/operations/upgrades.md#leave-server-updater-enrollment). A standalone deployment with only an abandoned owner marker follows the [normal image upgrade path](docs/operations/upgrades.md#standalone-deployments-with-leftover-updater-state); no marker deletion is required.
 
-Published images are available from GitHub Container Registry:
+`docker compose down` removes the container and network, but preserves the named volume. Avoid `down -v` unless intentionally deleting the installation.
 
-```text
-ghcr.io/kirari04/p2pstream:latest
-```
-
-Moving `latest` and `staging` tags are convenience aliases; the deployment package pins a digest. Staging publishes exact `vX.Y.Z-staging.N` prereleases with matching server images and Linux agent assets; the `staging` image alias moves only after that exact prerelease passes the full build and manifest verification workflow. The `nightly` tag is rebuilt from the `dev` branch as a Docker-only development channel.
+Published channels are `ghcr.io/kirari04/p2pstream:latest` (stable), `:staging` (prereleases), and `:nightly` (development). Staging also publishes exact `vX.Y.Z-staging.N` tags. For a reproducible deployment, select an exact tag or digest in `.env`.
 
 ## Default Deployment Notes
 

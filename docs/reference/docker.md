@@ -56,13 +56,13 @@ ports:
 - Docker only publishes what Compose maps; creating a listener in the UI does not create a new host mapping.
 - The application does not read a `PORT` environment variable for public listeners.
 - Public listener ports are stored in SQLite and managed through **Proxy -> Listeners**.
-- The release deployment package pins an OCI digest. Use a digest for repeatability; moving aliases are discovery conveniences.
+- `P2PSTREAM_IMAGE` accepts a channel tag, exact version tag, or OCI digest. It defaults to `ghcr.io/kirari04/p2pstream:latest`. Use a digest when exact image identity is required.
 - Treat `staging` as a mutable convenience alias; select an exact `vX.Y.Z-staging.N` release and pin its OCI digest for a repeatable deployment.
 - Treat `nightly` as unstable. It follows the current `dev` branch and can change without a release note.
 
-## Release installation assets
+## Optional verified release preparation
 
-Stable and staging releases provide a checksummed `p2pstream_<version>_docker.py` preparation tool and `p2pstream_<version>_docker.tar.gz` bundle. The release manifest binds the bundle's hash and size and records the server's OCI image digests. Preparation requires an exact release and a destination directory; it creates operator-owned `compose.yaml` and `.env` files with the selected image pinned by digest. It does not start containers or manage subsequent settings and upgrades.
+Normal deployment needs only `compose.yaml` and `.env`; `release.json` is optional metadata and is not read at startup. For operators who want manifest-checked deployment preparation, releases also provide a checksummed `p2pstream_<version>_docker.py` preparation tool and `p2pstream_<version>_docker.tar.gz` bundle. The release manifest binds the bundle's hash and size and records the server's OCI image digests. Preparation requires an exact release and a destination directory; it creates operator-owned `compose.yaml` and `.env` files with the selected image pinned by digest. It does not start containers or manage subsequent settings and upgrades.
 
 Edit those files directly and use `docker compose up -d` to apply configuration. For a software upgrade, prepare the selected release in a separate directory, back up the full data volume and deployment inputs, then update the existing deployment's image digest. See [Upgrades](../operations/upgrades).
 
@@ -80,7 +80,7 @@ The runtime image is licensed as `AGPL-3.0-or-later` and includes license files 
 
 ## Examples
 
-Prepare deployment inputs through the [release download quickstart](../getting-started/quickstart), then start the server:
+Create `compose.yaml` and `.env` using the [quickstart](../getting-started/quickstart), then start the server:
 
 ```bash
 cd p2pstream

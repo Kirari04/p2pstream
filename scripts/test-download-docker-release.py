@@ -47,10 +47,8 @@ class ReleaseTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.destination = Path(self.directory.name) / 'deployment'
-        self.entries = [('compose.yaml', (ROOT / 'compose.yaml').read_bytes().replace(
-            b'image: ghcr.io/kirari04/p2pstream:latest',
-            b'image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"')),
-            ('.env.example', (ROOT / '.env.example').read_bytes())]
+        self.entries = [('compose.yaml', (ROOT / 'compose.yaml').read_bytes()),
+                        ('.env.example', (ROOT / '.env.example').read_bytes())]
         platforms = [{'os': 'linux', 'arch': arch, 'digest': 'sha256:' + digit * 64,
                       'media_type': 'application/vnd.oci.image.manifest.v1+json', 'size': 123}
                      for arch, digit in [('amd64', 'a'), ('arm64', 'b')]]
