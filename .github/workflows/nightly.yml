@@ -49,7 +49,8 @@ jobs:
 
       - name: Check installer syntax
         run: |
-          bash -n scripts/install-agent.sh scripts/uninstall-agent.sh
+          bash -n scripts/install-agent.sh
+          bash -n scripts/uninstall-agent.sh
           sh -n scripts/setup-server.sh
           python3 -I scripts/test-setup-server.py
 

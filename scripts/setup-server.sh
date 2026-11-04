@@ -16,9 +16,13 @@ fail() {
     if [ "$created" = yes ]; then
         printf 'Files and any container data were retained in: %s\n' "$directory" >&2
         printf '%s\n' 'Inspect: docker logs p2pstream' 'Inspect: docker inspect p2pstream' >&2
-        printf '%s\n' 'After resolving the error, run from that directory:' \
-            '  docker compose pull p2pstream && docker compose up -d p2pstream' \
-            'If .env was created, it contains MANAGEMENT_SETUP_TOKEN. Keep it private.' >&2
+        if [ "$resource_conflict" = no ]; then
+            printf '%s\n' 'After resolving the error, run from that directory:' \
+                '  docker compose pull p2pstream && docker compose up -d p2pstream' >&2
+        else
+            printf '%s\n' 'Do not start these Compose files against another installation. Existing data was not removed.' >&2
+        fi
+        printf '%s\n' 'If .env was created, it contains MANAGEMENT_SETUP_TOKEN. Keep it private.' >&2
     fi
     exit 1
 }
@@ -166,6 +170,7 @@ main() {
     set -eu
     set -f
     created=no
+    resource_conflict=no
     directory=./p2pstream
     host=
     channel=stable
@@ -234,7 +239,18 @@ main() {
     compose config --quiet || fail 'Compose configuration validation failed.'
     compose pull || fail 'Image download failed.'
     # Pulling can take time; refuse resources created by a competing install.
+    resource_conflict=yes
     check_fresh_inventory
+    # Docker create preserves an existing volume's labels. Claim this name with
+    # our unique project, then reject a competing creator before starting Compose.
+    docker volume create --label "com.docker.compose.project=$project" \
+        --label 'com.docker.compose.volume=p2pstream-data' p2pstream-data >/dev/null \
+        || fail 'Cannot create the p2pstream-data volume.'
+    volume_owner=$(docker volume inspect --format '{{index .Labels "com.docker.compose.project"}}/{{index .Labels "com.docker.compose.volume"}}' p2pstream-data) \
+        || fail 'Cannot verify ownership of the p2pstream-data volume.'
+    [ "$volume_owner" = "$project/p2pstream-data" ] \
+        || fail 'Volume p2pstream-data belongs to another installation; refusing to reuse it.'
+    resource_conflict=no
     compose up -d || fail 'Container startup failed.'
     attempt=0
     while [ "$attempt" -lt 30 ]; do

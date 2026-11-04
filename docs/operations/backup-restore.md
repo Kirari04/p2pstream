@@ -16,7 +16,17 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 
 Run every Compose command from your deployment directory, with the same project name, ordered `-f` files, and `--env-file` options you normally use. Confirm the actual volume name with `docker compose config --volumes` and `docker volume inspect`; substitute it below if you changed the default.
 
-Keep a private backup of `compose.yaml`, any overrides, `.env`, the selected image tag or digest, and any optional release receipt alongside the data archive. These inputs are needed to restore the matching application version and settings. Protect backups as secrets: they contain credentials, private keys, and user data.
+Keep a private backup of `compose.yaml`, any overrides, `.env`, the exact repository image digest used for this backup, and any optional release receipt alongside the data archive. Record the digest even if `.env` uses a mutable channel such as `latest` or `staging`; the tag alone can select a newer image and run migrations during restore. These inputs are needed to restore the matching application version and settings. Protect backups as secrets: they contain credentials, private keys, and user data.
+
+Before removing the original container or image, read its repository digests and save the matching `ghcr.io/kirari04/p2pstream@sha256:…` value with the backup:
+
+```bash
+container_id=$(docker compose ps -a -q p2pstream)
+image_id=$(docker inspect --format '{{.Image}}' "$container_id")
+docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_id"
+```
+
+If the image has no repository digest, retain that exact image with `docker image save` and reload it before restoring; do not substitute a mutable channel tag.
 
 1. Include at least:
 
@@ -61,7 +71,7 @@ Keep a private backup of `compose.yaml`, any overrides, `.env`, the selected ima
      tar -C /data -xzf /backup/p2pstream-data.tar.gz
    ```
 
-5. Restore the Compose inputs and `.env` saved with the backup, including its exact image digest, then start p2pstream with the restored volume:
+5. Restore the Compose inputs and `.env` saved with the backup. Set `P2PSTREAM_IMAGE` to the recorded `repository@sha256:…` digest (or the exact reloaded image if it had no repository digest), then start p2pstream with the restored volume:
 
    ```bash
    docker compose up -d

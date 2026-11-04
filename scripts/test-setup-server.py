@@ -37,6 +37,25 @@ if name == 'docker':
         count = sum(1 for line in Path(os.environ['TEST_CALLS']).read_text().splitlines() if json.loads(line)['args'][:2] == ['volume', 'ls'])
         print(os.environ.get('TEST_LATE_VOLUMES' if count > 1 else 'TEST_VOLUMES', ''))
         sys.exit(int(os.environ.get('TEST_VOLUME_STATUS', '0')))
+    if args[:2] == ['volume', 'create']:
+        if os.environ.get('TEST_VOLUME_CREATE_STATUS', '0') != '0':
+            sys.exit(int(os.environ['TEST_VOLUME_CREATE_STATUS']))
+        state = Path(os.environ['TEST_VOLUME_STATE'])
+        if 'TEST_RACE_VOLUME_OWNER' in os.environ:
+            state.write_text(json.dumps({'labels': {
+                'com.docker.compose.project': os.environ['TEST_RACE_VOLUME_OWNER'],
+                'com.docker.compose.volume': 'p2pstream-data'}, 'data': 'preserve'}))
+        if not state.exists():
+            labels = dict(args[i + 1].split('=', 1) for i, arg in enumerate(args) if arg == '--label')
+            state.write_text(json.dumps({'labels': labels}))
+        print(args[-1])
+        sys.exit(0)
+    if args[:2] == ['volume', 'inspect']:
+        if os.environ.get('TEST_VOLUME_INSPECT_STATUS', '0') != '0':
+            sys.exit(int(os.environ['TEST_VOLUME_INSPECT_STATUS']))
+        labels = json.loads(Path(os.environ['TEST_VOLUME_STATE']).read_text())['labels']
+        print(labels.get('com.docker.compose.project', '') + '/' + labels.get('com.docker.compose.volume', ''))
+        sys.exit(0)
     for action in ('config', 'pull', 'up'):
         if action in args:
             # Mimic a subprocess trying to read script input: main must supply EOF.
@@ -59,6 +78,8 @@ if name == 'curl':
         sys.stdout.write(os.environ.get('TEST_PUBLIC_IP', '203.0.113.19'))
         sys.exit(int(os.environ.get('TEST_LOOKUP_STATUS', '0')))
     assert any(arg.startswith('https://127.0.0.1:') for arg in args), args
+    if os.environ.get('TEST_READY_HTTP_STATUS') == '503':
+        sys.exit(22 if '--fail' in args else 0)
     sys.exit(int(os.environ.get('TEST_READY_STATUS', '0')))
 if name == 'ip':
     print(os.environ.get('TEST_ROUTE', '1.1.1.1 via 192.168.1.1 dev eth0 src 192.168.1.20 uid 1000'))
@@ -85,13 +106,18 @@ class SetupServerTests(unittest.TestCase):
         self.env = {k: v for k, v in os.environ.items()
                     if not k.startswith(('DOCKER_', 'COMPOSE_', 'TEST_'))}
         self.env.update(PATH=f"{self.bin}:{os.environ['PATH']}", TEST_CALLS=str(self.calls_file))
+        self.env['TEST_VOLUME_STATE'] = str(self.root / 'volume.json')
         self.destination = self.root / "p2pstream"
+        self.run_count = 0
 
     def run_setup(self, *args, **env):
         # Equivalent to curl | sh -s --, with the entire script on stdin.
+        # Each independent invocation gets its own simulated Docker volume state.
+        self.run_count += 1
+        self.volume_state = self.root / f'volume-{self.run_count}.json'
         return subprocess.run(["sh", "-s", "--", *args], input=SCRIPT, text=True,
                               capture_output=True, cwd=self.root,
-                              env=dict(self.env, **env), timeout=15)
+                              env=dict(self.env, TEST_VOLUME_STATE=str(self.volume_state), **env), timeout=15)
 
     def calls(self, command=None):
         calls = [json.loads(line) for line in self.calls_file.read_text().splitlines()] if self.calls_file.exists() else []
@@ -138,6 +164,7 @@ class SetupServerTests(unittest.TestCase):
         self.assertNotIn('--insecure', lookup['args'])
         self.assertIn('--max-filesize', lookup['args'])
         self.assertIn('--insecure', probe['args'])
+        self.assertIn('--fail', probe['args'])
         self.assertIn('--noproxy', probe['args'])
         for call, connect_timeout, max_time in [(lookup, '3', '8'), (probe, '1', '2')]:
             for flag, value in [('--connect-timeout', connect_timeout), ('--max-time', max_time),
@@ -177,7 +204,46 @@ class SetupServerTests(unittest.TestCase):
             if '--project-name' in call['args']:
                 self.assertEqual(call['args'][call['args'].index('--project-name') + 1], env['COMPOSE_PROJECT_NAME'])
         self.assertEqual(len(self.calls('curl')), 1)
+        self.assertEqual(self.calls('curl')[0]['args'][-1], 'https://127.0.0.1:9443/')
         self.assertFalse(self.calls('ip'))
+
+    def test_volume_claim_precedes_startup_and_matches_compose_project(self):
+        result = self.run_setup('--host', 'example.com')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        project = self.dotenv()['COMPOSE_PROJECT_NAME']
+        state = json.loads(self.volume_state.read_text())
+        self.assertEqual(state['labels'], {'com.docker.compose.project': project,
+                                          'com.docker.compose.volume': 'p2pstream-data'})
+        calls = self.calls('docker')
+        claim = next(i for i, c in enumerate(calls) if c['args'][:2] == ['volume', 'create'])
+        inspect = next(i for i, c in enumerate(calls) if c['args'][:2] == ['volume', 'inspect'])
+        startup = next(i for i, c in enumerate(calls) if 'up' in c['args'])
+        self.assertLess(claim, inspect)
+        self.assertLess(inspect, startup)
+
+    def test_volume_race_and_claim_failures_prevent_startup_without_removal(self):
+        cases = [dict(TEST_RACE_VOLUME_OWNER='other-project'), dict(TEST_RACE_VOLUME_OWNER=''),
+                 dict(TEST_VOLUME_CREATE_STATUS='1'), dict(TEST_VOLUME_INSPECT_STATUS='1')]
+        for index, env in enumerate(cases):
+            with self.subTest(env=env):
+                before = len(self.calls('docker'))
+                result = self.run_setup('--host', 'example.com', '--directory', f'volume-failure-{index}', **env)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn('Setup token:', result.stdout)
+                self.assertNotIn('docker compose up -d', result.stderr)
+                calls = self.calls('docker')[before:]
+                self.assertFalse(any(word in c['args'] for c in calls for word in ('up', 'rm', 'down')))
+                if 'TEST_RACE_VOLUME_OWNER' in env:
+                    state = json.loads(self.volume_state.read_text())
+                    self.assertEqual(state['labels']['com.docker.compose.project'], env['TEST_RACE_VOLUME_OWNER'])
+                    self.assertEqual(state['data'], 'preserve')
+
+    def test_http_error_readiness_never_reports_success(self):
+        result = self.run_setup('--host', 'example.com', TEST_READY_HTTP_STATUS='503')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('Setup token:', result.stdout)
+        self.assertEqual(len(self.calls('curl')), 30)
+        self.assertTrue(all('--fail' in call['args'] for call in self.calls('curl')))
 
     def test_bad_options_fail_without_mutations(self):
         cases = [('host', value) for value in ('', 'bad host', 'a\nb', '$(touch hacked)', '${EVIL}',

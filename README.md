@@ -8,7 +8,7 @@ p2pstream is a self-hosted public reverse proxy with a web management UI, option
 
 ## Quick Start With Docker Compose
 
-Prerequisites: Linux amd64/arm64 and Docker Engine with Compose. See [Docker installation](https://docs.docker.com/engine/install/).
+Prerequisites: Linux amd64/arm64 and Docker Engine with Compose. The optional one-command setup also requires curl. See [Docker installation](https://docs.docker.com/engine/install/).
 
 For a new installation, the optional setup script creates the two files, detects an IPv4 address, starts Compose, and prints the management URL and initial setup token:
 
