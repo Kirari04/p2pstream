@@ -36,24 +36,26 @@ The TCP idle timeout and any FIN timeout precede that bound. Denied handshakes
 retain the serving lane and its reservations; they never authorize truncation.
 Lane and generation pool caps and pressure policy remain unchanged.
 
-Replacement commit also certifies the old connection's opening fence: the server
-stops new opens, joins previously admitted SYN publications, then obtains an
-old-wire Ping acknowledgment before committing over the new connection. A Ping
-alone could precede an unfinished opening. No ownership or routing mutex is held
-while joining or pinging, and the waits have bounded cancellation/write timeouts.
-The new routing projection is installed before that barrier; ordinary idle
-rotation has no application openings to join. A failed barrier discards the new
-connection, retaining the old owner's cleanup responsibility and permitting
-already-draining predecessor recovery. A physically failed predecessor cannot
-carry viable unseen work and does not prevent recovery commit.
+Idle publication already excludes outstanding server-side openings, application
+owners and receive buffers. As an additional safeguard, the server joins any
+pre-fence SYN publications and attempts a Ping acknowledgment on the old
+connection before committing over the new one. A Ping alone could precede an
+unfinished opening. The drain monitor may close the provably idle predecessor
+before the Ping reply arrives; commit then proceeds without an acknowledgment.
+This is normal on links where the reply takes longer than the drain check.
+No ownership or routing mutex is held while joining or pinging. The opening join
+has a cancellation deadline, and the Ping has bounded write/reply timeouts.
+The new route is installed before this defensive barrier; ordinary idle rotation
+has no application openings to join. If the barrier fails while the predecessor
+is still open, the new connection is discarded and the old owner retains its
+cleanup responsibility. Its eventual closure allows the agent to reconnect.
 
 This uses existing HTTP/Yamux wire semantics. Corrected servers enforce the
-stronger commit ordering for existing retirement-capable agents; agent-side
+idle-publication and defensive barrier checks for existing retirement-capable agents; agent-side
 GoAway and unread-FIN reclamation remain unchanged. Released legacy peers do not
 negotiate this retirement path. A corrected agent connected to an older,
 uncorrected aggregate development server still has that server's original
 retirement behavior; this change does not claim to repair such a server remotely.
-
 
 A request can wait for a reusable connection or tunnel admission until the
 configured queue deadline or its own earlier deadline. Protected health work has

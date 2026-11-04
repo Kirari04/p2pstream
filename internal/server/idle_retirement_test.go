@@ -15,12 +15,25 @@ import (
 )
 
 func TestAuthenticatedRetirementDiscardsPreparedLaneWhenTrafficResumes(t *testing.T) {
+	testAuthenticatedRetirementWithBufferedSYN(t, false)
+}
+
+// Exercise the server handler's defensive barrier independently of normal idle
+// publication. Removing that barrier must lose the admitted opening on this
+// forced path, even though the ordinary idle-policy regression still passes.
+func TestAuthenticatedRetirementBarrierPreservesBufferedSYN(t *testing.T) {
+	testAuthenticatedRetirementWithBufferedSYN(t, true)
+}
+
+func testAuthenticatedRetirementWithBufferedSYN(t *testing.T, forcePublish bool) {
+	t.Helper()
 	ready, resume := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	var unblock sync.Once
 	defer unblock.Do(func() { close(resume) })
 	var wire atomic.Pointer[retirementBufferedSYNConn]
 	f := newConfiguredRealAgentProxyFixture(t, 1, 4<<20, 0, func(a *App) {
+		a.agentTunnelForceRetirementPublish = forcePublish
 		a.agentTunnelWrapConn = func(lane int, c net.Conn) net.Conn {
 			if lane != 1 {
 				return c
@@ -99,8 +112,18 @@ func TestAuthenticatedRetirementDiscardsPreparedLaneWhenTrafficResumes(t *testin
 		t.Fatal("SYN not published")
 	}
 	unblock.Do(func() { close(resume) })
-	awaitLaneRetirement(t, "prepared replacement not discarded", func() bool { return len(f.agent.tunnelOwners.Snapshot()) == 2 })
-	preserved := f.agent.tunnelSession(1) == old && owner.State() == tunnel.LaneServing
+	var preserved bool
+	if forcePublish {
+		awaitLaneRetirement(t, "forced replacement not published", func() bool { return f.agent.tunnelSession(1) != old })
+		// Keep the SYN below the old wire through multiple 100ms drain checks.
+		// A premature new-wire commit would let the agent cancel its locally
+		// empty receiver. The server barrier must keep that receiver alive.
+		time.Sleep(300 * time.Millisecond)
+		preserved = !old.IsClosed() && owner.State() == tunnel.LaneDraining
+	} else {
+		awaitLaneRetirement(t, "prepared replacement not discarded", func() bool { return len(f.agent.tunnelOwners.Snapshot()) == 2 })
+		preserved = f.agent.tunnelSession(1) == old && owner.State() == tunnel.LaneServing
+	}
 	gate.unblock()
 	active := <-opened
 	err = <-openErr
@@ -119,6 +142,16 @@ func TestAuthenticatedRetirementDiscardsPreparedLaneWhenTrafficResumes(t *testin
 	got := make([]byte, len(payload))
 	if _, err := io.ReadFull(active, got); err != nil || !bytes.Equal(got, payload) {
 		t.Fatalf("resumed bytes: %v", err)
+	}
+	if forcePublish {
+		// A fresh request must also pass through the committed replacement; route
+		// publication alone would not prove the agent finished its readiness wait.
+		if n, err := f.roundTrip(t.Context(), "/api", nil); err != nil || n != 2 {
+			t.Fatalf("replacement request: %d %v", n, err)
+		}
+		if owner.State() != tunnel.LaneDraining || old.IsClosed() {
+			t.Fatal("commit discarded the still-owned old stream")
+		}
 	}
 	active.Close()
 	awaitLaneRetirement(t, "idle growth not reclaimed", func() bool { return old.IsClosed() && f.agent.tunnelOwners.ReservedBytes() == baseline })

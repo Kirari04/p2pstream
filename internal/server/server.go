@@ -159,6 +159,7 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 type App struct {
 	agentTunnelWrapConn                func(int, net.Conn) net.Conn // immutable test transport, nil in production
 	agentTunnelBeforeRetirementPublish func()                       // immutable test barrier, nil in production
+	agentTunnelForceRetirementPublish  bool                         // immutable protocol-test override, false in production
 	agentTunnelRetirementInterval      time.Duration                // immutable before serving; zero uses production default
 	InstallationID                     string
 	installationMu                     sync.Mutex
@@ -1163,7 +1164,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			if a.isAgentUpdateCordoned(agent.AgentID) {
 				return
 			}
-			old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource, retirementQuiet)
+			if a.agentTunnelForceRetirementPublish {
+				old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
+			} else {
+				old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource, retirementQuiet)
+			}
 		} else {
 			old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
 		}
@@ -1183,9 +1188,10 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 
 	if readiness != nil {
 		if predecessor != nil {
-			// Publication fenced BeginOpen and StopOpening. The old-wire ack must
-			// precede commit on this independent connection. Release auth serialization
-			// so revocation can close both sessions while the bounded barrier waits.
+			// Idle publication already excludes server openings and owners. The
+			// old-wire acknowledgment is an additional safeguard while the predecessor
+			// stays open; its drain monitor may close it before the reply arrives.
+			// Release auth serialization so revocation can close both sessions.
 			unlockAgentAuth()
 			barrierCtx, cancelBarrier := context.WithTimeout(r.Context(), 10*time.Second)
 			barrierErr := predecessor.AcknowledgeOpeningFence(barrierCtx)
@@ -1196,8 +1202,8 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 				a.AgentTransports.closeTunnelLane(agent, lane)
 				return
 			}
-			// A physically failed old session has no unseen viable openings. Recovery
-			// may commit the new route; the old owner retains its cleanup/refund duty.
+			// A closed predecessor, including one closed by normal idle drain, has no
+			// viable openings. Its owner retains the physical cleanup/refund duty.
 		}
 		if err := tunnel.CommitLaneRetirement(readiness); err != nil {
 			_ = session.Close()
