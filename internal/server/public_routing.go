@@ -132,6 +132,10 @@ type publicRouteTargetConfig struct {
 	StaticResponseBodyMode        string
 	StaticResponseTemplateID      int64
 	ParsedURL                     *url.URL
+	// transportOrigin is derived before snapshot publication. Published target
+	// configurations and their ParsedURL are immutable; health/manual configs
+	// leave this empty and retain the legacy origin calculation.
+	transportOrigin string
 }
 
 type publicListenerConfig struct {
@@ -892,14 +896,66 @@ func (a *App) dialViaAgentWithCapacity(
 		return nil, errAgentUpdateCordoned
 	}
 	lane := 0
-	if len(preferredLane) > 0 {
+	if agent != nil && agent.AggregateFlowControl {
+		if class == agentStreamCapacityTrustedHealth {
+			if len(preferredLane) > 0 && preferredLane[0] != 0 {
+				return nil, errAgentDisconnected
+			}
+			lane = 0
+		} else {
+			if len(preferredLane) > 0 {
+				lane = preferredLane[0]
+				if lane == 0 {
+					return nil, errAgentDisconnected
+				}
+			} else {
+				lane = agent.transportLane()
+			}
+		}
+	} else if len(preferredLane) > 0 {
 		lane = preferredLane[0]
 	} else if agent != nil {
 		lane = agent.transportLane()
 	}
-	session := agent.tunnelSession(lane)
-	if agent == nil || session == nil {
+	if agent == nil || lane < 0 {
 		return nil, errAgentDisconnected
+	}
+	session := agent.tunnelSession(lane)
+	if session == nil {
+		return nil, errAgentDisconnected
+	}
+	var releaseControl func()
+	controlOwned := false
+	if agent.AggregateFlowControl && class == agentStreamCapacityTrustedHealth {
+		controlCtx, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+		var ok bool
+		releaseControl, ok = agent.acquireControlStream(controlCtx)
+		controlErr := controlCtx.Err()
+		cancel()
+		if !ok {
+			// Match trusted-health stream-capacity semantics: monitor cancellation
+			// remains cancellation, while deadline expiry remains health capacity.
+			if ctx != nil && errors.Is(ctx.Err(), context.Canceled) {
+				return nil, ctx.Err()
+			}
+			select {
+			case <-agent.Done:
+				return nil, errAgentDisconnected
+			default:
+			}
+			if controlErr == nil {
+				controlErr = errors.New("agent control stream capacity reached")
+			} else {
+				controlErr = fmt.Errorf("agent control stream capacity reached: %w", controlErr)
+			}
+			return nil, agentStreamCapacityDialError(ctx, class, controlErr)
+		}
+		controlOwned = true
+		defer func() {
+			if controlOwned {
+				releaseControl()
+			}
+		}()
 	}
 	if a.agentStreamCapacity == nil {
 		return nil, agentDialError{Kind: "server_capacity", Err: "server stream capacity manager unavailable"}
@@ -955,23 +1011,83 @@ func (a *App) dialViaAgentWithCapacity(
 		lease.release()
 		return nil, errAgentUpdateCordoned
 	}
+	maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
+	if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
+		maximumWindow = a.Config.TunnelMaxStreamWindowBytes
+	}
+	var releaseLegacySupplement func()
+	if !agent.AggregateFlowControl {
+		supplementBytes, supplementErr := tunnel.LegacyReceiveWindowSupplementBytes(maximumWindow)
+		if supplementErr != nil {
+			lease.release()
+			return nil, agentDialError{Kind: "server_capacity", Err: "invalid legacy stream receive-window accounting"}
+		}
+		var ok bool
+		releaseLegacySupplement, ok, _ = a.agentStreamCapacity.tryReserveLegacyStreamSupplement(supplementBytes)
+		if !ok {
+			lease.release()
+			return nil, agentDialError{Kind: "server_capacity", Err: "server legacy stream receive-window capacity reached"}
+		}
+	}
+	releaseStreamResources := func() {
+		if releaseControl != nil {
+			releaseControl()
+		}
+		if releaseLegacySupplement != nil {
+			releaseLegacySupplement()
+		}
+	}
 
+	// From this point the async opener or the capacity-managed connection owns
+	// the control lease, including when the caller cancels before Open returns.
+	controlOwned = false
 	openCh := startCapacityManagedAgentStreamOpen(ctx, agent, func() (net.Conn, error) {
-		conn, err := session.Open()
+		openOwned := func(selected *yamux.Session) (net.Conn, *tunnel.LaneOwner, func(), error) {
+			owner := agent.tunnelOwners.Find(selected)
+			if owner != nil && !owner.BeginOpen() {
+				return nil, owner, func() {}, yamux.ErrRemoteGoAway
+			}
+			conn, err := selected.OpenStream()
+			unregister := func() {}
+			if owner != nil {
+				var registered bool
+				unregister, registered = owner.FinishOpen(conn)
+				if err == nil && !registered {
+					err = yamux.ErrSessionShutdown
+					conn = nil
+				}
+			}
+			return conn, owner, unregister, err
+		}
+		conn, owner, unregister, err := openOwned(session)
+		if errors.Is(err, yamux.ErrRemoteGoAway) || errors.Is(err, yamux.ErrSessionShutdown) {
+			if next := agent.tunnelSession(lane); next != nil && next != session && ctx.Err() == nil {
+				unregister()
+				session = next
+				conn, owner, unregister, err = openOwned(session)
+			}
+		}
 		if err != nil {
 			lease.release()
+			releaseStreamResources()
 			return nil, err
 		}
 		if !lease.markLive() {
-			_ = conn.Close()
-			lease.release()
+			fenceFailedAgentStream(conn, agent, func() {
+				unregister()
+				lease.release()
+				releaseStreamResources()
+			})
 			return nil, errors.New("agent tunnel stream capacity lease left opening state")
 		}
-		maximumWindow := tunnel.DefaultMaxStreamWindowSizeBytes
-		if a.Config != nil && a.Config.TunnelMaxStreamWindowBytes > 0 {
-			maximumWindow = a.Config.TunnelMaxStreamWindowBytes
+		var aggregateGrowth *tunnel.AggregateReceiveWindowGrowth
+		if owner != nil {
+			aggregateGrowth = owner.Growth()
+		} else {
+			aggregateGrowth = agent.tunnelAggregateGrowth(lane, session)
 		}
-		return newCapacityManagedAgentTunnelStreamConn(conn, agent, lease, maximumWindow), nil
+		releaseOwned := func() { unregister(); releaseStreamResources() }
+		return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, releaseOwned, aggregateGrowth, maximumWindow), nil
 	})
 
 	var conn net.Conn
@@ -1013,23 +1129,7 @@ func (a *App) dialViaAgentWithCapacity(
 		timing.open.Add(time.Since(phaseStart).Nanoseconds())
 	}
 	phaseStart = time.Now()
-	handshakeDone := make(chan struct{})
-	stopHandshakeWatch := func() {
-		select {
-		case <-handshakeDone:
-		default:
-			close(handshakeDone)
-		}
-	}
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = conn.Close()
-		case <-agent.Done:
-			_ = conn.Close()
-		case <-handshakeDone:
-		}
-	}()
+	stopHandshakeWatch := watchAgentOpenHandshake(ctx, agent.Done, conn)
 	defer stopHandshakeWatch()
 	req := tunnel.NewOpenRequest(requestID, network, address)
 	req.TraceTimings = timing != nil
@@ -1061,8 +1161,50 @@ func (a *App) dialViaAgentWithCapacity(
 			Msg("Agent dial failed")
 		return nil, agentDialError{Kind: resp.ErrorKind, Err: resp.Error}
 	}
+	// The dial context belongs to setup, not to the returned connection. Join
+	// its watcher before handing ownership to the caller: Transport may cancel
+	// a completed dial while reclaiming idle connections. If cancellation won
+	// during the handshake, never return the connection that watcher closed.
+	stopHandshakeWatch()
+	if err := ctx.Err(); err != nil {
+		_ = conn.Close()
+		return nil, agentOpenHandshakeError(ctx, err)
+	}
+	select {
+	case <-agent.Done:
+		_ = conn.Close()
+		return nil, errAgentDisconnected
+	default:
+	}
 	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
+}
+
+// watchAgentOpenHandshake owns conn only during setup. Its returned stop must
+// be called by the dialing goroutine before transferring or releasing conn;
+// it joins any cancellation close that has already started. Repeated sequential
+// calls are safe, so the caller can also defer it for handshake error paths.
+func watchAgentOpenHandshake(ctx context.Context, agentDone <-chan struct{}, conn net.Conn) func() {
+	done := make(chan struct{})
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-agentDone:
+			_ = conn.Close()
+		case <-done:
+		}
+	}()
+	return func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+		<-exited
+	}
 }
 
 func agentStreamCapacitySessionKey(agent *AgentConn, session *yamux.Session) string {

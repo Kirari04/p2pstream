@@ -153,6 +153,7 @@ type agentStreamCapacityManager struct {
 	// Values are released only when the corresponding owner closes.
 	adaptiveExternalBytes               int64
 	adaptiveExternalFDs                 int64
+	legacyStreamSupplementBytes         int64
 	adaptiveExternalBytesByOwner        [adaptiveResourceOwnerCount]int64
 	adaptiveExternalFDsByOwner          [adaptiveResourceOwnerCount]int64
 	adaptiveExternalReservationsByOwner [adaptiveResourceOwnerCount]int64
@@ -247,6 +248,7 @@ type agentStreamCapacitySnapshot struct {
 	AdaptivePublicLimit                 int
 	AdaptiveExternalBytes               int64
 	AdaptiveExternalFDs                 int64
+	LegacyStreamSupplementBytes         int64
 	AdaptiveExternalBytesByOwner        [adaptiveResourceOwnerCount]int64
 	AdaptiveExternalFDsByOwner          [adaptiveResourceOwnerCount]int64
 	AdaptiveExternalReservationsByOwner [adaptiveResourceOwnerCount]int64
@@ -1358,10 +1360,18 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveExternal(memoryBytes, fil
 	return m.tryReserveAdaptiveResource(adaptiveResourceOwnerOther, memoryBytes, fileDescriptors)
 }
 
+func (m *agentStreamCapacityManager) tryReserveLegacyStreamSupplement(memoryBytes int64) (release func(), ok, constrained bool) {
+	return m.tryReserveAdaptiveResourceMode(adaptiveResourceOwnerReceiveWindow, memoryBytes, 0, true)
+}
+
 // tryReserveAdaptiveResource atomically places a named lifetime owner in the
 // same resource ledger as logical streams. Owner values are internal constants
 // so public input cannot create unbounded telemetry cardinality.
 func (m *agentStreamCapacityManager) tryReserveAdaptiveResource(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64) (release func(), ok, constrained bool) {
+	return m.tryReserveAdaptiveResourceMode(owner, memoryBytes, fileDescriptors, false)
+}
+
+func (m *agentStreamCapacityManager) tryReserveAdaptiveResourceMode(owner adaptiveResourceOwner, memoryBytes, fileDescriptors int64, legacyStreamSupplement bool) (release func(), ok, constrained bool) {
 	if m == nil {
 		return func() {}, true, false
 	}
@@ -1391,6 +1401,9 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveResource(owner adaptiveRe
 	m.adaptiveExternalBytesByOwner[owner] = saturatingAddInt64(m.adaptiveExternalBytesByOwner[owner], memoryBytes)
 	m.adaptiveExternalFDsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalFDsByOwner[owner], fileDescriptors)
 	m.adaptiveExternalReservationsByOwner[owner] = saturatingAddInt64(m.adaptiveExternalReservationsByOwner[owner], 1)
+	if legacyStreamSupplement {
+		m.legacyStreamSupplementBytes = saturatingAddInt64(m.legacyStreamSupplementBytes, memoryBytes)
+	}
 	m.mu.Unlock()
 
 	var once sync.Once
@@ -1402,6 +1415,9 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveResource(owner adaptiveRe
 			m.adaptiveExternalBytesByOwner[owner] -= memoryBytes
 			m.adaptiveExternalFDsByOwner[owner] -= fileDescriptors
 			m.adaptiveExternalReservationsByOwner[owner]--
+			if legacyStreamSupplement {
+				m.legacyStreamSupplementBytes -= memoryBytes
+			}
 			if m.adaptiveExternalBytes < 0 {
 				m.adaptiveExternalBytes = 0
 			}
@@ -1416,6 +1432,9 @@ func (m *agentStreamCapacityManager) tryReserveAdaptiveResource(owner adaptiveRe
 			}
 			if m.adaptiveExternalReservationsByOwner[owner] < 0 {
 				m.adaptiveExternalReservationsByOwner[owner] = 0
+			}
+			if m.legacyStreamSupplementBytes < 0 {
+				m.legacyStreamSupplementBytes = 0
 			}
 			m.dispatchLocked()
 			m.mu.Unlock()
@@ -1460,6 +1479,7 @@ func (m *agentStreamCapacityManager) snapshotLocked() agentStreamCapacitySnapsho
 		AdaptivePublicLimit:                 m.adaptivePublicLimitLocked(),
 		AdaptiveExternalBytes:               m.adaptiveExternalBytes,
 		AdaptiveExternalFDs:                 m.adaptiveExternalFDs,
+		LegacyStreamSupplementBytes:         m.legacyStreamSupplementBytes,
 		AdaptiveExternalBytesByOwner:        m.adaptiveExternalBytesByOwner,
 		AdaptiveExternalFDsByOwner:          m.adaptiveExternalFDsByOwner,
 		AdaptiveExternalReservationsByOwner: m.adaptiveExternalReservationsByOwner,

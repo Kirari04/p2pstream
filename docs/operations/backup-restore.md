@@ -14,7 +14,19 @@ Use this before upgrades, host moves, disaster recovery tests, or any change tha
 
 ## Steps
 
-The commands below use the default, unenrolled Compose context. If server updates are enabled, finish any update or paused recovery, then run `sudo /etc/p2pstream-server-updater/manage remove` before this offline procedure. Removal preserves the current release/settings and prints the exact project/file command for `/etc/p2pstream-server-updater/detached-compose.json`; use that context for every Compose command below. Substitute your actual data-volume name. After restoration is verified, copy a fresh setup command from **System → Server updates** to enroll again using the exported model. See [server update operations](./server-updates).
+Run every Compose command from your deployment directory, with the same project name, ordered `-f` files, and `--env-file` options you normally use. Confirm the actual volume name with `docker compose config --volumes` and `docker volume inspect`; substitute it below if you changed the default.
+
+Keep a private backup of `compose.yaml`, any overrides, `.env`, the exact repository image digest used for this backup, and any optional release receipt alongside the data archive. Record the digest even if `.env` uses a mutable channel such as `latest` or `staging`; the tag alone can select a newer image and run migrations during restore. These inputs are needed to restore the matching application version and settings. Protect backups as secrets: they contain credentials, private keys, and user data.
+
+Before removing the original container or image, read its repository digests and save the matching `ghcr.io/kirari04/p2pstream@sha256:…` value with the backup:
+
+```bash
+container_id=$(docker compose ps -a -q p2pstream)
+image_id=$(docker inspect --format '{{.Image}}' "$container_id")
+docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$image_id"
+```
+
+If the image has no repository digest, retain that exact image with `docker image save` and reload it before restoring; do not substitute a mutable channel tag.
 
 1. Include at least:
 
@@ -23,7 +35,6 @@ The commands below use the default, unenrolled Compose context. If server update
    /data/p2pstream.db-wal
    /data/p2pstream.db-shm
    /data/certs/
-   /data/server-installation-id
    ```
 
    The database stores proxy config, users, sessions, agent registry, TLS metadata, and observability. The cert directory stores management TLS and public TLS material.
@@ -42,7 +53,7 @@ The commands below use the default, unenrolled Compose context. If server update
    docker compose start p2pstream
    ```
 
-3. To restore, stop Compose and recreate the named data volume:
+3. To restore, confirm your backup is readable and stop Compose. Save any current data you may need before replacing the named volume:
 
    ```bash
    docker compose down
@@ -60,7 +71,7 @@ The commands below use the default, unenrolled Compose context. If server update
      tar -C /data -xzf /backup/p2pstream-data.tar.gz
    ```
 
-5. Start p2pstream with the restored volume:
+5. Restore the Compose inputs and `.env` saved with the backup. Set `P2PSTREAM_IMAGE` to the recorded `repository@sha256:…` digest (or the exact reloaded image if it had no repository digest), then start p2pstream with the restored volume:
 
    ```bash
    docker compose up -d

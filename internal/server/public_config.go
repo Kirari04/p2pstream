@@ -14,7 +14,7 @@ const (
 	defaultPublicSelfSignedValidityDays                       = int64(3650)
 	minPublicSelfSignedValidityDays                           = int64(1)
 	maxPublicSelfSignedValidityDays                           = int64(3650)
-	defaultSelfSignedTLSHost                                  = "p2pstream.local"
+	defaultSelfSignedTLSHost                                  = "localhost"
 	defaultWelcomeContentType                                 = "text/html; charset=utf-8"
 	defaultWelcomeCacheControl                                = "no-store"
 	publicResponseBodyModeInline                              = "inline"

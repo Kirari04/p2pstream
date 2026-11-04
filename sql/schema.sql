@@ -842,16 +842,20 @@ CREATE INDEX IF NOT EXISTS idx_proxy_request_events_occurred_at
 ON proxy_request_events (occurred_at);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id
-ON proxy_request_events (listener_id);
+ON proxy_request_events (listener_id)
+WHERE listener_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id
-ON proxy_request_events (route_id);
+ON proxy_request_events (route_id)
+WHERE route_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_target_id
-ON proxy_request_events (route_target_id);
+ON proxy_request_events (route_target_id)
+WHERE route_target_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id
-ON proxy_request_events (agent_id);
+ON proxy_request_events (agent_id)
+WHERE agent_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem
 ON proxy_request_events (occurred_at DESC)
@@ -861,7 +865,8 @@ CREATE INDEX IF NOT EXISTS idx_public_retry_rules_priority
 ON public_retry_rules (priority, id);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id
-ON proxy_request_events (retry_rule_id);
+ON proxy_request_events (retry_rule_id)
+WHERE retry_rule_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_rule
 ON proxy_retry_rollup_minutes (retry_rule_id, bucket_unix_millis);
@@ -1042,10 +1047,12 @@ ON public_trusted_proxy_sources (provider)
 WHERE built_in = 1;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id
-ON proxy_request_events (waf_rule_id);
+ON proxy_request_events (waf_rule_id)
+WHERE waf_rule_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_cache_rule_id
-ON proxy_request_events (cache_rule_id);
+ON proxy_request_events (cache_rule_id)
+WHERE cache_rule_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_public_cache_rules_priority
 ON public_cache_rules (priority, id);

@@ -409,6 +409,12 @@ func TestOpenStreamTimeout(t *testing.T) {
 
 		client, _ := testClientServerConfig(t, clientConn, serverConn, clientConf, serverConf)
 
+		// Complete lazy TLS setup before measuring the missing stream ACK.
+		// A transport handshake is not part of this 25 ms stream-open oracle.
+		if _, err := client.Ping(); err != nil {
+			t.Fatal(err)
+		}
+
 		// Open a single stream without a server to acknowledge it.
 		s, err := client.OpenStream()
 		if err != nil {
@@ -931,77 +937,98 @@ func TestHalfClose(t *testing.T) {
 }
 
 func TestHalfCloseSessionShutdown(t *testing.T) {
-	client, server := testClientServer(t)
+	testConnTypes(t, func(t testing.TB, left, right io.ReadWriteCloser) {
+		client, server := testClientServerConfig(t, left, right, testConfNoKeepAlive(), testConfNoKeepAlive())
 
-	// dataSize must be large enough to ensure the server will send a window
-	// update
-	dataSize := int64(server.config.MaxStreamWindowSize)
+		// dataSize must be large enough to ensure the server will send a window
+		// update
+		dataSize := int64(server.config.MaxStreamWindowSize)
 
-	data := make([]byte, dataSize)
-	for idx := range data {
-		data[idx] = byte(idx % 256)
-	}
-
-	stream, err := client.Open()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if _, err = stream.Write(data); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	stream2, err := server.Accept()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := stream.Close(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Shut down the session of the sending side. This should not cause reads
-	// to fail on the receiving side.
-	if err := client.Close(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Closing the client does not join the server's shutdown. Wait for the
-	// server to observe it naturally, then join teardown before reading: a
-	// concurrent window update can otherwise hit the closed peer transport.
-	shutdownErr := make(chan error, 1)
-	go func() {
-		<-server.CloseChan()
-		shutdownErr <- server.Close()
-	}()
-	select {
-	case err := <-shutdownErr:
-		if err != nil {
-			t.Fatalf("server shutdown: %v", err)
+		data := make([]byte, dataSize)
+		for idx := range data {
+			data[idx] = byte(idx % 256)
 		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("server did not finish peer-initiated shutdown")
-	}
 
-	buf := make([]byte, dataSize)
-	n, err := stream2.Read(buf)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if int64(n) != dataSize {
-		t.Fatalf("bad: %v", n)
-	}
-	if !bytes.Equal(buf[:n], data) {
-		t.Fatal("buffered payload changed during session shutdown")
-	}
+		stream, err := client.OpenStream()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if n, err := stream.Write(data); err != nil || n != len(data) {
+			t.Fatalf("write: n=%d err=%v", n, err)
+		}
 
-	// EOF after close
-	n, err = stream2.Read(buf)
-	if err != io.EOF {
-		t.Fatalf("err: %v", err)
-	}
-	if n != 0 {
-		t.Fatalf("bad: %v", n)
-	}
+		stream2, err := server.AcceptStream()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		if err := stream.Close(); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Write/Close completion only means that DATA/FIN reached the local
+		// transport. Closing TCP with unread reverse control can reset it and
+		// truncate bytes still queued at the sender. A subsequent ping response
+		// proves the receiver processed the preceding DATA and FIN. Do not read
+		// the payload: this test must retain it across peer-initiated shutdown.
+		if _, err := client.Ping(); err != nil {
+			t.Fatalf("receive/FIN barrier: %v", err)
+		}
+		stream2.stateLock.Lock()
+		state := stream2.state
+		stream2.stateLock.Unlock()
+		if buffered, _ := stream2.ReceiveBufferStats(); buffered != uint64(dataSize) || state != streamRemoteClose {
+			t.Fatalf("before shutdown: buffered=%d want=%d state=%d", buffered, dataSize, state)
+		}
+
+		// Shut down the session of the sending side. This should not cause reads
+		// to fail on the receiving side.
+		if err := client.Close(); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+
+		// Closing the client does not join the server's shutdown. Wait for the
+		// server to observe it naturally, then join teardown before reading: a
+		// concurrent window update can otherwise hit the closed peer transport.
+		shutdownErr := make(chan error, 1)
+		go func() {
+			<-server.CloseChan()
+			shutdownErr <- server.Close()
+		}()
+		select {
+		case err := <-shutdownErr:
+			if err != nil {
+				t.Fatalf("server shutdown: %v", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("server did not finish peer-initiated shutdown")
+		}
+
+		if buffered, _ := stream2.ReceiveBufferStats(); buffered != uint64(dataSize) {
+			t.Fatalf("accepted bytes lost during shutdown: %d want=%d", buffered, dataSize)
+		}
+
+		buf := make([]byte, dataSize)
+		n, err := io.ReadFull(stream2, buf)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if n != len(data) {
+			t.Fatalf("read bytes: got %d, want %d", n, len(data))
+		}
+		if !bytes.Equal(buf, data) {
+			t.Fatal("read payload differs from written payload")
+		}
+
+		// EOF after all accepted payload has drained.
+		n, err = stream2.Read(buf)
+		if err != io.EOF {
+			t.Fatalf("err: %v", err)
+		}
+		if n != 0 {
+			t.Fatalf("bad: %v", n)
+		}
+	})
 }
 
 func TestReadDeadline(t *testing.T) {
@@ -1511,6 +1538,19 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 		client, server := testClientServerConfig(t, clientConn, serverConn, conf, conf.Clone())
 
 		errCh := make(chan error, 1)
+		allowWriterClose := make(chan struct{})
+		writerCloseErr := make(chan error, 1)
+		writerDone := make(chan struct{})
+		var releaseWriterOnce sync.Once
+		releaseWriter := func() { releaseWriterOnce.Do(func() { close(allowWriterClose) }) }
+		t.Cleanup(func() {
+			releaseWriter()
+			select {
+			case <-writerDone:
+			case <-time.After(time.Second):
+				t.Error("writer did not stop")
+			}
+		})
 
 		// Choose a huge flood size that we know will result in a window update.
 		flood := int64(client.config.MaxStreamWindowSize)
@@ -1518,13 +1558,13 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 
 		// The server will accept a new stream and then flood data to it.
 		go func() {
+			defer close(writerDone)
 			var err error
 			wr, err = server.AcceptStream()
 			if err != nil {
 				errCh <- err
 				return
 			}
-			defer wr.Close()
 
 			window := atomic.LoadUint32(&wr.sendWindow)
 			if window != client.config.MaxStreamWindowSize {
@@ -1547,6 +1587,8 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 				return
 			}
 			errCh <- err
+			<-allowWriterClose
+			writerCloseErr <- wr.Close()
 		}()
 
 		stream, err := client.OpenStream()
@@ -1564,14 +1606,25 @@ func TestSession_PartialReadWindowUpdate(t *testing.T) {
 			t.Fatalf("err: %v", err)
 		}
 
-		// Wait for window update to be applied by server. Should be "instant" but CI
-		// can be slow.
-		time.Sleep(2 * time.Second)
-
-		// Assert server received window update
-		window := atomic.LoadUint32(&wr.sendWindow)
-		if exp := uint32(partialReadSize); window != exp {
+		// Wait for the server to apply the update without imposing a fixed delay
+		// on every transport variant.
+		exp := uint32(partialReadSize)
+		deadline := time.Now().Add(time.Second)
+		for atomic.LoadUint32(&wr.sendWindow) != exp && time.Now().Before(deadline) {
+			runtime.Gosched()
+		}
+		if window := atomic.LoadUint32(&wr.sendWindow); window != exp {
 			t.Fatalf("sendWindow: exp=%d, got=%d", exp, window)
+		}
+
+		releaseWriter()
+		select {
+		case <-writerDone:
+		case <-time.After(time.Second):
+			t.Fatal("writer did not stop after release")
+		}
+		if err := <-writerCloseErr; err != nil {
+			t.Fatalf("close writer: %v", err)
 		}
 	})
 }

@@ -1,10 +1,16 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
+	"time"
 
 	"p2pstream/internal/config"
 )
@@ -43,6 +49,88 @@ func TestFreshPublicProxySeedUsesPublishedDefaultSite(t *testing.T) {
 		if err != nil || migrated == 0 {
 			t.Fatalf("listener %d migration marker=%d err=%v", binding.ListenerID, migrated, err)
 		}
+	}
+}
+
+func TestFreshPublicProxySeedUsesGenericCertificate(t *testing.T) {
+	ctx := context.Background()
+	app := NewApp(&config.Config{CertsDir: t.TempDir()}, newServerTestDB(t))
+	defer app.CloseObservabilityRecorder(ctx)
+	if err := app.ensurePublicProxySeeded(ctx); err != nil {
+		t.Fatal(err)
+	}
+	certs, err := app.DB.ListPublicTlsCertificates(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(certs) != 1 || certs[0].HostnamePattern != "localhost" || certs[0].Source != publicTLSCertificateSourceManual {
+		t.Fatalf("fresh certificates = %+v", certs)
+	}
+	pair, err := tls.LoadX509KeyPair(certs[0].CertPath, certs[0].KeyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertGenericPublicCertificate(t, leaf)
+	if !certs[0].IssuedAt.Valid || !certs[0].ExpiresAt.Valid {
+		t.Fatal("seed did not persist certificate validity")
+	}
+}
+
+func TestPublicProxySeedPreservesPersistedManualCertificates(t *testing.T) {
+	for _, hostname := range []string{"p2pstream.local", "customer.example.com"} {
+		t.Run(hostname, func(t *testing.T) {
+			ctx := context.Background()
+			app := NewApp(&config.Config{CertsDir: t.TempDir()}, newServerTestDB(t))
+			defer app.CloseObservabilityRecorder(ctx)
+			listener := seedServerHTTPSListener(t, app.DB)
+			certPEM, keyPEM, _, err := generatePublicSelfSignedCertificatePEM(hostname, time.Hour)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Both the legacy seed and uploaded customer material are persisted
+			// as manual mappings. Reseeding must preserve the row and both files.
+			before, err := app.createUploadedPublicTLSCertificate(ctx, publicTLSCertificateMutationInput{
+				ListenerID: listener.ID, HostnamePattern: hostname, Enabled: 1,
+				Source: publicTLSCertificateSourceManual, Status: publicTLSCertificateStatusReady,
+			}, certPEM, keyPEM)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := app.ensurePublicProxySeeded(ctx); err != nil {
+				t.Fatal(err)
+			}
+			after, err := app.DB.GetPublicTlsCertificate(ctx, before.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(before, after) {
+				t.Fatalf("persisted certificate mapping changed: before=%+v after=%+v", before, after)
+			}
+			for _, file := range []struct {
+				path string
+				want []byte
+			}{{after.CertPath, certPEM}, {after.KeyPath, keyPEM}} {
+				got, err := os.ReadFile(file.path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(got, file.want) {
+					t.Fatalf("persisted certificate material changed: %s", file.path)
+				}
+			}
+			certs, err := app.DB.ListPublicTlsCertificates(ctx)
+			if err != nil || len(certs) != 1 {
+				t.Fatalf("seeding changed certificate count: %d, err=%v", len(certs), err)
+			}
+			// A persisted manual default has no automatic renewal schedule.
+			if after.Source != publicTLSCertificateSourceManual || after.NextRenewalAt.Valid {
+				t.Fatalf("unexpected renewal state: %+v", after)
+			}
+		})
 	}
 }
 

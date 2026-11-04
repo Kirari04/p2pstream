@@ -1393,14 +1393,6 @@ type agentUpdateMaintenanceItem struct {
 }
 
 func (a *App) reconcileAgentUpdateMaintenance(ctx context.Context, now time.Time) {
-	if a != nil {
-		a.serverUpdateMu.RLock()
-		defer a.serverUpdateMu.RUnlock()
-		if a.serverUpdateGated() {
-			return
-		}
-	}
-
 	if a == nil || a.DB == nil {
 		return
 	}
@@ -2155,6 +2147,13 @@ func (a *App) agentUpdateAgentDrained(agentID int64) bool {
 	}
 	if a.AgentTransports != nil && a.AgentTransports.inFlightForAgent(agentID) != 0 {
 		return false
+	}
+	// Retained FIN buffers and replacements/draining sessions are generation
+	// owners even after leaving the serving projection or Yamux stream map.
+	for _, owner := range agent.tunnelOwners.Snapshot() {
+		if !owner.Quiescent() {
+			return false
+		}
 	}
 	// The capacity ledger covers transports that do not live in the reusable
 	// pool at all (environment one-shots, health checks, streams opening or

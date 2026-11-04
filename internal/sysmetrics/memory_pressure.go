@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -160,15 +161,11 @@ func (c AdaptiveMemoryConfig) Validate() error {
 }
 
 func minimumServerStreamAdmissionBytes() int64 {
-	model, err := tunnel.ServerStreamResourceModel(tunnel.InitialStreamWindowSizeBytes)
-	if err != nil {
-		return math.MaxInt64
-	}
-	return model.MemoryBytes
+	return tunnel.ServerStreamBaseResourceModel().MemoryBytes
 }
 
 func minimumAgentStreamAdmissionBytes() int64 {
-	model, err := tunnel.AgentStreamResourceModel(tunnel.InitialStreamWindowSizeBytes, 16*1024)
+	model, err := tunnel.AgentStreamBaseResourceModel(16 * 1024)
 	if err != nil {
 		return math.MaxInt64
 	}
@@ -723,11 +720,11 @@ func currentProcessMemoryCgroupPaths(cgroupPath, mountInfoPath string) []memoryC
 }
 
 func resolveCurrentProcessMemoryCgroupPaths(cgroupPath, mountInfoPath string) ([]memoryCgroupPath, error) {
-	cgroupData, err := os.ReadFile(cgroupPath)
+	cgroupData, err := readResourceFile(cgroupPath)
 	if err != nil {
 		return nil, fmt.Errorf("read process cgroup membership: %w", err)
 	}
-	mountInfoData, err := os.ReadFile(mountInfoPath)
+	mountInfoData, err := readResourceFile(mountInfoPath)
 	if err != nil {
 		return nil, fmt.Errorf("read cgroup mount information: %w", err)
 	}
@@ -819,9 +816,12 @@ func parseCgroupMounts(data string) []cgroupMount {
 		if !ok {
 			continue
 		}
-		left := strings.Fields(before)
 		right := strings.Fields(after)
-		if len(left) < 5 || len(right) < 3 || (right[0] != "cgroup" && right[0] != "cgroup2") {
+		if len(right) < 3 || (right[0] != "cgroup" && right[0] != "cgroup2") {
+			continue
+		}
+		left := strings.Fields(before)
+		if len(left) < 5 {
 			continue
 		}
 		mounts = append(mounts, cgroupMount{
@@ -859,14 +859,17 @@ func controllerListContains(list, want string) bool {
 	return false
 }
 
+// The escape rules are fixed. Replacer supports concurrent use and initializes
+// its replacement state once, rather than rebuilding it for each sampled path.
+var mountInfoPathUnescaper = strings.NewReplacer(
+	`\040`, " ",
+	`\011`, "\t",
+	`\012`, "\n",
+	`\134`, `\`,
+)
+
 func unescapeMountInfoPath(value string) string {
-	replacer := strings.NewReplacer(
-		`\040`, " ",
-		`\011`, "\t",
-		`\012`, "\n",
-		`\134`, `\`,
-	)
-	return replacer.Replace(value)
+	return mountInfoPathUnescaper.Replace(value)
 }
 
 func readMemoryUsagePair(source, usagePath, limitPath string) (MemoryUsage, bool, error) {
@@ -887,8 +890,37 @@ func readMemoryUsagePair(source, usagePath, limitPath string) (MemoryUsage, bool
 	return MemoryUsage{UsedBytes: used, LimitBytes: limit, Source: source}, true, nil
 }
 
+// readResourceFile reads fresh proc/cgroup contents without a preliminary Stat
+// or speculative EOF growth. Every underlying read has at least 512 bytes of
+// space, including after short reads, as required by proc-like files (Go #72080).
+// Inputs are not capped: long membership/mount lines and metric tails must be
+// read completely so the existing parsers retain their validation behavior.
+func readResourceFile(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return readResourceFileContents(file)
+}
+
+func readResourceFileContents(file *os.File) ([]byte, error) {
+	var scratch [4096]byte
+	var data []byte
+	for {
+		n, err := file.Read(scratch[:])
+		data = append(data, scratch[:n]...)
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return data, err
+		}
+	}
+}
+
 func readMemoryMetricFile(path string) (int64, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := readResourceFile(path)
 	if err != nil {
 		return 0, false, err
 	}

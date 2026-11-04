@@ -37,7 +37,7 @@ Statuses:
 ## Validation Rules
 
 - ACME hostnames must be public fully-qualified DNS names.
-- ACME does not accept `localhost`, `p2pstream.local`, IP addresses, or internal-only names.
+- ACME does not accept `localhost`, `.local` names (including the legacy `p2pstream.local` default), IP addresses, or internal-only names.
 - Wildcard ACME certificates require DNS-01.
 - DNS-01 currently requires an enabled Cloudflare DNS credential.
 - Uploaded manual certificates require both PEM certificate and key.
@@ -46,6 +46,10 @@ Statuses:
 ## Runtime Effects
 
 Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or when one third of their lifetime remains, capped at 30 days before expiry (a 90-day certificate renews 30 days before expiry, a 45-day certificate 15 days before, a 6-day certificate 2 days before). Failed renewals are retried after 1 hour.
+
+Fresh installations seed a manual self-signed mapping for `localhost`. Newly generated default and fallback certificates use only `localhost` as their subject/issuer CN and DNS SAN, plus `127.0.0.1` and `::1` IP SANs; they include no product organization or other product identity fields. Certificates generated for an explicit hostname or IP keep that requested SAN. Generic names remove explicit product identification from these certificates, but do not prevent TLS fingerprinting.
+
+Upgrades preserve stored certificate mappings and files, including the legacy `p2pstream.local` default, uploaded certificates, and certificates referenced by server paths. Restarting replaces the in-memory fallback with a newly generated generic certificate, but does not replace a persisted default. To replace a legacy default, edit its mapping under **TLS**, change the hostname to `localhost`, select **Manual -> Generate self-signed**, choose the validity, and save. This generates new key/certificate material and applies it to new TLS handshakes. Keeping the old hostname while regenerating retains that hostname in the new CN/SAN. Alternatively, replace the mapping with a certificate for your intended public hostname. Manual certificates have no automatic renewal and cannot use the ACME **Renew** action. Management certificates and trust roots are separate and are unaffected.
 
 For ready ACME certificates, `next_renewal_at` is the next planned renewal time. For failed ACME certificates, `next_renewal_at` is the next automatic retry time. While a renewal is running, the next schedule is cleared until the attempt succeeds or fails.
 

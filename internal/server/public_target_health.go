@@ -606,7 +606,13 @@ func (a *App) runPublicRouteTargetHealthCheckViaAgent(parent context.Context, ta
 		var dialErr agentDialError
 		switch {
 		case errors.Is(err, errAgentDisconnected):
-			attempt.fail("agent_disconnected", err)
+			// Recheck after the failed dial: lane zero can disappear while
+			// this authenticated generation continues serving bulk traffic.
+			if snapshot := agent.tunnelResourceSnapshot(); snapshot.AggregateFlowControl && snapshot.BulkSessions > 0 {
+				attempt.skip("agent_control_unavailable", err)
+			} else {
+				attempt.fail("agent_disconnected", err)
+			}
 		case errors.As(err, &dialErr) && agentDialErrorIsAdmissionPressure(dialErr):
 			attempt.skip(agentProxyErrorKind(err), err)
 		case errors.As(err, &dialErr):

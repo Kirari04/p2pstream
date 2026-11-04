@@ -8,47 +8,13 @@ Use this page after the quickstart when you need to change ports, understand wha
 
 ## Prerequisites
 
-- The release deployment package prepared by the [quickstart](./quickstart), with `compose.yaml` and a digest pin in `.env`.
-- A `.env` file copied from `.env.example`.
+- The `compose.yaml` and `.env` files from the [quickstart](./quickstart).
+- Your management URL and any port overrides in `.env`.
 - A decision about which host ports should reach container ports `80`, `443`, and `8081`.
 
 ## Steps
 
-1. Review the included release `compose.yaml`:
-
-   ```yaml
-   services:
-     p2pstream:
-       image: "${P2PSTREAM_IMAGE:?Run verified release deployment preparation first}"
-       container_name: p2pstream
-       restart: unless-stopped
-       read_only: true
-       security_opt:
-         - no-new-privileges:true
-       cap_drop:
-         - ALL
-       cap_add:
-         - NET_BIND_SERVICE
-       tmpfs:
-         - /tmp:rw,nosuid,nodev,mode=1777
-       environment:
-         CONFIG_DIR: /data
-         MANAGEMENT_PORT: "8081"
-         MANAGEMENT_BIND_ADDRESS: "${MANAGEMENT_BIND_ADDRESS:-0.0.0.0}"
-         MANAGEMENT_UI_DISABLED: "${MANAGEMENT_UI_DISABLED:-false}"
-         MANAGEMENT_PUBLIC_URL: "${MANAGEMENT_PUBLIC_URL:-https://localhost:8081}"
-         MANAGEMENT_TLS_EXTRA_HOSTS: "${MANAGEMENT_TLS_EXTRA_HOSTS:-}"
-       ports:
-         - "${P2PSTREAM_HTTP_PORT:-80}:80"
-         - "${P2PSTREAM_HTTPS_PORT:-443}:443"
-         - "${P2PSTREAM_MANAGEMENT_PUBLISH_ADDRESS:-}:${P2PSTREAM_MANAGEMENT_PORT:-8081}:8081"
-       volumes:
-         - p2pstream-data:/data
-
-   volumes:
-     p2pstream-data:
-       name: p2pstream-data
-   ```
+1. Review the Compose file from the quickstart. It selects `P2PSTREAM_IMAGE` from `.env`, defaulting to `ghcr.io/kirari04/p2pstream:latest` when unset. You can use `:staging`, an exact version tag, or a digest.
 
 2. Set the externally reachable management URL:
 
@@ -81,29 +47,26 @@ Use this page after the quickstart when you need to change ports, understand wha
    listener is separate from the host publish address. Restrict public management
    access with host firewall rules when remote access is required.
 
-5. Start the container before updater enrollment:
+5. Start the container:
 
    ```bash
    docker compose up -d
    docker compose logs -f p2pstream
    ```
 
-:::warning Upgrading a Compose file from v0.1.49 or earlier
-Older Compose files inject `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=256`, even when the setting is absent from `.env`. Change that Compose default to `0`, or add `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0` to `.env`, before recreating the container. A value of `0` lets a single busy target use the server-wide request ceiling instead of rejecting requests at the old 256-request quarter-cap.
-:::
+## Apply configuration changes
 
-## Apply settings after updater enrollment
-
-New enrollment turns the original Compose entry points into references to the current managed deployment. Edit the saved `.p2pstream-input-…` copies printed by setup and the same `.env`. The controller records their directory, project and ordered files. Change supported settings there, then run:
+The Compose file and `.env` belong to the operator. Edit them directly, validate the configuration, then recreate the service:
 
 ```bash
-sudo /etc/p2pstream-server-updater/manage apply
-sudo /etc/p2pstream-server-updater/manage status
+docker compose config --quiet
+docker compose up -d
+docker compose ps
 ```
 
-The controller validates the running deployment, refuses hooks/builds, data-layout changes and changes to other services/resources, preserves the **current** software digest and private connection, restarts the server once, and verifies health. It restores the exact pre-apply configuration on failure where possible. `P2PSTREAM_IMAGE` in the original input is deliberately ignored during enrolled configuration application; choose software updates in **System → Server updates**. Use a separate Compose project for services you want to manage independently.
+Keep `P2PSTREAM_IMAGE` unchanged when applying settings only. To disable the browser UI, set `MANAGEMENT_UI_DISABLED=true` in `.env` and run `docker compose up -d`. The management API and agent tunnels remain available.
 
-Read-only inspection uses `sudo /etc/p2pstream-server-updater/compose ps` or `manage logs`. After new enrollment or explicit migration, ordinary `docker compose up -d --force-recreate` retains the current image and updater connection. It recreates already-applied settings; edits still use `manage apply`. Older enrollments need the [deployment migration](../operations/server-updates#migrate-an-existing-enrollment) before ordinary recreation is supported.
+Update a channel with `docker compose pull p2pstream` followed by `docker compose up -d p2pstream`. For a pinned tag or digest, first change `P2PSTREAM_IMAGE`. Keep a backup of application data and deployment inputs; see [Upgrades](../operations/upgrades).
 
 ## Runtime Effects
 
@@ -123,7 +86,7 @@ with `no-new-privileges`. Store persistent files under `/data`; custom cache,
 certificate or other output paths need an explicit writable mount.
 
 :::warning New listeners must be published explicitly
-Docker only exposes ports listed under `ports`. While enrolled, apply port changes with `manage apply`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
+Docker only exposes ports listed under `ports`. Apply port changes with `docker compose up -d`. If you create an additional listener on container port `8088` under **Proxy -> Listeners**, it will bind inside the container but remain unreachable until you add it to the Compose port list and restart:
 
 ```yaml
 ports:
@@ -161,7 +124,7 @@ Then open `MANAGEMENT_PUBLIC_URL` in a browser. The **Overview** page should sho
 
 ## Next Steps
 
-- [Management server updates](../operations/server-updates)
+- [Manual server upgrades](../operations/upgrades)
 - [Backup and restore](../operations/backup-restore)
 - [Docker reference](../reference/docker)
 - [Management TLS reference](../reference/management-tls)
