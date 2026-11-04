@@ -1129,23 +1129,7 @@ func (a *App) dialViaAgentWithCapacity(
 		timing.open.Add(time.Since(phaseStart).Nanoseconds())
 	}
 	phaseStart = time.Now()
-	handshakeDone := make(chan struct{})
-	stopHandshakeWatch := func() {
-		select {
-		case <-handshakeDone:
-		default:
-			close(handshakeDone)
-		}
-	}
-	go func() {
-		select {
-		case <-ctx.Done():
-			_ = conn.Close()
-		case <-agent.Done:
-			_ = conn.Close()
-		case <-handshakeDone:
-		}
-	}()
+	stopHandshakeWatch := watchAgentOpenHandshake(ctx, agent.Done, conn)
 	defer stopHandshakeWatch()
 	req := tunnel.NewOpenRequest(requestID, network, address)
 	req.TraceTimings = timing != nil
@@ -1177,8 +1161,50 @@ func (a *App) dialViaAgentWithCapacity(
 			Msg("Agent dial failed")
 		return nil, agentDialError{Kind: resp.ErrorKind, Err: resp.Error}
 	}
+	// The dial context belongs to setup, not to the returned connection. Join
+	// its watcher before handing ownership to the caller: Transport may cancel
+	// a completed dial while reclaiming idle connections. If cancellation won
+	// during the handshake, never return the connection that watcher closed.
+	stopHandshakeWatch()
+	if err := ctx.Err(); err != nil {
+		_ = conn.Close()
+		return nil, agentOpenHandshakeError(ctx, err)
+	}
+	select {
+	case <-agent.Done:
+		_ = conn.Close()
+		return nil, errAgentDisconnected
+	default:
+	}
 	_ = conn.SetDeadline(time.Time{})
 	return conn, nil
+}
+
+// watchAgentOpenHandshake owns conn only during setup. Its returned stop must
+// be called by the dialing goroutine before transferring or releasing conn;
+// it joins any cancellation close that has already started. Repeated sequential
+// calls are safe, so the caller can also defer it for handshake error paths.
+func watchAgentOpenHandshake(ctx context.Context, agentDone <-chan struct{}, conn net.Conn) func() {
+	done := make(chan struct{})
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-agentDone:
+			_ = conn.Close()
+		case <-done:
+		}
+	}()
+	return func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+		<-exited
+	}
 }
 
 func agentStreamCapacitySessionKey(agent *AgentConn, session *yamux.Session) string {
