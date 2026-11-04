@@ -23,10 +23,7 @@ type blockingAdaptiveMemorySampler struct {
 }
 
 func TestServerAdaptiveControllerAcceptsProtocolFloorWindow(t *testing.T) {
-	want, err := tunnel.ServerStreamResourceModel(tunnel.InitialStreamWindowSizeBytes)
-	if err != nil {
-		t.Fatal(err)
-	}
+	want := tunnel.ServerStreamBaseResourceModel()
 	controller := newServerAdaptiveMemoryController(&config.Config{
 		TunnelMaxStreamWindowBytes: tunnel.InitialStreamWindowSizeBytes,
 	})
@@ -60,10 +57,7 @@ func newAdaptiveServerCapacityForTest(t testing.TB, total int, usage *sysmetrics
 		t.Fatal(err)
 	}
 	config := sysmetrics.DefaultAdaptiveMemoryConfig()
-	model, err := tunnel.ServerStreamResourceModel(0)
-	if err != nil {
-		t.Fatal(err)
-	}
+	model := tunnel.ServerStreamBaseResourceModel()
 	config.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleServerStream
 	config.EstimatedBytesPerAdmission = model.MemoryBytes
 	config.FileDescriptorsPerAdmission = 0

@@ -370,7 +370,7 @@ def fixture_catalog(host, images):
         version, commit = 'v0.1.53-staging.' + str(number), letter * 40
         updater = images['updater' if key == 'baseline' else 'candidate_updater']
         metadata = {'api': 1, 'version': version, 'commit': commit, 'source_schema_min': 17,
-                    'source_schema_max': 20, 'target_schema': 20, 'runtime_api_min': 1,
+                    'source_schema_max': 21, 'target_schema': 21, 'runtime_api_min': 1,
                     'agent_protocol_min': 1, 'agent_protocol_max': 1, 'rollback': 'snapshot'}
         descriptor = {'api': 1, 'version': version, 'commit': commit, 'channel': 'staging',
                       'bundle': 'p2pstream_' + version + '_docker.tar.gz',

@@ -1311,11 +1311,10 @@ class Host:
                 info = bounded('inspect', name, check=False)
                 if info.returncode == 0:
                     require(not decode(info.stdout)[0]['State']['Running'], 'Host helper is still running')
-                    removed = bounded('rm', '--force', name, check=False)
-                    if removed.returncode:
-                        confirm_absence()
-                else:
-                    confirm_absence()
+                    # Removal status is advisory, including success: ownership
+                    # ends only after inventory confirms physical absence.
+                    bounded('rm', '--force', name, check=False)
+                confirm_absence()
             path.unlink()
         except Exception as error:
             previous = self.journal.get('recovery_phase') or pending.get('phase', self.journal['phase'])

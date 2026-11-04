@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -20,10 +21,30 @@ const (
 	TunnelAgentCommitHeader          = "X-P2PStream-Agent-Commit"
 	TunnelGroupHeader                = "X-P2PStream-Tunnel-Group"
 	TunnelLaneHeader                 = "X-P2PStream-Tunnel-Lane"
+	TunnelFlowControlHeader          = "X-P2PStream-Tunnel-Flow-Control"
+	TunnelLaneRoleHeader             = "X-P2PStream-Tunnel-Lane-Role"
+	TunnelSessionWindowHeader        = "X-P2PStream-Tunnel-Session-Window"
+	TunnelSessionWindowMaxHeader     = "X-P2PStream-Tunnel-Session-Window-Max"
+	TunnelAllocationWindowHeader     = "X-P2PStream-Tunnel-Allocation-Window"
+	TunnelAllocationWindowMaxHeader  = "X-P2PStream-Tunnel-Allocation-Window-Max"
+	TunnelDataFrameMaxHeader         = "X-P2PStream-Tunnel-Data-Frame-Max"
 	DefaultParallelTunnels           = 4
 	MaxParallelTunnels               = 32
-	TunnelCapacityModeAdaptive       = "adaptive"
-	TunnelCapacityModeFixed          = "fixed"
+	// MaxTunnelLaneSlots includes lane zero, which becomes the dedicated
+	// control lane when aggregate flow control is negotiated. Aggregate bulk
+	// lane IDs are 1..MaxParallelTunnels; legacy IDs remain 0..N-1.
+	MaxTunnelLaneSlots           = MaxParallelTunnels + 1
+	TunnelCapacityModeAdaptive   = "adaptive"
+	TunnelCapacityModeFixed      = "fixed"
+	TunnelFlowControlAggregateV1 = "aggregate-v1"
+	TunnelLaneRoleControl        = "control"
+	TunnelLaneRoleBulk           = "bulk"
+
+	AggregateInitialSessionWindowBytes = uint32(2 * 1024 * 1024)
+	AggregateMaxSessionWindowBytes     = uint32(1024 * 1024 * 1024)
+	AggregateInitialStreamWindowBytes  = uint32(512 * 1024)
+	AggregateMaxStreamWindowBytes      = uint32(256 * 1024 * 1024)
+	AggregateMaxDataFrameBytes         = uint32(32 * 1024)
 
 	MaxControlFrameBytes = 16 * 1024
 )
@@ -31,6 +52,17 @@ const (
 // The extension is acknowledged before an agent starts additional connections.
 // Old peers therefore retain their single authenticated tunnel unchanged.
 func ParseTunnelLane(group, rawLane string) (string, int, error) {
+	return parseTunnelLane(group, rawLane, false)
+}
+
+// ParseAggregateTunnelLane accepts the dedicated control lane zero and bulk
+// lanes 1..MaxParallelTunnels. The separate parser keeps the legacy lane
+// boundary unchanged for mixed-version peers.
+func ParseAggregateTunnelLane(group, rawLane string) (string, int, error) {
+	return parseTunnelLane(group, rawLane, true)
+}
+
+func parseTunnelLane(group, rawLane string, aggregate bool) (string, int, error) {
 	if group == "" && rawLane == "" {
 		return "", 0, nil
 	}
@@ -43,10 +75,140 @@ func ParseTunnelLane(group, rawLane string) (string, int, error) {
 		}
 	}
 	lane, err := strconv.Atoi(rawLane)
-	if err != nil || lane < 0 || lane >= MaxParallelTunnels {
+	maximum := MaxParallelTunnels - 1
+	if aggregate {
+		maximum = MaxParallelTunnels
+	}
+	if err != nil || lane < 0 || lane > maximum {
 		return "", 0, errors.New("invalid tunnel lane")
 	}
 	return group, lane, nil
+}
+
+// AggregateFlowControlConfig is a versioned, symmetric wire contract. Local
+// resource policy may decline or delay growth below these maxima, but peers
+// must agree on the same ceilings before either side starts Yamux.
+type AggregateFlowControlConfig struct {
+	InitialSessionWindow uint32
+	MaxSessionWindow     uint32
+	InitialStreamWindow  uint32
+	MaxStreamWindow      uint32
+	MaxDataFrame         uint32
+}
+
+func DefaultAggregateFlowControlConfig() AggregateFlowControlConfig {
+	return AggregateFlowControlConfig{
+		InitialSessionWindow: AggregateInitialSessionWindowBytes,
+		MaxSessionWindow:     AggregateMaxSessionWindowBytes,
+		InitialStreamWindow:  AggregateInitialStreamWindowBytes,
+		MaxStreamWindow:      AggregateMaxStreamWindowBytes,
+		MaxDataFrame:         AggregateMaxDataFrameBytes,
+	}
+}
+
+func (c AggregateFlowControlConfig) Equal(other AggregateFlowControlConfig) bool {
+	return c == other
+}
+
+// SetAggregateFlowControlHeaders writes the complete extension contract. A
+// partial offer is never interpreted as a downgrade because that could make
+// the two endpoints account different receive promises.
+func SetAggregateFlowControlHeaders(headers http.Header, role string, config AggregateFlowControlConfig) {
+	headers.Set(TunnelFlowControlHeader, TunnelFlowControlAggregateV1)
+	headers.Set(TunnelLaneRoleHeader, role)
+	headers.Set(TunnelSessionWindowHeader, strconv.FormatUint(uint64(config.InitialSessionWindow), 10))
+	headers.Set(TunnelSessionWindowMaxHeader, strconv.FormatUint(uint64(config.MaxSessionWindow), 10))
+	headers.Set(TunnelAllocationWindowHeader, strconv.FormatUint(uint64(config.InitialStreamWindow), 10))
+	headers.Set(TunnelAllocationWindowMaxHeader, strconv.FormatUint(uint64(config.MaxStreamWindow), 10))
+	headers.Set(TunnelDataFrameMaxHeader, strconv.FormatUint(uint64(config.MaxDataFrame), 10))
+}
+
+// ParseAggregateFlowControlHeaders returns enabled=false only when every
+// extension header is absent. Duplicate, partial and non-canonical offers are
+// rejected because all public upgrade headers are attacker-controlled.
+func ParseAggregateFlowControlHeaders(headers http.Header) (config AggregateFlowControlConfig, role string, enabled bool, err error) {
+	names := [...]string{
+		TunnelFlowControlHeader,
+		TunnelLaneRoleHeader,
+		TunnelSessionWindowHeader,
+		TunnelSessionWindowMaxHeader,
+		TunnelAllocationWindowHeader,
+		TunnelAllocationWindowMaxHeader,
+		TunnelDataFrameMaxHeader,
+	}
+	values := make([]string, len(names))
+	present := false
+	for i, name := range names {
+		var ok bool
+		values[i], ok, err = singleTunnelHeader(headers, name)
+		if err != nil {
+			return AggregateFlowControlConfig{}, "", false, err
+		}
+		present = present || ok
+	}
+	if !present {
+		return AggregateFlowControlConfig{}, "", false, nil
+	}
+	for i, value := range values {
+		if value == "" {
+			return AggregateFlowControlConfig{}, "", false, fmt.Errorf("incomplete aggregate flow-control header %s", names[i])
+		}
+	}
+	if values[0] != TunnelFlowControlAggregateV1 {
+		return AggregateFlowControlConfig{}, "", false, fmt.Errorf("unsupported tunnel flow control %q", values[0])
+	}
+	role = values[1]
+	if role != TunnelLaneRoleControl && role != TunnelLaneRoleBulk {
+		return AggregateFlowControlConfig{}, "", false, fmt.Errorf("invalid tunnel lane role %q", role)
+	}
+	parsed := make([]uint32, 5)
+	for i, raw := range values[2:] {
+		value, parseErr := strconv.ParseUint(raw, 10, 32)
+		if parseErr != nil || value == 0 || strconv.FormatUint(value, 10) != raw {
+			return AggregateFlowControlConfig{}, "", false, fmt.Errorf("invalid aggregate flow-control header %s", names[i+2])
+		}
+		parsed[i] = uint32(value)
+	}
+	config = AggregateFlowControlConfig{
+		InitialSessionWindow: parsed[0],
+		MaxSessionWindow:     parsed[1],
+		InitialStreamWindow:  parsed[2],
+		MaxStreamWindow:      parsed[3],
+		MaxDataFrame:         parsed[4],
+	}
+	if !config.Equal(DefaultAggregateFlowControlConfig()) {
+		return AggregateFlowControlConfig{}, "", false, errors.New("unsupported aggregate flow-control values")
+	}
+	return config, role, true, nil
+}
+
+// ParseTunnelLaneHeaders applies duplicate checks before selecting the lane
+// boundary for the negotiated protocol mode.
+func ParseTunnelLaneHeaders(headers http.Header, aggregate bool) (string, int, error) {
+	group, _, err := singleTunnelHeader(headers, TunnelGroupHeader)
+	if err != nil {
+		return "", 0, err
+	}
+	lane, _, err := singleTunnelHeader(headers, TunnelLaneHeader)
+	if err != nil {
+		return "", 0, err
+	}
+	return parseTunnelLane(group, lane, aggregate)
+}
+
+func singleTunnelHeader(headers http.Header, name string) (string, bool, error) {
+	values := headers.Values(name)
+	if len(values) == 0 {
+		return "", false, nil
+	}
+	if len(values) != 1 {
+		return "", false, fmt.Errorf("duplicate tunnel header %s", name)
+	}
+	value := strings.TrimSpace(values[0])
+	if value == "" {
+		return "", true, nil
+	}
+	return value, true, nil
 }
 
 func ParseCapacityMode(value string) (string, error) {
