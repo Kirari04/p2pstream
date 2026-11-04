@@ -5,11 +5,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"p2pstream/internal/serverupdate"
+	"p2pstream/internal/server"
 )
 
 func setupServerGuardConfig(t *testing.T) string {
@@ -32,7 +31,7 @@ func setupServerGuardConfig(t *testing.T) string {
 
 func TestServerConfigWaitsForDataLeaseBeforeAnyConfigWrites(t *testing.T) {
 	data := setupServerGuardConfig(t)
-	lease, err := serverupdate.AcquireRuntimeLease(context.Background(), data)
+	lease, err := server.AcquireDataLease(context.Background(), data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,22 +45,37 @@ func TestServerConfigWaitsForDataLeaseBeforeAnyConfigWrites(t *testing.T) {
 	assertServerGuardNoConfigWrites(t, data)
 }
 
-func TestBlockedServerConfigFailsBeforeAnyConfigWritesAndReleasesLease(t *testing.T) {
+func TestStandaloneServerConfigIgnoresObsoleteUpdateState(t *testing.T) {
 	data := setupServerGuardConfig(t)
-	owner := serverupdate.RuntimeOwner{API: serverupdate.RuntimeProtocol, InstanceID: "2cdd2454-3a41-421e-ab22-a1346a32a629", Generation: "b44a12d5-9fb9-4433-b5db-b6f1503e5d27", Allowed: false, Version: "v1.2.3", Commit: strings.Repeat("a", 40)}
-	if err := serverupdate.WriteRuntimeOwner(data, owner); err != nil {
+	for _, name := range []string{".p2pstream-runtime-owner.json", "server-installation-id", "maintenance"} {
+		if err := os.WriteFile(filepath.Join(data, name), []byte("obsolete updater state"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("SERVER_UPDATE_RUNTIME_PROTOCOL", "obsolete")
+	t.Setenv("SERVER_UPDATE_TOKEN_FILE", "/missing/token")
+	t.Setenv("SERVER_UPDATE_GATE_FILE", filepath.Join(data, "maintenance"))
+	_, lease, err := loadServerConfig(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+}
+
+func TestServerConfigFailureReleasesDataLease(t *testing.T) {
+	data := setupServerGuardConfig(t)
+	if err := os.WriteFile("p2pstream.db", nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 	_, lease, err := loadServerConfig(context.Background())
 	if err == nil || lease != nil {
-		t.Fatalf("blocked startup = %v, lease=%v", err, lease)
+		t.Fatalf("legacy database config = %v, lease=%v", err, lease)
 	}
-	assertServerGuardNoConfigWrites(t, data)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	lease, err = serverupdate.AcquireRuntimeLease(ctx, data)
+	lease, err = server.AcquireDataLease(ctx, data)
 	if err != nil {
-		t.Fatalf("rejected startup leaked runtime lease: %v", err)
+		t.Fatalf("failed startup leaked data lease: %v", err)
 	}
 	defer lease.Close()
 }
@@ -81,7 +95,7 @@ func TestStandaloneServerConfigHoldsLifetimeDataLease(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
-	if other, err := serverupdate.AcquireRuntimeLease(ctx, data); !errors.Is(err, context.DeadlineExceeded) {
+	if other, err := server.AcquireDataLease(ctx, data); !errors.Is(err, context.DeadlineExceeded) {
 		_ = other.Close()
 		t.Fatalf("standalone server did not retain lease: %v", err)
 	}

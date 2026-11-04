@@ -67,12 +67,12 @@ Capacity diagnostics report `StreamChargeBytes` as the admitted stream base,
 not total worst-case stream memory. Aggregate session pools and legacy receive
 windows are reported under the fixed `receive_window` owner. A negotiated group
 uses one dedicated control lane (at most four control streams) plus four bulk
-lanes by default. A legacy physical lane preserves the bounded 256-stream accept
+lanes by default. A legacy physical lane uses a bounded 64-stream accept
 backlog, one synchronously admitted transition, and 16 bounded graceful
 rejections. At the default 512 KiB initial window, that legacy session envelope
-reserves about 173.2 MiB per physical lane before admitted-stream supplements;
+reserves about 35.54 MiB per physical lane before admitted-stream supplements;
 the fixed envelope does not shrink for a lower negotiated stream limit. The
-legacy default remains four physical lanes (about 692.8 MiB of session
+legacy default remains four physical lanes (about 142.17 MiB of session
 envelopes), so a low-memory agent can refuse a legacy lane when it cannot make
 that full compatibility promise. New agents and servers use aggregate-v1 to
 avoid that legacy idle cost.

@@ -1,4 +1,4 @@
-.PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-server-updater-test docker-test docs-screenshots frontend-build frontend-e2e frontend-sites-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
+.PHONY: all build backend-build clean dev dev-token-check docker-build docker-race-test docker-smoke docker-smoke-clean docker-test docs-screenshots frontend-build frontend-e2e frontend-sites-e2e frontend-install generate generate-proto generate-sqlc legal-notices run schema-check sqlc test verify verify-clean-tree
 
 # Docker smoke owns its disposable credentials and never loads application .env.
 ifeq (,$(filter docker-smoke docker-smoke-clean,$(MAKECMDGOALS)))
@@ -113,9 +113,6 @@ docker-race-test:
 docker-smoke:
 	@scripts/run-docker-smoke.sh
 
-docker-server-updater-test:
-	@scripts/test-server-updater.sh
-
 docker-smoke-clean:
 	@scripts/run-docker-smoke.sh clean
 
@@ -135,15 +132,12 @@ verify-clean-tree:
 verify: verify-clean-tree
 	@$(MAKE) generate
 	@$(MAKE) verify-clean-tree
-	@sh -n scripts/setup-server-updater.sh
 	@sh -n scripts/local-dev-env.sh
-	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/install-server-updater.sh scripts/server-updater-compose.sh scripts/test-server-updater.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do \
+	@for script in scripts/install-agent.sh scripts/uninstall-agent.sh scripts/run-docker-smoke.sh scripts/test-sites-e2e-server.sh; do \
 		bash -n "$$script" || exit 1; \
 	done
 	@scripts/test-agent-lifecycle.sh
-	@python3 -I scripts/test-server-updater-host.py
-	@python3 -I scripts/test-server-lifecycle-harness.py
-	@python3 -I scripts/test-setup-server-updater.py
+	@python3 -I scripts/test-download-docker-release.py
 	@python3 -I scripts/test-docker-smoke-runner.py
 	@python3 -I scripts/test-local-fixtures.py
 	@go test ./...

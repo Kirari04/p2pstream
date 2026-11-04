@@ -38,7 +38,6 @@ const allNavigationDestinations = [
   "Environments",
   "API tokens",
   "Management TLS",
-  "Server updates",
 ] as const;
 
 async function openAuthenticatedShell(
@@ -232,7 +231,7 @@ test("opens complete mobile navigation, restores focus, and closes after navigat
   }
 
   await page.keyboard.press("Shift+Tab");
-  await expect(sidebar.getByRole("link", { name: "Server updates", exact: true })).toBeFocused();
+  await expect(sidebar.getByRole("link", { name: "Management TLS", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(sidebar.getByRole("link", { name: "p2pstream overview" })).toBeFocused();
 

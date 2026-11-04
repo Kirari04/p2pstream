@@ -47,6 +47,8 @@ Docker bases retain multiarch manifest digest pins verified from Docker Hub's
 registry API. The Go tag's current index differs from the older index in #348;
 use the verified current index, not an unverified copied digest.
 
+> Historical qualification: the Docker updater details below describe the dependency update before server-updater removal. The updater image, host controller and `docker-server-updater-test` target have since been removed; server upgrades now follow [Upgrades](../operations/upgrades).
+
 [Docker 29 release notes](https://docs.docker.com/engine/release-notes/29/) and
 [API version history](https://docs.docker.com/reference/api/engine/)
 are the upstream compatibility references. Updater operations invoke Docker CLI
