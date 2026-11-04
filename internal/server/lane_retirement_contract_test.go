@@ -16,7 +16,7 @@ import (
 )
 
 func TestRealLaneRetirementRejectsInvalidOffersWithoutDisplacement(t *testing.T) {
-	f := newRealAgentProxyFixture(t, 1, 2<<20, 0)
+	f := newRealAgentProxyFixture(t, 1, 2<<20, 0, 100*time.Millisecond)
 	old := f.agent.tunnelSession(1)
 	owner := f.agent.tunnelOwners.Find(old)
 	baseline := f.agent.tunnelOwners.ReservedBytes()
@@ -78,6 +78,7 @@ func TestRealLaneRetirementRejectsInvalidOffersWithoutDisplacement(t *testing.T)
 			}
 		})
 	}
+	awaitLaneRetirement(t, "predecessor not idle", func() bool { return owner.IdleFor(100 * time.Millisecond) })
 	// An authenticated candidate that fails readiness must join before returning
 	// its overlap owner, while leaving the exact serving predecessor untouched.
 	for range 3 {

@@ -1,8 +1,10 @@
 package tunnel
 
 import (
+	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/yamux"
 )
@@ -52,6 +54,9 @@ type LaneOwner struct {
 	once         sync.Once
 	openings     sync.WaitGroup
 	openingCount int
+	openingsDone chan struct{}
+	activity     uint64
+	idleSince    time.Time
 	application  map[*yamux.Stream]struct{}
 }
 
@@ -156,6 +161,32 @@ func (o *LaneOwner) Attach(s *yamux.Session, reserve func(int64) (func(), bool))
 
 // Publish occurs only after the replacement's handshake/session is ready.
 func (o *LaneOwner) Publish() (*LaneOwner, bool) {
+	return o.publish(nil, 0, false)
+}
+
+// PublishWhenIdle revalidates the quiescence observation under the same mutex
+// as BeginOpen. No Yamux lock is acquired under the ownership mutex.
+func (o *LaneOwner) PublishWhenIdle(quiet time.Duration) (*LaneOwner, bool) {
+	g := o.group
+	g.mu.Lock()
+	slot := g.lanes[o.lane]
+	if g.closed || o.closed || slot == nil {
+		g.mu.Unlock()
+		return nil, false
+	}
+	old := slot.serving
+	g.mu.Unlock()
+	if old == nil {
+		return o.publish(nil, 0, true)
+	}
+	epoch, ok := old.idleObservation(quiet)
+	if !ok {
+		return nil, false
+	}
+	return o.publish(old, epoch, true)
+}
+
+func (o *LaneOwner) publish(expected *LaneOwner, epoch uint64, idleOnly bool) (*LaneOwner, bool) {
 	g := o.group
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -164,6 +195,9 @@ func (o *LaneOwner) Publish() (*LaneOwner, bool) {
 	}
 	slot := g.lanes[o.lane]
 	old := slot.serving
+	if idleOnly && (old != expected || old != nil && (old.activity != epoch || old.openingCount != 0 || len(old.application) != 0)) {
+		return nil, false
+	}
 	if old == o {
 		return nil, true
 	}
@@ -303,6 +337,11 @@ func (o *LaneOwner) BeginOpen() bool {
 	if o.closed || o.group.closed || o.state != LaneServing {
 		return false
 	}
+	o.activity++
+	o.idleSince = time.Time{}
+	if o.openingCount == 0 {
+		o.openingsDone = make(chan struct{})
+	}
 	o.openings.Add(1)
 	o.openingCount++
 	return true
@@ -316,6 +355,11 @@ func (o *LaneOwner) FinishOpen(stream *yamux.Stream) (func(), bool) {
 	defer func() {
 		o.group.mu.Lock()
 		o.openingCount--
+		o.activity++
+		o.idleSince = time.Time{}
+		if o.openingCount == 0 {
+			close(o.openingsDone)
+		}
 		o.group.mu.Unlock()
 		o.openings.Done()
 	}()
@@ -336,7 +380,15 @@ func (o *LaneOwner) FinishOpen(stream *yamux.Stream) (func(), bool) {
 	o.application[stream] = struct{}{}
 	g.mu.Unlock()
 	var once sync.Once
-	return func() { once.Do(func() { g.mu.Lock(); delete(o.application, stream); g.mu.Unlock() }) }, true
+	return func() {
+		once.Do(func() {
+			g.mu.Lock()
+			delete(o.application, stream)
+			o.activity++
+			o.idleSince = time.Time{}
+			g.mu.Unlock()
+		})
+	}, true
 }
 
 // Quiescent includes application owners detached by FIN/FIN and outstanding
@@ -368,4 +420,67 @@ func (g *LaneOwners) Predecessor(lane int, id string) *LaneOwner {
 		}
 	}
 	return nil
+}
+
+// IdleFor starts the quiet period only once both application and receive
+// ownership have drained. Pooled HTTP keep-alives remain application owners
+// until their idle timeout and FIN disposal complete.
+func (o *LaneOwner) IdleFor(quiet time.Duration) bool {
+	_, ok := o.idleObservation(quiet)
+	return ok
+}
+func (o *LaneOwner) idleObservation(quiet time.Duration) (uint64, bool) {
+	g := o.group
+	g.mu.Lock()
+	epoch, session := o.activity, o.session
+	empty := !g.closed && !o.closed && o.openingCount == 0 && len(o.application) == 0
+	g.mu.Unlock()
+	drained := empty && session != nil && session.ReceiveOwnersDrained()
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if !drained || o.activity != epoch || g.closed || o.closed {
+		if !o.idleSince.IsZero() {
+			o.activity++
+		}
+		o.idleSince = time.Time{}
+		return 0, false
+	}
+	if o.idleSince.IsZero() {
+		o.idleSince = time.Now()
+	}
+	return epoch, time.Since(o.idleSince) >= quiet
+}
+
+// AcknowledgeOpeningFence joins all pre-publication Open calls before asking
+// the old wire's reader to acknowledge them. Publish must have fenced BeginOpen
+// and the routing projection must have called StopOpening first. In particular
+// a priority Ping alone cannot overtake an Open whose SYN has not been sent yet.
+// No helper goroutine, ownership/projection lock, or lifetime refund is involved.
+func (o *LaneOwner) AcknowledgeOpeningFence(ctx context.Context) error {
+	g := o.group
+	g.mu.Lock()
+	if o.state != LaneDraining {
+		g.mu.Unlock()
+		return ErrLaneOwnerUnavailable
+	}
+	session, done, pending := o.session, o.openingsDone, o.openingCount != 0
+	g.mu.Unlock()
+	if session == nil {
+		return ErrLaneOwnerUnavailable
+	}
+	session.StopOpening() // idempotent local fence; never hold group.mu across it
+	if pending {
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-session.CloseChan():
+			return yamux.ErrSessionShutdown
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	_, err := session.Ping() // bounded by the session's ConnectionWriteTimeout
+	return err
 }

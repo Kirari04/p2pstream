@@ -157,13 +157,15 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 }
 
 type App struct {
-	agentTunnelRetirementInterval time.Duration // immutable before serving; zero uses production default
-	InstallationID                string
-	installationMu                sync.Mutex
-	installationCommand           string
-	installationError             string
-	installationChecked           time.Time
-	installationExpires           time.Time
+	agentTunnelWrapConn                func(int, net.Conn) net.Conn // immutable test transport, nil in production
+	agentTunnelBeforeRetirementPublish func()                       // immutable test barrier, nil in production
+	agentTunnelRetirementInterval      time.Duration                // immutable before serving; zero uses production default
+	InstallationID                     string
+	installationMu                     sync.Mutex
+	installationCommand                string
+	installationError                  string
+	installationChecked                time.Time
+	installationExpires                time.Time
 
 	serverUpdateMu sync.RWMutex
 
@@ -883,6 +885,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	var predecessor *tunnel.LaneOwner
+	retirementQuiet := tunnel.DefaultLaneRetirementInterval
+	if a.agentTunnelRetirementInterval > 0 {
+		retirementQuiet = a.agentTunnelRetirementInterval
+	}
 	if retirement && replacesID != "" {
 		if a.isAgentUpdateCordoned(agent.AgentID) {
 			http.Error(w, "agent update drain in progress", http.StatusServiceUnavailable)
@@ -893,9 +900,14 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "lane replacement no longer current", http.StatusConflict)
 			return
 		}
+		predecessor = owner
 		grown := r.Header.Values(tunnel.LaneGrowthHeader)
 		if len(grown) > 1 || len(grown) == 1 && grown[0] != "1" {
 			http.Error(w, "invalid lane growth hint", http.StatusBadRequest)
+			return
+		}
+		if owner.State() == tunnel.LaneServing && !owner.IdleFor(retirementQuiet) {
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		if len(grown) == 0 && owner.State() == tunnel.LaneServing && owner.Session().AggregateReceiveWindowStats().ReceiveLimit <= tunnel.AggregateInitialSessionWindowBytes {
@@ -1061,7 +1073,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	// GoAway has set localGoAway so even a SYN sent during session setup is RST
 	// instead of entering the unbudgeted accept backlog.
 	gatedConn := &agentTunnelReadGateConn{Conn: rawConn, ready: make(chan struct{})}
-	session, err := yamux.Server(gatedConn, yamuxConfig)
+	sessionConn := net.Conn(gatedConn)
+	if a.agentTunnelWrapConn != nil {
+		sessionConn = a.agentTunnelWrapConn(lane, sessionConn)
+	}
+	session, err := yamux.Server(sessionConn, yamuxConfig)
 	if err != nil {
 		gatedConn.releaseReads()
 		_ = rawConn.Close()
@@ -1137,10 +1153,20 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	if !joiningGroup {
 		agent.Session = session
 	}
+	if predecessor != nil && a.agentTunnelBeforeRetirementPublish != nil {
+		a.agentTunnelBeforeRetirementPublish()
+	}
 	var old *yamux.Session
 	if laneOwner != nil {
 		var installed bool
-		old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
+		if predecessor != nil && predecessor.State() == tunnel.LaneServing {
+			if a.isAgentUpdateCordoned(agent.AgentID) {
+				return
+			}
+			old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource, retirementQuiet)
+		} else {
+			old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
+		}
 		if !installed {
 			_ = session.Close()
 			return
@@ -1156,6 +1182,23 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if readiness != nil {
+		if predecessor != nil {
+			// Publication fenced BeginOpen and StopOpening. The old-wire ack must
+			// precede commit on this independent connection. Release auth serialization
+			// so revocation can close both sessions while the bounded barrier waits.
+			unlockAgentAuth()
+			barrierCtx, cancelBarrier := context.WithTimeout(r.Context(), 10*time.Second)
+			barrierErr := predecessor.AcknowledgeOpeningFence(barrierCtx)
+			cancelBarrier()
+			if barrierErr != nil && !predecessor.Session().IsClosed() {
+				_ = session.Close()
+				agent.removeTunnel(lane, session)
+				a.AgentTransports.closeTunnelLane(agent, lane)
+				return
+			}
+			// A physically failed old session has no unseen viable openings. Recovery
+			// may commit the new route; the old owner retains its cleanup/refund duty.
+		}
 		if err := tunnel.CommitLaneRetirement(readiness); err != nil {
 			_ = session.Close()
 			agent.removeTunnel(lane, session)

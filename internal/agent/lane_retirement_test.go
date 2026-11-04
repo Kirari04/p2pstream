@@ -56,6 +56,10 @@ func TestAgentLaneRetirementReclaimsGrownPoolAfterFINDrain(t *testing.T) {
 		}
 		peer := <-created
 		mu.Lock()
+		var predecessor *yamux.Session
+		if len(peers) != 0 {
+			predecessor = peers[len(peers)-1]
+		}
 		peers = append(peers, peer)
 		mu.Unlock()
 		readyPeers <- peer
@@ -64,6 +68,15 @@ func TestAgentLaneRetirementReclaimsGrownPoolAfterFINDrain(t *testing.T) {
 			defer handshakes.Done()
 			stream, err := tunnel.PrepareLaneRetirement(peer, id)
 			if err == nil {
+				if predecessor != nil {
+					// This fixture has no outstanding Open calls at readiness. Model the
+					// corrected server's local fence and old-wire acknowledgment.
+					predecessor.StopOpening()
+					if _, err := predecessor.Ping(); err != nil {
+						stream.Reset()
+						return
+					}
+				}
 				tunnel.CommitLaneRetirement(stream)
 			}
 		}()

@@ -121,9 +121,9 @@ func testRealAggregateRetirement(t *testing.T, ending string) {
 		}
 		f.app.clearAgentUpdateCordon(f.agent.AgentID)
 	}
-	awaitLaneRetirement(t, "replacement not serving", func() bool { return f.agent.tunnelSession(1) != old })
+	time.Sleep(650 * time.Millisecond) // active traffic must survive multiple idle probes
 	replacement := f.agent.tunnelSession(1)
-	if old.IsClosed() || owner.State() != tunnel.LaneDraining {
+	if replacement != old || old.IsClosed() || owner.State() != tunnel.LaneServing {
 		t.Fatal("active old lane truncated")
 	}
 	if f.agent.tunnelAggregateGrowth(1, old) != owner.Growth() {
@@ -132,8 +132,8 @@ func testRealAggregateRetirement(t *testing.T, ending string) {
 	if f.app.agentUpdateAgentDrained(f.agent.AgentID) {
 		t.Fatal("updater ignored draining owner")
 	}
-	// Keep the old request active past several rotation periods. No third owner
-	// may accumulate, while fresh real public requests complete on replacement.
+	// Keep the grown lane active past several probe periods. Automatic retirement
+	// must preserve it, including while pooled public requests continue.
 
 	for i := 0; i < 5; i++ {
 		payload := bytes.Repeat([]byte{byte(i + 1)}, 64<<10)
@@ -157,7 +157,7 @@ func testRealAggregateRetirement(t *testing.T, ending string) {
 		if err != nil || resp.StatusCode != 200 || string(body) != "ok" {
 			t.Fatalf("fresh public response %d %q %v", resp.StatusCode, body, err)
 		}
-		if f.agent.tunnelSession(1) != replacement || len(f.agent.tunnelOwners.Snapshot()) != 3 {
+		if f.agent.tunnelSession(1) != replacement || len(f.agent.tunnelOwners.Snapshot()) != 2 {
 			t.Fatal("unbounded replacement while old drains")
 		}
 		time.Sleep(100 * time.Millisecond)
@@ -223,6 +223,7 @@ func testRealAggregateRetirement(t *testing.T, ending string) {
 		t.Fatalf("active HTTP body truncated across replacement: %v", err)
 	}
 	conn.Close()
+	f.app.CloseAgentTransports() // explicitly dispose idle HTTP keep-alives in this lifecycle test
 	awaitLaneRetirement(t, "grown pool/lease not reclaimed", func() bool {
 		return old.AggregateReceiveWindowStats().Closed && old.AggregateReceiveWindowStats().TotalUnits == 0 && f.agent.tunnelOwners.ReservedBytes() == baseline
 	})

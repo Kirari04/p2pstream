@@ -25,6 +25,36 @@ process RSS has fallen. A session can retain grown capacity until retirement.
 Legacy peers instead require per-stream receive reservations and a conservative
 accepted-stream backlog allowance.
 
+Grown lanes rotate only after the server observes no outstanding opens,
+application-owned streams or unread receive buffers for a full 30-second quiet
+period. Publication rechecks that observation against renewed ownership. Idle
+HTTP keep-alives still own streams until the existing 30-second idle timeout and
+FIN/disposal finish; requests that keep a connection alive remain useful traffic.
+With healthy peers and successful replacement admission, reclamation follows
+complete disposal within two 30-second probe periods plus handshake/cleanup time.
+The TCP idle timeout and any FIN timeout precede that bound. Denied handshakes
+retain the serving lane and its reservations; they never authorize truncation.
+Lane and generation pool caps and pressure policy remain unchanged.
+
+Replacement commit also certifies the old connection's opening fence: the server
+stops new opens, joins previously admitted SYN publications, then obtains an
+old-wire Ping acknowledgment before committing over the new connection. A Ping
+alone could precede an unfinished opening. No ownership or routing mutex is held
+while joining or pinging, and the waits have bounded cancellation/write timeouts.
+The new routing projection is installed before that barrier; ordinary idle
+rotation has no application openings to join. A failed barrier discards the new
+connection, retaining the old owner's cleanup responsibility and permitting
+already-draining predecessor recovery. A physically failed predecessor cannot
+carry viable unseen work and does not prevent recovery commit.
+
+This uses existing HTTP/Yamux wire semantics. Corrected servers enforce the
+stronger commit ordering for existing retirement-capable agents; agent-side
+GoAway and unread-FIN reclamation remain unchanged. Released legacy peers do not
+negotiate this retirement path. A corrected agent connected to an older,
+uncorrected aggregate development server still has that server's original
+retirement behavior; this change does not claim to repair such a server remotely.
+
+
 A request can wait for a reusable connection or tunnel admission until the
 configured queue deadline or its own earlier deadline. Protected health work has
 a separate bounded admission path; local saturation can skip a probe without

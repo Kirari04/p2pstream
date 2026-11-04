@@ -85,8 +85,9 @@ func PrepareLaneRetirement(session *yamux.Session, id string) (*yamux.Stream, er
 	return stream, nil
 }
 
-// Commit follows the atomic server routing switch. Until this byte arrives the
-// agent cannot GoAway/cancel its old lane, avoiding a healthy handoff gap.
+// Commit follows the atomic server routing switch and, for replacement, the
+// predecessor's joined opening fence and old-wire acknowledgment. Until this byte
+// arrives the agent cannot GoAway/cancel its old lane.
 func CommitLaneRetirement(stream *yamux.Stream) error {
 	_, err := stream.Write([]byte{2})
 	stream.Close()

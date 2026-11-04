@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/yamux"
 
@@ -271,10 +272,14 @@ func (a *App) cleanupAgentTunnel(agent *AgentConn, lane int, session *yamux.Sess
 // Publish routing and the local Open fence under the same projection lock.
 // Requests selected before this edge may retry one unopened stream on the new
 // owner; established requests retain the old session and growth object.
-func (a *AgentConn) installOwnedTunnel(lane int, owner *tunnel.LaneOwner, resource agentTunnelOwnedResource) (*yamux.Session, bool) {
+func (a *AgentConn) installOwnedTunnel(lane int, owner *tunnel.LaneOwner, resource agentTunnelOwnedResource, idle ...time.Duration) (*yamux.Session, bool) {
 	a.tunnelMu.Lock()
 	defer a.tunnelMu.Unlock()
-	if _, ok := owner.Publish(); !ok {
+	publish := owner.Publish
+	if len(idle) != 0 {
+		publish = func() (*tunnel.LaneOwner, bool) { return owner.PublishWhenIdle(idle[0]) }
+	}
+	if _, ok := publish(); !ok {
 		return nil, false
 	}
 	old := a.tunnels[lane]

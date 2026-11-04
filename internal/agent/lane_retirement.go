@@ -96,7 +96,9 @@ func serveRetiringTunnelLane(ctx context.Context, registration tunnelLaneRegistr
 		}
 		old, oldReady := current, ready
 		current, ready = next, nextReady
-		// This GoAway is sent by the accepting agent, newly fencing server Opens.
+		// The corrected server commits only after joining old Open publications and
+		// acknowledging them on the old wire. This GoAway is sent by the accepting
+		// agent, newly fencing server Opens.
 		// The server's setup GoAway has the opposite direction and is NOT reused.
 		_ = oldReady.session.GoAway()
 		tick := time.NewTicker(100 * time.Millisecond)
