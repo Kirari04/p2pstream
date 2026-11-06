@@ -3,7 +3,11 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -17,11 +21,41 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/acme"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 	"p2pstream/internal/config"
 	"p2pstream/internal/db"
 )
+
+func TestPublicACMECertificateRequestMatchesOrderIdentifiers(t *testing.T) {
+	for _, domain := range []string{"example.com", "*.example.com"} {
+		t.Run(domain, func(t *testing.T) {
+			key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				t.Fatalf("generate key: %v", err)
+			}
+			csrDER, err := x509.CreateCertificateRequest(rand.Reader, publicACMECertificateRequest(domain), key)
+			if err != nil {
+				t.Fatalf("create certificate request: %v", err)
+			}
+			csr, err := x509.ParseCertificateRequest(csrDER)
+			if err != nil {
+				t.Fatalf("parse certificate request: %v", err)
+			}
+			orderIDs := acme.DomainIDs(domain)
+			if len(orderIDs) != 1 || orderIDs[0].Type != "dns" {
+				t.Fatalf("order identifiers = %+v, want one DNS identifier", orderIDs)
+			}
+			if csr.Subject.CommonName != "" {
+				t.Fatalf("CSR Common Name = %q, want empty", csr.Subject.CommonName)
+			}
+			if len(csr.DNSNames) != 1 || csr.DNSNames[0] != orderIDs[0].Value {
+				t.Fatalf("CSR DNS names = %v, want exactly order identifier %q", csr.DNSNames, orderIDs[0].Value)
+			}
+		})
+	}
+}
 
 type fakeACMEIssuer struct {
 	certPEM []byte
@@ -80,8 +114,8 @@ func TestPublicACMEManagerIssuesCertificateWithFakeIssuer(t *testing.T) {
 	if updated.Status != publicTLSCertificateStatusReady || updated.CertPath == "" || updated.KeyPath == "" || !updated.ExpiresAt.Valid {
 		t.Fatalf("unexpected issued cert row: %+v", updated)
 	}
-	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMERenewBefore)) {
-		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMERenewBefore))
+	if !updated.NextRenewalAt.Valid || !updated.NextRenewalAt.Time.Equal(leaf.NotAfter.UTC().Add(-publicACMEMaxRenewBefore)) {
+		t.Fatalf("next renewal = %+v, want %s", updated.NextRenewalAt, leaf.NotAfter.UTC().Add(-publicACMEMaxRenewBefore))
 	}
 	assertServerFileBytes(t, updated.CertPath, certPEM)
 	assertServerFileBytes(t, updated.KeyPath, keyPEM)
@@ -286,6 +320,126 @@ func TestPublicTLSCertificateValidationAllowsWildcardOnlyForDNS01(t *testing.T) 
 	}
 }
 
+func TestPublicTLSCertificateValidationCanonicalizesInternationalizedHostname(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	credential, err := database.CreatePublicTlsDnsCredential(context.Background(), db.CreatePublicTlsDnsCredentialParams{
+		Name:             "cf-idna",
+		Provider:         publicDNSProviderCloudflare,
+		CloudflareZoneID: "zone",
+		ApiToken:         "token",
+		Enabled:          1,
+	})
+	if err != nil {
+		t.Fatalf("create credential: %v", err)
+	}
+	app := NewApp(&config.Config{}, database)
+	params, _, err := app.validatePublicTLSCertificateInput(
+		context.Background(),
+		listener.ID,
+		"ZÜRIBADI.ch.",
+		"",
+		"",
+		nil,
+		nil,
+		true,
+		p2pstreamv1.PublicTlsCertificateSource_PUBLIC_TLS_CERTIFICATE_SOURCE_ACME,
+		p2pstreamv1.PublicAcmeChallengeType_PUBLIC_ACME_CHALLENGE_TYPE_DNS_01,
+		p2pstreamv1.PublicAcmeCa_PUBLIC_ACME_CA_LETS_ENCRYPT_STAGING,
+		"admin@example.com",
+		credential.ID,
+		false,
+		0,
+		nil,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("validate internationalized hostname: %v", err)
+	}
+	if params.HostnamePattern != "xn--zribadi-n2a.ch" {
+		t.Fatalf("canonical hostname = %q", params.HostnamePattern)
+	}
+}
+
+func TestPublicACMECanonicalizesExistingInternationalizedMapping(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	row, err := database.CreatePublicTlsCertificate(context.Background(), db.CreatePublicTlsCertificateParams{
+		ListenerID:        listener.ID,
+		HostnamePattern:   "züribadi.ch",
+		Enabled:           1,
+		Source:            publicTLSCertificateSourceACME,
+		AcmeChallengeType: publicACMEChallengeDNS01,
+		AcmeCa:            publicACMECAStaging,
+		AcmeEmail:         "admin@example.com",
+		Status:            publicTLSCertificateStatusError,
+		LastError:         "rejectedIdentifier",
+	})
+	if err != nil {
+		t.Fatalf("create legacy mapping: %v", err)
+	}
+	manager := newPublicACMEManager(NewApp(&config.Config{}, database))
+	updated, err := manager.canonicalizeCertificateHostname(context.Background(), row)
+	if err != nil {
+		t.Fatalf("canonicalize existing mapping: %v", err)
+	}
+	if updated.HostnamePattern != "xn--zribadi-n2a.ch" {
+		t.Fatalf("canonical hostname = %q", updated.HostnamePattern)
+	}
+	persisted, err := database.GetPublicTlsCertificate(context.Background(), row.ID)
+	if err != nil {
+		t.Fatalf("reload mapping: %v", err)
+	}
+	if persisted.HostnamePattern != updated.HostnamePattern {
+		t.Fatalf("persisted hostname = %q", persisted.HostnamePattern)
+	}
+}
+
+func TestPublicACMECanonicalizationDoesNotOverwriteConcurrentEdit(t *testing.T) {
+	database := newServerTestDB(t)
+	listener := seedServerHTTPSListener(t, database)
+	stale, err := database.CreatePublicTlsCertificate(context.Background(), db.CreatePublicTlsCertificateParams{
+		ListenerID:      listener.ID,
+		HostnamePattern: "züribadi.ch",
+		Enabled:         1,
+		Source:          publicTLSCertificateSourceACME,
+		Status:          publicTLSCertificateStatusError,
+		LastError:       "existing diagnostic",
+	})
+	if err != nil {
+		t.Fatalf("create legacy mapping: %v", err)
+	}
+	if _, err := database.ExecContext(context.Background(), `UPDATE public_tls_certificates SET hostname_pattern = ? WHERE id = ?`, "edited.example", stale.ID); err != nil {
+		t.Fatalf("simulate concurrent edit: %v", err)
+	}
+	manager := newPublicACMEManager(NewApp(&config.Config{}, database))
+	if _, err := manager.canonicalizeCertificateHostname(context.Background(), stale); !errors.Is(err, errPublicACMEHostnameCanonicalizationSuperseded) {
+		t.Fatalf("canonicalize stale mapping error = %v", err)
+	}
+	persisted, err := database.GetPublicTlsCertificate(context.Background(), stale.ID)
+	if err != nil {
+		t.Fatalf("reload mapping: %v", err)
+	}
+	if persisted.HostnamePattern != "edited.example" || persisted.LastError != "existing diagnostic" {
+		t.Fatalf("concurrent edit was changed: %+v", persisted)
+	}
+}
+
+func TestACMEHostValidationRejectsLocalDefaults(t *testing.T) {
+	for _, hostname := range []string{"localhost", "p2pstream.local", "service.local", "*.service.local", "*.local", "local"} {
+		t.Run(hostname, func(t *testing.T) {
+			if err := validateACMEHostPattern(hostname, publicACMEChallengeDNS01); err == nil {
+				t.Fatal("ACME accepted a nonpublic local hostname")
+			}
+		})
+	}
+	for _, hostname := range []string{"example.com", "*.example.com", "service.local.example.com"} {
+		if err := validateACMEHostPattern(hostname, publicACMEChallengeDNS01); err != nil {
+			t.Fatalf("ACME rejected public hostname %q: %v", hostname, err)
+		}
+	}
+}
+
 func TestPublicSelfSignedCertificateGenerationUsesHostPatternSAN(t *testing.T) {
 	_, _, wildcardLeaf, err := generatePublicSelfSignedCertificatePEM("*.Example.COM", 24*time.Hour)
 	if err != nil {
@@ -385,10 +539,10 @@ func TestPublicTLSCertificateValidationRejectsInvalidSelfSignedGeneration(t *tes
 	}
 }
 
-func TestPublicProxyConfigBackfillsLegacyCertificateValidityFromFile(t *testing.T) {
+func TestPublicProxyConfigUsesPersistedCertificateValidityOnly(t *testing.T) {
 	database := newServerTestDB(t)
 	listener := seedServerHTTPSListener(t, database)
-	certPEM, keyPEM, leaf, err := generatePublicSelfSignedCertificatePEM("legacy.example.com", 24*time.Hour)
+	certPEM, keyPEM, _, err := generatePublicSelfSignedCertificatePEM("legacy.example.com", 24*time.Hour)
 	if err != nil {
 		t.Fatalf("generate legacy certificate: %v", err)
 	}
@@ -426,11 +580,8 @@ func TestPublicProxyConfigBackfillsLegacyCertificateValidityFromFile(t *testing.
 			break
 		}
 	}
-	if gotIssued == 0 || gotExpires == 0 {
-		t.Fatalf("expected legacy certificate validity from file, got issued=%d expires=%d", gotIssued, gotExpires)
-	}
-	if gotIssued != leaf.NotBefore.UnixMilli() || gotExpires != leaf.NotAfter.UnixMilli() {
-		t.Fatalf("validity = %d/%d, want %d/%d", gotIssued, gotExpires, leaf.NotBefore.UnixMilli(), leaf.NotAfter.UnixMilli())
+	if gotIssued != 0 || gotExpires != 0 {
+		t.Fatalf("certificate validity was read from file instead of persisted fields: issued=%d expires=%d", gotIssued, gotExpires)
 	}
 }
 

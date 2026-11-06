@@ -57,6 +57,145 @@ type AgentStatRollupMinute struct {
 	UpdatedAt        time.Time `json:"updated_at"`
 }
 
+type AgentUpdateAssignment struct {
+	ID                         int64        `json:"id"`
+	CampaignID                 int64        `json:"campaign_id"`
+	AgentID                    int64        `json:"agent_id"`
+	State                      string       `json:"state"`
+	DesiredAction              string       `json:"desired_action"`
+	Generation                 int64        `json:"generation"`
+	Cordoned                   int64        `json:"cordoned"`
+	FailureCode                string       `json:"failure_code"`
+	FailureDetail              string       `json:"failure_detail"`
+	AttestedManifestSha256     string       `json:"attested_manifest_sha256"`
+	AttestedBinarySha256       string       `json:"attested_binary_sha256"`
+	AttestedActivationCounter  int64        `json:"attested_activation_counter"`
+	ActivationNonceHash        string       `json:"activation_nonce_hash"`
+	AuthorizationAction        string       `json:"authorization_action"`
+	AuthorizationServerVersion string       `json:"authorization_server_version"`
+	CommandSequence            int64        `json:"command_sequence"`
+	AuthorizationNonce         []byte       `json:"authorization_nonce"`
+	AuthorizationSha256        string       `json:"authorization_sha256"`
+	AuthorizationPayload       []byte       `json:"authorization_payload"`
+	AuthorizationSignature     []byte       `json:"authorization_signature"`
+	AuthorizationIssuedAt      sql.NullTime `json:"authorization_issued_at"`
+	AuthorizationExpiresAt     sql.NullTime `json:"authorization_expires_at"`
+	RootActionCounter          int64        `json:"root_action_counter"`
+	RootActionReceiptPayload   []byte       `json:"root_action_receipt_payload"`
+	RootActionReceiptSignature []byte       `json:"root_action_receipt_signature"`
+	RootActionCompletedAt      sql.NullTime `json:"root_action_completed_at"`
+	RootResultKind             string       `json:"root_result_kind"`
+	RootResultManifestSha256   string       `json:"root_result_manifest_sha256"`
+	RootResultVersion          string       `json:"root_result_version"`
+	RootResultCommit           string       `json:"root_result_commit"`
+	RootResultReleaseSequence  int64        `json:"root_result_release_sequence"`
+	RootResultSecurityEpoch    int64        `json:"root_result_security_epoch"`
+	RootResultOs               string       `json:"root_result_os"`
+	RootResultArch             string       `json:"root_result_arch"`
+	RootResultArtifactName     string       `json:"root_result_artifact_name"`
+	RootResultArtifactSize     int64        `json:"root_result_artifact_size"`
+	RootResultArtifactSha256   string       `json:"root_result_artifact_sha256"`
+	RunningVersion             string       `json:"running_version"`
+	RunningCommit              string       `json:"running_commit"`
+	ObservedVersion            string       `json:"observed_version"`
+	ObservedCommit             string       `json:"observed_commit"`
+	ActivatedAt                sql.NullTime `json:"activated_at"`
+	FreshTunnelAt              sql.NullTime `json:"fresh_tunnel_at"`
+	HealthyAt                  sql.NullTime `json:"healthy_at"`
+	LastReportAt               sql.NullTime `json:"last_report_at"`
+	CreatedAt                  time.Time    `json:"created_at"`
+	UpdatedAt                  time.Time    `json:"updated_at"`
+}
+
+type AgentUpdateCampaign struct {
+	ID                            int64         `json:"id"`
+	Name                          string        `json:"name"`
+	State                         string        `json:"state"`
+	Generation                    int64         `json:"generation"`
+	TargetVersion                 string        `json:"target_version"`
+	TargetCommit                  string        `json:"target_commit"`
+	ManifestSha256                string        `json:"manifest_sha256"`
+	ReleaseSequence               int64         `json:"release_sequence"`
+	SecurityEpoch                 int64         `json:"security_epoch"`
+	MinimumUpdaterVersion         string        `json:"minimum_updater_version"`
+	MinimumTunnelProtocol         int64         `json:"minimum_tunnel_protocol"`
+	MaximumTunnelProtocol         int64         `json:"maximum_tunnel_protocol"`
+	ArtifactsJson                 string        `json:"artifacts_json"`
+	MaxUnavailable                int64         `json:"max_unavailable"`
+	MinimumEligibleAgentsPerRoute int64         `json:"minimum_eligible_agents_per_route"`
+	CanaryCount                   int64         `json:"canary_count"`
+	WaveSize                      int64         `json:"wave_size"`
+	HealthyDwellMillis            int64         `json:"healthy_dwell_millis"`
+	CreatedByUserID               sql.NullInt64 `json:"created_by_user_id"`
+	CreatedAt                     time.Time     `json:"created_at"`
+	UpdatedAt                     time.Time     `json:"updated_at"`
+	CompletedAt                   sql.NullTime  `json:"completed_at"`
+}
+
+type AgentUpdateEvent struct {
+	ID           int64         `json:"id"`
+	CampaignID   int64         `json:"campaign_id"`
+	AssignmentID sql.NullInt64 `json:"assignment_id"`
+	AgentID      sql.NullInt64 `json:"agent_id"`
+	Kind         string        `json:"kind"`
+	Detail       string        `json:"detail"`
+	CreatedAt    time.Time     `json:"created_at"`
+}
+
+type AgentUpdateManagementAuthority struct {
+	ID        int64     `json:"id"`
+	KeyID     string    `json:"key_id"`
+	PublicKey []byte    `json:"public_key"`
+	Epoch     int64     `json:"epoch"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AgentUpdaterEnrollmentToken struct {
+	ID                   int64        `json:"id"`
+	AgentID              int64        `json:"agent_id"`
+	TokenHash            string       `json:"token_hash"`
+	PinnedRepository     string       `json:"pinned_repository"`
+	AuthorityKeyID       string       `json:"authority_key_id"`
+	AuthorityEpoch       int64        `json:"authority_epoch"`
+	EnrollmentGeneration int64        `json:"enrollment_generation"`
+	ExpiresAt            time.Time    `json:"expires_at"`
+	UsedAt               sql.NullTime `json:"used_at"`
+	ReceiptExpiresAt     sql.NullTime `json:"receipt_expires_at"`
+	UpdaterKeyID         string       `json:"updater_key_id"`
+	ActivatorKeyID       string       `json:"activator_key_id"`
+	Os                   string       `json:"os"`
+	Arch                 string       `json:"arch"`
+	UpdaterVersion       string       `json:"updater_version"`
+	ReceiptPayload       []byte       `json:"receipt_payload"`
+	ReceiptSignature     []byte       `json:"receipt_signature"`
+	CreatedAt            time.Time    `json:"created_at"`
+}
+
+type AgentUpdaterIdentity struct {
+	AgentID                    int64        `json:"agent_id"`
+	UpdaterKeyID               string       `json:"updater_key_id"`
+	UpdaterPublicKey           []byte       `json:"updater_public_key"`
+	ActivatorKeyID             string       `json:"activator_key_id"`
+	ActivatorPublicKey         []byte       `json:"activator_public_key"`
+	Os                         string       `json:"os"`
+	Arch                       string       `json:"arch"`
+	UpdaterVersion             string       `json:"updater_version"`
+	PinnedRepository           string       `json:"pinned_repository"`
+	AuthorityKeyID             string       `json:"authority_key_id"`
+	AuthorityEpoch             int64        `json:"authority_epoch"`
+	EnrollmentGeneration       int64        `json:"enrollment_generation"`
+	EnrollmentReceiptPayload   []byte       `json:"enrollment_receipt_payload"`
+	EnrollmentReceiptSignature []byte       `json:"enrollment_receipt_signature"`
+	Enabled                    int64        `json:"enabled"`
+	LastCounter                int64        `json:"last_counter"`
+	LastCommandSequence        int64        `json:"last_command_sequence"`
+	LastRootActionCounter      int64        `json:"last_root_action_counter"`
+	EnrolledAt                 time.Time    `json:"enrolled_at"`
+	LastSeenAt                 sql.NullTime `json:"last_seen_at"`
+	UpdatedAt                  time.Time    `json:"updated_at"`
+}
+
 type Connection struct {
 	ID             int64         `json:"id"`
 	AgentID        sql.NullInt64 `json:"agent_id"`
@@ -107,16 +246,6 @@ type ManagementAgentTrustReport struct {
 	AgentVersion          string    `json:"agent_version"`
 	CapabilitiesJson      string    `json:"capabilities_json"`
 	ReportedAt            time.Time `json:"reported_at"`
-}
-
-type ObservabilityRollupState struct {
-	ID                       int64     `json:"id"`
-	ProxyBackfillUpperID     int64     `json:"proxy_backfill_upper_id"`
-	ProxyBackfilledThroughID int64     `json:"proxy_backfilled_through_id"`
-	AgentBackfillUpperID     int64     `json:"agent_backfill_upper_id"`
-	AgentBackfilledThroughID int64     `json:"agent_backfilled_through_id"`
-	CreatedAt                time.Time `json:"created_at"`
-	UpdatedAt                time.Time `json:"updated_at"`
 }
 
 type ProxyRequestEvent struct {
@@ -332,7 +461,6 @@ type PublicCacheRule struct {
 	CacheStatusCodesJson string    `json:"cache_status_codes_json"`
 	MaxObjectBytes       int64     `json:"max_object_bytes"`
 	AddCacheStatusHeader int64     `json:"add_cache_status_header"`
-	AllowCookieRequests  int64     `json:"allow_cookie_requests"`
 	CreatedAt            time.Time `json:"created_at"`
 	UpdatedAt            time.Time `json:"updated_at"`
 }
@@ -446,6 +574,7 @@ type PublicRoute struct {
 	Enabled                    int64         `json:"enabled"`
 	CreatedAt                  time.Time     `json:"created_at"`
 	UpdatedAt                  time.Time     `json:"updated_at"`
+	SiteID                     sql.NullInt64 `json:"site_id"`
 }
 
 type PublicRouteTarget struct {
@@ -502,6 +631,57 @@ type PublicRouteTargetUpstreamHeader struct {
 	Sensitive int64     `json:"sensitive"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type PublicSite struct {
+	ID                int64     `json:"id"`
+	Name              string    `json:"name"`
+	Enabled           int64     `json:"enabled"`
+	Published         int64     `json:"published"`
+	DefaultSite       int64     `json:"default_site"`
+	CanonicalHostname string    `json:"canonical_hostname"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type PublicSiteHost struct {
+	ID              int64     `json:"id"`
+	SiteID          int64     `json:"site_id"`
+	HostnamePattern string    `json:"hostname_pattern"`
+	Role            string    `json:"role"`
+	Behavior        string    `json:"behavior"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+type PublicSiteListenerBinding struct {
+	SiteID             int64         `json:"site_id"`
+	ListenerID         int64         `json:"listener_id"`
+	Behavior           string        `json:"behavior"`
+	RedirectListenerID sql.NullInt64 `json:"redirect_listener_id"`
+	RedirectHostname   string        `json:"redirect_hostname"`
+	CreatedAt          time.Time     `json:"created_at"`
+	UpdatedAt          time.Time     `json:"updated_at"`
+}
+
+type PublicSiteMigratedListener struct {
+	ListenerID int64     `json:"listener_id"`
+	MigratedAt time.Time `json:"migrated_at"`
+}
+
+type PublicSiteMigrationRouteMapping struct {
+	SourceRouteID      int64     `json:"source_route_id"`
+	DestinationSiteID  int64     `json:"destination_site_id"`
+	DestinationRouteID int64     `json:"destination_route_id"`
+	Copied             int64     `json:"copied"`
+	CreatedAt          time.Time `json:"created_at"`
+}
+
+type PublicSiteMigrationTargetMapping struct {
+	SourceTargetID      int64     `json:"source_target_id"`
+	DestinationRouteID  int64     `json:"destination_route_id"`
+	DestinationTargetID int64     `json:"destination_target_id"`
+	CreatedAt           time.Time `json:"created_at"`
 }
 
 type PublicTlsCertificate struct {

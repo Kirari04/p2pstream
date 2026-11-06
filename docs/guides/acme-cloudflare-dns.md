@@ -11,6 +11,7 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
 - The domain is hosted in Cloudflare DNS.
 - A Cloudflare API token that can edit DNS records for the target zone.
 - The Cloudflare zone ID.
+- Outbound HTTPS access to the Cloudflare and ACME APIs, plus outbound UDP and TCP port 53 access to the zone's authoritative nameservers. No inbound listener port is required for DNS-01 validation.
 
   :::tip Finding your Zone ID
   In the Cloudflare dashboard, select your domain. The Zone ID appears in the right-hand sidebar under **API**.
@@ -21,7 +22,7 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
 ## Steps
 
 1. In Cloudflare, create a scoped API token with DNS edit permission for the target zone.
-2. Open **TLS**, go to the **DNS Credentials** section, and select **Add DNS Credential**:
+2. Open **TLS**, go to the **DNS Credentials** section, and select **Add DNS credential**:
 
    | Field | Value |
    | --- | --- |
@@ -38,7 +39,7 @@ Use DNS-01 when you need `*.example.com`, or when HTTP-01 and TLS-ALPN-01 cannot
      <figcaption>The DNS credential drawer stores the Cloudflare zone ID and API token server-side so DNS-01 certificate mappings can create ACME validation records.</figcaption>
    </figure>
 
-3. On **TLS**, select **Add Certificate** and create the certificate mapping:
+3. On **TLS**, select **Add certificate** and create the certificate mapping:
 
    | Field | Value |
    | --- | --- |
@@ -79,7 +80,9 @@ curl -I https://app.example.com
 | --- | --- |
 | DNS credential rejected | Zone ID cannot be empty or contain whitespace/path characters. |
 | Certificate issuance fails | Token must edit DNS records for the zone. |
-| TLS works but route fails | Add or fix **Proxy -> Routes** for the hostname. |
+| Public delegation mismatch | The configured Zone ID must identify the active Cloudflare zone whose assigned nameservers match the domain's public NS records. |
+| Authoritative TXT check times out | Permit outbound UDP and TCP port 53 from the p2pstream container to the authoritative nameservers. The error identifies the nameserver that did not return the expected record. |
+| TLS works but route fails | Open the hostname's site under **Proxy -> Sites**, check publication and listener assignments, and add or fix its route. |
 | Apex host not covered | `*.example.com` does not cover `example.com`; add a separate mapping if needed. |
 
 ## Next Steps

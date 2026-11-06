@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"p2pstream/internal/config"
+	"p2pstream/internal/sysmetrics"
 	"p2pstream/internal/tunnel"
 )
 
@@ -21,8 +22,8 @@ func TestDefaultAgentStreamCapacityConfigReservesPublicAndHealthHeadroom(t *test
 	if config.ReservedPublicForOtherSessions != 15 {
 		t.Fatalf("cross-session public reserve = %d, want 15", config.ReservedPublicForOtherSessions)
 	}
-	if config.MaxWaiters != 64 || config.MaxWaitersPerKey != 16 {
-		t.Fatalf("waiter budgets = %d/%d, want 64/16", config.MaxWaiters, config.MaxWaitersPerKey)
+	if config.MaxWaiters != 64 || config.MaxWaitersPerKey != 64 {
+		t.Fatalf("waiter budgets = %d/%d, want 64/64", config.MaxWaiters, config.MaxWaitersPerKey)
 	}
 	if err := validateAgentStreamCapacityConfig(config); err != nil {
 		t.Fatalf("default capacity config: %v", err)
@@ -86,7 +87,7 @@ func TestHighTotalReservesPerSessionOpeningCapacityForHealth(t *testing.T) {
 	assertAgentStreamCapacityClean(t, manager)
 }
 
-func TestDefaultAgentStreamCapacityConfigSupportsSmallLegacyTotals(t *testing.T) {
+func TestDefaultAgentStreamCapacityConfigSupportsSmallTotals(t *testing.T) {
 	for _, total := range []int64{1, 2, 4, 5, 16} {
 		config := defaultAgentStreamCapacityConfig(total)
 		if config.Total != int(total) {
@@ -118,7 +119,6 @@ func TestNewAppUsesDedicatedServerStreamCapacity(t *testing.T) {
 	}
 
 	app = NewApp(&config.Config{
-		TunnelMaxConcurrentRequests:      7,
 		ServerTunnelMaxConcurrentStreams: 777,
 	}, nil)
 	if got := app.agentStreamCapacity.snapshot().Total.Capacity; got != 777 {
@@ -308,6 +308,51 @@ func TestDashboardAgentStreamCapacitySummaryExportsLiveStateAndRecovery(t *testi
 		t.Fatalf("capacity recovery summary = %+v", summary)
 	}
 	lease.release()
+}
+
+func TestDashboardAgentStreamCapacitySummaryExportsFixedResourceOwners(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 4 << 30, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 65_536, &usage)
+	releaseRequest, ok, constrained := manager.tryReserveAdaptiveResource(adaptiveResourceOwnerPublicRequest, 12<<10, 0)
+	if !ok || !constrained {
+		t.Fatalf("request reservation = ok %t constrained %t", ok, constrained)
+	}
+	defer releaseRequest()
+	releaseDirect, ok, constrained := manager.tryReserveAdaptiveResource(adaptiveResourceOwnerDirectConnection, 34<<10, 2)
+	if !ok || !constrained {
+		t.Fatalf("direct reservation = ok %t constrained %t", ok, constrained)
+	}
+	defer releaseDirect()
+
+	summary := (&App{agentStreamCapacity: manager}).dashboardAgentStreamCapacitySummary()
+	wantNames := []string{
+		"other",
+		"public_connection",
+		"public_handshake",
+		"public_request",
+		"public_response",
+		"direct_connection",
+		"replay_buffer",
+		"receive_window",
+	}
+	if len(summary.ResourceOwners) != len(wantNames) {
+		t.Fatalf("resource owners = %d, want %d", len(summary.ResourceOwners), len(wantNames))
+	}
+	var bytes, fds, reservations int64
+	for index, owner := range summary.ResourceOwners {
+		if owner.Name != wantNames[index] {
+			t.Fatalf("resource owner %d name = %q, want %q", index, owner.Name, wantNames[index])
+		}
+		bytes += owner.Bytes
+		fds += owner.FileDescriptors
+		reservations += owner.Reservations
+	}
+	if bytes != summary.AdaptiveExternalBytes || fds != summary.AdaptiveExternalFileDescriptors || reservations != 2 {
+		t.Fatalf("resource owner totals = %d bytes/%d FDs/%d reservations, summary=%+v", bytes, fds, reservations, summary)
+	}
+	if summary.AdaptiveAdmissionRole != string(sysmetrics.AdaptiveAdmissionRoleServerStream) || summary.AdaptiveStreamChargeBytes <= 0 || summary.AdaptiveStreamChargeFileDescriptors != 0 {
+		t.Fatalf("adaptive role/charges = %+v", summary)
+	}
 }
 
 func waitForAgentStreamCapacityWaiters(t *testing.T, manager *agentStreamCapacityManager, want int) {

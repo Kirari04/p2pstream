@@ -25,42 +25,11 @@ func TestSchemaParity(t *testing.T) {
 	applySchemaSQL(t, schemaDB)
 	want := readNormalizedSchema(t, schemaDB)
 
-	tests := []struct {
-		name  string
-		setup func(t *testing.T, database *sql.DB)
-	}{
-		{
-			name: "Goose migration",
-			setup: func(t *testing.T, database *sql.DB) {
-				t.Helper()
-				if err := runEmbeddedMigrations(database); err != nil {
-					t.Fatalf("run embedded migrations: %v", err)
-				}
-			},
-		},
-		{
-			name: "legacy migration",
-			setup: func(t *testing.T, database *sql.DB) {
-				t.Helper()
-				instance := &DB{
-					DB:      database,
-					Queries: New(database),
-				}
-				if err := instance.migrate(); err != nil {
-					t.Fatalf("run legacy migrations: %v", err)
-				}
-			},
-		},
+	database := openSchemaParityDB(t, "goose.db")
+	if err := runEmbeddedMigrations(database); err != nil {
+		t.Fatalf("run embedded migrations: %v", err)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			databaseName := strings.ToLower(strings.ReplaceAll(tt.name, " ", "-")) + ".db"
-			database := openSchemaParityDB(t, databaseName)
-			tt.setup(t, database)
-			assertSchemaParity(t, tt.name, readNormalizedSchema(t, database), want)
-		})
-	}
+	assertSchemaParity(t, "Goose migration", readNormalizedSchema(t, database), want)
 }
 
 func applySchemaSQL(t *testing.T, database *sql.DB) {

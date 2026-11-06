@@ -29,6 +29,11 @@ func ConfigureManagementHTTPServer(srv *http.Server) {
 	srv.MaxHeaderBytes = defaultManagementMaxHeaderBytes
 }
 
+// Match Go's default upload credit explicitly so resource accounting does not
+// silently fall behind a future runtime change. This is buffered credit, not a
+// maximum request-body size.
+const publicHTTP2ReceiveWindowBytes = 1 << 20
+
 func configurePublicHTTPServer(srv *http.Server, configuredMaxHeaderBytes ...int) {
 	if srv == nil {
 		return
@@ -40,4 +45,8 @@ func configurePublicHTTPServer(srv *http.Server, configuredMaxHeaderBytes ...int
 		maxHeaderBytes = configuredMaxHeaderBytes[0]
 	}
 	srv.MaxHeaderBytes = maxHeaderBytes
+	if srv.HTTP2 == nil {
+		srv.HTTP2 = &http.HTTP2Config{}
+	}
+	srv.HTTP2.MaxReceiveBufferPerStream = publicHTTP2ReceiveWindowBytes
 }

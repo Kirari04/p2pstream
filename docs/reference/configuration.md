@@ -37,28 +37,70 @@ Set these on the server process via `.env` or environment. They control manageme
 | `PUBLIC_MAX_HEADER_BYTES`        | `65536`                      | Maximum public request-header bytes; range `16384`–`1048576`.                                |
 | `PUBLIC_MAX_REQUEST_BODY_BYTES`  | `1073741824`                 | Maximum public request body bytes; range `1`–`1099511627776` (1 TiB).                        |
 | `PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS` | `30000`            | Sliding public request-body idle timeout; range `5000`–`600000`. Active uploads may run longer. |
-| `PUBLIC_MAX_CONCURRENT_REQUESTS` | `2048`                       | Server-wide in-flight public request ceiling; range `1`–`100000`.                            |
+| `PUBLIC_MAX_CONCURRENT_REQUESTS` | `0` | Automatic memory-accounted logical request admission. Explicit range `1`–`1000000`; `0` retains only the one-million-request implementation guard. |
 | `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET` | `0`               | Per-target in-flight proxy request ceiling. `0` uses the global request ceiling; explicit range `1`–the global ceiling. |
-| `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT` | `512`              | Per resolved-client in-flight request guard across HTTP/1 and HTTP/2. The automatic default narrows to a lower global request limit, and live resource pressure can lower it further to retain capacity for another client. `0` disables it; trusted proxy identity is honored only through the configured resolver. |
+| `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT` | `0` | Optional per resolved-client guard across HTTP/1 and HTTP/2; `0` disables this policy. Explicit values are honored without imposing a physical-stream fair share on multiplexed requests. |
 | `PUBLIC_MAX_CONCURRENT_CONNECTIONS` | `0`                       | Optional hard guard for accepted public TCP connections. `0` leaves connection count resource-governed; range `1`–`1000000`. |
-| `PUBLIC_MAX_CONNECTIONS_PER_PEER` | `256`                        | Direct-peer pre-header/keep-alive connection guard. The automatic default narrows to a lower explicit global connection limit. Behind a trusted L4 proxy where many clients share one peer address, set both this and `PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT` to `0` unless distinct trusted HTTP client identities are resolved. |
-| `PUBLIC_MAX_CONNECTIONS_PER_TARGET` | `256`                    | Per-origin direct-upstream connection ceiling; range `1`–`65535`.                            |
+| `PUBLIC_MAX_CONNECTIONS_PER_PEER` | `0` | Optional direct-peer pre-header/keep-alive connection guard; range `1`–`1000000`. `0` leaves admission to global resource accounting, including when a trusted proxy represents many clients. |
+| `PUBLIC_MAX_CONNECTIONS_PER_TARGET` | `0` | Optional per-origin direct-upstream connection ceiling; range `1`–`1000000`. `0` uses resource-accounted connections without a fixed per-origin ceiling. |
 | `BOOTSTRAP_AGENT_ID`             | empty                        | Bootstrap agent public ID. Must be set with name and token.                                  |
 | `BOOTSTRAP_AGENT_NAME`           | empty                        | Bootstrap agent display name.                                                                |
 | `BOOTSTRAP_AGENT_TOKEN`          | empty                        | Bootstrap agent token. Configured values must be at least 32 characters; generate them with a CSPRNG. Stored as a hash. |
+| `AGENT_UPDATES_ENABLED`          | `true`                       | Enables the GitHub release catalog and managed update campaign API. Set to `false` to disable managed updates. Campaign creation remains fail-closed unless a canonical compatible manifest is available from the pinned repository and channel. |
+| `AGENT_UPDATE_REPOSITORY`        | `Kirari04/p2pstream`         | Fixed GitHub `owner/repo` used to resolve exact immutable release assets. URLs and arbitrary hosts are rejected. |
+| `AGENT_UPDATE_CHANNEL`           | build channel or `stable`    | Pinned `stable` or `staging` catalog. Official images derive it from their build identity. Staging resolves only the exact running SemVer prerelease; persisted floors cannot cross channels. |
+| `AGENT_UPDATE_AUTHORITY_KEY_FILE` | `${CONFIG_DIR}/agent-update-management-authority.json` | Owner-only Ed25519 management command-authority key. It is generated only for pristine managed-update state, while its public identity is pinned in SQLite. Missing or mismatched existing-state keys disable managed updates instead of being replaced. Back it up with the database. |
+| `AGENT_UPDATE_CATALOG_REFRESH_MILLIS` | `300000`              | GitHub catalog refresh interval; range `10000`–`3600000`. A last-known-good target is retained through transient network errors only until its manifest expiry. |
+| `AGENT_UPDATE_HTTP_TIMEOUT_MILLIS` | `15000`                   | End-to-end timeout for bounded catalog HTTP requests; range `1000`–`60000`. |
 | `OBSERVABILITY_RETENTION_DAYS`   | `30`                         | Retention window for recorded observability data.                                            |
 | `OBSERVABILITY_MAX_ROWS`         | `1000000`                    | Maximum retained proxy request events and agent stat rows. Set `0` to disable this cap.       |
 | `LOGIN_THROTTLE_MAX_KEYS`        | `50000`                      | Total in-memory login throttle budget split between username and client-address trackers; active blocks are retained until expiry. |
-| `TUNNEL_MAX_STREAM_WINDOW_BYTES` | `2097152`                    | Maximum Yamux receive window per tunnel stream in fixed mode. Adaptive mode caps the effective window to its lifetime stream charge. |
-| `TUNNEL_MAX_CONCURRENT_REQUESTS` | `64`                         | Legacy/shared agent setting. It no longer limits aggregate server traffic. |
+| `TUNNEL_MAX_STREAM_WINDOW_BYTES` | `1073741824` | Maximum Yamux receive credit per stream. Starts at up to `512 KiB`; measured consumption and session RTT guide growth, with additional storage reserved first. |
 | `SERVER_TUNNEL_MAX_CONCURRENT_STREAMS` | `0`                  | `0` enables adaptive admission up to a `65536` implementation guard. An explicit value sets the server-wide upper bound; local memory/file-descriptor safety may still lower live admission. Range `1`–`65536`. |
 | `SERVER_TUNNEL_MEMORY_SOFT_PERCENT` | `80`                       | Adaptive admission begins reducing new-stream growth at this memory utilization. |
-| `SERVER_TUNNEL_MEMORY_HARD_PERCENT` | `90`                       | New streams are rejected at this utilization so the kernel does not reach OOM pressure. Maximum `99`. |
+| `SERVER_TUNNEL_MEMORY_HARD_PERCENT` | `90`                       | New streams are rejected at this measured utilization; this admission watermark is not an instantaneous kernel-memory cap. Maximum `99`. |
 | `SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT` | `75`                   | Pressure remains hysteretic until utilization falls below this value. |
-| `SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS` | `100`                     | Local cgroup/Go/host memory and process file-descriptor sampling interval; range `10`–`10000`. |
-| `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `1310720`               | Conservative lifetime memory charge per live adaptive stream. It covers the adaptive Yamux receive window plus `768 KiB` of bounded socket/relay overhead; range `1048576`–`67108864`. |
-| `SERVER_TUNNEL_MEMORY_PERCENT` | `50`                           | Deprecated compatibility variable; no longer used by adaptive admission. |
-| `SERVER_TUNNEL_MEMORY_RESERVE_BYTES` | `536870912`             | Deprecated compatibility variable; no longer used by adaptive admission. |
+| `SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS` | `100`                     | Mandatory host memory plus supplementary finite cgroup/Go constraints and process file-descriptor sampling interval; range `10`–`10000`. |
+| `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` | `0` | `0` uses the owned server stream base (`256 KiB`) while aggregate session pools or exact legacy receive-window supplements are reserved separately. An explicit historical full-stream estimate (`1048576`–`1073741824`) remains a conservative base override, so the separate receive ownership is still added. Window growth reserves additional bytes separately. |
+
+Capacity diagnostics report `StreamChargeBytes` as the admitted stream base,
+not total worst-case stream memory. Aggregate session pools and legacy receive
+windows are reported under the fixed `receive_window` owner. A negotiated group
+uses one dedicated control lane (at most four control streams) plus four bulk
+lanes by default. A legacy physical lane uses a bounded 64-stream accept
+backlog, one synchronously admitted transition, and 16 bounded graceful
+rejections. At the default 512 KiB initial window, that legacy session envelope
+reserves about 35.54 MiB per physical lane before admitted-stream supplements;
+the fixed envelope does not shrink for a lower negotiated stream limit. The
+legacy default remains four physical lanes (about 142.17 MiB of session
+envelopes), so a low-memory agent can refuse a legacy lane when it cannot make
+that full compatibility promise. New agents and servers use aggregate-v1 to
+avoid that legacy idle cost.
+
+The negotiated control lane prepays its complete bounded working promise
+before the HTTP upgrade: up to `min(4, TUNNEL_MAX_CONCURRENT_REQUESTS)` receive
+windows, agent stream bases, origin-socket allowances, and peak dial
+descriptors. At the default window and four control slots this is about
+5.79 MiB plus eight descriptor credits. Idle prepaid slots do not consume the
+operator's active-request limit, so ordinary work may use the full configured
+concurrency while control is idle. Once active work fills that limit, a cold
+control request receives `agent_capacity`; after a slot drains, the prepaid
+control request can proceed even under later agent memory pressure. Server-side
+resource admission still applies to the request. A server
+negotiating a smaller total releases the excess promise before Yamux starts.
+Legacy lanes retain their existing per-stream admission behavior.
+
+Tunnel mode is immutable within a group generation. If a previously negotiated
+aggregate primary receives a complete legacy acknowledgment during a server
+rollback, the agent closes and joins every control and bulk lane, releases the
+old generation's session resources, waits with bounded reconnect backoff, and
+offers a fresh group ID. An old server can then select legacy mode. Partial,
+duplicate, or mismatched acknowledgment headers fail closed and retry without
+triggering a downgrade. When a legacy primary later disconnects, its complete
+group is likewise replaced so an upgraded server can negotiate aggregate-v1.
+
+Compose overrides two binary defaults for stable-image compatibility:
+`PUBLIC_MAX_CONCURRENT_REQUESTS=2048` and `PUBLIC_MAX_CONNECTIONS_PER_TARGET=256`.
 
 If every login throttle slot is occupied by an active block, new failed-login keys are not tracked until a blocked key expires or a login succeeds for an existing key.
 
@@ -80,23 +122,34 @@ When tunnel window or concurrency values are supplied to the installer, they are
 | `AGENT_TLS_CERT_FILE`             | Optional client certificate for management mTLS.                     |
 | `AGENT_TLS_KEY_FILE`              | Optional client private key for management mTLS.                     |
 | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Allows HTTP management URL when truthy.                              |
-| `TUNNEL_MAX_STREAM_WINDOW_BYTES`  | Maximum Yamux receive window per tunnel stream. Defaults to `2097152`. |
+| `TUNNEL_MAX_STREAM_WINDOW_BYTES`  | Maximum Yamux receive window per tunnel stream. Defaults to `1073741824`. |
 | `TUNNEL_MAX_CONCURRENT_REQUESTS`  | Optional fixed agent limit. When unset, the agent uses adaptive local memory and file-descriptor admission. It advertises an old-peer-safe `2048`, then raises the new/new negotiated implementation guard to `65536`; neither value reserves memory or states the current allowance. |
+| `TUNNEL_CONNECTIONS` | Parallel authenticated TCP tunnels sharing one agent capacity budget; default `4`, range `1`–`32`. Old servers retain one tunnel unless they acknowledge the extension. CLI: `--tunnel-connections`. |
+| `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES` | Origin TCP buffering: default `0` enables Linux kernel autotuning with a 512 KiB baseline connection allowance; real auto-grown queues are governed by measured memory pressure. A positive `16384`–`16777216` requests a fixed per-direction buffer, charged at four times the value for both directions and Linux doubling. CLI: `--tunnel-upstream-socket-buffer-bytes`. |
 | `AGENT_ALLOW_TARGETS`             | Tunnel destination allowlist entries separated by commas or whitespace. When unset, only IPv4/IPv6 loopback destinations are allowed. |
 | `AGENT_ALLOW_ANY_TARGET`          | Explicitly permit any destination reachable by the agent. Defaults to `false` and cannot be combined with `AGENT_ALLOW_TARGETS`. |
 
 ### Installer Variables
 
-Set these as environment variables before running the Linux agent installer script. They control where the binary is placed and which release is downloaded.
+Set these as environment variables before running the Linux agent installer script. The installer accepts only local executable inputs; the GitHub repository is pinned for later managed-update downloads and manifest verification.
 
 | Variable                 | Default                    | Description                                                                  |
 | ------------------------ | -------------------------- | ---------------------------------------------------------------------------- |
-| `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo used by the installer.                                     |
-| `P2PSTREAM_VERSION`      | `latest`                   | Installer binary channel: `latest`, `staging`, or a release tag such as `vX.Y.Z`. |
+| `P2PSTREAM_REPOSITORY`   | `Kirari04/p2pstream`       | GitHub owner/repo pinned for later managed-update metadata and artifacts. The installer itself performs no download. |
+| `P2PSTREAM_VERSION`      | required                   | Exact SemVer release or prerelease identity for a local Linux install. Mutable `latest` and `staging` values are rejected. Not required by the trust-repair-only path. |
+| `P2PSTREAM_AGENT_BINARY_FILE` | required for install | Absolute path to the independently obtained raw Linux agent binary. The installer never downloads or extracts executable content. |
+| `P2PSTREAM_AGENT_UPDATE_AUTHORITY_PUBLIC_KEY_BASE64` | required for managed updates | Canonical base64 of the separately pinned 32-byte Ed25519 management-authority public key. |
+| `P2PSTREAM_AGENT_UPDATE_AUTHORITY_KEY_ID` | required for managed updates | Lowercase SHA-256 of the decoded management-authority public key. |
+| `P2PSTREAM_AGENT_UPDATE_AUTHORITY_EPOCH` | required for managed updates | Positive authority epoch pinned during first enrollment; bootstrap cannot replace it. |
 | `P2PSTREAM_CONFIG_DIR`   | `/etc/p2pstream`           | Agent config directory created by installer.                                 |
 | `P2PSTREAM_INSTALL_PATH` | `/usr/local/bin/p2pstream` | Binary install path.                                                         |
 | `P2PSTREAM_SYSTEMD_DIR`  | `/etc/systemd/system`      | Systemd unit directory used by installer and uninstaller.                    |
 | `P2PSTREAM_AGENT_STATE_DIR` | `/var/lib/p2pstream-agent` | Writable durable agent state, including the rotated management CA bundle. |
+| `P2PSTREAM_ENABLE_MANAGED_UPDATES` | `false`                | With `true`, performs the one-time Linux/systemd updater bootstrap. Existing tunnel credentials are preserved; no agent-token rotation is needed. |
+| `P2PSTREAM_AGENT_UPDATE_CHANNEL` | required for managed updates | Pinned `stable` or `staging` trust domain. It must match the final/prerelease form of `P2PSTREAM_VERSION`. |
+| `P2PSTREAM_UPDATER_ENROLLMENT_TOKEN` | empty                | Short-lived, single-use updater enrollment token bound to one agent, repository, and management-authority identity. It is never written to `agent.env`. |
+| `P2PSTREAM_EXISTING_TUNNEL_VERSION` | required when enrolling an existing unmanaged agent | Server-observed exact SemVer build identity for the tunnel binary being preserved during updater bootstrap; it must match the selected channel. |
+| `P2PSTREAM_EXISTING_TUNNEL_COMMIT` | required with existing tunnel version | Server-observed 40-character commit for the preserved tunnel binary. Both fields are pinned into bootstrap slot metadata so a rollback can prove the actual restored build. |
 | `P2PSTREAM_REPAIR_TRUST` | `false` | With `true`, repair only the durable CA bundle from `MANAGEMENT_CA_PEM_BASE64` and restart an existing compatible service. |
 | `AGENT_CLEAR_ALLOW_TARGETS` | `false`                 | Remove a preserved destination policy during reinstall, reverting to loopback-only defaults. |
 
@@ -112,13 +165,15 @@ Set these as environment variables before running the Linux agent installer scri
 - `MANAGEMENT_TRUSTED_PROXY_CIDRS` accepts explicit CIDRs but rejects `/0` catch-all ranges. Headers from other peers are ignored. A trusted peer with a missing or malformed identity header cannot attempt login.
 - Public header, body, idle-timeout, concurrency, and connection limits must stay within their documented bounds; the per-target request ceiling cannot exceed the global ceiling.
 - Proxy target URLs are origins only: `http://` or `https://` plus host and optional port. Configure upstream authentication separately; paths, queries, fragments, and URL credentials are rejected.
-- `TUNNEL_MAX_STREAM_WINDOW_BYTES` must be at least `262144` and at most `67108864`.
-- `TUNNEL_MAX_CONCURRENT_REQUESTS` must be between `1` and `2048` when explicitly set on an agent. When it is absent, a new agent requests adaptive mode with the old-safe `2048` header. A new server acknowledges that capability and both sides use `65536` only as an implementation guard; an older peer safely retains its legacy negotiated limit. Older agents that omit capacity remain fixed at `64`.
-- Adaptive mode samples every finite memory constraint from the process's leaf cgroup through its ancestors, plus a finite Go memory limit or host `MemAvailable` fallback, and process file-descriptor use versus `RLIMIT_NOFILE`. Every live stream retains a memory reservation for its full bounded receive window and two file descriptors for dual-stack dial bursts. Each sample admits only work whose lifetime reservations fit below the smallest absolute `90%` resource watermark. `80%` changes the state to soft pressure, `90%` rejects new work with retry guidance while existing streams drain, and recovery below `75%` prevents oscillation.
-- A transient resource-sensor error retains the last restrictive sample for one second. Startup or prolonged sensor loss is reported as `unknown`/degraded and fails closed for new streams while existing work drains; it never opens the `65536` guard.
-- Yamux receive credit is lazy, but it is still a reachable memory exposure. Adaptive mode reserves `SERVER_TUNNEL_ESTIMATED_STREAM_BYTES` for every live or closing stream until peer FIN/forced Yamux cleanup, subtracts `768 KiB` for bounded socket/relay overhead, and caps the effective receive window to the remainder (default `512 KiB`). After a pressured agent generation fully drains, the agent asynchronously returns unused Go heap pages to the OS before admitting the next full burst. The configured `2 MiB` default remains available to explicit fixed-capacity sessions.
-- Queues remain globally and per-route bounded, opening concurrency remains below Yamux's finite `256` SYN backlog, and a small trusted-health opening share is protected. Cross-session capacity is work-conserving: one session may borrow idle capacity but yields released capacity to waiting sessions.
+- `TUNNEL_MAX_STREAM_WINDOW_BYTES` must be at least `262144` and at most `1073741824`.
+- `TUNNEL_MAX_CONCURRENT_REQUESTS` must be between `1` and `2048` when explicitly set on an agent. Upgrade server and agent together to use the current adaptive capacity headers. When the value is absent, matching current peers use adaptive admission with `65536` only as an implementation guard. An explicit fixed value remains supported; an older agent that omits capacity remains fixed at `64`.
+- Adaptive mode requires valid host `MemTotal` and `MemAvailable` on every sample, and also samples every finite memory constraint from the process's leaf cgroup through its ancestors, a finite Go memory limit when configured, and process file-descriptor use versus `RLIMIT_NOFILE`. Server logical streams reserve receive storage and server-owned state without adding per-stream file descriptors. Agent stream reservations also include origin-socket memory and two descriptors for the temporary dual-stack dial peak. Each sample admits only work whose lifetime reservations fit below the smallest absolute `90%` resource watermark. `80%` changes the state to soft pressure, `90%` rejects new work with retry guidance while existing streams drain, and recovery below `75%` prevents oscillation. Sampling is a fail-closed admission signal rather than an instantaneous hard cap on kernel memory growth between samples.
+- A resource-sensor error preserves last-good telemetry briefly for diagnosis but immediately stops new resource admission. Existing work continues; recovery resumes admission. Sensor failure is explicitly reported rather than treated as evidence of spare capacity.
+- Each stream initially reserves receive storage for credit up to `512 KiB` plus stream/relay state; agent reservations also cover origin-socket memory. Two sustained consumption samples, a smoothed consumption rate, and the recent minimum session RTT guide credit toward eight bandwidth-delay products, using at least 2 ms for relay scheduling, bounded by `TUNNEL_MAX_STREAM_WINDOW_BYTES` and at most one doubling per decision. Each growth reserves the additional bounded receive chunks and metadata first. Denied growth leaves the stream serving at its current window. Credit remains reserved through local close until peer FIN or forced Yamux cleanup. Idle connections keep their already-advertised credit, but do not grow just because they have transferred many bytes. Yamux receive storage uses lazy 64 KiB chunks and retains at most 64 drained chunks (4 MiB) per stream for reuse; this is not preallocated and does not change the resource reservation bound. The `1 GiB` ceiling is a protocol limit; the shared memory budget can deny growth earlier. After a pressured agent generation fully drains, the agent asynchronously returns unused Go heap pages to the OS.
+- Queues remain globally bounded up to `65536` waiting dials with fair dispatch between keys. A single busy key can use otherwise idle queue space. Opening concurrency respects Yamux's `256` SYN backlog and queues bursts instead of interpreting the backlog as lifetime capacity. Public dials may wait up to ten seconds (or their earlier context deadline); health probes wait only 250 ms and skip local saturation.
+- Each agent's parallel tunnels share one generation, stream budget, health identity, update drain and revocation. Losing one tunnel leaves the remaining tunnels available and starts an independent reconnect. Round-robin transport shards distribute even HTTP/2 requests across lanes.
 - Bootstrap agent ID, name, and token must all be set together.
+- Managed updates require a pinned GitHub `owner/repo`, channel, and management HTTPS. Each catalog accepts only canonical unexpired manifests for its own stable or staging channel and monotonic security/version floors; mutable tags, cross-channel releases, arbitrary URLs, unknown artifacts, and SHA-256 mismatches are never eligible campaign targets.
 - Agent boolean parsing accepts `1`, `true`, `yes`, `y`, and `on`.
 - Linux agent installs require `AGENT_TLS_CERT_FILE` and `AGENT_TLS_KEY_FILE` together, require user-supplied TLS files to be readable, and reject CA/client-certificate settings with HTTP management URLs.
 - Agent target allowlist entries are exact hostnames, IP literals, or CIDR prefixes with optional ports or port ranges. When neither an allowlist nor `AGENT_ALLOW_ANY_TARGET=true` is set, the agent permits only `127.0.0.0/8` and `::1/128`. This keeps same-host services working while preventing default access to the surrounding network.
@@ -126,15 +181,15 @@ Set these as environment variables before running the Linux agent installer scri
 
 ## Runtime Effects
 
-`CONFIG_DIR` is created or tightened to `0700`. The managed certificate directory is `${CONFIG_DIR}/certs`; an enabled managed GeoLite2 Country database is stored under `${CONFIG_DIR}/geoip`, whose directory and database file are tightened to `0700` and `0600`. SQLite directories created by p2pstream use `0700`, and database/WAL/SHM files are set to `0600`. When `DATABASE_URL` points into an existing directory, p2pstream preserves that directory's mode; secure that directory and its backups separately. If `DATABASE_URL` is unset, p2pstream also migrates a legacy local `p2pstream.db` into `${CONFIG_DIR}/p2pstream.db` when needed.
-
-On first configuration load after upgrade, legacy proxy target URLs containing ignored credentials, paths, queries, or fragments are normalized in SQLite to the origin that earlier releases actually used. A warning identifies the affected target without logging the removed value.
+`CONFIG_DIR` is created or tightened to `0700`. The managed certificate directory is `${CONFIG_DIR}/certs`; an enabled managed GeoLite2 Country database is stored under `${CONFIG_DIR}/geoip`, whose directory and database file are tightened to `0700` and `0600`. SQLite directories created by p2pstream use `0700`, and database/WAL/SHM files are set to `0600`. When `DATABASE_URL` points into an existing directory, p2pstream preserves that directory's mode; secure that directory and its backups separately. If the default `${CONFIG_DIR}/p2pstream.db` is absent while a legacy working-directory `p2pstream.db` exists, startup fails with an unsupported-location error. Move the database into `${CONFIG_DIR}` or set `DATABASE_URL` explicitly; no automatic database copying is performed.
 
 Management session cookies are Secure when management TLS is enabled, `ENV=production`, or `MANAGEMENT_COOKIE_SECURE=true`.
 
-When the global public-request cap, per-target request cap, server-wide physical stream cap, or negotiated per-session agent stream cap is reached, additional requests receive `503 Service Unavailable` with `Retry-After: 1`; local capacity rejections do not mark a target or agent passively unhealthy. Pooled route-target transports retain reusable connections for 30 seconds, but the pooled lifetime budget is the authoritative global bound across all shards. This lets a hot target reuse its parallel connections without allowing idle streams to consume the reserved one-shot or health capacity. Under genuine total/public pressure, each blocked demand may retire one known-idle shard, preferring the selected agent, and waits for actual peer FIN before reusing its permit; a session-local limit may reclaim only that same session. Health checks use a protected stream budget and treat local admission timeouts as skipped checks rather than backend failures. Declared or streamed bodies above the configured body ceiling receive `413`, and stalled uploads receive `408`. Long-lived responses and continuously progressing uploads are not subject to a total-duration timeout. Environment dials use bounded one-shot public capacity; health-check dials use the protected control budget. Lower the stream window or concurrency limit for tighter memory bounds; raise either only while keeping their documented aggregate budget.
+Explicit request guards and actual resource exhaustion can still return `503 Service Unavailable` with `Retry-After: 1`; local capacity rejection does not mark the origin unhealthy. Reusable public and remote-environment transports retain idle connections for 30 seconds. The shared stream resource budget bounds their lifetime; there is no separate 256-target pool ceiling. Saturated pooled dials can reclaim eligible idle connections. A busy agent at its negotiated stream limit waits inside the reusable transport so returning keep-alive connections can serve queued requests. Safe local admission handoff to reserved one-shot capacity remains available; management mutations are never replayed after headers or body bytes are sent.
 
-Accepted public sockets are resource-accounted before TLS and HTTP header parsing in both automatic and explicitly capped server modes. A direct peer may consume at most 90% of the current socket resource envelope, while the resolved-client request guard covers logical HTTP/1 and HTTP/2 concurrency; set the peer guard to `0` only when a trusted L4 proxy represents many downstream clients. Diagnostics separates live socket count, configured peer/hard-limit rejections, resource rejections, client-request rejections, retry/socket reservation bytes and descriptors, the raw sampled allowance, and the effective public/tunnel allowances. This distinction makes conservative pre-stream reservations visible instead of presenting them as unexplained `agent_server_capacity` failures.
+Declared or streamed bodies above the configured body ceiling receive `413`, and stalled uploads receive `408`. Long-lived responses and continuously progressing uploads have no total-duration timeout. Accepted public sockets are resource-accounted before TLS and header parsing. Each logical request reserves `32 KiB` of request state plus an estimate of decoded request metadata, including headers and URL data. A separate `32 KiB` response copy-buffer reservation follows policy and redirect handling. HTTP/2 uploads also reserve up to their `1 MiB` receive credit (or their smaller declared body length); direct origin connections reserve socket/relay memory and descriptors. Byte-only reservations for HTTP/2 requests, retries and growing receive windows do not consume imaginary file descriptors. Explicit per-peer guards also apply their resource fair-share policy; the default zero disables that optional policy.
+
+Existing explicit limits remain in effect after upgrade. Remove old overrides if automatic admission is intended. Protocol compatibility ceilings on older agents remain until those agents are upgraded. Diagnostics distinguishes configured guards, sampled memory/descriptor pressure, external reservation bytes, and queue constraints. See [Agent proxy performance](../operations/agent-proxy-performance.md) for resource accounting, diagnosis and remaining limits.
 
 ## Examples
 

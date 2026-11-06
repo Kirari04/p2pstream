@@ -84,7 +84,7 @@ func (s *GeoIPCountryStore) Load() error {
 	if s.isClosed() {
 		return ErrGeoIPCountryStoreClosed
 	}
-	if err := hardenGeoIPCountryDatabasePath(s.path); err != nil && !os.IsNotExist(err) {
+	if err := hardenGeoIPCountryDatabasePath(s.path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	reader, info, err := openGeoIPCountryDatabase(s.path)

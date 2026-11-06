@@ -26,7 +26,7 @@ Requests are never cached when they include:
 - WebSocket or other upgrade headers,
 - methods other than `GET` or `HEAD`.
 
-Requests with `Cookie` always bypass shared cache. The legacy `allow_cookie_requests` field may still appear in older configuration, but it is preserved only for compatibility and has no runtime effect.
+Requests with `Cookie` always bypass shared cache.
 
 Responses are never cached when they include `Set-Cookie`, `Cache-Control: no-store`, `private`, or `no-cache`, `Vary: *`, `Vary: Cookie`, `Vary: Authorization`, a disallowed status code, or a body larger than the rule maximum object size.
 
@@ -34,10 +34,10 @@ The default configured Vary header is `Accept-Encoding`. Fixed TTL uses the rule
 
 Cached bodies are stored under `PUBLIC_CACHE_DIR` when set, otherwise `${CONFIG_DIR}/cache/public`. Metadata is stored in SQLite.
 
-Manage both parts under **Traffic Policy → Cache**. The filterable rules table determines eligibility and cache keys. The separate **Cache storage & operations** section controls shared storage budgets and cleanup, and contains the destructive purge action. Unsaved storage changes are kept distinct from the last server response so operators can review them before saving.
+Manage both parts under **Traffic policy → Cache**. The filterable rules table determines eligibility and cache keys. The separate **Cache storage & operations** section controls shared storage budgets and cleanup, and contains the destructive purge action. Unsaved storage changes are kept distinct from the last server response so operators can review them before saving.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing a filterable cache-rules table and separate Cache storage and operations settings">
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic policy Cache tab showing a filterable cache-rules table and separate Cache storage and operations settings">
   <figcaption>The Cache tab separates response eligibility rules from global storage budgets, cleanup behavior, and purge operations.</figcaption>
 </figure>
 

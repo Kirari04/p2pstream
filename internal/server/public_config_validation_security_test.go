@@ -41,22 +41,7 @@ func TestParsePublicTargetOriginAcceptsOnlyOriginComponents(t *testing.T) {
 	}
 }
 
-func TestNormalizeLegacyPublicTargetOriginPreservesEffectiveUpstream(t *testing.T) {
-	got, migrated, err := normalizeLegacyPublicTargetOrigin("https://user:pass@upstream.example:8443/ignored/path?token=secret#fragment")
-	if err != nil {
-		t.Fatalf("normalizeLegacyPublicTargetOrigin() error = %v", err)
-	}
-	if !migrated || got != "https://upstream.example:8443" {
-		t.Fatalf("normalized legacy origin = %q, migrated=%v", got, migrated)
-	}
-
-	got, migrated, err = normalizeLegacyPublicTargetOrigin("https://upstream.example:8443")
-	if err != nil || migrated || got != "https://upstream.example:8443" {
-		t.Fatalf("strict origin = %q, migrated=%v, err=%v", got, migrated, err)
-	}
-}
-
-func TestLoadPublicProxySnapshotMigratesLegacyTargetOrigin(t *testing.T) {
+func TestLoadPublicProxySnapshotRejectsLegacyTargetOrigin(t *testing.T) {
 	app := NewApp(nil, newServerTestDB(t))
 	header := createTestAdminSession(t, app)
 	listener := seedPublicConfigTestListener(t, app.DB)
@@ -72,17 +57,14 @@ func TestLoadPublicProxySnapshotMigratesLegacyTargetOrigin(t *testing.T) {
 		t.Fatalf("seed legacy target URL: %v", err)
 	}
 
-	if _, err := app.loadPublicProxySnapshot(context.Background()); err != nil {
-		t.Fatalf("loadPublicProxySnapshot() error = %v", err)
+	if _, err := app.loadPublicProxySnapshot(context.Background()); err == nil || !strings.Contains(err.Error(), "invalid URL") {
+		t.Fatalf("loadPublicProxySnapshot() error = %v, want strict URL rejection", err)
 	}
 	targets, err := app.DB.ListPublicRouteTargetsByRoute(context.Background(), response.Msg.Route.Id)
 	if err != nil {
 		t.Fatalf("list route targets: %v", err)
 	}
-	if len(targets) != 1 || targets[0].Url != "http://127.0.0.1:9000" {
-		t.Fatalf("migrated targets = %+v", targets)
-	}
-	if strings.Contains(targets[0].Url, "password") || strings.Contains(targets[0].Url, "secret") {
-		t.Fatalf("legacy target secret remained stored: %q", targets[0].Url)
+	if len(targets) != 1 || targets[0].Url != legacyURL {
+		t.Fatalf("legacy target was modified = %+v", targets)
 	}
 }

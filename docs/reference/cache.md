@@ -2,7 +2,7 @@
 
 Cache rules are global public proxy policy rules for public static assets.
 
-In the management UI, choose **Traffic Policy -> Cache**. The Cache tab keeps cache rules in a filterable table and places global **Cache storage & operations** in a separate section below it. The rule table summarizes match and key behavior, TTL and storage, priority and state, and actions; it is not combined with traffic shapers.
+In the management UI, choose **Traffic policy -> Cache**. The Cache tab keeps cache rules in a filterable table and places global **Cache storage & operations** in a separate section below it. The rule table summarizes match and key behavior, TTL and storage, priority and state, and actions; it is not combined with traffic shapers.
 
 ## Exact Fields And Defaults
 
@@ -25,8 +25,7 @@ Cache rules run after route/target selection and before forwarding a cache miss 
 | `cache_status_codes` | `200`, `203`, `204`, `301`, `308` | Statuses that may be stored. |
 | `max_object_bytes` | `104857600` | Maximum stored response size. |
 | `add_cache_status_header` | false unless enabled | Adds `X-p2pstream-Cache`. |
-| `allow_cookie_requests` | `false` | Legacy/deprecated. Cookie-bearing requests always bypass shared cache; this field may still appear for compatibility but has no runtime effect. |
-| `allow_cookie_requests_acknowledged` | `false` | Legacy acknowledgement field retained for compatibility with `allow_cookie_requests`. |
+
 
 ### Storage Limits
 
@@ -47,13 +46,13 @@ For example, with **Hot object KiB** set to `256`, a cacheable 100 KiB response 
 
 The disk directory is `${CONFIG_DIR}/cache/public` by default, or the value of `PUBLIC_CACHE_DIR` when configured.
 
+Upgrading to cache-key namespace `v6` makes existing entries from older namespaces unreachable by new lookups, so expect a cold cache and a temporary increase in origin traffic. Old metadata and body files are not migrated or immediately deleted: they continue to occupy disk space and count toward storage budgets until normal expiry or budget eviction removes them. Cleanup is demand-driven as described above. Use **Purge all cached objects** if immediate reclamation is needed; otherwise allow normal cleanup to retire the old entries.
+
 The **Storage usage** panel reports cache-accounted body bytes for the disk tier, hot body copies currently retained in memory, and cache-entry count. Each meter shows used, configured limit, and remaining budget. The values update after each successful dashboard refresh (normally every five seconds while the session is active and no edit is in progress). “Remaining” means room within the configured cache budget; it is not the host filesystem's free-space measurement. Disk usage is the logical body size tracked by cache metadata, not filesystem allocation. Usage can briefly appear over a disk or entry limit until the next demand-driven cleanup pass.
 
 ## Validation Rules
 
 p2pstream always bypasses cache for requests with `Authorization`, `Cookie`, non-GET/HEAD methods, request bodies, `Range`, and upgrades.
-
-`allow_cookie_requests` is retained for API and database compatibility, but Cookie-bearing requests never use shared cache lookup or storage. Do not rely on this field for cache behavior.
 
 Requests containing encoded path separators on routes that enable `allow_encoded_separators` path security always bypass shared cache. Compatibility routes can preserve encoded separators for upstreams that require them, but those ambiguous request targets are not used for shared cache lookup or storage.
 
@@ -68,7 +67,7 @@ Cache rule matches inspect only request data through CEL `match_rule` rules. Emp
 Route data, target data, target health, and load-balancer state are not available inside cache match CEL. Cache-specific `route_ids` and `target_ids` remain separate filters evaluated after route/target selection.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing a filterable cache-rule table plus cache storage enabled, disk MiB, memory MiB, hot-object KiB, maximum entries, cleanup seconds, save, and purge controls">
+  <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic policy Cache tab showing a filterable cache-rule table plus cache storage enabled, disk MiB, memory MiB, hot-object KiB, maximum entries, cleanup seconds, save, and purge controls">
   <figcaption>Global cache settings control shared storage budgets and cleanup cadence; cache rules decide whether a given public response is eligible for that storage. Save pending storage changes before navigating away, and treat “Purge all cached objects” as a separate destructive operation.</figcaption>
 </figure>
 

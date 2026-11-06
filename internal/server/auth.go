@@ -301,14 +301,11 @@ func (s *authService) login(
 	}
 	throttleKey := loginThrottleKey(clientKey, username)
 	clientThrottleKey := loginThrottleClientKey(clientKey)
-	clientThrottle := s.clientThrottle
-	if clientThrottle == nil {
-		// NewApp always supplies an independent client tracker. Keep direct
-		// package-level App construction usable in older tests and embeddings.
-		clientThrottle = s.throttle
+	if s.throttle == nil || s.clientThrottle == nil || s.throttle == s.clientThrottle {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("login requires independent username and client throttles; construct the application with NewApp"))
 	}
 	now := time.Now()
-	reservation, admitted := reserveLoginThrottleAttempt(s.throttle, clientThrottle, throttleKey, clientThrottleKey, now)
+	reservation, admitted := reserveLoginThrottleAttempt(s.throttle, s.clientThrottle, throttleKey, clientThrottleKey, now)
 	if !admitted {
 		return nil, connect.NewError(connect.CodeResourceExhausted, errors.New("too many failed login attempts; try again later"))
 	}

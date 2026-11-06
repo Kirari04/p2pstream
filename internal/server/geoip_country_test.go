@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -74,6 +75,30 @@ func TestGeoIPCountryStoreLoadLookupAndSpecialAddresses(t *testing.T) {
 	info, ready := store.Info()
 	if !ready || info.DatabaseType != "GeoLite2-Country" || info.Path != databasePath || info.SizeBytes != int64(len(database)) {
 		t.Fatalf("info = %#v, ready = %v", info, ready)
+	}
+}
+
+func TestGeoIPCountryStoreLoadMissingDatabase(t *testing.T) {
+	for _, directoryExists := range []bool{false, true} {
+		t.Run(fmt.Sprint(directoryExists), func(t *testing.T) {
+			directory := filepath.Join(t.TempDir(), "geoip")
+			if directoryExists {
+				if err := os.Mkdir(directory, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			store, err := NewGeoIPCountryStore(filepath.Join(directory, GeoIPCountryDatabaseFilename), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			if err := store.Load(); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("missing database error = %v, want os.ErrNotExist", err)
+			}
+			if _, ready := store.Info(); ready {
+				t.Fatal("missing database must not make GeoIP ready")
+			}
+		})
 	}
 }
 

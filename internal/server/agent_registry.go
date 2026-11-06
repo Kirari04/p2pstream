@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/rs/zerolog/log"
@@ -46,6 +47,19 @@ func (a *App) CreateAgent(
 	if err != nil {
 		return nil, err
 	}
+	updaterBootstrap, bootstrapErr := a.loadAgentUpdateBootstrap(ctx)
+	var updaterAuthority *p2pstreamv1.AgentUpdateManagementAuthority
+	if bootstrapErr == nil && updaterBootstrap.PinnedRepository != "" {
+		if _, identity, authorityErr := a.requireAgentUpdateAuthority(); authorityErr == nil {
+			updaterAuthority = agentUpdateAuthorityProto(identity)
+		}
+	}
+	if updaterAuthority == nil {
+		// CreateAgent is independent of the optional updater control plane. Do
+		// not return a partial bootstrap bundle that cannot be paired with a
+		// signed enrollment receipt from the current management authority.
+		updaterBootstrap = agentUpdateBootstrap{}
+	}
 	token, tokenHash, err := newAgentToken()
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -67,15 +81,36 @@ func (a *App) CreateAgent(
 	if err := replaceAgentUserLabelsTx(ctx, qtx, agent.ID, labels); err != nil {
 		return nil, err
 	}
+	var updaterToken string
+	var updaterTokenExpiresAt time.Time
+	if updaterAuthority != nil {
+		var updaterTokenHash string
+		var updaterTokenCreatedAt time.Time
+		updaterToken, updaterTokenHash, updaterTokenCreatedAt, updaterTokenExpiresAt, err = newAgentUpdaterEnrollmentToken(agentUpdaterEnrollmentTokenTTL)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO agent_updater_enrollment_tokens (agent_id,token_hash,pinned_repository,authority_key_id,authority_epoch,enrollment_generation,expires_at,created_at) VALUES (?,?,?,?,?,?,?,?)`, agent.ID, updaterTokenHash, updaterBootstrap.PinnedRepository, updaterAuthority.KeyId, int64(updaterAuthority.Epoch), 1, updaterTokenExpiresAt, updaterTokenCreatedAt); err != nil {
+			return nil, publicDBError(err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
+	var updaterTokenExpiresAtUnixMillis int64
+	if !updaterTokenExpiresAt.IsZero() {
+		updaterTokenExpiresAtUnixMillis = updaterTokenExpiresAt.UnixMilli()
+	}
 	return connect.NewResponse(&p2pstreamv1.CreateAgentResponse{
-		Agent: a.agentToProto(ctx, agent),
-		Token: token,
+		Agent:                                a.agentToProto(ctx, agent),
+		Token:                                token,
+		UpdaterEnrollmentToken:               updaterToken,
+		UpdaterEnrollmentExpiresAtUnixMillis: updaterTokenExpiresAtUnixMillis,
+		UpdaterPinnedRepository:              updaterBootstrap.PinnedRepository,
+		UpdaterManagementAuthority:           updaterAuthority,
 	}), nil
 }
 
@@ -97,11 +132,6 @@ func (a *App) UpdateAgent(
 	existing, err := a.DB.GetAgent(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
-	}
-	if !req.Msg.Enabled {
-		if err := a.ensureAgentCanBeDisabled(ctx, req.Msg.Id); err != nil {
-			return nil, err
-		}
 	}
 	tx, err := a.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -155,13 +185,38 @@ func (a *App) DeleteAgent(
 	if _, err := a.requireAdmin(ctx, req.Header()); err != nil {
 		return nil, err
 	}
+	// Serialize the connected check and deletion with tunnel registration.
+	unlock := a.lockAgentAuth(req.Msg.Id)
+	defer unlock()
+
 	if a.AgentHub.connectedByID(req.Msg.Id) != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("connected agent cannot be deleted"))
 	}
-	if err := a.ensureAgentCanBeDisabled(ctx, req.Msg.Id); err != nil {
-		return nil, err
+	tx, err := a.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, publicDBError(err)
 	}
-	if err := a.DB.DeleteAgent(ctx, req.Msg.Id); err != nil {
+	defer tx.Rollback()
+	qtx := a.DB.WithTx(tx)
+
+	// Historical records outlive the agent. These nullable foreign keys predate
+	// ON DELETE actions, so detach them atomically with the registry deletion.
+	// Agent-owned labels, trust reports, and updater state already cascade.
+	agentID := sql.NullInt64{Int64: req.Msg.Id, Valid: true}
+	for _, detach := range []func(context.Context, sql.NullInt64) error{
+		qtx.DetachAgentConnectionHistory,
+		qtx.DetachAgentStatsHistory,
+		qtx.DetachAgentRequestHistory,
+		qtx.DetachAgentRetryHistory,
+	} {
+		if err := detach(ctx, agentID); err != nil {
+			return nil, publicDBError(err)
+		}
+	}
+	if err := qtx.DeleteAgent(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return nil, publicDBError(err)
 	}
 	if a.AgentTransports != nil {
@@ -266,10 +321,6 @@ func (a *App) ensureBootstrapAgent(ctx context.Context) {
 	if err := a.ensureAgentSystemLabel(ctx, agent); err != nil {
 		log.Warn().Err(err).Msg("Failed to upsert bootstrap agent system label")
 	}
-}
-
-func (a *App) ensureAgentCanBeDisabled(ctx context.Context, agentID int64) error {
-	return nil
 }
 
 func (a *App) createAgentWithGeneratedPublicID(ctx context.Context, name string, tokenHash string, enabled int64) (db.Agent, error) {
@@ -485,7 +536,14 @@ func (a *App) agentToProtoWithLatestStats(ctx context.Context, agent db.Agent, u
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			log.Debug().Err(err).Int64("agent_id", agent.ID).Msg("Failed to load agent labels")
 		}
+		var updaterEnabled int64
+		if err := a.DB.QueryRowContext(ctx, `SELECT enabled,updater_version FROM agent_updater_identities WHERE agent_id=?`, agent.ID).Scan(&updaterEnabled, &resp.UpdaterVersion); err == nil {
+			resp.UpdaterEnrolled = updaterEnabled == 1
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			log.Debug().Err(err).Int64("agent_id", agent.ID).Msg("Failed to load agent updater identity")
+		}
 	}
+	resp.UpdateCordoned = a.isAgentUpdateCordoned(agent.ID)
 	if conn != nil {
 		resp.ActiveRequests = conn.ActiveRequests.Load()
 		resp.AdvertisedMaxConcurrentStreams = conn.AdvertisedMaxConcurrentStreams

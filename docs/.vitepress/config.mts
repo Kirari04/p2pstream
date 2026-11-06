@@ -102,6 +102,7 @@ export default defineConfig({
         text: "Operate",
         items: [
           { text: "Troubleshooting", link: "/operations/troubleshooting" },
+          { text: "Agent Proxy Performance", link: "/operations/agent-proxy-performance" },
           { text: "Trace Live Traffic", link: "/guides/trace-live-traffic" },
           { text: "Observability", link: "/concepts/observability" },
           { text: "Backup and Restore", link: "/operations/backup-restore" },
@@ -120,6 +121,7 @@ export default defineConfig({
           { text: "LLM-Ready Docs", link: "/reference/llms" },
           { text: "License", link: "/reference/license" },
           { text: "Database", link: "/reference/database" },
+          { text: "Sites and Domain Aliases", link: "/reference/sites" },
           { text: "Routing Rules", link: "/reference/routing-rules" },
           { text: "CEL Policy Matching", link: "/reference/cel" },
           { text: "Management TLS", link: "/reference/management-tls" },

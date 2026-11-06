@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -27,11 +28,14 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Start the p2pstream proxy server",
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg, err := config.Load()
+		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		cfg, dataLease, err := loadServerConfig(ctx)
 		if err != nil {
 			os.Stderr.WriteString("Failed to load config: " + err.Error() + "\n")
 			os.Exit(1)
 		}
+		defer dataLease.Close()
 
 		logger.Init(cfg.Env)
 		log.Info().
@@ -44,23 +48,11 @@ var serverCmd = &cobra.Command{
 			Int64("memory_recovery_percent", cfg.ServerTunnelMemoryRecoveryPercent).
 			Int64("memory_sample_millis", cfg.ServerTunnelMemorySampleMillis).
 			Msg("Configured server tunnel capacity")
-		if _, legacyPercent := os.LookupEnv("SERVER_TUNNEL_MEMORY_PERCENT"); legacyPercent {
-			log.Warn().Msg("SERVER_TUNNEL_MEMORY_PERCENT is deprecated; adaptive admission uses SERVER_TUNNEL_MEMORY_SOFT_PERCENT and SERVER_TUNNEL_MEMORY_HARD_PERCENT")
-		}
-		if _, legacyReserve := os.LookupEnv("SERVER_TUNNEL_MEMORY_RESERVE_BYTES"); legacyReserve {
-			log.Warn().Msg("SERVER_TUNNEL_MEMORY_RESERVE_BYTES is deprecated; adaptive admission uses actual live memory pressure")
-		}
 		log.Info().
 			Int64("max_concurrent_requests", cfg.PublicMaxConcurrentRequests).
 			Int64("max_concurrent_requests_per_target", cfg.PublicMaxConcurrentPerTarget).
 			Bool("per_target_automatic", cfg.PublicMaxConcurrentPerTargetAuto).
 			Msg("Configured public request capacity")
-		if !cfg.PublicMaxConcurrentPerTargetAuto &&
-			cfg.PublicMaxConcurrentRequests == 2048 &&
-			cfg.PublicMaxConcurrentPerTarget == 256 {
-			log.Warn().
-				Msg("Detected the legacy 256-request per-target ceiling; set PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET=0 to let each target use the global request capacity")
-		}
 
 		database, err := db.Open(cfg.DatabaseURL)
 		if err != nil {
@@ -68,14 +60,45 @@ var serverCmd = &cobra.Command{
 		}
 		defer database.Close()
 
-		app := server.NewApp(cfg, database)
+		app, err := server.NewAppWithError(cfg, database)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Failed to initialize server application")
+		}
+		if cfg.AgentUpdatesEnabled {
+			authority, authorityErr := server.InitializeAgentUpdateManagementAuthority(context.Background(), database, cfg.AgentUpdateAuthorityKeyFile)
+			if authorityErr != nil {
+				app.SetAgentUpdateManagementAuthority(nil, authorityErr)
+				log.Error().Err(authorityErr).Msg("Managed update authority unavailable; reverse proxy remains available but managed update enrollment and progression are disabled")
+			} else {
+				app.SetAgentUpdateManagementAuthority(authority, nil)
+			}
+		}
+		updateCatalog, err := newAgentUpdateCatalog(cfg)
+		if err != nil {
+			// Release trust is an update-control dependency, not a reverse-proxy
+			// dependency. Keep serving existing traffic while every managed-update
+			// entry point remains fail closed without a catalog/bootstrap provider.
+			log.Error().Err(err).Msg("Trusted agent update catalog unavailable; reverse proxy remains available but managed update enrollment and campaign creation are disabled")
+			updateCatalog = nil
+		}
+		if updateCatalog != nil {
+			// A typed nil catalog assigned to either interface would appear
+			// available and panic when a management request calls it.
+			app.TrustedAgentUpdates = updateCatalog
+			app.AgentUpdateBootstrap = updateCatalog
+			primeCtx, cancelPrime := context.WithTimeout(context.Background(), time.Duration(cfg.AgentUpdateHTTPTimeoutMillis)*time.Millisecond)
+			if err := primeAgentUpdateCatalog(primeCtx, updateCatalog); err != nil {
+				log.Warn().Err(err).Msg("Trusted agent update catalog is temporarily unavailable; campaign creation remains fail-closed")
+			}
+			cancelPrime()
+		}
 		defer app.CloseAgentTransports()
 		defer func() {
 			if err := app.ClosePublicGeoRuntime(); err != nil {
 				log.Warn().Err(err).Msg("Failed to close GeoIP runtime")
 			}
 		}()
-		if err := app.LoadPublicGeoRuntime(); err != nil && !os.IsNotExist(err) {
+		if err := app.LoadPublicGeoRuntime(); err != nil && !errors.Is(err, os.ErrNotExist) {
 			log.Warn().Err(err).Msg("Failed to load the existing GeoIP country database")
 		}
 
@@ -112,9 +135,8 @@ var serverCmd = &cobra.Command{
 		}
 		server.ConfigureManagementHTTPServer(mgmtSrv)
 
-		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		defer stop()
 		app.StartAdaptiveTunnelCapacity(ctx)
+		app.StartAgentUpdateMaintenance(ctx)
 		app.StartObservabilityMaintenance(ctx)
 		app.StartPublicGeoMaintenance(ctx)
 
@@ -181,6 +203,20 @@ var serverCmd = &cobra.Command{
 
 		log.Info().Msg("Servers stopped cleanly")
 	},
+}
+
+func loadServerConfig(ctx context.Context) (*config.Config, *server.DataLease, error) {
+	var lease *server.DataLease
+	cfg, err := config.LoadWithGuard(func(cfg *config.Config) error {
+		var err error
+		lease, err = server.AcquireDataLease(ctx, cfg.ConfigDir)
+		return err
+	})
+	if err != nil {
+		_ = lease.Close()
+		return nil, nil, err
+	}
+	return cfg, lease, nil
 }
 
 func managementListenAddress(cfg *config.Config) string {

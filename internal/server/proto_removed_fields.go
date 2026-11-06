@@ -19,7 +19,10 @@ func rejectRemovedProtoFields(message proto.Message, fields map[protowire.Number
 			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid unknown protobuf fields: %w", protowire.ParseError(n)))
 		}
 		if name, ok := fields[number]; ok {
-			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("legacy %s was removed; use match_rule", name))
+			if name == "match" {
+				return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("legacy %s was removed; use match_rule", name))
+			}
+			return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%s is no longer supported", name))
 		}
 		raw = raw[n:]
 	}

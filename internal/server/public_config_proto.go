@@ -424,6 +424,7 @@ func publicRouteToProto(route db.PublicRoute, targets []db.PublicRouteTarget, up
 	return &p2pstreamv1.PublicRoute{
 		Id:                         route.ID,
 		ListenerId:                 route.ListenerID,
+		SiteId:                     nullInt64Value(route.SiteID),
 		Priority:                   route.Priority,
 		HostPattern:                route.HostPattern,
 		PathPrefix:                 route.PathPrefix,
@@ -454,18 +455,7 @@ func publicRoutesToProto(routes []db.PublicRoute, targets []db.PublicRouteTarget
 }
 
 func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.PublicTlsCertificate {
-	issuedAt := cert.IssuedAt
-	expiresAt := cert.ExpiresAt
-	if (!issuedAt.Valid || !expiresAt.Valid) && strings.TrimSpace(cert.CertPath) != "" {
-		fileIssuedAt, fileExpiresAt := publicTLSCertificateValidityFromFile(cert.CertPath)
-		if !issuedAt.Valid {
-			issuedAt = fileIssuedAt
-		}
-		if !expiresAt.Valid {
-			expiresAt = fileExpiresAt
-		}
-	}
-	return &p2pstreamv1.PublicTlsCertificate{
+	resp := &p2pstreamv1.PublicTlsCertificate{
 		Id:                             cert.ID,
 		ListenerId:                     cert.ListenerID,
 		HostnamePattern:                cert.HostnamePattern,
@@ -481,11 +471,13 @@ func publicTLSCertificateToProto(cert db.PublicTlsCertificate) *p2pstreamv1.Publ
 		DnsCredentialId:                nullInt64Value(cert.DnsCredentialID),
 		Status:                         protoTLSCertificateStatusFromString(cert.Status),
 		LastError:                      cert.LastError,
-		IssuedAtUnixMillis:             nullTimeUnixMillis(issuedAt),
-		ExpiresAtUnixMillis:            nullTimeUnixMillis(expiresAt),
-		NextRenewalAtUnixMillis:        nullTimeUnixMillis(cert.NextRenewalAt),
+		IssuedAtUnixMillis:             nullTimeUnixMillis(cert.IssuedAt),
+		ExpiresAtUnixMillis:            nullTimeUnixMillis(cert.ExpiresAt),
+		NextRenewalAtUnixMillis:        nullTimeUnixMillis(publicACMEEffectiveNextRenewalAt(cert)),
 		LastRenewalAttemptAtUnixMillis: nullTimeUnixMillis(cert.LastRenewalAttemptAt),
 	}
+	publicTLSLeafFactsForPath(cert.CertPath).applyTo(resp)
+	return resp
 }
 
 func publicTLSCertificatesToProto(certs []db.PublicTlsCertificate) []*p2pstreamv1.PublicTlsCertificate {

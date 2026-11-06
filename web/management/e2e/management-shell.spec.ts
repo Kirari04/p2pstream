@@ -8,9 +8,9 @@ const navigationGroups = [
   { label: "Observe", destinations: ["Overview", "Monitor"] },
   {
     label: "Configure",
-    destinations: ["Proxy", "Agents", "Traffic Policy", "Templates", "TLS"],
+    destinations: ["Proxy", "Agents", "Traffic policy", "Templates", "TLS"],
   },
-  { label: "System", destinations: ["Environments", "API Tokens"] },
+  { label: "System", destinations: ["Environments", "API tokens"] },
 ] as const;
 
 const allNavigationDestinations = [
@@ -19,18 +19,25 @@ const allNavigationDestinations = [
   "Traffic",
   "Diagnostics",
   "Proxy",
-  "Routes",
+  "Sites",
   "Listeners",
   "Agents",
-  "Traffic Policy",
-  "Rate Limits",
+  "Fleet",
+  "Activity",
+  "Updates",
+  "Traffic policy",
+  "Rate limits",
   "WAF",
+  "Access",
   "Cache",
-  "Traffic Shaper",
+  "Retries",
+  "Traffic shaper",
+  "Visitor identity",
   "Templates",
   "TLS",
   "Environments",
-  "API Tokens",
+  "API tokens",
+  "Management TLS",
 ] as const;
 
 async function openAuthenticatedShell(
@@ -77,7 +84,8 @@ test("groups desktop navigation and reflects nested active and breadcrumb state"
   await expect(overviewLink).toHaveClass(/app-sidebar__link--active/);
 
   await sidebar.getByRole("link", { name: "Proxy", exact: true }).click();
-  await expect(page).toHaveURL(/#\/proxy\/routes$/);
+  await expect(page).toHaveURL(/#\/proxy\/sites$/);
+  await expect(sidebar.getByRole("link", { name: "Sites", exact: true })).toHaveAttribute("aria-current", "page");
   await sidebar.getByRole("link", { name: "Listeners", exact: true }).click();
   await expect(page).toHaveURL(/#\/proxy\/listeners$/);
 
@@ -94,9 +102,9 @@ test("groups desktop navigation and reflects nested active and breadcrumb state"
   await expect(breadcrumb.getByRole("link", { name: "Proxy", exact: true })).toBeVisible();
   await expect(breadcrumb.getByText("Listeners", { exact: true })).toHaveAttribute("aria-current", "page");
 
-  await sidebar.getByRole("link", { name: "Traffic Policy", exact: true }).click();
-  await page.getByRole("button", { name: "Request Tester", exact: true }).click();
-  const requestTester = page.getByRole("dialog", { name: "Request Tester" });
+  await sidebar.getByRole("link", { name: "Traffic policy", exact: true }).click();
+  await page.getByRole("button", { name: "Request tester", exact: true }).click();
+  const requestTester = page.getByRole("dialog", { name: "Request tester" });
   await expect(requestTester).toBeVisible();
   const methodSelect = requestTester.getByRole("combobox", { name: "Request method" });
   const routeSelect = requestTester.getByRole("combobox", { name: "Request route" });
@@ -223,7 +231,7 @@ test("opens complete mobile navigation, restores focus, and closes after navigat
   }
 
   await page.keyboard.press("Shift+Tab");
-  await expect(sidebar.getByRole("link", { name: "API Tokens", exact: true })).toBeFocused();
+  await expect(sidebar.getByRole("link", { name: "Management TLS", exact: true })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(sidebar.getByRole("link", { name: "p2pstream overview" })).toBeFocused();
 

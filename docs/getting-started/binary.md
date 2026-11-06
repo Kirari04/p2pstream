@@ -10,23 +10,29 @@ Use this advanced path for a systemd-managed host install, custom networking, or
 
 - Linux `amd64` or `arm64`.
 - A release archive and `checksums.txt` from GitHub Releases.
-- The matching source archive from GitHub Releases when you need the complete corresponding source.
 - A persistent data directory such as `/var/lib/p2pstream`.
 - Root or equivalent privileges when binding low ports such as `80` and `443`.
 
 ## Steps
 
-1. Download and verify the archive:
+1. Download and integrity-check the archive:
 
    ```bash
    curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/p2pstream_vX.Y.Z_linux_amd64.tar.gz
-   curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/p2pstream_vX.Y.Z_source.tar.gz
    curl -fLO https://github.com/Kirari04/p2pstream/releases/download/vX.Y.Z/checksums.txt
    sha256sum -c checksums.txt --ignore-missing
    tar -xzf p2pstream_vX.Y.Z_linux_amd64.tar.gz
    ```
 
    Use `linux_arm64` on ARM hosts.
+
+   `checksums.txt` detects an incomplete or corrupted download. Stable and
+   staging releases also include a canonical update manifest whose
+   `release_assets` inventory binds the exact name, size, and SHA-256 of the
+   archive, source bundle, checksum file, raw binaries, and OCI descriptors.
+   GitHub Releases is the authenticated distribution source; pin an exact
+   version and verify its downloaded files against the manifest before
+   installation.
 
 2. Install the binary:
 
@@ -66,7 +72,7 @@ p2pstream agent \
 
 Most agent installs should still use the command from the **Agent Setup** modal opened from **Agents** so the ID, token, URL, and CA material match the registered agent.
 
-The release archive includes `LICENSE`, `NOTICE`, `SOURCE.txt`, and third-party notices under `third-party/`.
+The release archive includes `LICENSE`, `NOTICE`, and third-party notices under `third-party/`.
 
 ## Verification
 
@@ -96,12 +102,6 @@ Then confirm **Overview** loads and **Proxy -> Listeners** shows any configured 
 ```bash
 sudo systemctl status p2pstream
 sudo journalctl -u p2pstream -f
-```
-
-The management listener also exposes the AGPL source offer:
-
-```text
-https://proxy.example.com:8081/.well-known/p2pstream/source
 ```
 
 ## Troubleshooting

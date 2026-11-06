@@ -72,6 +72,9 @@ const (
 	// AgentManagementServiceGetAgentAvailabilityProcedure is the fully-qualified name of the
 	// AgentManagementService's GetAgentAvailability RPC.
 	AgentManagementServiceGetAgentAvailabilityProcedure = "/p2pstream.v1.AgentManagementService/GetAgentAvailability"
+	// AgentManagementServiceListAgentAvailabilityProcedure is the fully-qualified name of the
+	// AgentManagementService's ListAgentAvailability RPC.
+	AgentManagementServiceListAgentAvailabilityProcedure = "/p2pstream.v1.AgentManagementService/ListAgentAvailability"
 	// AgentManagementServiceGetDashboardDiagnosticsProcedure is the fully-qualified name of the
 	// AgentManagementService's GetDashboardDiagnostics RPC.
 	AgentManagementServiceGetDashboardDiagnosticsProcedure = "/p2pstream.v1.AgentManagementService/GetDashboardDiagnostics"
@@ -132,6 +135,42 @@ const (
 	// AgentManagementServiceRotateAgentTokenProcedure is the fully-qualified name of the
 	// AgentManagementService's RotateAgentToken RPC.
 	AgentManagementServiceRotateAgentTokenProcedure = "/p2pstream.v1.AgentManagementService/RotateAgentToken"
+	// AgentManagementServiceGenerateAgentUpdaterEnrollmentTokenProcedure is the fully-qualified name of
+	// the AgentManagementService's GenerateAgentUpdaterEnrollmentToken RPC.
+	AgentManagementServiceGenerateAgentUpdaterEnrollmentTokenProcedure = "/p2pstream.v1.AgentManagementService/GenerateAgentUpdaterEnrollmentToken"
+	// AgentManagementServiceEnrollAgentUpdaterProcedure is the fully-qualified name of the
+	// AgentManagementService's EnrollAgentUpdater RPC.
+	AgentManagementServiceEnrollAgentUpdaterProcedure = "/p2pstream.v1.AgentManagementService/EnrollAgentUpdater"
+	// AgentManagementServicePreviewAgentUpdateCampaignProcedure is the fully-qualified name of the
+	// AgentManagementService's PreviewAgentUpdateCampaign RPC.
+	AgentManagementServicePreviewAgentUpdateCampaignProcedure = "/p2pstream.v1.AgentManagementService/PreviewAgentUpdateCampaign"
+	// AgentManagementServiceGetAgentUpdateOverviewProcedure is the fully-qualified name of the
+	// AgentManagementService's GetAgentUpdateOverview RPC.
+	AgentManagementServiceGetAgentUpdateOverviewProcedure = "/p2pstream.v1.AgentManagementService/GetAgentUpdateOverview"
+	// AgentManagementServiceCreateAgentUpdateCampaignProcedure is the fully-qualified name of the
+	// AgentManagementService's CreateAgentUpdateCampaign RPC.
+	AgentManagementServiceCreateAgentUpdateCampaignProcedure = "/p2pstream.v1.AgentManagementService/CreateAgentUpdateCampaign"
+	// AgentManagementServiceListAgentUpdateCampaignsProcedure is the fully-qualified name of the
+	// AgentManagementService's ListAgentUpdateCampaigns RPC.
+	AgentManagementServiceListAgentUpdateCampaignsProcedure = "/p2pstream.v1.AgentManagementService/ListAgentUpdateCampaigns"
+	// AgentManagementServicePauseAgentUpdateCampaignProcedure is the fully-qualified name of the
+	// AgentManagementService's PauseAgentUpdateCampaign RPC.
+	AgentManagementServicePauseAgentUpdateCampaignProcedure = "/p2pstream.v1.AgentManagementService/PauseAgentUpdateCampaign"
+	// AgentManagementServiceResumeAgentUpdateCampaignProcedure is the fully-qualified name of the
+	// AgentManagementService's ResumeAgentUpdateCampaign RPC.
+	AgentManagementServiceResumeAgentUpdateCampaignProcedure = "/p2pstream.v1.AgentManagementService/ResumeAgentUpdateCampaign"
+	// AgentManagementServiceCancelAgentUpdateCampaignProcedure is the fully-qualified name of the
+	// AgentManagementService's CancelAgentUpdateCampaign RPC.
+	AgentManagementServiceCancelAgentUpdateCampaignProcedure = "/p2pstream.v1.AgentManagementService/CancelAgentUpdateCampaign"
+	// AgentManagementServiceRetryAgentUpdateAssignmentsProcedure is the fully-qualified name of the
+	// AgentManagementService's RetryAgentUpdateAssignments RPC.
+	AgentManagementServiceRetryAgentUpdateAssignmentsProcedure = "/p2pstream.v1.AgentManagementService/RetryAgentUpdateAssignments"
+	// AgentManagementServiceCheckAgentUpdateProcedure is the fully-qualified name of the
+	// AgentManagementService's CheckAgentUpdate RPC.
+	AgentManagementServiceCheckAgentUpdateProcedure = "/p2pstream.v1.AgentManagementService/CheckAgentUpdate"
+	// AgentManagementServiceReportAgentUpdateProcedure is the fully-qualified name of the
+	// AgentManagementService's ReportAgentUpdate RPC.
+	AgentManagementServiceReportAgentUpdateProcedure = "/p2pstream.v1.AgentManagementService/ReportAgentUpdate"
 	// AgentManagementServiceCreateManagementAccessTokenProcedure is the fully-qualified name of the
 	// AgentManagementService's CreateManagementAccessToken RPC.
 	AgentManagementServiceCreateManagementAccessTokenProcedure = "/p2pstream.v1.AgentManagementService/CreateManagementAccessToken"
@@ -183,6 +222,24 @@ const (
 	// AgentManagementServiceStopPublicListenerProcedure is the fully-qualified name of the
 	// AgentManagementService's StopPublicListener RPC.
 	AgentManagementServiceStopPublicListenerProcedure = "/p2pstream.v1.AgentManagementService/StopPublicListener"
+	// AgentManagementServiceCreatePublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's CreatePublicSite RPC.
+	AgentManagementServiceCreatePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicSite"
+	// AgentManagementServiceUpdatePublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's UpdatePublicSite RPC.
+	AgentManagementServiceUpdatePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/UpdatePublicSite"
+	// AgentManagementServicePublishPublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's PublishPublicSite RPC.
+	AgentManagementServicePublishPublicSiteProcedure = "/p2pstream.v1.AgentManagementService/PublishPublicSite"
+	// AgentManagementServiceDeletePublicSiteProcedure is the fully-qualified name of the
+	// AgentManagementService's DeletePublicSite RPC.
+	AgentManagementServiceDeletePublicSiteProcedure = "/p2pstream.v1.AgentManagementService/DeletePublicSite"
+	// AgentManagementServicePreviewPublicSiteMigrationProcedure is the fully-qualified name of the
+	// AgentManagementService's PreviewPublicSiteMigration RPC.
+	AgentManagementServicePreviewPublicSiteMigrationProcedure = "/p2pstream.v1.AgentManagementService/PreviewPublicSiteMigration"
+	// AgentManagementServiceApplyPublicSiteMigrationProcedure is the fully-qualified name of the
+	// AgentManagementService's ApplyPublicSiteMigration RPC.
+	AgentManagementServiceApplyPublicSiteMigrationProcedure = "/p2pstream.v1.AgentManagementService/ApplyPublicSiteMigration"
 	// AgentManagementServiceCreatePublicRouteProcedure is the fully-qualified name of the
 	// AgentManagementService's CreatePublicRoute RPC.
 	AgentManagementServiceCreatePublicRouteProcedure = "/p2pstream.v1.AgentManagementService/CreatePublicRoute"
@@ -335,6 +392,7 @@ type AgentManagementServiceClient interface {
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
 	GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error)
+	ListAgentAvailability(context.Context, *connect.Request[v1.ListAgentAvailabilityRequest]) (*connect.Response[v1.ListAgentAvailabilityResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
 	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
 	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
@@ -355,6 +413,18 @@ type AgentManagementServiceClient interface {
 	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
 	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
 	RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error)
+	GenerateAgentUpdaterEnrollmentToken(context.Context, *connect.Request[v1.GenerateAgentUpdaterEnrollmentTokenRequest]) (*connect.Response[v1.GenerateAgentUpdaterEnrollmentTokenResponse], error)
+	EnrollAgentUpdater(context.Context, *connect.Request[v1.EnrollAgentUpdaterRequest]) (*connect.Response[v1.EnrollAgentUpdaterResponse], error)
+	PreviewAgentUpdateCampaign(context.Context, *connect.Request[v1.PreviewAgentUpdateCampaignRequest]) (*connect.Response[v1.PreviewAgentUpdateCampaignResponse], error)
+	GetAgentUpdateOverview(context.Context, *connect.Request[v1.GetAgentUpdateOverviewRequest]) (*connect.Response[v1.GetAgentUpdateOverviewResponse], error)
+	CreateAgentUpdateCampaign(context.Context, *connect.Request[v1.CreateAgentUpdateCampaignRequest]) (*connect.Response[v1.CreateAgentUpdateCampaignResponse], error)
+	ListAgentUpdateCampaigns(context.Context, *connect.Request[v1.ListAgentUpdateCampaignsRequest]) (*connect.Response[v1.ListAgentUpdateCampaignsResponse], error)
+	PauseAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error)
+	ResumeAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error)
+	CancelAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error)
+	RetryAgentUpdateAssignments(context.Context, *connect.Request[v1.RetryAgentUpdateAssignmentsRequest]) (*connect.Response[v1.RetryAgentUpdateAssignmentsResponse], error)
+	CheckAgentUpdate(context.Context, *connect.Request[v1.CheckAgentUpdateRequest]) (*connect.Response[v1.CheckAgentUpdateResponse], error)
+	ReportAgentUpdate(context.Context, *connect.Request[v1.ReportAgentUpdateRequest]) (*connect.Response[v1.ReportAgentUpdateResponse], error)
 	CreateManagementAccessToken(context.Context, *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error)
 	ListManagementAccessTokens(context.Context, *connect.Request[v1.ListManagementAccessTokensRequest]) (*connect.Response[v1.ListManagementAccessTokensResponse], error)
 	DeleteManagementAccessToken(context.Context, *connect.Request[v1.DeleteManagementAccessTokenRequest]) (*connect.Response[v1.DeleteManagementAccessTokenResponse], error)
@@ -372,6 +442,12 @@ type AgentManagementServiceClient interface {
 	DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error)
 	StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error)
 	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
+	CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error)
+	UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error)
+	PublishPublicSite(context.Context, *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error)
+	DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error)
+	PreviewPublicSiteMigration(context.Context, *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error)
+	ApplyPublicSiteMigration(context.Context, *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error)
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
@@ -508,6 +584,12 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentAvailability")),
 			connect.WithClientOptions(opts...),
 		),
+		listAgentAvailability: connect.NewClient[v1.ListAgentAvailabilityRequest, v1.ListAgentAvailabilityResponse](
+			httpClient,
+			baseURL+AgentManagementServiceListAgentAvailabilityProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ListAgentAvailability")),
+			connect.WithClientOptions(opts...),
+		),
 		getDashboardDiagnostics: connect.NewClient[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse](
 			httpClient,
 			baseURL+AgentManagementServiceGetDashboardDiagnosticsProcedure,
@@ -628,6 +710,78 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(agentManagementServiceMethods.ByName("RotateAgentToken")),
 			connect.WithClientOptions(opts...),
 		),
+		generateAgentUpdaterEnrollmentToken: connect.NewClient[v1.GenerateAgentUpdaterEnrollmentTokenRequest, v1.GenerateAgentUpdaterEnrollmentTokenResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGenerateAgentUpdaterEnrollmentTokenProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GenerateAgentUpdaterEnrollmentToken")),
+			connect.WithClientOptions(opts...),
+		),
+		enrollAgentUpdater: connect.NewClient[v1.EnrollAgentUpdaterRequest, v1.EnrollAgentUpdaterResponse](
+			httpClient,
+			baseURL+AgentManagementServiceEnrollAgentUpdaterProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("EnrollAgentUpdater")),
+			connect.WithClientOptions(opts...),
+		),
+		previewAgentUpdateCampaign: connect.NewClient[v1.PreviewAgentUpdateCampaignRequest, v1.PreviewAgentUpdateCampaignResponse](
+			httpClient,
+			baseURL+AgentManagementServicePreviewAgentUpdateCampaignProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PreviewAgentUpdateCampaign")),
+			connect.WithClientOptions(opts...),
+		),
+		getAgentUpdateOverview: connect.NewClient[v1.GetAgentUpdateOverviewRequest, v1.GetAgentUpdateOverviewResponse](
+			httpClient,
+			baseURL+AgentManagementServiceGetAgentUpdateOverviewProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentUpdateOverview")),
+			connect.WithClientOptions(opts...),
+		),
+		createAgentUpdateCampaign: connect.NewClient[v1.CreateAgentUpdateCampaignRequest, v1.CreateAgentUpdateCampaignResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreateAgentUpdateCampaignProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreateAgentUpdateCampaign")),
+			connect.WithClientOptions(opts...),
+		),
+		listAgentUpdateCampaigns: connect.NewClient[v1.ListAgentUpdateCampaignsRequest, v1.ListAgentUpdateCampaignsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceListAgentUpdateCampaignsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ListAgentUpdateCampaigns")),
+			connect.WithClientOptions(opts...),
+		),
+		pauseAgentUpdateCampaign: connect.NewClient[v1.ChangeAgentUpdateCampaignStateRequest, v1.ChangeAgentUpdateCampaignStateResponse](
+			httpClient,
+			baseURL+AgentManagementServicePauseAgentUpdateCampaignProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PauseAgentUpdateCampaign")),
+			connect.WithClientOptions(opts...),
+		),
+		resumeAgentUpdateCampaign: connect.NewClient[v1.ChangeAgentUpdateCampaignStateRequest, v1.ChangeAgentUpdateCampaignStateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceResumeAgentUpdateCampaignProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ResumeAgentUpdateCampaign")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelAgentUpdateCampaign: connect.NewClient[v1.ChangeAgentUpdateCampaignStateRequest, v1.ChangeAgentUpdateCampaignStateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCancelAgentUpdateCampaignProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CancelAgentUpdateCampaign")),
+			connect.WithClientOptions(opts...),
+		),
+		retryAgentUpdateAssignments: connect.NewClient[v1.RetryAgentUpdateAssignmentsRequest, v1.RetryAgentUpdateAssignmentsResponse](
+			httpClient,
+			baseURL+AgentManagementServiceRetryAgentUpdateAssignmentsProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("RetryAgentUpdateAssignments")),
+			connect.WithClientOptions(opts...),
+		),
+		checkAgentUpdate: connect.NewClient[v1.CheckAgentUpdateRequest, v1.CheckAgentUpdateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCheckAgentUpdateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CheckAgentUpdate")),
+			connect.WithClientOptions(opts...),
+		),
+		reportAgentUpdate: connect.NewClient[v1.ReportAgentUpdateRequest, v1.ReportAgentUpdateResponse](
+			httpClient,
+			baseURL+AgentManagementServiceReportAgentUpdateProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ReportAgentUpdate")),
+			connect.WithClientOptions(opts...),
+		),
 		createManagementAccessToken: connect.NewClient[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse](
 			httpClient,
 			baseURL+AgentManagementServiceCreateManagementAccessTokenProcedure,
@@ -728,6 +882,42 @@ func NewAgentManagementServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+AgentManagementServiceStopPublicListenerProcedure,
 			connect.WithSchema(agentManagementServiceMethods.ByName("StopPublicListener")),
+			connect.WithClientOptions(opts...),
+		),
+		createPublicSite: connect.NewClient[v1.CreatePublicSiteRequest, v1.CreatePublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceCreatePublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		updatePublicSite: connect.NewClient[v1.UpdatePublicSiteRequest, v1.UpdatePublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceUpdatePublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		publishPublicSite: connect.NewClient[v1.PublishPublicSiteRequest, v1.PublishPublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServicePublishPublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PublishPublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		deletePublicSite: connect.NewClient[v1.DeletePublicSiteRequest, v1.DeletePublicSiteResponse](
+			httpClient,
+			baseURL+AgentManagementServiceDeletePublicSiteProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicSite")),
+			connect.WithClientOptions(opts...),
+		),
+		previewPublicSiteMigration: connect.NewClient[v1.PreviewPublicSiteMigrationRequest, v1.PreviewPublicSiteMigrationResponse](
+			httpClient,
+			baseURL+AgentManagementServicePreviewPublicSiteMigrationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("PreviewPublicSiteMigration")),
+			connect.WithClientOptions(opts...),
+		),
+		applyPublicSiteMigration: connect.NewClient[v1.ApplyPublicSiteMigrationRequest, v1.ApplyPublicSiteMigrationResponse](
+			httpClient,
+			baseURL+AgentManagementServiceApplyPublicSiteMigrationProcedure,
+			connect.WithSchema(agentManagementServiceMethods.ByName("ApplyPublicSiteMigration")),
 			connect.WithClientOptions(opts...),
 		),
 		createPublicRoute: connect.NewClient[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse](
@@ -1018,6 +1208,7 @@ type agentManagementServiceClient struct {
 	getStatus                            *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
 	getDashboard                         *connect.Client[v1.GetDashboardRequest, v1.GetDashboardResponse]
 	getAgentAvailability                 *connect.Client[v1.GetAgentAvailabilityRequest, v1.GetAgentAvailabilityResponse]
+	listAgentAvailability                *connect.Client[v1.ListAgentAvailabilityRequest, v1.ListAgentAvailabilityResponse]
 	getDashboardDiagnostics              *connect.Client[v1.GetDashboardDiagnosticsRequest, v1.GetDashboardDiagnosticsResponse]
 	getTrafficTraceSettings              *connect.Client[v1.GetTrafficTraceSettingsRequest, v1.GetTrafficTraceSettingsResponse]
 	setTrafficTraceSettings              *connect.Client[v1.SetTrafficTraceSettingsRequest, v1.SetTrafficTraceSettingsResponse]
@@ -1038,6 +1229,18 @@ type agentManagementServiceClient struct {
 	updateAgent                          *connect.Client[v1.UpdateAgentRequest, v1.UpdateAgentResponse]
 	deleteAgent                          *connect.Client[v1.DeleteAgentRequest, v1.DeleteAgentResponse]
 	rotateAgentToken                     *connect.Client[v1.RotateAgentTokenRequest, v1.RotateAgentTokenResponse]
+	generateAgentUpdaterEnrollmentToken  *connect.Client[v1.GenerateAgentUpdaterEnrollmentTokenRequest, v1.GenerateAgentUpdaterEnrollmentTokenResponse]
+	enrollAgentUpdater                   *connect.Client[v1.EnrollAgentUpdaterRequest, v1.EnrollAgentUpdaterResponse]
+	previewAgentUpdateCampaign           *connect.Client[v1.PreviewAgentUpdateCampaignRequest, v1.PreviewAgentUpdateCampaignResponse]
+	getAgentUpdateOverview               *connect.Client[v1.GetAgentUpdateOverviewRequest, v1.GetAgentUpdateOverviewResponse]
+	createAgentUpdateCampaign            *connect.Client[v1.CreateAgentUpdateCampaignRequest, v1.CreateAgentUpdateCampaignResponse]
+	listAgentUpdateCampaigns             *connect.Client[v1.ListAgentUpdateCampaignsRequest, v1.ListAgentUpdateCampaignsResponse]
+	pauseAgentUpdateCampaign             *connect.Client[v1.ChangeAgentUpdateCampaignStateRequest, v1.ChangeAgentUpdateCampaignStateResponse]
+	resumeAgentUpdateCampaign            *connect.Client[v1.ChangeAgentUpdateCampaignStateRequest, v1.ChangeAgentUpdateCampaignStateResponse]
+	cancelAgentUpdateCampaign            *connect.Client[v1.ChangeAgentUpdateCampaignStateRequest, v1.ChangeAgentUpdateCampaignStateResponse]
+	retryAgentUpdateAssignments          *connect.Client[v1.RetryAgentUpdateAssignmentsRequest, v1.RetryAgentUpdateAssignmentsResponse]
+	checkAgentUpdate                     *connect.Client[v1.CheckAgentUpdateRequest, v1.CheckAgentUpdateResponse]
+	reportAgentUpdate                    *connect.Client[v1.ReportAgentUpdateRequest, v1.ReportAgentUpdateResponse]
 	createManagementAccessToken          *connect.Client[v1.CreateManagementAccessTokenRequest, v1.CreateManagementAccessTokenResponse]
 	listManagementAccessTokens           *connect.Client[v1.ListManagementAccessTokensRequest, v1.ListManagementAccessTokensResponse]
 	deleteManagementAccessToken          *connect.Client[v1.DeleteManagementAccessTokenRequest, v1.DeleteManagementAccessTokenResponse]
@@ -1055,6 +1258,12 @@ type agentManagementServiceClient struct {
 	disablePublicListener                *connect.Client[v1.DisablePublicListenerRequest, v1.DisablePublicListenerResponse]
 	startPublicListener                  *connect.Client[v1.StartPublicListenerRequest, v1.StartPublicListenerResponse]
 	stopPublicListener                   *connect.Client[v1.StopPublicListenerRequest, v1.StopPublicListenerResponse]
+	createPublicSite                     *connect.Client[v1.CreatePublicSiteRequest, v1.CreatePublicSiteResponse]
+	updatePublicSite                     *connect.Client[v1.UpdatePublicSiteRequest, v1.UpdatePublicSiteResponse]
+	publishPublicSite                    *connect.Client[v1.PublishPublicSiteRequest, v1.PublishPublicSiteResponse]
+	deletePublicSite                     *connect.Client[v1.DeletePublicSiteRequest, v1.DeletePublicSiteResponse]
+	previewPublicSiteMigration           *connect.Client[v1.PreviewPublicSiteMigrationRequest, v1.PreviewPublicSiteMigrationResponse]
+	applyPublicSiteMigration             *connect.Client[v1.ApplyPublicSiteMigrationRequest, v1.ApplyPublicSiteMigrationResponse]
 	createPublicRoute                    *connect.Client[v1.CreatePublicRouteRequest, v1.CreatePublicRouteResponse]
 	updatePublicRoute                    *connect.Client[v1.UpdatePublicRouteRequest, v1.UpdatePublicRouteResponse]
 	deletePublicRoute                    *connect.Client[v1.DeletePublicRouteRequest, v1.DeletePublicRouteResponse]
@@ -1174,6 +1383,11 @@ func (c *agentManagementServiceClient) GetAgentAvailability(ctx context.Context,
 	return c.getAgentAvailability.CallUnary(ctx, req)
 }
 
+// ListAgentAvailability calls p2pstream.v1.AgentManagementService.ListAgentAvailability.
+func (c *agentManagementServiceClient) ListAgentAvailability(ctx context.Context, req *connect.Request[v1.ListAgentAvailabilityRequest]) (*connect.Response[v1.ListAgentAvailabilityResponse], error) {
+	return c.listAgentAvailability.CallUnary(ctx, req)
+}
+
 // GetDashboardDiagnostics calls p2pstream.v1.AgentManagementService.GetDashboardDiagnostics.
 func (c *agentManagementServiceClient) GetDashboardDiagnostics(ctx context.Context, req *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error) {
 	return c.getDashboardDiagnostics.CallUnary(ctx, req)
@@ -1278,6 +1492,68 @@ func (c *agentManagementServiceClient) RotateAgentToken(ctx context.Context, req
 	return c.rotateAgentToken.CallUnary(ctx, req)
 }
 
+// GenerateAgentUpdaterEnrollmentToken calls
+// p2pstream.v1.AgentManagementService.GenerateAgentUpdaterEnrollmentToken.
+func (c *agentManagementServiceClient) GenerateAgentUpdaterEnrollmentToken(ctx context.Context, req *connect.Request[v1.GenerateAgentUpdaterEnrollmentTokenRequest]) (*connect.Response[v1.GenerateAgentUpdaterEnrollmentTokenResponse], error) {
+	return c.generateAgentUpdaterEnrollmentToken.CallUnary(ctx, req)
+}
+
+// EnrollAgentUpdater calls p2pstream.v1.AgentManagementService.EnrollAgentUpdater.
+func (c *agentManagementServiceClient) EnrollAgentUpdater(ctx context.Context, req *connect.Request[v1.EnrollAgentUpdaterRequest]) (*connect.Response[v1.EnrollAgentUpdaterResponse], error) {
+	return c.enrollAgentUpdater.CallUnary(ctx, req)
+}
+
+// PreviewAgentUpdateCampaign calls p2pstream.v1.AgentManagementService.PreviewAgentUpdateCampaign.
+func (c *agentManagementServiceClient) PreviewAgentUpdateCampaign(ctx context.Context, req *connect.Request[v1.PreviewAgentUpdateCampaignRequest]) (*connect.Response[v1.PreviewAgentUpdateCampaignResponse], error) {
+	return c.previewAgentUpdateCampaign.CallUnary(ctx, req)
+}
+
+// GetAgentUpdateOverview calls p2pstream.v1.AgentManagementService.GetAgentUpdateOverview.
+func (c *agentManagementServiceClient) GetAgentUpdateOverview(ctx context.Context, req *connect.Request[v1.GetAgentUpdateOverviewRequest]) (*connect.Response[v1.GetAgentUpdateOverviewResponse], error) {
+	return c.getAgentUpdateOverview.CallUnary(ctx, req)
+}
+
+// CreateAgentUpdateCampaign calls p2pstream.v1.AgentManagementService.CreateAgentUpdateCampaign.
+func (c *agentManagementServiceClient) CreateAgentUpdateCampaign(ctx context.Context, req *connect.Request[v1.CreateAgentUpdateCampaignRequest]) (*connect.Response[v1.CreateAgentUpdateCampaignResponse], error) {
+	return c.createAgentUpdateCampaign.CallUnary(ctx, req)
+}
+
+// ListAgentUpdateCampaigns calls p2pstream.v1.AgentManagementService.ListAgentUpdateCampaigns.
+func (c *agentManagementServiceClient) ListAgentUpdateCampaigns(ctx context.Context, req *connect.Request[v1.ListAgentUpdateCampaignsRequest]) (*connect.Response[v1.ListAgentUpdateCampaignsResponse], error) {
+	return c.listAgentUpdateCampaigns.CallUnary(ctx, req)
+}
+
+// PauseAgentUpdateCampaign calls p2pstream.v1.AgentManagementService.PauseAgentUpdateCampaign.
+func (c *agentManagementServiceClient) PauseAgentUpdateCampaign(ctx context.Context, req *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error) {
+	return c.pauseAgentUpdateCampaign.CallUnary(ctx, req)
+}
+
+// ResumeAgentUpdateCampaign calls p2pstream.v1.AgentManagementService.ResumeAgentUpdateCampaign.
+func (c *agentManagementServiceClient) ResumeAgentUpdateCampaign(ctx context.Context, req *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error) {
+	return c.resumeAgentUpdateCampaign.CallUnary(ctx, req)
+}
+
+// CancelAgentUpdateCampaign calls p2pstream.v1.AgentManagementService.CancelAgentUpdateCampaign.
+func (c *agentManagementServiceClient) CancelAgentUpdateCampaign(ctx context.Context, req *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error) {
+	return c.cancelAgentUpdateCampaign.CallUnary(ctx, req)
+}
+
+// RetryAgentUpdateAssignments calls
+// p2pstream.v1.AgentManagementService.RetryAgentUpdateAssignments.
+func (c *agentManagementServiceClient) RetryAgentUpdateAssignments(ctx context.Context, req *connect.Request[v1.RetryAgentUpdateAssignmentsRequest]) (*connect.Response[v1.RetryAgentUpdateAssignmentsResponse], error) {
+	return c.retryAgentUpdateAssignments.CallUnary(ctx, req)
+}
+
+// CheckAgentUpdate calls p2pstream.v1.AgentManagementService.CheckAgentUpdate.
+func (c *agentManagementServiceClient) CheckAgentUpdate(ctx context.Context, req *connect.Request[v1.CheckAgentUpdateRequest]) (*connect.Response[v1.CheckAgentUpdateResponse], error) {
+	return c.checkAgentUpdate.CallUnary(ctx, req)
+}
+
+// ReportAgentUpdate calls p2pstream.v1.AgentManagementService.ReportAgentUpdate.
+func (c *agentManagementServiceClient) ReportAgentUpdate(ctx context.Context, req *connect.Request[v1.ReportAgentUpdateRequest]) (*connect.Response[v1.ReportAgentUpdateResponse], error) {
+	return c.reportAgentUpdate.CallUnary(ctx, req)
+}
+
 // CreateManagementAccessToken calls
 // p2pstream.v1.AgentManagementService.CreateManagementAccessToken.
 func (c *agentManagementServiceClient) CreateManagementAccessToken(ctx context.Context, req *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error) {
@@ -1365,6 +1641,36 @@ func (c *agentManagementServiceClient) StartPublicListener(ctx context.Context, 
 // StopPublicListener calls p2pstream.v1.AgentManagementService.StopPublicListener.
 func (c *agentManagementServiceClient) StopPublicListener(ctx context.Context, req *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error) {
 	return c.stopPublicListener.CallUnary(ctx, req)
+}
+
+// CreatePublicSite calls p2pstream.v1.AgentManagementService.CreatePublicSite.
+func (c *agentManagementServiceClient) CreatePublicSite(ctx context.Context, req *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error) {
+	return c.createPublicSite.CallUnary(ctx, req)
+}
+
+// UpdatePublicSite calls p2pstream.v1.AgentManagementService.UpdatePublicSite.
+func (c *agentManagementServiceClient) UpdatePublicSite(ctx context.Context, req *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error) {
+	return c.updatePublicSite.CallUnary(ctx, req)
+}
+
+// PublishPublicSite calls p2pstream.v1.AgentManagementService.PublishPublicSite.
+func (c *agentManagementServiceClient) PublishPublicSite(ctx context.Context, req *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error) {
+	return c.publishPublicSite.CallUnary(ctx, req)
+}
+
+// DeletePublicSite calls p2pstream.v1.AgentManagementService.DeletePublicSite.
+func (c *agentManagementServiceClient) DeletePublicSite(ctx context.Context, req *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error) {
+	return c.deletePublicSite.CallUnary(ctx, req)
+}
+
+// PreviewPublicSiteMigration calls p2pstream.v1.AgentManagementService.PreviewPublicSiteMigration.
+func (c *agentManagementServiceClient) PreviewPublicSiteMigration(ctx context.Context, req *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error) {
+	return c.previewPublicSiteMigration.CallUnary(ctx, req)
+}
+
+// ApplyPublicSiteMigration calls p2pstream.v1.AgentManagementService.ApplyPublicSiteMigration.
+func (c *agentManagementServiceClient) ApplyPublicSiteMigration(ctx context.Context, req *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error) {
+	return c.applyPublicSiteMigration.CallUnary(ctx, req)
 }
 
 // CreatePublicRoute calls p2pstream.v1.AgentManagementService.CreatePublicRoute.
@@ -1621,6 +1927,7 @@ type AgentManagementServiceHandler interface {
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	GetDashboard(context.Context, *connect.Request[v1.GetDashboardRequest]) (*connect.Response[v1.GetDashboardResponse], error)
 	GetAgentAvailability(context.Context, *connect.Request[v1.GetAgentAvailabilityRequest]) (*connect.Response[v1.GetAgentAvailabilityResponse], error)
+	ListAgentAvailability(context.Context, *connect.Request[v1.ListAgentAvailabilityRequest]) (*connect.Response[v1.ListAgentAvailabilityResponse], error)
 	GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error)
 	GetTrafficTraceSettings(context.Context, *connect.Request[v1.GetTrafficTraceSettingsRequest]) (*connect.Response[v1.GetTrafficTraceSettingsResponse], error)
 	SetTrafficTraceSettings(context.Context, *connect.Request[v1.SetTrafficTraceSettingsRequest]) (*connect.Response[v1.SetTrafficTraceSettingsResponse], error)
@@ -1641,6 +1948,18 @@ type AgentManagementServiceHandler interface {
 	UpdateAgent(context.Context, *connect.Request[v1.UpdateAgentRequest]) (*connect.Response[v1.UpdateAgentResponse], error)
 	DeleteAgent(context.Context, *connect.Request[v1.DeleteAgentRequest]) (*connect.Response[v1.DeleteAgentResponse], error)
 	RotateAgentToken(context.Context, *connect.Request[v1.RotateAgentTokenRequest]) (*connect.Response[v1.RotateAgentTokenResponse], error)
+	GenerateAgentUpdaterEnrollmentToken(context.Context, *connect.Request[v1.GenerateAgentUpdaterEnrollmentTokenRequest]) (*connect.Response[v1.GenerateAgentUpdaterEnrollmentTokenResponse], error)
+	EnrollAgentUpdater(context.Context, *connect.Request[v1.EnrollAgentUpdaterRequest]) (*connect.Response[v1.EnrollAgentUpdaterResponse], error)
+	PreviewAgentUpdateCampaign(context.Context, *connect.Request[v1.PreviewAgentUpdateCampaignRequest]) (*connect.Response[v1.PreviewAgentUpdateCampaignResponse], error)
+	GetAgentUpdateOverview(context.Context, *connect.Request[v1.GetAgentUpdateOverviewRequest]) (*connect.Response[v1.GetAgentUpdateOverviewResponse], error)
+	CreateAgentUpdateCampaign(context.Context, *connect.Request[v1.CreateAgentUpdateCampaignRequest]) (*connect.Response[v1.CreateAgentUpdateCampaignResponse], error)
+	ListAgentUpdateCampaigns(context.Context, *connect.Request[v1.ListAgentUpdateCampaignsRequest]) (*connect.Response[v1.ListAgentUpdateCampaignsResponse], error)
+	PauseAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error)
+	ResumeAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error)
+	CancelAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error)
+	RetryAgentUpdateAssignments(context.Context, *connect.Request[v1.RetryAgentUpdateAssignmentsRequest]) (*connect.Response[v1.RetryAgentUpdateAssignmentsResponse], error)
+	CheckAgentUpdate(context.Context, *connect.Request[v1.CheckAgentUpdateRequest]) (*connect.Response[v1.CheckAgentUpdateResponse], error)
+	ReportAgentUpdate(context.Context, *connect.Request[v1.ReportAgentUpdateRequest]) (*connect.Response[v1.ReportAgentUpdateResponse], error)
 	CreateManagementAccessToken(context.Context, *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error)
 	ListManagementAccessTokens(context.Context, *connect.Request[v1.ListManagementAccessTokensRequest]) (*connect.Response[v1.ListManagementAccessTokensResponse], error)
 	DeleteManagementAccessToken(context.Context, *connect.Request[v1.DeleteManagementAccessTokenRequest]) (*connect.Response[v1.DeleteManagementAccessTokenResponse], error)
@@ -1658,6 +1977,12 @@ type AgentManagementServiceHandler interface {
 	DisablePublicListener(context.Context, *connect.Request[v1.DisablePublicListenerRequest]) (*connect.Response[v1.DisablePublicListenerResponse], error)
 	StartPublicListener(context.Context, *connect.Request[v1.StartPublicListenerRequest]) (*connect.Response[v1.StartPublicListenerResponse], error)
 	StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error)
+	CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error)
+	UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error)
+	PublishPublicSite(context.Context, *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error)
+	DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error)
+	PreviewPublicSiteMigration(context.Context, *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error)
+	ApplyPublicSiteMigration(context.Context, *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error)
 	CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error)
 	UpdatePublicRoute(context.Context, *connect.Request[v1.UpdatePublicRouteRequest]) (*connect.Response[v1.UpdatePublicRouteResponse], error)
 	DeletePublicRoute(context.Context, *connect.Request[v1.DeletePublicRouteRequest]) (*connect.Response[v1.DeletePublicRouteResponse], error)
@@ -1790,6 +2115,12 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentAvailability")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceListAgentAvailabilityHandler := connect.NewUnaryHandler(
+		AgentManagementServiceListAgentAvailabilityProcedure,
+		svc.ListAgentAvailability,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ListAgentAvailability")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceGetDashboardDiagnosticsHandler := connect.NewUnaryHandler(
 		AgentManagementServiceGetDashboardDiagnosticsProcedure,
 		svc.GetDashboardDiagnostics,
@@ -1910,6 +2241,78 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		connect.WithSchema(agentManagementServiceMethods.ByName("RotateAgentToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagementServiceGenerateAgentUpdaterEnrollmentTokenHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGenerateAgentUpdaterEnrollmentTokenProcedure,
+		svc.GenerateAgentUpdaterEnrollmentToken,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GenerateAgentUpdaterEnrollmentToken")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceEnrollAgentUpdaterHandler := connect.NewUnaryHandler(
+		AgentManagementServiceEnrollAgentUpdaterProcedure,
+		svc.EnrollAgentUpdater,
+		connect.WithSchema(agentManagementServiceMethods.ByName("EnrollAgentUpdater")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePreviewAgentUpdateCampaignHandler := connect.NewUnaryHandler(
+		AgentManagementServicePreviewAgentUpdateCampaignProcedure,
+		svc.PreviewAgentUpdateCampaign,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PreviewAgentUpdateCampaign")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceGetAgentUpdateOverviewHandler := connect.NewUnaryHandler(
+		AgentManagementServiceGetAgentUpdateOverviewProcedure,
+		svc.GetAgentUpdateOverview,
+		connect.WithSchema(agentManagementServiceMethods.ByName("GetAgentUpdateOverview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreateAgentUpdateCampaignHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreateAgentUpdateCampaignProcedure,
+		svc.CreateAgentUpdateCampaign,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreateAgentUpdateCampaign")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceListAgentUpdateCampaignsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceListAgentUpdateCampaignsProcedure,
+		svc.ListAgentUpdateCampaigns,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ListAgentUpdateCampaigns")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePauseAgentUpdateCampaignHandler := connect.NewUnaryHandler(
+		AgentManagementServicePauseAgentUpdateCampaignProcedure,
+		svc.PauseAgentUpdateCampaign,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PauseAgentUpdateCampaign")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceResumeAgentUpdateCampaignHandler := connect.NewUnaryHandler(
+		AgentManagementServiceResumeAgentUpdateCampaignProcedure,
+		svc.ResumeAgentUpdateCampaign,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ResumeAgentUpdateCampaign")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCancelAgentUpdateCampaignHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCancelAgentUpdateCampaignProcedure,
+		svc.CancelAgentUpdateCampaign,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CancelAgentUpdateCampaign")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceRetryAgentUpdateAssignmentsHandler := connect.NewUnaryHandler(
+		AgentManagementServiceRetryAgentUpdateAssignmentsProcedure,
+		svc.RetryAgentUpdateAssignments,
+		connect.WithSchema(agentManagementServiceMethods.ByName("RetryAgentUpdateAssignments")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCheckAgentUpdateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCheckAgentUpdateProcedure,
+		svc.CheckAgentUpdate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CheckAgentUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceReportAgentUpdateHandler := connect.NewUnaryHandler(
+		AgentManagementServiceReportAgentUpdateProcedure,
+		svc.ReportAgentUpdate,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ReportAgentUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagementServiceCreateManagementAccessTokenHandler := connect.NewUnaryHandler(
 		AgentManagementServiceCreateManagementAccessTokenProcedure,
 		svc.CreateManagementAccessToken,
@@ -2010,6 +2413,42 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 		AgentManagementServiceStopPublicListenerProcedure,
 		svc.StopPublicListener,
 		connect.WithSchema(agentManagementServiceMethods.ByName("StopPublicListener")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceCreatePublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceCreatePublicSiteProcedure,
+		svc.CreatePublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("CreatePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceUpdatePublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceUpdatePublicSiteProcedure,
+		svc.UpdatePublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("UpdatePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePublishPublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServicePublishPublicSiteProcedure,
+		svc.PublishPublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PublishPublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceDeletePublicSiteHandler := connect.NewUnaryHandler(
+		AgentManagementServiceDeletePublicSiteProcedure,
+		svc.DeletePublicSite,
+		connect.WithSchema(agentManagementServiceMethods.ByName("DeletePublicSite")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServicePreviewPublicSiteMigrationHandler := connect.NewUnaryHandler(
+		AgentManagementServicePreviewPublicSiteMigrationProcedure,
+		svc.PreviewPublicSiteMigration,
+		connect.WithSchema(agentManagementServiceMethods.ByName("PreviewPublicSiteMigration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagementServiceApplyPublicSiteMigrationHandler := connect.NewUnaryHandler(
+		AgentManagementServiceApplyPublicSiteMigrationProcedure,
+		svc.ApplyPublicSiteMigration,
+		connect.WithSchema(agentManagementServiceMethods.ByName("ApplyPublicSiteMigration")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagementServiceCreatePublicRouteHandler := connect.NewUnaryHandler(
@@ -2310,6 +2749,8 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceGetDashboardHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetAgentAvailabilityProcedure:
 			agentManagementServiceGetAgentAvailabilityHandler.ServeHTTP(w, r)
+		case AgentManagementServiceListAgentAvailabilityProcedure:
+			agentManagementServiceListAgentAvailabilityHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetDashboardDiagnosticsProcedure:
 			agentManagementServiceGetDashboardDiagnosticsHandler.ServeHTTP(w, r)
 		case AgentManagementServiceGetTrafficTraceSettingsProcedure:
@@ -2350,6 +2791,30 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceDeleteAgentHandler.ServeHTTP(w, r)
 		case AgentManagementServiceRotateAgentTokenProcedure:
 			agentManagementServiceRotateAgentTokenHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGenerateAgentUpdaterEnrollmentTokenProcedure:
+			agentManagementServiceGenerateAgentUpdaterEnrollmentTokenHandler.ServeHTTP(w, r)
+		case AgentManagementServiceEnrollAgentUpdaterProcedure:
+			agentManagementServiceEnrollAgentUpdaterHandler.ServeHTTP(w, r)
+		case AgentManagementServicePreviewAgentUpdateCampaignProcedure:
+			agentManagementServicePreviewAgentUpdateCampaignHandler.ServeHTTP(w, r)
+		case AgentManagementServiceGetAgentUpdateOverviewProcedure:
+			agentManagementServiceGetAgentUpdateOverviewHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreateAgentUpdateCampaignProcedure:
+			agentManagementServiceCreateAgentUpdateCampaignHandler.ServeHTTP(w, r)
+		case AgentManagementServiceListAgentUpdateCampaignsProcedure:
+			agentManagementServiceListAgentUpdateCampaignsHandler.ServeHTTP(w, r)
+		case AgentManagementServicePauseAgentUpdateCampaignProcedure:
+			agentManagementServicePauseAgentUpdateCampaignHandler.ServeHTTP(w, r)
+		case AgentManagementServiceResumeAgentUpdateCampaignProcedure:
+			agentManagementServiceResumeAgentUpdateCampaignHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCancelAgentUpdateCampaignProcedure:
+			agentManagementServiceCancelAgentUpdateCampaignHandler.ServeHTTP(w, r)
+		case AgentManagementServiceRetryAgentUpdateAssignmentsProcedure:
+			agentManagementServiceRetryAgentUpdateAssignmentsHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCheckAgentUpdateProcedure:
+			agentManagementServiceCheckAgentUpdateHandler.ServeHTTP(w, r)
+		case AgentManagementServiceReportAgentUpdateProcedure:
+			agentManagementServiceReportAgentUpdateHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreateManagementAccessTokenProcedure:
 			agentManagementServiceCreateManagementAccessTokenHandler.ServeHTTP(w, r)
 		case AgentManagementServiceListManagementAccessTokensProcedure:
@@ -2384,6 +2849,18 @@ func NewAgentManagementServiceHandler(svc AgentManagementServiceHandler, opts ..
 			agentManagementServiceStartPublicListenerHandler.ServeHTTP(w, r)
 		case AgentManagementServiceStopPublicListenerProcedure:
 			agentManagementServiceStopPublicListenerHandler.ServeHTTP(w, r)
+		case AgentManagementServiceCreatePublicSiteProcedure:
+			agentManagementServiceCreatePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceUpdatePublicSiteProcedure:
+			agentManagementServiceUpdatePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServicePublishPublicSiteProcedure:
+			agentManagementServicePublishPublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServiceDeletePublicSiteProcedure:
+			agentManagementServiceDeletePublicSiteHandler.ServeHTTP(w, r)
+		case AgentManagementServicePreviewPublicSiteMigrationProcedure:
+			agentManagementServicePreviewPublicSiteMigrationHandler.ServeHTTP(w, r)
+		case AgentManagementServiceApplyPublicSiteMigrationProcedure:
+			agentManagementServiceApplyPublicSiteMigrationHandler.ServeHTTP(w, r)
 		case AgentManagementServiceCreatePublicRouteProcedure:
 			agentManagementServiceCreatePublicRouteHandler.ServeHTTP(w, r)
 		case AgentManagementServiceUpdatePublicRouteProcedure:
@@ -2535,6 +3012,10 @@ func (UnimplementedAgentManagementServiceHandler) GetAgentAvailability(context.C
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetAgentAvailability is not implemented"))
 }
 
+func (UnimplementedAgentManagementServiceHandler) ListAgentAvailability(context.Context, *connect.Request[v1.ListAgentAvailabilityRequest]) (*connect.Response[v1.ListAgentAvailabilityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListAgentAvailability is not implemented"))
+}
+
 func (UnimplementedAgentManagementServiceHandler) GetDashboardDiagnostics(context.Context, *connect.Request[v1.GetDashboardDiagnosticsRequest]) (*connect.Response[v1.GetDashboardDiagnosticsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetDashboardDiagnostics is not implemented"))
 }
@@ -2615,6 +3096,54 @@ func (UnimplementedAgentManagementServiceHandler) RotateAgentToken(context.Conte
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RotateAgentToken is not implemented"))
 }
 
+func (UnimplementedAgentManagementServiceHandler) GenerateAgentUpdaterEnrollmentToken(context.Context, *connect.Request[v1.GenerateAgentUpdaterEnrollmentTokenRequest]) (*connect.Response[v1.GenerateAgentUpdaterEnrollmentTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GenerateAgentUpdaterEnrollmentToken is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) EnrollAgentUpdater(context.Context, *connect.Request[v1.EnrollAgentUpdaterRequest]) (*connect.Response[v1.EnrollAgentUpdaterResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.EnrollAgentUpdater is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PreviewAgentUpdateCampaign(context.Context, *connect.Request[v1.PreviewAgentUpdateCampaignRequest]) (*connect.Response[v1.PreviewAgentUpdateCampaignResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PreviewAgentUpdateCampaign is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) GetAgentUpdateOverview(context.Context, *connect.Request[v1.GetAgentUpdateOverviewRequest]) (*connect.Response[v1.GetAgentUpdateOverviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.GetAgentUpdateOverview is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreateAgentUpdateCampaign(context.Context, *connect.Request[v1.CreateAgentUpdateCampaignRequest]) (*connect.Response[v1.CreateAgentUpdateCampaignResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreateAgentUpdateCampaign is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ListAgentUpdateCampaigns(context.Context, *connect.Request[v1.ListAgentUpdateCampaignsRequest]) (*connect.Response[v1.ListAgentUpdateCampaignsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ListAgentUpdateCampaigns is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PauseAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PauseAgentUpdateCampaign is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ResumeAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ResumeAgentUpdateCampaign is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CancelAgentUpdateCampaign(context.Context, *connect.Request[v1.ChangeAgentUpdateCampaignStateRequest]) (*connect.Response[v1.ChangeAgentUpdateCampaignStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CancelAgentUpdateCampaign is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) RetryAgentUpdateAssignments(context.Context, *connect.Request[v1.RetryAgentUpdateAssignmentsRequest]) (*connect.Response[v1.RetryAgentUpdateAssignmentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.RetryAgentUpdateAssignments is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CheckAgentUpdate(context.Context, *connect.Request[v1.CheckAgentUpdateRequest]) (*connect.Response[v1.CheckAgentUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CheckAgentUpdate is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ReportAgentUpdate(context.Context, *connect.Request[v1.ReportAgentUpdateRequest]) (*connect.Response[v1.ReportAgentUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ReportAgentUpdate is not implemented"))
+}
+
 func (UnimplementedAgentManagementServiceHandler) CreateManagementAccessToken(context.Context, *connect.Request[v1.CreateManagementAccessTokenRequest]) (*connect.Response[v1.CreateManagementAccessTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreateManagementAccessToken is not implemented"))
 }
@@ -2681,6 +3210,30 @@ func (UnimplementedAgentManagementServiceHandler) StartPublicListener(context.Co
 
 func (UnimplementedAgentManagementServiceHandler) StopPublicListener(context.Context, *connect.Request[v1.StopPublicListenerRequest]) (*connect.Response[v1.StopPublicListenerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.StopPublicListener is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) CreatePublicSite(context.Context, *connect.Request[v1.CreatePublicSiteRequest]) (*connect.Response[v1.CreatePublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.CreatePublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) UpdatePublicSite(context.Context, *connect.Request[v1.UpdatePublicSiteRequest]) (*connect.Response[v1.UpdatePublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.UpdatePublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PublishPublicSite(context.Context, *connect.Request[v1.PublishPublicSiteRequest]) (*connect.Response[v1.PublishPublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PublishPublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) DeletePublicSite(context.Context, *connect.Request[v1.DeletePublicSiteRequest]) (*connect.Response[v1.DeletePublicSiteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.DeletePublicSite is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) PreviewPublicSiteMigration(context.Context, *connect.Request[v1.PreviewPublicSiteMigrationRequest]) (*connect.Response[v1.PreviewPublicSiteMigrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.PreviewPublicSiteMigration is not implemented"))
+}
+
+func (UnimplementedAgentManagementServiceHandler) ApplyPublicSiteMigration(context.Context, *connect.Request[v1.ApplyPublicSiteMigrationRequest]) (*connect.Response[v1.ApplyPublicSiteMigrationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("p2pstream.v1.AgentManagementService.ApplyPublicSiteMigration is not implemented"))
 }
 
 func (UnimplementedAgentManagementServiceHandler) CreatePublicRoute(context.Context, *connect.Request[v1.CreatePublicRouteRequest]) (*connect.Response[v1.CreatePublicRouteResponse], error) {

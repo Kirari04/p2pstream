@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"connectrpc.com/connect"
 
@@ -85,28 +84,8 @@ func (a *App) UpdatePublicAccessProvider(
 		return nil, publicDBError(err)
 	}
 
-	localAuthAllowedHosts := req.Msg.LocalAuthAllowedHosts
-	localAuthCookieSameSite := req.Msg.LocalAuthCookieSameSite
-	localAuthCookieDomain := req.Msg.LocalAuthCookieDomain
-	localAuthCookieSecure := req.Msg.LocalAuthCookieSecure
-	localAuthCookieName := req.Msg.LocalAuthCookieName
-	localAuthLoginUsernameMaxFailures := req.Msg.LocalAuthLoginUsernameMaxFailures
-	localAuthLoginClientMaxFailures := req.Msg.LocalAuthLoginClientMaxFailures
-	localAuthLoginWindowMillis := req.Msg.LocalAuthLoginWindowMillis
-	localAuthLoginBlockMillis := req.Msg.LocalAuthLoginBlockMillis
 	if normalizePublicAccessProviderType(existing.ProviderType) == publicAccessProviderTypeLocal && !req.Msg.LocalAuthSecuritySettingsPresent {
-		localAuthAllowedHosts, err = publicAccessStringListFromJSON(existing.LocalAuthAllowedHostsJson)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read existing local authentication hosts: %w", err))
-		}
-		localAuthCookieSameSite = protoPublicAccessCookieSameSite(existing.LocalAuthCookieSameSite)
-		localAuthCookieDomain = existing.LocalAuthCookieDomain
-		localAuthCookieSecure = existing.LocalAuthCookieSecure != 0
-		localAuthCookieName = existing.LocalAuthCookieName
-		localAuthLoginUsernameMaxFailures = existing.LocalAuthLoginUsernameMaxFailures
-		localAuthLoginClientMaxFailures = existing.LocalAuthLoginClientMaxFailures
-		localAuthLoginWindowMillis = existing.LocalAuthLoginWindowMillis
-		localAuthLoginBlockMillis = existing.LocalAuthLoginBlockMillis
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("local_auth_security_settings_present is required for local provider updates"))
 	}
 
 	params, err := validatePublicAccessProviderInput(
@@ -114,10 +93,10 @@ func (a *App) UpdatePublicAccessProvider(
 		req.Msg.TimeoutMillis, req.Msg.TlsSkipVerify, req.Msg.SubjectHeader,
 		req.Msg.UserHeader, req.Msg.EmailHeader, req.Msg.GroupsHeader, req.Msg.ForwardedHeaders,
 		req.Msg.LocalAuthMode, req.Msg.LocalAuthSessionDurationMillis, req.Msg.LocalAuthRealm,
-		req.Msg.LocalAuthLoginTemplateId, localAuthAllowedHosts, localAuthCookieSameSite,
-		localAuthCookieDomain, localAuthCookieSecure, localAuthCookieName,
-		localAuthLoginUsernameMaxFailures, localAuthLoginClientMaxFailures,
-		localAuthLoginWindowMillis, localAuthLoginBlockMillis,
+		req.Msg.LocalAuthLoginTemplateId, req.Msg.LocalAuthAllowedHosts, req.Msg.LocalAuthCookieSameSite,
+		req.Msg.LocalAuthCookieDomain, req.Msg.LocalAuthCookieSecure, req.Msg.LocalAuthCookieName,
+		req.Msg.LocalAuthLoginUsernameMaxFailures, req.Msg.LocalAuthLoginClientMaxFailures,
+		req.Msg.LocalAuthLoginWindowMillis, req.Msg.LocalAuthLoginBlockMillis,
 	)
 	if err != nil {
 		return nil, err

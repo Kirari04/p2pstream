@@ -338,6 +338,7 @@ func (a *App) validatePublicListenerInput(
 func (a *App) validatePublicRouteInput(
 	ctx context.Context,
 	listenerID int64,
+	siteID sql.NullInt64,
 	priority int64,
 	hostPattern string,
 	pathPrefix string,
@@ -355,15 +356,26 @@ func (a *App) validatePublicRouteInput(
 	accessPolicyID int64,
 	existingSecrets existingPublicRouteTargetSecrets,
 ) (db.UpdatePublicRouteParams, []publicRouteTargetMutationInput, error) {
-	if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
-		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
-	}
 	hostPattern = normalizeHostPattern(hostPattern)
+	if siteID.Valid {
+		_, err := a.DB.GetPublicSite(ctx, siteID.Int64)
+		if err != nil {
+			return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+		}
+		listenerID = 0
+		hostPattern = ""
+	} else if _, err := a.DB.GetPublicListener(ctx, listenerID); err != nil {
+		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+	} else if migrated, err := a.DB.IsPublicListenerSiteMigrated(ctx, listenerID); err != nil {
+		return db.UpdatePublicRouteParams{}, nil, publicDBError(err)
+	} else if migrated != 0 {
+		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("listener routes must belong to a Site after standalone route migration"))
+	}
 	pathPrefix = strings.TrimSpace(pathPrefix)
-	if !isDefault && hostPattern == "" && pathPrefix == "" {
+	if !isDefault && !siteID.Valid && hostPattern == "" && pathPrefix == "" {
 		return db.UpdatePublicRouteParams{}, nil, connect.NewError(connect.CodeInvalidArgument, errors.New("route requires a host pattern or path prefix"))
 	}
-	if hostPattern != "" {
+	if hostPattern != "" && !siteID.Valid {
 		if err := validateHostPattern(hostPattern); err != nil {
 			return db.UpdatePublicRouteParams{}, nil, err
 		}
@@ -423,6 +435,7 @@ func (a *App) validatePublicRouteInput(
 	}
 	return db.UpdatePublicRouteParams{
 		ListenerID:                 listenerID,
+		SiteID:                     siteID,
 		Priority:                   priority,
 		HostPattern:                hostPattern,
 		PathPrefix:                 pathPrefix,
@@ -678,21 +691,6 @@ func parsePublicTargetOrigin(targetOrigin string) (*url.URL, error) {
 		return nil, errors.New("target origin must not include an encoded path")
 	}
 	return &url.URL{Scheme: parsed.Scheme, Host: parsed.Host}, nil
-}
-
-func normalizeLegacyPublicTargetOrigin(targetOrigin string) (string, bool, error) {
-	if parsed, err := parsePublicTargetOrigin(targetOrigin); err == nil {
-		return parsed.String(), false, nil
-	}
-	parsed, err := url.Parse(strings.TrimSpace(targetOrigin))
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-		return "", false, errors.New("legacy target URL does not contain a valid HTTP(S) origin")
-	}
-	origin, err := parsePublicTargetOrigin((&url.URL{Scheme: parsed.Scheme, Host: parsed.Host}).String())
-	if err != nil {
-		return "", false, err
-	}
-	return origin.String(), true, nil
 }
 
 func normalizeHostPattern(pattern string) string {
@@ -1050,6 +1048,13 @@ func boolInt(value bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+func optionalPublicSiteID(value *int64) sql.NullInt64 {
+	if value == nil || *value <= 0 {
+		return sql.NullInt64{}
+	}
+	return sql.NullInt64{Int64: *value, Valid: true}
 }
 
 func publicDBError(err error) error {

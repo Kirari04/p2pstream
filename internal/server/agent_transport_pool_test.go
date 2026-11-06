@@ -37,6 +37,32 @@ func TestAgentTransportPoolReusesPublicRouteTargetConnection(t *testing.T) {
 	}
 }
 
+func TestAgentTransportPoolRetainsMoreThan256WarmTargets(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer upstream.Close()
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, time.Second)
+	app.agentStreamCapacity = mustNewDefaultAgentStreamCapacityManager(1024)
+	for range 2 {
+		for id := int64(1); id <= 300; id++ {
+			target.ID = id
+			req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
+			resp, err := app.agentTargetTransport(agent, target).RoundTrip(req)
+			if err != nil {
+				t.Fatalf("warm target %d: %v", id, err)
+			}
+			_ = resp.Body.Close()
+		}
+	}
+	if got := app.AgentTransports.len(); got != 300 {
+		t.Fatalf("retained %d transports, want 300", got)
+	}
+	if got := fake.openRequestCount(); got != 300 {
+		t.Fatalf("opened %d connections, want 300 reused connections", got)
+	}
+}
+
 func TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand(t *testing.T) {
 	pool := newAgentTransportPool()
 	preferred := &AgentConn{AgentID: 7}
@@ -78,6 +104,55 @@ func TestAgentTransportPoolPressureReclaimPrefersSessionAndScalesWithDemand(t *t
 	}
 	if pool.reclaimOldestIdle(preferred, true) {
 		t.Fatal("empty pool reported a reclaimed idle shard")
+	}
+}
+
+func TestAgentTransportPoolReclaimsIdleSocketBesideActiveResponse(t *testing.T) {
+	finish := make(chan struct{})
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(finish) }) }
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/stream" {
+			_, _ = w.Write([]byte("start"))
+			w.(http.Flusher).Flush()
+			<-finish
+		}
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer func() { unblock(); upstream.Close() }()
+	app, target, agent, fake := newAgentProxyTunnelTestApp(t, 7, upstream.URL, time.Second)
+	rt := app.agentTargetTransport(agent, target)
+	request, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL+"/stream", nil)
+	active, err := rt.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer active.Body.Close()
+	request, _ = http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL+"/api", nil)
+	idle, err := rt.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = io.Copy(io.Discard, idle.Body)
+	_ = idle.Body.Close()
+	fake.waitOpenRequestCount(t, 2)
+	if !app.AgentTransports.reclaimOldestIdle(agent, false) {
+		t.Fatal("active shard hid its reclaimable idle connection")
+	}
+	deadline := time.Now().Add(time.Second)
+	for app.agentStreamCapacity.snapshot().Total.InUse > 1 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if app.agentStreamCapacity.snapshot().Total.InUse != 1 {
+		t.Fatal("idle stream retained its resource reservation")
+	}
+	if app.AgentTransports.len() != 1 {
+		t.Fatal("reclaim retired the active transport")
+	}
+	unblock()
+	data, err := io.ReadAll(active.Body)
+	if err != nil || string(data) != "startok" {
+		t.Fatalf("reclaim interrupted active response: %q, %v", data, err)
 	}
 }
 
@@ -458,7 +533,10 @@ func TestAgentTransportPoolConcurrentPublicRouteTargetRequestsOpenParallelStream
 }
 
 func TestAgentTransportPoolSeparatesAgentsAndRouteTargets(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) }))
+	defer upstream.Close()
 	app := NewApp(nil, nil)
+	t.Cleanup(app.AgentTransports.closeAll)
 	first, firstFake := newFakeYamuxAgent(t, 7, "agent-7")
 	defer firstFake.close()
 	second, secondFake := newFakeYamuxAgent(t, 8, "agent-8")
@@ -466,29 +544,36 @@ func TestAgentTransportPoolSeparatesAgentsAndRouteTargets(t *testing.T) {
 
 	target := publicRouteTargetConfig{
 		ID:                            70,
-		URL:                           "http://upstream.test:9000",
+		URL:                           upstream.URL,
 		UpstreamResponseHeaderTimeout: time.Second,
 	}
 	firstTransport := app.agentTargetTransport(first, target)
 	secondAgentTransport := app.agentTargetTransport(second, target)
-	if firstTransport == secondAgentTransport {
-		t.Fatal("different agents shared a pooled transport")
-	}
 
 	secondTarget := target
 	secondTarget.ID = 71
-	secondTarget.URL = "http://upstream.test:9000"
+	secondTarget.URL = upstream.URL
 	secondTargetTransport := app.agentTargetTransport(first, secondTarget)
-	if firstTransport == secondTargetTransport {
-		t.Fatal("different route target ids shared a pooled transport")
-	}
 
 	timeoutTarget := target
 	timeoutTarget.UpstreamResponseHeaderTimeout = 2 * time.Second
 	timeoutTransport := app.agentTargetTransport(first, timeoutTarget)
-	if firstTransport == timeoutTransport {
-		t.Fatal("different route target timeout config shared a pooled transport")
+	// Factories hold no lease or pool entry; exercise their actual requests
+	// before asserting isolation, rather than comparing wrapper addresses.
+	for _, rt := range []http.RoundTripper{firstTransport, secondAgentTransport, secondTargetTransport, timeoutTransport} {
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, upstream.URL, nil)
+		resp, err := rt.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
+	firstFake.waitOpenRequestCount(t, 3)
+	secondFake.waitOpenRequestCount(t, 1)
 
 	if got := app.AgentTransports.len(); got != 4 {
 		t.Fatalf("agent transport pool len = %d, want 4", got)

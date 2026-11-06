@@ -2,7 +2,7 @@ import type { MotionPlan } from "@/lib/trafficMotion";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
 import type { TraceRequest } from "@/types/trafficTrace";
 
-export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "target" | "redirect" | "agent" | "upstream" | "response";
+export type TrafficNodeKind = "ingress" | "listener" | "waf" | "rate-limit" | "traffic-shaper" | "cache" | "route" | "site" | "target" | "redirect" | "agent" | "upstream" | "response";
 
 export type AgentNodeStatus = {
   state: "connected" | "offline" | "disabled" | "unknown";

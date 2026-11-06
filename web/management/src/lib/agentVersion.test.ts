@@ -23,6 +23,17 @@ describe("agentBuildStatus", () => {
     });
   });
 
+  test("orders immutable SemVer prereleases", () => {
+    expect(agentBuildStatus({ agentVersion: "v2.1.0-staging.9", serverVersion: "v2.1.0-staging.10" })).toEqual({
+      state: "update_available",
+      label: "Update available",
+    });
+    expect(agentBuildStatus({ agentVersion: "v2.1.0-staging.10", serverVersion: "v2.1.0" })).toEqual({
+      state: "update_available",
+      label: "Update available",
+    });
+  });
+
   test("uses commit identity to distinguish mutable staging builds", () => {
     expect(agentBuildStatus({
       agentVersion: "staging",

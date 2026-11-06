@@ -1,6 +1,9 @@
+import { initializeFixtureCredentials } from "./playwright.credentials";
 import { defineConfig } from "@playwright/test";
 import { resolve } from "node:path";
 import { createManagementWebServer, repoDir } from "./playwright.shared";
+
+initializeFixtureCredentials();
 
 const managementPort = process.env.DOCS_SCREENSHOT_MANAGEMENT_PORT ?? "19091";
 const frontendPort = process.env.DOCS_SCREENSHOT_FRONTEND_PORT ?? "5173";
@@ -24,10 +27,8 @@ export default defineConfig({
     dataDir,
     cacheDir,
     binaryPath,
-    setupToken: "docs-screenshot-setup-token-not-for-production",
     agentId: "docs-agent-zurich",
     agentName: "Docs Agent Zurich",
-    agentToken: "docs-agent-token-not-for-production",
     managementPublicURL: `https://127.0.0.1:${managementPort}`,
     cleanupPorts: [managementPort, httpPort, httpsPort],
     timeout: 180_000,

@@ -1,0 +1,16 @@
+[Unit]
+Description=Activate a verified staged p2pstream agent update
+ConditionPathExists=/etc/p2pstream-updater/enrolled.json
+ConditionPathExists=/etc/p2pstream-updater/management-authority.json
+
+[Path]
+PathExists=/var/lib/p2pstream-updater/staging/ready.json
+PathExists=/var/lib/p2pstream-updater/staging/rollback.json
+PathExists=/var/lib/p2pstream-updater/root/activation-command.json
+PathExists=/var/lib/p2pstream-updater/root/rollback-command.json
+PathExists=/var/lib/p2pstream-updater/root/activation.json
+PathExists=/var/lib/p2pstream-updater/root/rollback-journal.json
+Unit=p2pstream-updater-activate.service
+
+[Install]
+WantedBy=multi-user.target

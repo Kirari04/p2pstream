@@ -47,7 +47,6 @@ func TestE2E_GetDashboardSummaries(t *testing.T) {
 	insertProxyEventWithIDsAt(t, database, now.Add(-30*time.Minute), http.StatusNotFound, 200, "", validInt64(1), validInt64(1), validInt64(1), sql.NullInt64{}, 20, 200)
 	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Hour), http.StatusBadGateway, 1300, "", validInt64(2), validInt64(2), validInt64(2), sql.NullInt64{}, 30, 300)
 	insertProxyEventWithIDsAt(t, database, now.Add(-2*time.Minute), http.StatusGatewayTimeout, 1400, "agent_timeout", validInt64(2), validInt64(2), validInt64(2), sql.NullInt64{}, 40, 400)
-	forceDashboardRawFallback(t, database)
 
 	req := connect.NewRequest(&p2pstreamv1.GetDashboardRequest{})
 	req.Header().Set("Cookie", cookie)
@@ -210,7 +209,7 @@ func TestProxyRequestEventRecordedCountsOnly(t *testing.T) {
 		t.Fatalf("flush observability recorder: %v", err)
 	}
 
-	summary, err := database.GetProxyRequestSummarySince(context.Background(), time.Now().UTC().Add(-time.Minute))
+	summary, err := database.GetProxyRequestRollupSummarySince(context.Background(), integrationRollupBucketUnixMillis(time.Now().UTC().Add(-time.Minute)))
 	if err != nil {
 		t.Fatalf("get proxy request summary: %v", err)
 	}
@@ -319,6 +318,22 @@ func insertAgentStatAt(
 	); err != nil {
 		t.Fatalf("insert agent stat: %v", err)
 	}
+	if err := database.UpsertAgentStatRollupMinute(context.Background(), db.UpsertAgentStatRollupMinuteParams{
+		BucketUnixMillis: integrationRollupBucketUnixMillis(reportedAt),
+		Samples:          1,
+		ReqSuccess:       reqSuccess,
+		ReqClientError:   reqClientError,
+		ReqServerError:   reqServerError,
+		ReqInternalError: reqInternalError,
+		BytesRx:          bytesRx,
+		BytesTx:          bytesTx,
+		MemoryMbSum:      memoryMb,
+		MaxMemoryMb:      memoryMb,
+		GoroutinesSum:    goroutines,
+		MaxGoroutines:    goroutines,
+	}); err != nil {
+		t.Fatalf("insert agent stat rollup: %v", err)
+	}
 }
 
 func insertProxyEventAt(
@@ -330,18 +345,7 @@ func insertProxyEventAt(
 	errorKind string,
 ) {
 	t.Helper()
-	if _, err := database.ExecContext(
-		context.Background(),
-		`INSERT INTO proxy_request_events (
-			occurred_at, status_code, duration_ms, error_kind
-		) VALUES (?, ?, ?, ?)`,
-		occurredAt,
-		statusCode,
-		durationMs,
-		errorKind,
-	); err != nil {
-		t.Fatalf("insert proxy event: %v", err)
-	}
+	insertProxyEventWithIDsAt(t, database, occurredAt, statusCode, durationMs, errorKind, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, 0, 0)
 }
 
 func seedDashboardDimensionFixtures(t *testing.T, database *db.DB) {
@@ -413,10 +417,83 @@ func insertProxyEventWithIDsAt(
 	); err != nil {
 		t.Fatalf("insert proxy event with ids: %v", err)
 	}
+	if err := database.UpsertProxyRequestRollupMinute(context.Background(), db.UpsertProxyRequestRollupMinuteParams{
+		BucketUnixMillis: integrationRollupBucketUnixMillis(occurredAt),
+		Requests:         1,
+		Success:          integrationInt64Bool(statusCode >= 200 && statusCode < 400),
+		ClientError:      integrationInt64Bool(statusCode >= 400 && statusCode < 500),
+		ServerError:      integrationInt64Bool(statusCode >= 500),
+		InternalError:    integrationInt64Bool(errorKind != ""),
+		DurationMsSum:    durationMs,
+		MaxDurationMs:    durationMs,
+		SlowRequests:     integrationInt64Bool(durationMs >= 1000),
+		RequestBytes:     requestBytes,
+		ResponseBytes:    responseBytes,
+	}); err != nil {
+		t.Fatalf("insert proxy rollup: %v", err)
+	}
+	if err := database.UpsertProxyRequestTupleRollupMinute(context.Background(), db.UpsertProxyRequestTupleRollupMinuteParams{
+		BucketUnixMillis: integrationRollupBucketUnixMillis(occurredAt),
+		ListenerID:       integrationNullInt64Value(listenerID),
+		RouteTargetID:    integrationNullInt64Value(routeTargetID),
+		RouteID:          integrationNullInt64Value(routeID),
+		AgentID:          integrationNullInt64Value(agentID),
+		ErrorKind:        errorKind,
+		StatusClass:      integrationProxyStatusClass(statusCode),
+		Requests:         1,
+		Success:          integrationInt64Bool(statusCode >= 200 && statusCode < 400),
+		ClientError:      integrationInt64Bool(statusCode >= 400 && statusCode < 500),
+		ServerError:      integrationInt64Bool(statusCode >= 500),
+		InternalError:    integrationInt64Bool(errorKind != ""),
+		DurationMsSum:    durationMs,
+		RequestBytes:     requestBytes,
+		ResponseBytes:    responseBytes,
+	}); err != nil {
+		t.Fatalf("insert proxy tuple rollup: %v", err)
+	}
+	if err := database.UpsertProxyRequestStatusRollupMinute(context.Background(), db.UpsertProxyRequestStatusRollupMinuteParams{
+		BucketUnixMillis: integrationRollupBucketUnixMillis(occurredAt),
+		StatusCode:       int64(statusCode),
+		Requests:         1,
+		Success:          integrationInt64Bool(statusCode >= 200 && statusCode < 400),
+		ClientError:      integrationInt64Bool(statusCode >= 400 && statusCode < 500),
+		ServerError:      integrationInt64Bool(statusCode >= 500),
+		InternalError:    integrationInt64Bool(errorKind != ""),
+		DurationMsSum:    durationMs,
+		RequestBytes:     requestBytes,
+		ResponseBytes:    responseBytes,
+	}); err != nil {
+		t.Fatalf("insert proxy status rollup: %v", err)
+	}
 }
 
 func validInt64(value int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: value, Valid: true}
+}
+
+func integrationRollupBucketUnixMillis(value time.Time) int64 {
+	return value.UTC().Truncate(time.Minute).UnixMilli()
+}
+
+func integrationInt64Bool(value bool) int64 {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func integrationNullInt64Value(value sql.NullInt64) int64 {
+	if value.Valid {
+		return value.Int64
+	}
+	return 0
+}
+
+func integrationProxyStatusClass(statusCode int) int64 {
+	if statusCode < 200 || statusCode >= 600 {
+		return 0
+	}
+	return int64(statusCode / 100)
 }
 
 func dashboardWindowsByLabel(windows []*p2pstreamv1.DashboardWindowSummary) map[string]*p2pstreamv1.DashboardWindowSummary {
@@ -472,21 +549,6 @@ func countRows(t *testing.T, database *db.DB, query string, args ...any) int64 {
 		t.Fatalf("count rows: %v", err)
 	}
 	return count
-}
-
-func forceDashboardRawFallback(t *testing.T, database *db.DB) {
-	t.Helper()
-	if _, err := database.ExecContext(context.Background(), `
-		UPDATE observability_rollup_state
-		SET proxy_backfill_upper_id = CAST(COALESCE((SELECT MAX(id) FROM proxy_request_events), 0) AS INTEGER),
-		    proxy_backfilled_through_id = 0,
-		    agent_backfill_upper_id = CAST(COALESCE((SELECT MAX(id) FROM agent_stats), 0) AS INTEGER),
-		    agent_backfilled_through_id = 0,
-		    updated_at = CURRENT_TIMESTAMP
-		WHERE id = 1
-	`); err != nil {
-		t.Fatalf("force dashboard raw fallback: %v", err)
-	}
 }
 
 func waitForCount(t *testing.T, database *db.DB, query string, want int64, args ...any) {

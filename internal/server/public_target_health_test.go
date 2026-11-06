@@ -493,6 +493,23 @@ func TestAgentActiveHealthCheckServerCapacityIsSkippedWithoutChangingHealthyStat
 	}
 }
 
+func TestAggregateHealthControlGateTimeoutIsSkippedAtHTTPClient(t *testing.T) {
+	agent := newSaturatedAggregateControlAgent(t)
+	backend := testHealthTarget(t, 108, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
+	attempt := (&App{}).runPublicRouteTargetHealthCheckViaAgent(context.Background(), backend, agent)
+
+	if !attempt.Skipped || attempt.ErrorKind != "agent_server_health_capacity" {
+		t.Fatalf("control gate attempt skipped=%v errorKind=%q err=%v, want skipped agent_server_health_capacity", attempt.Skipped, attempt.ErrorKind, attempt.Err)
+	}
+	if !errors.Is(attempt.Err, context.DeadlineExceeded) {
+		t.Fatalf("control gate attempt lost timeout cause: %v", attempt.Err)
+	}
+	var dialErr agentDialError
+	if !errors.As(attempt.Err, &dialErr) || !agentDialErrorIsAdmissionPressure(dialErr) {
+		t.Fatalf("control gate attempt is not local admission pressure: %v", attempt.Err)
+	}
+}
+
 func TestAgentActiveHealthCheckResourcePressureIsSkippedWithoutUnhealthyStreak(t *testing.T) {
 	app := NewApp(nil, nil)
 	backend := testHealthTarget(t, 107, publicRouteTargetTransportAgent, "http://127.0.0.1:8888")
@@ -1176,4 +1193,21 @@ func waitForHealthStatus(t *testing.T, monitor *publicRouteTargetHealthMonitor, 
 	}
 	snapshot := monitor.snapshot(publicRouteTargetHealthDBAdapter{id: targetID, enabled: true})
 	t.Fatalf("health status = %+v, want %s", snapshot, want)
+}
+
+func TestAgentHealthMissingControlIsInconclusiveOnlyWithLiveBulk(t *testing.T) {
+	bulk, _ := newAggregateAgentTunnelTestSession(t)
+	agent := &AgentConn{AgentID: 42, PublicID: "health-generation", AggregateFlowControl: true, Done: make(chan struct{})}
+	agent.installTunnel(1, bulk)
+	app := &App{}
+	target := testHealthTarget(t, 1, publicRouteTargetTransportAgent, "http://127.0.0.1:8080")
+	attempt := app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), target, agent)
+	if !attempt.Skipped || attempt.ErrorKind != "agent_control_unavailable" {
+		t.Fatalf("live bulk generation: %+v", attempt)
+	}
+	bulk.Close()
+	attempt = app.runPublicRouteTargetHealthCheckViaAgent(context.Background(), target, agent)
+	if attempt.Skipped || attempt.ErrorKind != "agent_disconnected" {
+		t.Fatalf("disconnected generation: %+v", attempt)
+	}
 }

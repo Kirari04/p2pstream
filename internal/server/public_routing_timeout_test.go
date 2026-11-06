@@ -52,6 +52,82 @@ func TestDirectProxyResponseHeaderTimeoutReturnsGatewayTimeout(t *testing.T) {
 	}
 }
 
+func TestAgentProxyAttributesCompletedUpstreamServerErrorResponse(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "backend overloaded", http.StatusServiceUnavailable)
+	}))
+	defer upstream.Close()
+
+	database := newServerTestDB(t)
+	dbAgent := createAgentRegistryTestAgent(t, database, "agent-timeout-test", "agent-timeout-test", "secret")
+	app, target, agent, _ := newAgentProxyTunnelTestApp(t, dbAgent.ID, upstream.URL, 2*time.Second)
+	app.DB = database
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = app.CloseObservabilityRecorder(ctx)
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://public.test/agent", nil)
+	proxyAgentTargetForTest(app, rec, req, target, agent)
+	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "backend overloaded") {
+		t.Fatalf("upstream response = status %d body %q, want relayed 503", rec.Code, rec.Body.String())
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := app.FlushObservabilityRecorder(ctx); err != nil {
+		t.Fatalf("flush observability recorder: %v", err)
+	}
+	var (
+		statusCode     int64
+		errorKind      string
+		retryErrorKind string
+	)
+	if err := database.QueryRowContext(
+		ctx,
+		"SELECT status_code, error_kind, retry_error_kind FROM proxy_request_events ORDER BY id DESC LIMIT 1",
+	).Scan(&statusCode, &errorKind, &retryErrorKind); err != nil {
+		t.Fatalf("query upstream response event: %v", err)
+	}
+	if statusCode != http.StatusServiceUnavailable || errorKind != "upstream_status_503" || retryErrorKind != "" {
+		t.Fatalf("recorded response = status %d error %q retry error %q, want 503/upstream_status_503/no retry", statusCode, errorKind, retryErrorKind)
+	}
+
+	var rollupRequests int64
+	if err := database.QueryRowContext(
+		ctx,
+		"SELECT COALESCE(SUM(requests), 0) FROM proxy_request_tuple_rollup_minutes WHERE error_kind = ?",
+		errorKind,
+	).Scan(&rollupRequests); err != nil {
+		t.Fatalf("query upstream response rollup: %v", err)
+	}
+	if rollupRequests != 1 {
+		t.Fatalf("upstream_status_503 rollup requests = %d, want 1", rollupRequests)
+	}
+}
+
+func TestUpstreamServerStatusErrorKind(t *testing.T) {
+	tests := []struct {
+		status int
+		want   string
+	}{
+		{status: http.StatusOK},
+		{status: http.StatusNotFound},
+		{status: http.StatusInternalServerError, want: "upstream_status_500"},
+		{status: http.StatusBadGateway, want: "upstream_status_502"},
+		{status: http.StatusServiceUnavailable, want: "upstream_status_503"},
+		{status: 599, want: "upstream_status_599"},
+		{status: 600},
+	}
+	for _, tt := range tests {
+		if got := upstreamServerStatusErrorKind(tt.status); got != tt.want {
+			t.Errorf("status %d error kind = %q, want %q", tt.status, got, tt.want)
+		}
+	}
+}
+
 func TestRoutingResourcePressureExpiryDoesNotDeleteConcurrentRenewal(t *testing.T) {
 	var pressure sync.Map
 	const agentID int64 = 42

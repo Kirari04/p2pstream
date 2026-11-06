@@ -2,8 +2,12 @@ package tunnel
 
 import (
 	"errors"
+	"net/http"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/yamux"
 )
 
 func TestOpenRequestValidate(t *testing.T) {
@@ -54,29 +58,90 @@ func TestOpenRequestValidate(t *testing.T) {
 	}
 }
 
-func TestParseOptionalMaxConcurrentStreams(t *testing.T) {
-	if value, present, err := ParseOptionalMaxConcurrentStreams("", MaxConcurrentAgentRequestsLimit); err != nil || present || value != 0 {
-		t.Fatalf("absent capacity = %d/%v/%v, want 0/false/nil", value, present, err)
+func TestParseMaxConcurrentStreams(t *testing.T) {
+	if value, err := ParseMaxConcurrentStreams(" 512 ", MaxConcurrentAgentRequestsLimit); err != nil || value != 512 {
+		t.Fatalf("valid capacity = %d, %v", value, err)
 	}
-	if value, present, err := ParseOptionalMaxConcurrentStreams(" 512 ", MaxConcurrentAgentRequestsLimit); err != nil || !present || value != 512 {
-		t.Fatalf("parsed capacity = %d/%v/%v, want 512/true/nil", value, present, err)
-	}
-	for _, raw := range []string{"0", "-1", "2049", "not-a-number"} {
-		if _, present, err := ParseOptionalMaxConcurrentStreams(raw, MaxConcurrentAgentRequestsLimit); err == nil || !present {
-			t.Fatalf("invalid capacity %q = present %v error %v, want true/non-nil", raw, present, err)
+	for _, raw := range []string{"", " ", "0", "-1", "2049", "invalid"} {
+		if _, err := ParseMaxConcurrentStreams(raw, MaxConcurrentAgentRequestsLimit); err == nil {
+			t.Fatalf("capacity %q must be rejected", raw)
 		}
 	}
 }
 
-func TestParseOptionalCapacityMode(t *testing.T) {
-	if mode, present, err := ParseOptionalCapacityMode(""); err != nil || present || mode != "" {
-		t.Fatalf("absent capacity mode = %q/%t/%v", mode, present, err)
+func TestParseCapacityMode(t *testing.T) {
+	for _, raw := range []string{" Adaptive ", "fixed"} {
+		if _, err := ParseCapacityMode(raw); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if mode, present, err := ParseOptionalCapacityMode(" Adaptive "); err != nil || !present || mode != TunnelCapacityModeAdaptive {
-		t.Fatalf("adaptive capacity mode = %q/%t/%v", mode, present, err)
+	for _, raw := range []string{"", " ", "unlimited"} {
+		if _, err := ParseCapacityMode(raw); err == nil {
+			t.Fatalf("mode %q must be rejected", raw)
+		}
 	}
-	if _, present, err := ParseOptionalCapacityMode("unlimited"); err == nil || !present {
-		t.Fatalf("invalid capacity mode present=%t err=%v", present, err)
+}
+
+func TestAggregateTunnelLaneBoundaryKeepsLegacyUnchanged(t *testing.T) {
+	group := "0123456789abcdef"
+	if _, lane, err := ParseAggregateTunnelLane(group, strconv.Itoa(MaxParallelTunnels)); err != nil || lane != MaxParallelTunnels {
+		t.Fatalf("aggregate maximum lane = %d, %v", lane, err)
+	}
+	if _, _, err := ParseAggregateTunnelLane(group, strconv.Itoa(MaxParallelTunnels+1)); err == nil {
+		t.Fatal("aggregate lane beyond maximum accepted")
+	}
+	if _, _, err := ParseTunnelLane(group, strconv.Itoa(MaxParallelTunnels)); err == nil {
+		t.Fatal("legacy parser accepted aggregate-only lane")
+	}
+	if _, lane, err := ParseTunnelLane(group, strconv.Itoa(MaxParallelTunnels-1)); err != nil || lane != MaxParallelTunnels-1 {
+		t.Fatalf("legacy maximum lane = %d, %v", lane, err)
+	}
+}
+
+func TestAggregateFlowControlHeadersRoundTripAndRejectMalformed(t *testing.T) {
+	config := DefaultAggregateFlowControlConfig()
+	headers := make(http.Header)
+	SetAggregateFlowControlHeaders(headers, TunnelLaneRoleBulk, config)
+	got, role, enabled, err := ParseAggregateFlowControlHeaders(headers)
+	if err != nil || !enabled || role != TunnelLaneRoleBulk || !got.Equal(config) {
+		t.Fatalf("parse round trip = %#v, %q, %t, %v", got, role, enabled, err)
+	}
+
+	tests := map[string]func(http.Header){
+		"duplicate": func(h http.Header) { h.Add(TunnelFlowControlHeader, TunnelFlowControlAggregateV1) },
+		"partial":   func(h http.Header) { h.Del(TunnelDataFrameMaxHeader) },
+		"role":      func(h http.Header) { h.Set(TunnelLaneRoleHeader, "public") },
+		"version":   func(h http.Header) { h.Set(TunnelFlowControlHeader, "aggregate-v2") },
+		"value":     func(h http.Header) { h.Set(TunnelSessionWindowHeader, "02097152") },
+		"mismatch":  func(h http.Header) { h.Set(TunnelAllocationWindowHeader, "262144") },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			h := headers.Clone()
+			mutate(h)
+			if _, _, _, err := ParseAggregateFlowControlHeaders(h); err == nil {
+				t.Fatal("malformed aggregate offer accepted")
+			}
+		})
+	}
+
+	if _, _, enabled, err := ParseAggregateFlowControlHeaders(make(http.Header)); err != nil || enabled {
+		t.Fatalf("absent extension = enabled %t, err %v", enabled, err)
+	}
+	partial := make(http.Header)
+	partial.Set(TunnelLaneRoleHeader, TunnelLaneRoleControl)
+	if _, _, _, err := ParseAggregateFlowControlHeaders(partial); err == nil {
+		t.Fatal("orphan extension header accepted as legacy")
+	}
+}
+
+func TestParseTunnelLaneHeadersRejectsDuplicates(t *testing.T) {
+	headers := make(http.Header)
+	headers.Add(TunnelGroupHeader, "0123456789abcdef")
+	headers.Add(TunnelGroupHeader, "fedcba9876543210")
+	headers.Set(TunnelLaneHeader, "0")
+	if _, _, err := ParseTunnelLaneHeaders(headers, false); err == nil {
+		t.Fatal("duplicate tunnel group accepted")
 	}
 }
 
@@ -115,6 +180,104 @@ func TestNewYamuxConfigMaxStreamWindowSizeOverride(t *testing.T) {
 	}
 }
 
+func TestNewAggregateYamuxConfigUsesVersionedWireContract(t *testing.T) {
+	cfg, err := NewAggregateYamuxConfig(nil, DefaultMaxStreamWindowSizeBytes, AggregateAcceptBacklogStreams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := DefaultAggregateFlowControlConfig()
+	if cfg.InitialSessionWindowSize != want.InitialSessionWindow ||
+		cfg.MaxSessionWindowSize != want.MaxSessionWindow ||
+		cfg.InitialStreamAllocationWindowSize != want.InitialStreamWindow ||
+		cfg.MaxStreamAllocationWindowSize != want.MaxStreamWindow ||
+		cfg.MaxDataFrameSize != want.MaxDataFrame ||
+		cfg.MaxIncomingStreams != AggregateAcceptBacklogStreams {
+		t.Fatalf("aggregate config = %#v", cfg)
+	}
+	if cfg.MaxStreamWindowSize != uint32(DefaultAdaptiveReceiveWindowBytes) {
+		t.Fatalf("initial aggregate byte window = %d, want %d", cfg.MaxStreamWindowSize, DefaultAdaptiveReceiveWindowBytes)
+	}
+	if cfg.MaxDataFrameSize != yamux.AggregateMaxDataFrameSize {
+		t.Fatalf("DATA frame = %d, Yamux protocol = %d", cfg.MaxDataFrameSize, yamux.AggregateMaxDataFrameSize)
+	}
+}
+
+func TestNewAggregateYamuxConfigHonorsSmallerConfiguredByteCeiling(t *testing.T) {
+	cfg, err := NewAggregateYamuxConfig(nil, InitialStreamWindowSizeBytes, AggregateAcceptBacklogStreams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.MaxStreamWindowSize != uint32(InitialStreamWindowSizeBytes) {
+		t.Fatalf("initial aggregate byte window = %d, want configured protocol floor %d", cfg.MaxStreamWindowSize, InitialStreamWindowSizeBytes)
+	}
+	if cfg.InitialStreamAllocationWindowSize != AggregateInitialStreamWindowBytes {
+		t.Fatalf("allocation window = %d, want wire contract %d", cfg.InitialStreamAllocationWindowSize, AggregateInitialStreamWindowBytes)
+	}
+}
+
+func TestNegotiatedControlYamuxConfigRemainsLegacyAndBounded(t *testing.T) {
+	cfg, err := NewNegotiatedControlYamuxConfig(nil, DefaultAdaptiveReceiveWindowBytes, NegotiatedControlStreamLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.InitialSessionWindowSize != 0 || cfg.InitialStreamAllocationWindowSize != 0 {
+		t.Fatal("control lane unexpectedly enabled aggregate DATA flow control")
+	}
+	if cfg.MaxIncomingStreams != NegotiatedControlStreamLimit {
+		t.Fatalf("control incoming limit = %d, want %d", cfg.MaxIncomingStreams, NegotiatedControlStreamLimit)
+	}
+}
+
+func TestNegotiatedSessionResourceModelsCoverPoolsAndPendingObjects(t *testing.T) {
+	wire := DefaultAggregateFlowControlConfig()
+	got, err := AggregateSessionResourceBytes(wire.InitialSessionWindow, AggregateAcceptBacklogStreams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := int64(yamux.AggregateReceiveWindowMemory(wire.InitialSessionWindow)+yamux.AggregateSendMemory) +
+		AggregateSessionMetadataBytes + AggregateAcceptBacklogStreams*AggregatePendingStreamMetadataBytes
+	if got != want {
+		t.Fatalf("aggregate session reservation = %d, want %d", got, want)
+	}
+	if _, err := AggregateSessionResourceBytes(wire.InitialSessionWindow, -1); err == nil {
+		t.Fatal("negative pending stream count accepted")
+	}
+	if _, err := AggregateSessionResourceBytes(wire.InitialSessionWindow, int(^uint(0)>>1)); err == nil {
+		t.Fatal("overflowing pending stream count accepted")
+	}
+	if strconv.IntSize == 64 {
+		justOverInt64 := (uint64(^uint64(0)>>1)-uint64(AggregateSessionMetadataBytes))/uint64(AggregatePendingStreamMetadataBytes) + 1
+		if _, err := AggregateSessionResourceBytes(wire.InitialSessionWindow, int(justOverInt64)); err == nil {
+			t.Fatal("metadata beyond MaxInt64 accepted")
+		}
+	}
+
+	control, err := NegotiatedControlSessionResourceBytes(DefaultAdaptiveReceiveWindowBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receive := int64(yamux.ReceiveWindowMemory(uint32(DefaultAdaptiveReceiveWindowBytes)))
+	wantControl := AggregateSessionMetadataBytes + NegotiatedControlStreamLimit*(receive+AggregatePendingStreamMetadataBytes)
+	if control != wantControl {
+		t.Fatalf("control session reservation = %d, want %d", control, wantControl)
+	}
+	for streams := 1; streams <= NegotiatedControlStreamLimit; streams++ {
+		got, streamErr := NegotiatedControlSessionResourceBytesForStreams(DefaultAdaptiveReceiveWindowBytes, streams)
+		if streamErr != nil {
+			t.Fatalf("control streams %d: %v", streams, streamErr)
+		}
+		want := AggregateSessionMetadataBytes + int64(streams)*(receive+AggregatePendingStreamMetadataBytes)
+		if got != want {
+			t.Fatalf("control streams %d reservation = %d, want %d", streams, got, want)
+		}
+	}
+	for _, streams := range []int{0, NegotiatedControlStreamLimit + 1} {
+		if _, streamErr := NegotiatedControlSessionResourceBytesForStreams(DefaultAdaptiveReceiveWindowBytes, streams); streamErr == nil {
+			t.Fatalf("invalid control stream count %d accepted", streams)
+		}
+	}
+}
+
 func TestAdaptiveMaxStreamWindowSizeIsCoveredByLifetimeCharge(t *testing.T) {
 	got, err := AdaptiveMaxStreamWindowSizeBytes(DefaultMaxStreamWindowSizeBytes, DefaultAdaptiveStreamChargeBytes)
 	if err != nil {
@@ -137,23 +300,6 @@ func TestNormalizeMaxStreamWindowSizeBytesRejectsUnsafeBounds(t *testing.T) {
 	for _, value := range []int64{-1, 1, MaxStreamWindowSizeBytesLimit + 1} {
 		if _, err := NormalizeMaxStreamWindowSizeBytes(value); err == nil {
 			t.Fatalf("NormalizeMaxStreamWindowSizeBytes(%d) error = nil, want error", value)
-		}
-	}
-}
-
-func TestValidateAggregateStreamWindowBudget(t *testing.T) {
-	if err := ValidateAggregateStreamWindowBudget(0, 0); err != nil {
-		t.Fatalf("default aggregate stream window budget: %v", err)
-	}
-	if err := ValidateAggregateStreamWindowBudget(64*1024*1024, 8); err != nil {
-		t.Fatalf("boundary aggregate stream window budget: %v", err)
-	}
-	if err := ValidateAggregateStreamWindowBudget(64*1024*1024, 9); err == nil {
-		t.Fatal("aggregate stream window budget above limit was accepted")
-	}
-	for _, requests := range []int64{-1, MaxConcurrentAgentRequestsLimit + 1} {
-		if err := ValidateAggregateStreamWindowBudget(DefaultMaxStreamWindowSizeBytes, requests); err == nil {
-			t.Fatalf("concurrent request limit %d was accepted", requests)
 		}
 	}
 }

@@ -2,7 +2,7 @@
 
 p2pstream can protect a public route with a reusable access policy. Choose **Local users** for a self-contained setup, or **Forward auth** to delegate identity to an existing service. Both provider types feed the same optional group policy and trusted identity-header boundary.
 
-Manage providers and policies under **Traffic Policy -> Access**, then assign a policy in **Proxy -> Routes -> Access policy**.
+Manage providers and policies under **Traffic policy -> Access**, then open the owning site under **Proxy -> Sites** and assign **Access policy** in its route editor.
 
 ## Built-In Local Users
 
@@ -24,7 +24,7 @@ The provider's **Browser boundary** limits which routed hosts may authenticate. 
 
 Each local provider selects a **Sign-in page** from **Configure -> Templates**. The seeded `local-access-login-default` works immediately, while additional local sign-in templates can customize the full HTML and CSS, the form, and all authentication-error states. Required action, CSRF, username, and password placeholders keep the customized form wired to the server. Dynamic values are HTML-escaped, scripts are blocked, and the form is restricted to same-origin submission. See [Response templates](./response-templates) for every available placeholder.
 
-The form posts back to the protected URL using the reserved `__p2pstream_access_login=1` query parameter, then redirects to the same path with that parameter removed. `__p2pstream_access_logout=1` revokes the current session and redirects in the same way. Do not use these reserved query names for application behavior on a locally protected route.
+The form posts back to the protected URL using the reserved `__p2pstream_access_login=1` query parameter, then redirects to the same path with that parameter removed. To log out, submit a same-origin `POST` form to the protected URL with `__p2pstream_access_logout=1`; p2pstream revokes the current session and redirects with that parameter removed. Logout requests using another method or without a trusted same-origin `Origin` or `Referer` are rejected without changing the session or browser cookies. Do not use these reserved query names for application behavior on a locally protected route.
 
 Local identities forward `X-Auth-Request-User`, `X-Auth-Request-Preferred-Username`, and, when present, `X-Auth-Request-Groups`. After Basic authentication, the proxy removes the credential-bearing `Authorization` header before contacting the protected upstream, so the password is not leaked to the application. Form-authenticated requests can still carry a separate application `Authorization` header. User groups are exact and case-sensitive.
 
@@ -85,11 +85,18 @@ Forward-auth response bodies and headers are size-limited. Redirects are not fol
 | Name | Unique management name. |
 | Forward-auth URL | Absolute HTTP(S) URL without embedded credentials or a fragment. HTTPS is recommended. |
 | Timeout | `100` through `30000` milliseconds; default `5000`. |
-| Skip TLS verification | Disables certificate verification for the auth endpoint. Use only for a deliberately trusted private endpoint. |
+| Skip TLS verification | Disables certificate-chain, hostname, and expiry checks for the auth endpoint. A network attacker can read browser credentials and forge successful authentication responses. Keep it off in production and install a trusted certificate. |
 | Subject, user, email, groups headers | Header names read from a successful auth response. Groups are comma-separated. |
 | Forwarded identity headers | Explicit allowlist copied from the successful auth response to the protected upstream. Maximum 16. |
 
 Authorization, cookie, request-framing, hop-by-hop, `Forwarded`, `X-Forwarded-*`, and `X-Real-IP` headers cannot be configured as forwarded identity headers.
+
+Forward-auth URLs may name private or loopback services because internal identity
+providers are supported. Only administrators can choose the destination; public
+requests cannot replace it, and the client does not follow provider redirects.
+Protect access to configuration and restrict the server's network egress when
+the deployment needs a narrower destination boundary. A private address alone
+does not make an unverified TLS connection trustworthy.
 
 ## Policy Fields
 

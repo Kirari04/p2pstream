@@ -4,6 +4,12 @@ export type ManagementNavigationItem = Readonly<{
   path: string;
   activePrefix?: string;
   children?: readonly ManagementNavigationItem[];
+  /**
+   * Route-backed sub-pages inside a page tab (for example WAF → Captcha
+   * providers). They extend breadcrumbs and the route label but are not
+   * rendered in the sidebar.
+   */
+  subpages?: readonly ManagementNavigationItem[];
 }>;
 
 export type ManagementNavigationGroup = Readonly<{
@@ -53,26 +59,45 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
       {
         key: "proxy",
         label: "Proxy",
-        path: "/proxy/routes",
+        path: "/proxy/sites",
         activePrefix: "/proxy",
         children: [
-          { key: "proxy-routes", label: "Routes", path: "/proxy/routes" },
+          { key: "proxy-sites", label: "Sites", path: "/proxy/sites" },
           { key: "proxy-listeners", label: "Listeners", path: "/proxy/listeners" },
         ],
       },
-      { key: "agents", label: "Agents", path: "/agent", activePrefix: "/agent" },
+      {
+        key: "agents",
+        label: "Agents",
+        path: "/agent",
+        activePrefix: "/agent",
+        children: [
+          { key: "agents-fleet", label: "Fleet", path: "/agent" },
+          { key: "agents-activity", label: "Activity", path: "/agent/activity" },
+          { key: "agents-updates", label: "Updates", path: "/agent/updates" },
+        ],
+      },
       {
         key: "traffic-policy",
-        label: "Traffic Policy",
+        label: "Traffic policy",
         path: "/policies/rate-limits",
         activePrefix: "/policies",
         children: [
-          { key: "policy-rate-limits", label: "Rate Limits", path: "/policies/rate-limits" },
-          { key: "policy-waf", label: "WAF", path: "/policies/waf" },
+          { key: "policy-rate-limits", label: "Rate limits", path: "/policies/rate-limits" },
+          {
+            key: "policy-waf",
+            label: "WAF",
+            path: "/policies/waf",
+            activePrefix: "/policies/waf",
+            subpages: [
+              { key: "policy-waf-captcha-providers", label: "Captcha providers", path: "/policies/waf/captcha-providers" },
+            ],
+          },
           { key: "policy-access", label: "Access", path: "/policies/access" },
           { key: "policy-cache", label: "Cache", path: "/policies/cache" },
           { key: "policy-retries", label: "Retries", path: "/policies/retries" },
-          { key: "policy-traffic-shaper", label: "Traffic Shaper", path: "/policies/traffic-shaper" },
+          { key: "policy-traffic-shaper", label: "Traffic shaper", path: "/policies/traffic-shaper" },
+          { key: "policy-visitor-identity", label: "Visitor identity", path: "/policies/visitor-identity" },
         ],
       },
       { key: "templates", label: "Templates", path: "/templates" },
@@ -84,8 +109,8 @@ export const MANAGEMENT_NAVIGATION: readonly ManagementNavigationGroup[] = [
     label: "System",
     items: [
       { key: "environments", label: "Environments", path: "/settings/environments" },
-      { key: "api-tokens", label: "API Tokens", path: "/settings/api-tokens" },
-      { key: "management-tls", label: "Management TLS", path: "/settings/management-tls" },
+      { key: "api-tokens", label: "API tokens", path: "/settings/api-tokens" },
+      { key: "management-tls", label: "Management TLS", path: "/settings/management-tls", activePrefix: "/settings/management-tls" },
     ],
   },
 ] as const;
@@ -111,6 +136,7 @@ export function isManagementNavigationItemActive(
   const path = normalizeManagementPath(currentPath);
   if (path === normalizeManagementPath(item.path)) return true;
   if (item.children?.some((child) => isManagementNavigationItemActive(child, path))) return true;
+  if (item.subpages?.some((subpage) => isManagementNavigationItemActive(subpage, path))) return true;
   if (!item.activePrefix) return false;
   const prefix = normalizeManagementPath(item.activePrefix);
   return path === prefix || path.startsWith(`${prefix}/`);
@@ -142,6 +168,8 @@ function findItemTrail(
   for (const item of items) {
     const childTrail = item.children ? findItemTrail(item.children, currentPath) : null;
     if (childTrail) return [item, ...childTrail];
+    const subpageTrail = item.subpages ? findItemTrail(item.subpages, currentPath) : null;
+    if (subpageTrail) return [item, ...subpageTrail];
     if (isManagementNavigationItemActive(item, currentPath)) return [item];
   }
   return null;

@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/pem"
 	"errors"
@@ -30,9 +29,11 @@ import (
 const (
 	publicACMEProductionDirectory = acme.LetsEncryptURL
 	publicACMEStagingDirectory    = "https://acme-staging-v02.api.letsencrypt.org/directory"
-	publicACMERenewBefore         = 30 * 24 * time.Hour
-	publicACMERetryAfterFailure   = time.Hour
-	publicACMESchedulerInterval   = 30 * time.Minute
+	// publicACMEMaxRenewBefore caps how early a certificate is renewed. The
+	// actual window is lifetime-relative; see publicACMERenewBefore.
+	publicACMEMaxRenewBefore    = 30 * 24 * time.Hour
+	publicACMERetryAfterFailure = time.Hour
+	publicACMESchedulerInterval = 30 * time.Minute
 )
 
 const (
@@ -81,6 +82,8 @@ type publicACMEManager struct {
 	httpChallenges map[string]string
 	tlsChallenges  map[string]*tls.Certificate
 }
+
+var errPublicACMEHostnameCanonicalizationSuperseded = errors.New("ACME certificate configuration changed while canonicalizing its hostname")
 
 type publicACMEIssueConfig struct {
 	CertificateID int64
@@ -359,6 +362,53 @@ func (m *publicACMEManager) queueDueCertificates(ctx context.Context, trigger st
 	).Msg("ACME renewal scheduler scan completed")
 }
 
+// publicACMERenewBefore returns how long before expiry a certificate should
+// be renewed: when one third of its lifetime remains, capped at
+// publicACMEMaxRenewBefore. 90-day certificates keep the 30-day window, while
+// short-lived certificates (45-day, 6-day) renew proportionally instead of
+// being due immediately after issuance. An unknown or inverted validity
+// period falls back to the cap.
+//
+// The lifetime is rounded to the nearest minute because CAs such as Let's
+// Encrypt express "90 days" with an inclusive end second (90 days minus one
+// second), which must still map to exactly 30 days.
+func publicACMERenewBefore(notBefore time.Time, notAfter time.Time) time.Duration {
+	if notBefore.IsZero() || notAfter.IsZero() || !notAfter.After(notBefore) {
+		return publicACMEMaxRenewBefore
+	}
+	renewBefore := notAfter.Sub(notBefore).Round(time.Minute) / 3
+	if renewBefore <= 0 || renewBefore > publicACMEMaxRenewBefore {
+		return publicACMEMaxRenewBefore
+	}
+	return renewBefore
+}
+
+func publicACMERenewBeforeForCertificate(cert db.PublicTlsCertificate) time.Duration {
+	var notBefore, notAfter time.Time
+	if cert.IssuedAt.Valid {
+		notBefore = cert.IssuedAt.Time
+	}
+	if cert.ExpiresAt.Valid {
+		notAfter = cert.ExpiresAt.Time
+	}
+	return publicACMERenewBefore(notBefore, notAfter)
+}
+
+// publicACMEEffectiveNextRenewalAt reports the renewal time the scheduler will
+// actually use. For ready ACME certificates that is derived from the stored
+// validity, so rows persisted under an older renewal window still show the
+// current schedule. Every other state keeps the persisted value (retry time,
+// cleared while renewing, or unset while pending).
+func publicACMEEffectiveNextRenewalAt(cert db.PublicTlsCertificate) sql.NullTime {
+	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME ||
+		cert.Enabled == 0 ||
+		normalizePublicTLSCertificateStatus(cert.Status) != publicTLSCertificateStatusReady ||
+		cert.CertPath == "" || cert.KeyPath == "" || !cert.ExpiresAt.Valid {
+		return cert.NextRenewalAt
+	}
+	return sql.NullTime{Time: cert.ExpiresAt.Time.UTC().Add(-publicACMERenewBeforeForCertificate(cert)), Valid: true}
+}
+
 func publicACMECertificateDue(cert db.PublicTlsCertificate, now time.Time) bool {
 	return publicACMECertificateScheduleDecision(cert, now).Due
 }
@@ -392,11 +442,12 @@ func publicACMECertificateScheduleDecision(cert db.PublicTlsCertificate, now tim
 		return publicACMEScheduleDecision{Due: true, Reason: "missing_expiry"}
 	}
 	expiresAt := cert.ExpiresAt.Time.UTC()
-	nextAttemptAt := sql.NullTime{Time: expiresAt.Add(-publicACMERenewBefore), Valid: true}
+	renewBefore := publicACMERenewBeforeForCertificate(cert)
+	nextAttemptAt := sql.NullTime{Time: expiresAt.Add(-renewBefore), Valid: true}
 	if !expiresAt.After(now) {
 		return publicACMEScheduleDecision{Due: true, Reason: "expired", NextAttemptAt: nextAttemptAt}
 	}
-	if !expiresAt.After(now.Add(publicACMERenewBefore)) {
+	if !expiresAt.After(now.Add(renewBefore)) {
 		return publicACMEScheduleDecision{Due: true, Reason: "renewal_window", NextAttemptAt: nextAttemptAt}
 	}
 	return publicACMEScheduleDecision{Reason: "scheduled", NextAttemptAt: nextAttemptAt}
@@ -422,6 +473,17 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 		return
 	}
 	if normalizePublicTLSCertificateSource(cert.Source) != publicTLSCertificateSourceACME || cert.Enabled == 0 {
+		return
+	}
+	cert, err = m.canonicalizeCertificateHostname(ctx, cert)
+	if err != nil {
+		if errors.Is(err, errPublicACMEHostnameCanonicalizationSuperseded) {
+			publicACMELogCertificate(log.Info(), cert, trigger, publicACMEStageIssueConfig).
+				Time("attempt_at", attemptAt).
+				Msg("ACME certificate renewal skipped because its configuration changed")
+			return
+		}
+		m.markIssueFailed(ctx, cert, trigger, attemptAt, publicACMEStageWrap(publicACMEStageIssueConfig, err))
 		return
 	}
 	publicACMELogCertificate(log.Info(), cert, trigger, publicACMEStageIssueCertificate).
@@ -471,7 +533,8 @@ func (m *publicACMEManager) issueCertificate(ctx context.Context, certID int64, 
 	if !result.Leaf.NotBefore.IsZero() {
 		issuedAt = result.Leaf.NotBefore.UTC()
 	}
-	nextRenewalAt := expiresAt.Add(-publicACMERenewBefore)
+	// Use the persisted validity so this matches publicACMECertificateScheduleDecision.
+	nextRenewalAt := expiresAt.Add(-publicACMERenewBefore(issuedAt, expiresAt))
 	if nextRenewalAt.Before(attemptAt) {
 		nextRenewalAt = attemptAt.Add(publicACMERetryAfterFailure)
 	}
@@ -521,10 +584,14 @@ func (m *publicACMEManager) endIssue(certID int64) {
 }
 
 func (m *publicACMEManager) issueConfig(ctx context.Context, cert db.PublicTlsCertificate) (publicACMEIssueConfig, error) {
+	domain, err := normalizePublicSiteHostnamePattern(cert.HostnamePattern)
+	if err != nil {
+		return publicACMEIssueConfig{}, fmt.Errorf("invalid ACME hostname %q: %w", cert.HostnamePattern, err)
+	}
 	cfg := publicACMEIssueConfig{
 		CertificateID: cert.ID,
 		ListenerID:    cert.ListenerID,
-		Domain:        cert.HostnamePattern,
+		Domain:        domain,
 		ChallengeType: normalizePublicACMEChallengeType(cert.AcmeChallengeType),
 		CA:            normalizePublicACMECA(cert.AcmeCa),
 		Email:         cert.AcmeEmail,
@@ -543,6 +610,32 @@ func (m *publicACMEManager) issueConfig(ctx context.Context, cert db.PublicTlsCe
 		cfg.DNSCredential = &credential
 	}
 	return cfg, nil
+}
+
+func (m *publicACMEManager) canonicalizeCertificateHostname(ctx context.Context, cert db.PublicTlsCertificate) (db.PublicTlsCertificate, error) {
+	canonical, err := normalizePublicSiteHostnamePattern(cert.HostnamePattern)
+	if err != nil {
+		return cert, fmt.Errorf("invalid ACME hostname %q: %w", cert.HostnamePattern, err)
+	}
+	if canonical == cert.HostnamePattern {
+		return cert, nil
+	}
+	result, err := m.app.DB.ExecContext(ctx, `UPDATE public_tls_certificates SET hostname_pattern = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND hostname_pattern = ?`, canonical, cert.ID, cert.HostnamePattern)
+	if err != nil {
+		return cert, fmt.Errorf("canonicalize ACME hostname %q as %q: %w", cert.HostnamePattern, canonical, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return cert, fmt.Errorf("confirm canonical ACME hostname update: %w", err)
+	}
+	if rows != 1 {
+		return cert, errPublicACMEHostnameCanonicalizationSuperseded
+	}
+	updated, err := m.app.DB.GetPublicTlsCertificate(ctx, cert.ID)
+	if err != nil {
+		return cert, fmt.Errorf("reload canonical ACME certificate: %w", err)
+	}
+	return updated, nil
 }
 
 func (m *publicACMEManager) markIssueFailed(ctx context.Context, cert db.PublicTlsCertificate, trigger string, attemptAt time.Time, issueErr error) {
@@ -655,21 +748,23 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 			Str("acme_challenge_type", challengeType).
 			Msg("ACME challenge provisioned")
 		if _, err := client.Accept(ctx, challenge); err != nil {
-			cleanup()
-			publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeCleanup).
-				Str("authorization_domain", authz.Identifier.Value).
-				Msg("ACME challenge cleanup completed")
+			cleanupErr := cleanup()
+			logPublicACMEChallengeCleanup(cfg, authz.Identifier.Value, cleanupErr)
+			if cleanupErr != nil {
+				err = errors.Join(err, fmt.Errorf("cleanup ACME challenge: %w", cleanupErr))
+			}
 			return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageChallengeAccept, err)
 		}
 		publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeAccept).
 			Str("authorization_domain", authz.Identifier.Value).
 			Msg("ACME challenge accepted")
 		_, waitErr := client.WaitAuthorization(ctx, authz.URI)
-		cleanup()
-		publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeCleanup).
-			Str("authorization_domain", authz.Identifier.Value).
-			Msg("ACME challenge cleanup completed")
+		cleanupErr := cleanup()
+		logPublicACMEChallengeCleanup(cfg, authz.Identifier.Value, cleanupErr)
 		if waitErr != nil {
+			if cleanupErr != nil {
+				waitErr = errors.Join(waitErr, fmt.Errorf("cleanup ACME challenge: %w", cleanupErr))
+			}
 			return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageAuthorizationWait, waitErr)
 		}
 		publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageAuthorizationWait).
@@ -688,10 +783,7 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 	if err != nil {
 		return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageCSRCreate, err)
 	}
-	csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
-		Subject:  pkix.Name{CommonName: strings.TrimPrefix(cfg.Domain, "*.")},
-		DNSNames: []string{cfg.Domain},
-	}, certKey)
+	csr, err := x509.CreateCertificateRequest(rand.Reader, publicACMECertificateRequest(cfg.Domain), certKey)
 	if err != nil {
 		return publicACMEIssueResult{}, publicACMEStageWrap(publicACMEStageCSRCreate, err)
 	}
@@ -726,20 +818,26 @@ func (i publicRealACMEIssuer) Issue(ctx context.Context, store publicACMEChallen
 	}, nil
 }
 
-func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publicACMEChallengeStore, cfg publicACMEIssueConfig, authz *acme.Authorization, challenge *acme.Challenge) (func(), error) {
+func publicACMECertificateRequest(domain string) *x509.CertificateRequest {
+	return &x509.CertificateRequest{DNSNames: []string{domain}}
+}
+
+func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publicACMEChallengeStore, cfg publicACMEIssueConfig, authz *acme.Authorization, challenge *acme.Challenge) (func() error, error) {
 	switch cfg.ChallengeType {
 	case publicACMEChallengeHTTP01:
 		response, err := client.HTTP01ChallengeResponse(challenge.Token)
 		if err != nil {
 			return nil, err
 		}
-		return store.SetHTTPChallenge(client.HTTP01ChallengePath(challenge.Token), response), nil
+		cleanup := store.SetHTTPChallenge(client.HTTP01ChallengePath(challenge.Token), response)
+		return func() error { cleanup(); return nil }, nil
 	case publicACMEChallengeTLSALPN01:
 		challengeCert, err := client.TLSALPN01ChallengeCert(challenge.Token, authz.Identifier.Value)
 		if err != nil {
 			return nil, err
 		}
-		return store.SetTLSALPNChallenge(authz.Identifier.Value, challengeCert), nil
+		cleanup := store.SetTLSALPNChallenge(authz.Identifier.Value, challengeCert)
+		return func() error { cleanup(); return nil }, nil
 	case publicACMEChallengeDNS01:
 		if cfg.DNSCredential == nil {
 			return nil, errors.New("DNS-01 requires a DNS credential")
@@ -753,6 +851,19 @@ func provisionACMEChallenge(ctx context.Context, client *acme.Client, store publ
 	default:
 		return nil, fmt.Errorf("unsupported ACME challenge type %q", cfg.ChallengeType)
 	}
+}
+
+func logPublicACMEChallengeCleanup(cfg publicACMEIssueConfig, authorizationDomain string, cleanupErr error) {
+	if cleanupErr != nil {
+		publicACMELogIssueConfig(log.Warn(), cfg, publicACMEStageChallengeCleanup).
+			Str("authorization_domain", authorizationDomain).
+			Err(cleanupErr).
+			Msg("ACME challenge cleanup failed")
+		return
+	}
+	publicACMELogIssueConfig(log.Info(), cfg, publicACMEStageChallengeCleanup).
+		Str("authorization_domain", authorizationDomain).
+		Msg("ACME challenge cleanup completed")
 }
 
 func findACMEChallenge(authz *acme.Authorization, challengeType string) *acme.Challenge {

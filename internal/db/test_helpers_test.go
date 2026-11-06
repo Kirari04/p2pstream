@@ -8,34 +8,6 @@ import (
 	"testing"
 )
 
-func publicRoutesColumnNotNull(t *testing.T, database *DB, column string) bool {
-	t.Helper()
-	rows, err := database.QueryContext(context.Background(), `PRAGMA table_info(public_routes)`)
-	if err != nil {
-		t.Fatalf("pragma table_info(public_routes): %v", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var cid int64
-		var name string
-		var columnType string
-		var notNull int64
-		var defaultValue sql.NullString
-		var primaryKey int64
-		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
-			t.Fatalf("scan public_routes table_info: %v", err)
-		}
-		if name == column {
-			return notNull != 0
-		}
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("read public_routes table_info: %v", err)
-	}
-	t.Fatalf("public_routes missing column %s", column)
-	return false
-}
-
 func tableColumns(t *testing.T, database *DB, table string) []string {
 	t.Helper()
 	rows, err := database.QueryContext(context.Background(), `PRAGMA table_info(`+table+`)`)
@@ -76,15 +48,6 @@ func tableExists(t *testing.T, database *DB, table string) bool {
 		t.Fatalf("check table %s exists: %v", table, err)
 	}
 	return count > 0
-}
-
-func countRows(t *testing.T, database *DB, query string, args ...any) int64 {
-	t.Helper()
-	var count int64
-	if err := database.QueryRowContext(context.Background(), query, args...).Scan(&count); err != nil {
-		t.Fatalf("count rows with %q: %v", query, err)
-	}
-	return count
 }
 
 func assertForeignKeyCheck(t *testing.T, database *DB) {

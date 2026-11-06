@@ -33,6 +33,8 @@ A visual reference for the current p2pstream management console. These images ar
 
 ## Proxy Configuration
 
+Configure hostnames, listener assignments, and routes in the [Site workspace](./sites). Route and target editors open inside their owning site.
+
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/proxy_listeners.png" alt="p2pstream Proxy Public Listeners tab showing proxy summary counts, listener search, HTTP and HTTPS bind addresses, route counts, runtime state, Stop, Edit, and More actions">
@@ -45,18 +47,8 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_backends_and_routes.png" alt="p2pstream Proxy Routes tab showing compact rows for listener and match, forward or redirect action, proxy or static targets, priority, enabled state, and edit clone and delete actions">
-    <figcaption>Routes and targets table</figcaption>
-  </figure>
-
-  <figure class="doc-screenshot screenshot-tile">
     <img src="../assets/new/proxy_edit_backend_modal.png" alt="p2pstream Edit Route drawer showing a direct proxy target's name, type, priority group, weight, URL, transport, header timeout, TLS verification, and enabled state">
     <figcaption>Direct proxy target fields</figcaption>
-  </figure>
-
-  <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/proxy_edit_route_modal.png" alt="p2pstream Edit Route drawer showing listener, host pattern, path prefix, path security, action, route targets, fallback priority groups, and priority">
-    <figcaption>Edit Route drawer</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
@@ -103,7 +95,7 @@ A visual reference for the current p2pstream management console. These images ar
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic Policy WAF tab showing rule counts, execution order, Request Tester, filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
+    <img src="../assets/new/traffic_policies_waf_and_ratelimits.png" alt="p2pstream Traffic policy WAF tab showing rule counts, execution order, Request tester, filterable WAF rules, captcha providers, and Visitor identity and GeoIP settings">
     <figcaption>WAF rules, captcha providers, and visitor identity</figcaption>
   </figure>
 
@@ -123,12 +115,12 @@ A visual reference for the current p2pstream management console. These images ar
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic Policy Traffic Shaper tab showing a filterable compact table with match and key, upload and download budget, scope, priority, state, and actions">
-    <figcaption>Traffic Shaper tab</figcaption>
+    <img src="../assets/new/traffic_policies_cache_and_trafficshaper.png" alt="p2pstream Traffic policy Traffic shaper tab showing a filterable compact table with match and key, upload and download budget, scope, priority, state, and actions">
+    <figcaption>Traffic shaper tab</figcaption>
   </figure>
 
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic Policy Cache tab showing filterable cache rules plus cache storage enabled, disk, memory, hot-object, entry, cleanup, save, and purge controls">
+    <img src="../assets/new/cache_settings_section.png" alt="p2pstream Traffic policy Cache tab showing filterable cache rules plus cache storage enabled, disk, memory, hot-object, entry, cleanup, save, and purge controls">
     <figcaption>Cache rules and storage operations</figcaption>
   </figure>
 
@@ -147,7 +139,7 @@ A visual reference for the current p2pstream management console. These images ar
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/response_template_page.png" alt="p2pstream Response Templates page showing kind summary cards and a compact table with description, kind, content type, usage count, required placeholders, updated time, and actions">
+    <img src="../assets/new/response_template_page.png" alt="p2pstream Response templates page showing kind summary cards and a compact table with description, kind, content type, usage count, required placeholders, updated time, and actions">
     <figcaption>Response template inventory</figcaption>
   </figure>
 
@@ -190,7 +182,7 @@ A visual reference for the current p2pstream management console. These images ar
 
 <div class="screenshot-gallery screenshot-gallery-full">
   <figure class="doc-screenshot screenshot-tile">
-    <img src="../assets/new/settings_api_tokens.png" alt="p2pstream API Tokens page under System showing the selected environment, issued-token table, expiry, last-used time, status, Create Token, refresh, and revoke actions">
+    <img src="../assets/new/settings_api_tokens.png" alt="p2pstream API tokens page under System showing the selected environment, issued-token table, expiry, last-used time, status, Create Token, refresh, and revoke actions">
     <figcaption>Selected-environment API tokens</figcaption>
   </figure>
 

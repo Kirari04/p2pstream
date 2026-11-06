@@ -193,6 +193,13 @@ func TestPublicPolicyMatchStoredJSONRejectsDynamicRegex(t *testing.T) {
 	}
 }
 
+func TestPublicPolicyMatchStoredJSONRejectsTrailingValues(t *testing.T) {
+	_, err := decodePublicPolicyMatchJSON(`{} {}`)
+	if err == nil || !strings.Contains(err.Error(), "exactly one value") {
+		t.Fatalf("trailing policy JSON error = %v, want single-value rejection", err)
+	}
+}
+
 func TestPublicPolicyMatchValidationRejectsInvalidBuilder(t *testing.T) {
 	_, err := validatePublicPolicyMatch(&p2pstreamv1.PublicPolicyMatchRule{
 		Builder: &p2pstreamv1.PublicPolicyMatchBuilder{
@@ -346,8 +353,8 @@ func TestManagementJSONRejectsRemovedLegacyMatchField(t *testing.T) {
 	}
 }
 
-func TestPublicPolicyMatchLegacyFirstValueStoredBuilder(t *testing.T) {
-	match, err := decodePublicPolicyMatchJSON(`{
+func TestPublicPolicyMatchStoredBuilderRejectsLegacyFirstValue(t *testing.T) {
+	_, err := decodePublicPolicyMatchJSON(`{
 		"builder": {
 			"root": {
 				"conditions": [
@@ -357,33 +364,22 @@ func TestPublicPolicyMatchLegacyFirstValueStoredBuilder(t *testing.T) {
 			}
 		}
 	}`)
+	if err == nil || !strings.Contains(err.Error(), "unknown field") || !strings.Contains(err.Error(), "legacy_first_value") {
+		t.Fatalf("legacy first-value builder error = %v, want unknown field rejection", err)
+	}
+}
+
+func TestPublicPolicyMatchStoredCELExplicitFirstIndexRemainsAccepted(t *testing.T) {
+	match, err := decodePublicPolicyMatchJSON(`{"cel_expression":"headers[\"x-plan\"][0] == \"free\" && query[\"plan\"][0] == \"free\""}`)
 	if err != nil {
-		t.Fatalf("decode legacy first-value builder: %v", err)
+		t.Fatalf("decode explicit first-index CEL: %v", err)
 	}
-	for _, want := range []string{`headers["x-plan"][0] == "free"`, `query["plan"][0] == "free"`} {
-		if !strings.Contains(match.CELExpression, want) {
-			t.Fatalf("legacy first-value expression %q missing %q", match.CELExpression, want)
-		}
-	}
-
 	listener := publicListenerConfig{Protocol: publicListenerProtocolHTTP}
-	previouslySkipped := httptest.NewRequest(http.MethodGet, "http://example.test/?plan=paid&plan=free", nil)
-	previouslySkipped.Header.Add("X-Plan", "paid")
-	previouslySkipped.Header.Add("X-Plan", "free")
-	if match.matches(listener, previouslySkipped) {
-		t.Fatal("legacy first-value match used a later duplicate value")
-	}
-
-	previouslyMatched := httptest.NewRequest(http.MethodGet, "http://example.test/?plan=free&plan=paid", nil)
-	previouslyMatched.Header.Add("X-Plan", "free")
-	previouslyMatched.Header.Add("X-Plan", "paid")
-	if !match.matches(listener, previouslyMatched) {
-		t.Fatal("legacy first-value match did not use the first duplicate value")
-	}
-
-	protoRule := publicPolicyMatchRuleToProto(match)
-	if protoRule == nil || protoRule.Builder != nil {
-		t.Fatalf("legacy first-value builder should be returned as CEL-only, got %#v", protoRule)
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/?plan=free&plan=paid", nil)
+	req.Header.Add("X-Plan", "free")
+	req.Header.Add("X-Plan", "paid")
+	if !match.matches(listener, req) {
+		t.Fatal("explicit first-index CEL did not match first duplicate values")
 	}
 }
 

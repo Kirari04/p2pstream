@@ -87,6 +87,7 @@ type publicTrafficShaperRuleRuntime struct {
 type publicTrafficShaperDecision struct {
 	Rule           publicTrafficShaperRuleConfig
 	Listener       publicListenerConfig
+	MatchError     error
 	UploadBucket   *byteTokenBucket
 	DownloadBucket *byteTokenBucket
 }
@@ -184,7 +185,14 @@ func (s *publicTrafficShaper) evaluateForProtocol(rules []publicTrafficShaperRul
 		return publicTrafficShaperDecision{}, false
 	}
 	for _, rule := range rules {
-		if !rule.Enabled || !rule.matchesForProtocol(listener, r, isWebSocket) {
+		if !rule.Enabled {
+			continue
+		}
+		matches, err := rule.evaluateMatchForProtocol(listener, r, isWebSocket)
+		if err != nil {
+			return publicTrafficShaperDecision{Rule: rule, Listener: listener, MatchError: err}, true
+		}
+		if !matches {
 			continue
 		}
 		return s.decisionForRule(rule, listener, r, now), true
@@ -288,17 +296,22 @@ func (rule publicTrafficShaperRuleConfig) matches(listener publicListenerConfig,
 }
 
 func (rule publicTrafficShaperRuleConfig) matchesForProtocol(listener publicListenerConfig, r *http.Request, isWebSocket bool) bool {
+	matches, _ := rule.evaluateMatchForProtocol(listener, r, isWebSocket)
+	return matches
+}
+
+func (rule publicTrafficShaperRuleConfig) evaluateMatchForProtocol(listener publicListenerConfig, r *http.Request, isWebSocket bool) (bool, error) {
 	switch normalizePublicTrafficShaperProtocolScope(rule.ProtocolScope) {
 	case publicTrafficShaperProtocolScopeWebSocketOnly:
 		if !isWebSocket {
-			return false
+			return false, nil
 		}
 	case publicTrafficShaperProtocolScopeWebSocketExcluded:
 		if isWebSocket {
-			return false
+			return false, nil
 		}
 	}
-	return publicRateLimitRuleConfig{Match: rule.Match}.matches(listener, r)
+	return rule.Match.evaluate(listener, r)
 }
 
 func (a *App) publicTrafficShaperForResponse(

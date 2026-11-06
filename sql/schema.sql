@@ -11,6 +11,148 @@ CREATE TABLE IF NOT EXISTS agents (
     , agent_version TEXT NOT NULL DEFAULT '',
     agent_commit TEXT NOT NULL DEFAULT '');
 
+CREATE TABLE IF NOT EXISTS agent_update_management_authority (
+    id INTEGER PRIMARY KEY CHECK(id = 1),
+    key_id TEXT NOT NULL UNIQUE,
+    public_key BLOB NOT NULL CHECK(length(public_key) = 32),
+    epoch INTEGER NOT NULL CHECK(epoch > 0),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS agent_updater_identities (
+    agent_id INTEGER PRIMARY KEY REFERENCES agents(id) ON DELETE CASCADE,
+    updater_key_id TEXT NOT NULL UNIQUE,
+    updater_public_key BLOB NOT NULL CHECK(length(updater_public_key) = 32),
+    activator_key_id TEXT NOT NULL UNIQUE,
+    activator_public_key BLOB NOT NULL CHECK(length(activator_public_key) = 32),
+    os TEXT NOT NULL,
+    arch TEXT NOT NULL,
+    updater_version TEXT NOT NULL,
+    pinned_repository TEXT NOT NULL,
+    authority_key_id TEXT NOT NULL,
+    authority_epoch INTEGER NOT NULL CHECK(authority_epoch > 0),
+    enrollment_generation INTEGER NOT NULL CHECK(enrollment_generation > 0),
+    enrollment_receipt_payload BLOB NOT NULL,
+    enrollment_receipt_signature BLOB NOT NULL CHECK(length(enrollment_receipt_signature) = 64),
+    enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0, 1)),
+    last_counter INTEGER NOT NULL DEFAULT 0 CHECK(last_counter >= 0),
+    last_command_sequence INTEGER NOT NULL DEFAULT 0 CHECK(last_command_sequence >= 0),
+    last_root_action_counter INTEGER NOT NULL DEFAULT 0 CHECK(last_root_action_counter >= 0),
+    enrolled_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at DATETIME,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS agent_updater_enrollment_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    pinned_repository TEXT NOT NULL,
+    authority_key_id TEXT NOT NULL,
+    authority_epoch INTEGER NOT NULL CHECK(authority_epoch > 0),
+    enrollment_generation INTEGER NOT NULL CHECK(enrollment_generation > 0),
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME,
+    receipt_expires_at DATETIME,
+    updater_key_id TEXT NOT NULL DEFAULT '',
+    activator_key_id TEXT NOT NULL DEFAULT '',
+    os TEXT NOT NULL DEFAULT '',
+    arch TEXT NOT NULL DEFAULT '',
+    updater_version TEXT NOT NULL DEFAULT '',
+    receipt_payload BLOB NOT NULL DEFAULT X'',
+    receipt_signature BLOB NOT NULL DEFAULT X'',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_agent_updater_enrollment_tokens_agent ON agent_updater_enrollment_tokens(agent_id,expires_at);
+CREATE TABLE IF NOT EXISTS agent_update_campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    state TEXT NOT NULL CHECK(state IN ('running','paused','cancelled','completed')),
+    generation INTEGER NOT NULL DEFAULT 1 CHECK(generation > 0),
+    target_version TEXT NOT NULL,
+    target_commit TEXT NOT NULL,
+    manifest_sha256 TEXT NOT NULL,
+    release_sequence INTEGER NOT NULL CHECK(release_sequence >= 0),
+    security_epoch INTEGER NOT NULL DEFAULT 0 CHECK(security_epoch >= 0),
+    minimum_updater_version TEXT NOT NULL DEFAULT '',
+    minimum_tunnel_protocol INTEGER NOT NULL DEFAULT 0 CHECK(minimum_tunnel_protocol >= 0),
+    maximum_tunnel_protocol INTEGER NOT NULL DEFAULT 0 CHECK(maximum_tunnel_protocol >= 0),
+    artifacts_json TEXT NOT NULL,
+    max_unavailable INTEGER NOT NULL CHECK(max_unavailable > 0),
+    minimum_eligible_agents_per_route INTEGER NOT NULL CHECK(minimum_eligible_agents_per_route > 0),
+    canary_count INTEGER NOT NULL CHECK(canary_count > 0),
+    wave_size INTEGER NOT NULL CHECK(wave_size > 0),
+    healthy_dwell_millis INTEGER NOT NULL CHECK(healthy_dwell_millis >= 0),
+    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME
+);
+CREATE TABLE IF NOT EXISTS agent_update_assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    campaign_id INTEGER NOT NULL REFERENCES agent_update_campaigns(id) ON DELETE CASCADE,
+    agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+    state TEXT NOT NULL CHECK(state IN ('pending','staging','staged','cordoned','activating','awaiting_tunnel','healthy_dwell','succeeded','failed','cancelled','blocked')),
+    desired_action TEXT NOT NULL CHECK(desired_action IN ('none','stage','activate','rollback')),
+    generation INTEGER NOT NULL DEFAULT 1 CHECK(generation > 0),
+    cordoned INTEGER NOT NULL DEFAULT 0 CHECK(cordoned IN (0,1)),
+    failure_code TEXT NOT NULL DEFAULT '',
+    failure_detail TEXT NOT NULL DEFAULT '',
+    attested_manifest_sha256 TEXT NOT NULL DEFAULT '',
+    attested_binary_sha256 TEXT NOT NULL DEFAULT '',
+    attested_activation_counter INTEGER NOT NULL DEFAULT 0 CHECK(attested_activation_counter >= 0),
+    activation_nonce_hash TEXT NOT NULL DEFAULT '',
+    authorization_action TEXT NOT NULL DEFAULT '' CHECK(authorization_action IN ('','activate','rollback')),
+    authorization_server_version TEXT NOT NULL DEFAULT '',
+    command_sequence INTEGER NOT NULL DEFAULT 0 CHECK(command_sequence >= 0),
+    authorization_nonce BLOB NOT NULL DEFAULT X'',
+    authorization_sha256 TEXT NOT NULL DEFAULT '',
+    authorization_payload BLOB NOT NULL DEFAULT X'',
+    authorization_signature BLOB NOT NULL DEFAULT X'',
+    authorization_issued_at DATETIME,
+    authorization_expires_at DATETIME,
+    root_action_counter INTEGER NOT NULL DEFAULT 0 CHECK(root_action_counter >= 0),
+    root_action_receipt_payload BLOB NOT NULL DEFAULT X'',
+    root_action_receipt_signature BLOB NOT NULL DEFAULT X'',
+    root_action_completed_at DATETIME,
+    root_result_kind TEXT NOT NULL DEFAULT '' CHECK(root_result_kind IN ('','release','bootstrap')),
+    root_result_manifest_sha256 TEXT NOT NULL DEFAULT '',
+    root_result_version TEXT NOT NULL DEFAULT '',
+    root_result_commit TEXT NOT NULL DEFAULT '',
+    root_result_release_sequence INTEGER NOT NULL DEFAULT 0 CHECK(root_result_release_sequence >= 0),
+    root_result_security_epoch INTEGER NOT NULL DEFAULT 0 CHECK(root_result_security_epoch >= 0),
+    root_result_os TEXT NOT NULL DEFAULT '',
+    root_result_arch TEXT NOT NULL DEFAULT '',
+    root_result_artifact_name TEXT NOT NULL DEFAULT '',
+    root_result_artifact_size INTEGER NOT NULL DEFAULT 0 CHECK(root_result_artifact_size >= 0),
+    root_result_artifact_sha256 TEXT NOT NULL DEFAULT '',
+    running_version TEXT NOT NULL DEFAULT '',
+    running_commit TEXT NOT NULL DEFAULT '',
+    observed_version TEXT NOT NULL DEFAULT '',
+    observed_commit TEXT NOT NULL DEFAULT '',
+    activated_at DATETIME,
+    fresh_tunnel_at DATETIME,
+    healthy_at DATETIME,
+    last_report_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(campaign_id, agent_id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_update_assignments_agent_state ON agent_update_assignments(agent_id,state);
+CREATE INDEX IF NOT EXISTS idx_agent_update_assignments_campaign_state ON agent_update_assignments(campaign_id,state);
+CREATE INDEX IF NOT EXISTS idx_agent_update_assignments_cordoned ON agent_update_assignments(agent_id) WHERE cordoned=1;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_agent_update_assignments_one_active_agent ON agent_update_assignments(agent_id) WHERE state NOT IN ('succeeded','failed','cancelled') OR (state='failed' AND desired_action='rollback');
+CREATE TABLE IF NOT EXISTS agent_update_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    campaign_id INTEGER NOT NULL REFERENCES agent_update_campaigns(id) ON DELETE CASCADE,
+    assignment_id INTEGER REFERENCES agent_update_assignments(id) ON DELETE CASCADE,
+    agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL,
+    detail TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_agent_update_events_assignment ON agent_update_events(assignment_id,id DESC);
+
 CREATE TABLE IF NOT EXISTS connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id INTEGER REFERENCES agents(id),
@@ -157,27 +299,6 @@ CREATE TABLE IF NOT EXISTS agent_stat_rollup_minutes (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS observability_rollup_state (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    proxy_backfill_upper_id INTEGER NOT NULL DEFAULT 0,
-    proxy_backfilled_through_id INTEGER NOT NULL DEFAULT 0,
-    agent_backfill_upper_id INTEGER NOT NULL DEFAULT 0,
-    agent_backfilled_through_id INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-INSERT INTO observability_rollup_state (
-    id, proxy_backfill_upper_id, proxy_backfilled_through_id, agent_backfill_upper_id, agent_backfilled_through_id
-)
-SELECT
-    1,
-    CAST(COALESCE((SELECT MAX(id) FROM proxy_request_events), 0) AS INTEGER),
-    0,
-    CAST(COALESCE((SELECT MAX(id) FROM agent_stats), 0) AS INTEGER),
-    0
-WHERE NOT EXISTS (SELECT 1 FROM observability_rollup_state WHERE id = 1);
-
 CREATE TABLE IF NOT EXISTS public_response_templates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
@@ -209,6 +330,11 @@ CREATE TABLE IF NOT EXISTS public_listeners (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(bind_address, port)
+);
+
+CREATE TABLE IF NOT EXISTS public_site_migrated_listeners (
+    listener_id INTEGER PRIMARY KEY REFERENCES public_listeners(id) ON DELETE CASCADE,
+    migrated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS public_access_providers (
@@ -282,9 +408,46 @@ CREATE TABLE IF NOT EXISTS public_access_policies (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS public_routes (
+CREATE TABLE IF NOT EXISTS "public_sites" (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    published INTEGER NOT NULL DEFAULT 0,
+    default_site INTEGER NOT NULL DEFAULT 0,
+    canonical_hostname TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public_site_listener_bindings (
+    site_id INTEGER NOT NULL REFERENCES "public_sites"(id) ON DELETE CASCADE,
     listener_id INTEGER NOT NULL REFERENCES public_listeners(id) ON DELETE CASCADE,
+    behavior TEXT NOT NULL DEFAULT 'serve' CHECK (behavior IN ('serve', 'redirect_https')),
+    redirect_listener_id INTEGER REFERENCES public_listeners(id) ON DELETE RESTRICT,
+    redirect_hostname TEXT NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (site_id, listener_id)
+);
+
+CREATE TABLE IF NOT EXISTS "public_site_hosts" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id INTEGER NOT NULL REFERENCES "public_sites"(id) ON DELETE CASCADE,
+    hostname_pattern TEXT COLLATE NOCASE NOT NULL CHECK (
+        hostname_pattern = lower(trim(hostname_pattern)) AND hostname_pattern NOT LIKE '%.'
+    ),
+    role TEXT NOT NULL CHECK (role IN ('primary', 'alias')),
+    behavior TEXT NOT NULL CHECK (behavior IN ('serve', 'redirect')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(site_id, hostname_pattern),
+    CHECK (role != 'primary' OR behavior = 'serve'),
+    CHECK (role != 'primary' OR hostname_pattern NOT LIKE '*.%')
+);
+
+CREATE TABLE IF NOT EXISTS "public_routes" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    listener_id INTEGER NOT NULL DEFAULT 0,
     priority INTEGER NOT NULL,
     host_pattern TEXT NOT NULL DEFAULT '',
     path_prefix TEXT NOT NULL DEFAULT '',
@@ -300,7 +463,9 @@ CREATE TABLE IF NOT EXISTS public_routes (
     access_policy_id INTEGER REFERENCES public_access_policies(id) ON DELETE RESTRICT,
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    site_id INTEGER REFERENCES "public_sites"(id) ON DELETE RESTRICT,
+    CHECK ((site_id IS NULL AND listener_id > 0) OR (site_id IS NOT NULL AND listener_id = 0))
 );
 
 CREATE TABLE IF NOT EXISTS public_route_targets (
@@ -570,7 +735,6 @@ CREATE TABLE IF NOT EXISTS public_cache_rules (
     cache_status_codes_json TEXT NOT NULL DEFAULT '[200,203,204,301,308]',
     max_object_bytes INTEGER NOT NULL DEFAULT 104857600,
     add_cache_status_header INTEGER NOT NULL DEFAULT 1,
-    allow_cookie_requests INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -612,9 +776,9 @@ CREATE TABLE IF NOT EXISTS public_cache_entries (
     status_code INTEGER NOT NULL,
     body_path TEXT NOT NULL,
     size_bytes INTEGER NOT NULL,
-    stored_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    stored_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S+00:00', 'now')),
     expires_at DATETIME NOT NULL,
-    last_accessed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S+00:00', 'now')),
     hit_count INTEGER NOT NULL DEFAULT 0
 );
 
@@ -678,16 +842,20 @@ CREATE INDEX IF NOT EXISTS idx_proxy_request_events_occurred_at
 ON proxy_request_events (occurred_at);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_listener_id
-ON proxy_request_events (listener_id);
+ON proxy_request_events (listener_id)
+WHERE listener_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_id
-ON proxy_request_events (route_id);
+ON proxy_request_events (route_id)
+WHERE route_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_route_target_id
-ON proxy_request_events (route_target_id);
+ON proxy_request_events (route_target_id)
+WHERE route_target_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_agent_id
-ON proxy_request_events (agent_id);
+ON proxy_request_events (agent_id)
+WHERE agent_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_recent_problem
 ON proxy_request_events (occurred_at DESC)
@@ -697,7 +865,8 @@ CREATE INDEX IF NOT EXISTS idx_public_retry_rules_priority
 ON public_retry_rules (priority, id);
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_retry_rule_id
-ON proxy_request_events (retry_rule_id);
+ON proxy_request_events (retry_rule_id)
+WHERE retry_rule_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_retry_rollup_rule
 ON proxy_retry_rollup_minutes (retry_rule_id, bucket_unix_millis);
@@ -713,6 +882,87 @@ WHERE error_kind != '';
 CREATE INDEX IF NOT EXISTS idx_public_routes_listener_priority
 ON public_routes (listener_id, priority, id);
 
+CREATE INDEX IF NOT EXISTS idx_public_routes_site_priority
+ON public_routes (site_id, priority, id)
+WHERE site_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_public_sites_name
+ON public_sites (name, id);
+
+CREATE INDEX IF NOT EXISTS idx_public_site_listener_bindings_listener
+ON public_site_listener_bindings (listener_id, site_id);
+
+CREATE INDEX IF NOT EXISTS idx_public_site_listener_bindings_redirect
+ON public_site_listener_bindings (redirect_listener_id, site_id)
+WHERE redirect_listener_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_public_site_hosts_one_primary
+ON public_site_hosts (site_id)
+WHERE role = 'primary';
+
+CREATE INDEX IF NOT EXISTS idx_public_site_hosts_site
+ON public_site_hosts (site_id, role, id);
+
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_legacy_listener_insert
+BEFORE INSERT ON public_routes
+WHEN NEW.site_id IS NULL AND NOT EXISTS (
+    SELECT 1 FROM public_listeners l WHERE l.id = NEW.listener_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'standalone route listener does not exist');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_legacy_listener_update
+BEFORE UPDATE OF site_id, listener_id ON public_routes
+WHEN NEW.site_id IS NULL AND NOT EXISTS (
+    SELECT 1 FROM public_listeners l WHERE l.id = NEW.listener_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'standalone route listener does not exist');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_migrated_listener_insert
+BEFORE INSERT ON public_routes
+WHEN NEW.site_id IS NULL AND EXISTS (
+    SELECT 1 FROM public_site_migrated_listeners m WHERE m.listener_id = NEW.listener_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener requires Site-owned routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_site_migrated_listeners_no_standalone_insert
+BEFORE INSERT ON public_site_migrated_listeners
+WHEN EXISTS (
+    SELECT 1 FROM public_routes r WHERE r.listener_id = NEW.listener_id AND r.site_id IS NULL
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener still has standalone routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_site_migrated_listeners_no_standalone_update
+BEFORE UPDATE OF listener_id ON public_site_migrated_listeners
+WHEN EXISTS (
+    SELECT 1 FROM public_routes r WHERE r.listener_id = NEW.listener_id AND r.site_id IS NULL
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener still has standalone routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_routes_migrated_listener_update
+BEFORE UPDATE OF site_id, listener_id ON public_routes
+WHEN NEW.site_id IS NULL AND EXISTS (
+    SELECT 1 FROM public_site_migrated_listeners m WHERE m.listener_id = NEW.listener_id
+)
+BEGIN
+    SELECT RAISE(ABORT, 'listener requires Site-owned routes');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_public_listener_delete_standalone_routes
+BEFORE DELETE ON public_listeners
+BEGIN
+    DELETE FROM public_routes WHERE listener_id = OLD.id AND site_id IS NULL;
+END;
+
 CREATE INDEX IF NOT EXISTS idx_public_routes_access_policy_id
 ON public_routes (access_policy_id);
 
@@ -721,7 +971,28 @@ ON public_access_policies (provider_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_listener
 ON public_routes (listener_id)
-WHERE is_default = 1;
+WHERE is_default = 1 AND site_id IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_public_routes_one_default_per_site
+ON public_routes (site_id)
+WHERE is_default = 1 AND site_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS public_site_migration_route_mappings (
+    source_route_id INTEGER NOT NULL,
+    destination_site_id INTEGER NOT NULL REFERENCES public_sites(id) ON DELETE CASCADE,
+    destination_route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+    copied INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_route_id, destination_site_id)
+);
+
+CREATE TABLE IF NOT EXISTS public_site_migration_target_mappings (
+    source_target_id INTEGER NOT NULL,
+    destination_route_id INTEGER NOT NULL REFERENCES public_routes(id) ON DELETE CASCADE,
+    destination_target_id INTEGER NOT NULL REFERENCES public_route_targets(id) ON DELETE CASCADE,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(source_target_id, destination_route_id)
+);
 
 CREATE INDEX IF NOT EXISTS idx_public_response_templates_kind
 ON public_response_templates (kind, name);
@@ -776,10 +1047,12 @@ ON public_trusted_proxy_sources (provider)
 WHERE built_in = 1;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_waf_rule_id
-ON proxy_request_events (waf_rule_id);
+ON proxy_request_events (waf_rule_id)
+WHERE waf_rule_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_proxy_request_events_cache_rule_id
-ON proxy_request_events (cache_rule_id);
+ON proxy_request_events (cache_rule_id)
+WHERE cache_rule_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_public_cache_rules_priority
 ON public_cache_rules (priority, id);

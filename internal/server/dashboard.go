@@ -53,7 +53,11 @@ func (a *App) GetDashboard(
 
 	now := time.Now().UTC()
 	if a.dashboardCacheActive() {
-		return connect.NewResponse(a.dashboardResponseFromCache(now)), nil
+		resp, ok := a.dashboardResponseFromCache(now)
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("dashboard statistics are temporarily unavailable; please retry"))
+		}
+		return connect.NewResponse(resp), nil
 	}
 
 	resp, err := a.buildDashboardDirect(ctx, now)
@@ -95,6 +99,99 @@ func (a *App) GetAgentAvailability(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// agentAvailabilityFleetMaxIntervals bounds each agent's interval list in
+// ListAgentAvailability. A flapping agent can otherwise produce thousands of
+// merged intervals over 30 days, multiplied across the fleet.
+const agentAvailabilityFleetMaxIntervals = 1000
+
+func (a *App) ListAgentAvailability(
+	ctx context.Context,
+	req *connect.Request[p2pstreamv1.ListAgentAvailabilityRequest],
+) (*connect.Response[p2pstreamv1.ListAgentAvailabilityResponse], error) {
+	if _, err := a.requireUser(ctx, req.Header()); err != nil {
+		return nil, err
+	}
+	if a.DB == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("database is required for agent availability"))
+	}
+	label, window, err := agentAvailabilityWindow(req.Msg.GetWindowLabel())
+	if err != nil {
+		return nil, err
+	}
+	resp, err := a.fleetAgentAvailability(ctx, label, window, time.Now().UTC())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// fleetAgentAvailability computes every agent's availability with two queries
+// (agents, connections) and the same per-agent computation as
+// GetAgentAvailability.
+func (a *App) fleetAgentAvailability(
+	ctx context.Context,
+	windowLabel string,
+	window time.Duration,
+	now time.Time,
+) (*p2pstreamv1.ListAgentAvailabilityResponse, error) {
+	now = now.UTC()
+	windowSince := a.agentAvailabilityWindowSince(window, now)
+	agents, err := a.DB.ListAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp := &p2pstreamv1.ListAgentAvailabilityResponse{
+		WindowLabel:           windowLabel,
+		WindowSinceUnixMillis: windowSince.UnixMilli(),
+		WindowUntilUnixMillis: now.UnixMilli(),
+		Agents:                make([]*p2pstreamv1.AgentAvailabilitySummary, 0, len(agents)),
+	}
+	if len(agents) == 0 {
+		return resp, nil
+	}
+	// Every agent's observed window starts at or after windowSince, so one scan
+	// from windowSince covers all of them; the per-agent computation discards
+	// rows that end before that agent's own start.
+	connections, err := a.DB.ListAllAgentConnectionsSince(ctx, windowSince)
+	if err != nil {
+		return nil, err
+	}
+	rowsByAgent := make(map[int64][]db.ListAgentConnectionsSinceRow, len(agents))
+	for _, row := range connections {
+		rowsByAgent[row.AgentID] = append(rowsByAgent[row.AgentID], db.ListAgentConnectionsSinceRow{
+			ID:             row.ID,
+			ConnectedAt:    row.ConnectedAt,
+			DisconnectedAt: row.DisconnectedAt,
+		})
+	}
+	for _, agent := range agents {
+		observedSince := a.agentAvailabilityObservedSince(agent, window, now)
+		single := a.computeAgentAvailability(agent, observedSince, now, rowsByAgent[agent.ID])
+		intervals := single.GetIntervals()
+		truncated := false
+		if len(intervals) > agentAvailabilityFleetMaxIntervals {
+			intervals = intervals[len(intervals)-agentAvailabilityFleetMaxIntervals:]
+			truncated = true
+		}
+		resp.Agents = append(resp.Agents, &p2pstreamv1.AgentAvailabilitySummary{
+			AgentPublicId:           single.GetAgentPublicId(),
+			AgentName:               single.GetAgentName(),
+			ObservedSinceUnixMillis: single.GetObservedSinceUnixMillis(),
+			ObservedUntilUnixMillis: single.GetObservedUntilUnixMillis(),
+			UptimeMillis:            single.GetUptimeMillis(),
+			DowntimeMillis:          single.GetDowntimeMillis(),
+			UptimePercent:           single.GetUptimePercent(),
+			DisconnectCount:         single.GetDisconnectCount(),
+			LongestDowntimeMillis:   single.GetLongestDowntimeMillis(),
+			Connected:               single.GetConnected(),
+			Intervals:               intervals,
+			IntervalsTruncated:      truncated,
+			Enabled:                 agent.Enabled != 0,
+		})
+	}
+	return resp, nil
 }
 
 func agentAvailabilityWindow(label string) (string, time.Duration, error) {
@@ -241,46 +338,23 @@ func dashboardRetryTrendBucketSeconds(window time.Duration) int64 {
 }
 
 func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstreamv1.GetDashboardResponse, error) {
-	useRollups, err := a.observabilityRollupsReady(ctx)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-
 	windows := make([]*p2pstreamv1.DashboardWindowSummary, 0, len(dashboardWindows))
 	for _, window := range dashboardWindows {
 		since := now.Add(-window.Since)
-		if useRollups {
-			sinceUnixMillis := rollupBucketUnixMillis(since)
-			proxySummary, err := a.DB.GetProxyRequestRollupSummarySince(ctx, sinceUnixMillis)
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
-			}
-			agentSummary, err := a.DB.GetAgentStatsRollupSummarySince(ctx, sinceUnixMillis)
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
-			}
-			windows = append(windows, dashboardWindowSummary(
-				window.Label,
-				sinceUnixMillis,
-				dashboardProxyWindowFromRollup(proxySummary),
-				dashboardAgentWindowFromRollup(agentSummary),
-			))
-			continue
-		}
-
-		proxySummary, err := a.DB.GetProxyRequestSummarySince(ctx, since)
+		sinceUnixMillis := rollupBucketUnixMillis(since)
+		proxySummary, err := a.DB.GetProxyRequestRollupSummarySince(ctx, sinceUnixMillis)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		agentSummary, err := a.DB.GetAgentStatsSummarySince(ctx, since)
+		agentSummary, err := a.DB.GetAgentStatsRollupSummarySince(ctx, sinceUnixMillis)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 		windows = append(windows, dashboardWindowSummary(
 			window.Label,
-			since.UnixMilli(),
-			dashboardProxyWindowFromRaw(proxySummary),
-			dashboardAgentWindowFromRaw(agentSummary),
+			sinceUnixMillis,
+			dashboardProxyWindowFromRollup(proxySummary),
+			dashboardAgentWindowFromRollup(agentSummary),
 		))
 	}
 
@@ -304,87 +378,46 @@ func (a *App) buildDashboardDirect(ctx context.Context, now time.Time) (*p2pstre
 	var statusClasses []*p2pstreamv1.DashboardProxyDimensionSummary
 	var trafficBuckets []*p2pstreamv1.DashboardTrafficBucket
 
-	if useRollups {
-		topSinceUnixMillis := rollupBucketUnixMillis(topSince)
-		trafficSinceUnixMillis := rollupBucketUnixMillis(trafficSince)
-		topListenerRows, err := a.DB.ListTopProxyListenersRollupsSince(ctx, topSinceUnixMillis)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topRouteRows, err := a.DB.ListTopProxyRoutesRollupsSince(ctx, topSinceUnixMillis)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topRouteTargetRows, err := a.DB.ListTopProxyRouteTargetsRollupsSince(ctx, topSinceUnixMillis)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topAgentRows, err := a.DB.ListTopProxyAgentsRollupsSince(ctx, topSinceUnixMillis)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topErrorRows, err := a.DB.ListTopProxyErrorKindsRollupsSince(ctx, topSinceUnixMillis)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		statusClassRows, err := a.DB.ListProxyStatusClassesRollupsSince(ctx, topSinceUnixMillis)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		trafficBucketRows, err := a.DB.ListProxyTrafficBucketRollupsSince(ctx, db.ListProxyTrafficBucketRollupsSinceParams{
-			BucketSeconds:   dashboardTrafficBucketSeconds,
-			SinceUnixMillis: trafficSinceUnixMillis,
-		})
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topListeners = dashboardRollupListenerSummaries(topListenerRows)
-		topRoutes = dashboardRollupRouteSummaries(topRouteRows)
-		topRouteTargets = dashboardRollupRouteTargetSummaries(topRouteTargetRows)
-		topAgents = dashboardRollupAgentSummaries(topAgentRows)
-		topErrorKinds = dashboardRollupErrorKindSummaries(topErrorRows)
-		statusClasses = dashboardRollupStatusClassSummaries(statusClassRows)
-		trafficBuckets = dashboardRollupTrafficBuckets(trafficBucketRows)
-	} else {
-		topListenerRows, err := a.DB.ListTopProxyListenersSince(ctx, topSince)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topRouteRows, err := a.DB.ListTopProxyRoutesSince(ctx, topSince)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topRouteTargetRows, err := a.DB.ListTopProxyRouteTargetsSince(ctx, topSince)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topAgentRows, err := a.DB.ListTopProxyAgentsSince(ctx, topSince)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topErrorRows, err := a.DB.ListTopProxyErrorKindsSince(ctx, topSince)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		statusClassRows, err := a.DB.ListProxyStatusClassesSince(ctx, topSince)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		trafficBucketRows, err := a.DB.ListProxyTrafficBucketsSince(ctx, db.ListProxyTrafficBucketsSinceParams{
-			BucketSeconds: dashboardTrafficBucketSeconds,
-			Since:         trafficSince,
-		})
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-		topListeners = dashboardListenerSummaries(topListenerRows)
-		topRoutes = dashboardRouteSummaries(topRouteRows)
-		topRouteTargets = dashboardRouteTargetSummaries(topRouteTargetRows)
-		topAgents = dashboardAgentSummaries(topAgentRows)
-		topErrorKinds = dashboardErrorKindSummaries(topErrorRows)
-		statusClasses = dashboardStatusClassSummaries(statusClassRows)
-		trafficBuckets = dashboardTrafficBuckets(trafficBucketRows)
+	topSinceUnixMillis := rollupBucketUnixMillis(topSince)
+	trafficSinceUnixMillis := rollupBucketUnixMillis(trafficSince)
+	topListenerRows, err := a.DB.ListTopProxyListenersRollupsSince(ctx, topSinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	topRouteRows, err := a.DB.ListTopProxyRoutesRollupsSince(ctx, topSinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topRouteTargetRows, err := a.DB.ListTopProxyRouteTargetsRollupsSince(ctx, topSinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topAgentRows, err := a.DB.ListTopProxyAgentsRollupsSince(ctx, topSinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topErrorRows, err := a.DB.ListTopProxyErrorKindsRollupsSince(ctx, topSinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	statusClassRows, err := a.DB.ListProxyStatusClassesRollupsSince(ctx, topSinceUnixMillis)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	trafficBucketRows, err := a.DB.ListProxyTrafficBucketRollupsSince(ctx, db.ListProxyTrafficBucketRollupsSinceParams{
+		BucketSeconds:   dashboardTrafficBucketSeconds,
+		SinceUnixMillis: trafficSinceUnixMillis,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	topListeners = dashboardRollupListenerSummaries(topListenerRows)
+	topRoutes = dashboardRollupRouteSummaries(topRouteRows)
+	topRouteTargets = dashboardRollupRouteTargetSummaries(topRouteTargetRows)
+	topAgents = dashboardRollupAgentSummaries(topAgentRows)
+	topErrorKinds = dashboardRollupErrorKindSummaries(topErrorRows)
+	statusClasses = dashboardRollupStatusClassSummaries(statusClassRows)
+	trafficBuckets = dashboardRollupTrafficBuckets(trafficBucketRows)
 
 	resp := &p2pstreamv1.GetDashboardResponse{
 		Status:                 a.statusResponse(),
@@ -597,31 +630,6 @@ func dashboardWindowSummary(
 	}
 }
 
-func dashboardProxyWindowFromRaw(row db.GetProxyRequestSummarySinceRow) dashboardProxyWindowMetrics {
-	return dashboardProxyWindowMetrics{
-		TotalRequests:    row.TotalRequests,
-		Success:          row.Success,
-		ClientError:      row.ClientError,
-		ServerError:      row.ServerError,
-		InternalError:    row.InternalError,
-		AvgDurationMs:    row.AvgDurationMs,
-		RequestBytes:     row.RequestBytes,
-		ResponseBytes:    row.ResponseBytes,
-		TotalBytes:       row.TotalBytes,
-		AvgRequestBytes:  row.AvgRequestBytes,
-		AvgResponseBytes: row.AvgResponseBytes,
-		MaxDurationMs:    row.MaxDurationMs,
-		SlowRequests:     row.SlowRequests,
-		CacheHits:        row.CacheHits,
-		CacheMisses:      row.CacheMisses,
-		CacheBypasses:    row.CacheBypasses,
-		CacheStored:      row.CacheStored,
-		CacheStoreFailed: row.CacheStoreFailed,
-		CacheHitBytes:    row.CacheHitBytes,
-		CacheStoredBytes: row.CacheStoredBytes,
-	}
-}
-
 func dashboardProxyWindowFromRollup(row db.GetProxyRequestRollupSummarySinceRow) dashboardProxyWindowMetrics {
 	return dashboardProxyWindowMetrics{
 		TotalRequests:    row.TotalRequests,
@@ -644,24 +652,6 @@ func dashboardProxyWindowFromRollup(row db.GetProxyRequestRollupSummarySinceRow)
 		CacheStoreFailed: row.CacheStoreFailed,
 		CacheHitBytes:    row.CacheHitBytes,
 		CacheStoredBytes: row.CacheStoredBytes,
-	}
-}
-
-func dashboardAgentWindowFromRaw(row db.GetAgentStatsSummarySinceRow) dashboardAgentWindowMetrics {
-	return dashboardAgentWindowMetrics{
-		Samples:          row.Samples,
-		ReqSuccess:       row.ReqSuccess,
-		ReqClientError:   row.ReqClientError,
-		ReqServerError:   row.ReqServerError,
-		ReqInternalError: row.ReqInternalError,
-		BytesRx:          row.BytesRx,
-		BytesTx:          row.BytesTx,
-		AvgMemoryMb:      row.AvgMemoryMb,
-		MaxMemoryMb:      row.MaxMemoryMb,
-		AvgGoroutines:    row.AvgGoroutines,
-		MaxGoroutines:    row.MaxGoroutines,
-		AvgCpuPercent:    row.AvgCpuPercent,
-		MaxCpuPercent:    row.MaxCpuPercent,
 	}
 }
 
@@ -876,126 +866,6 @@ func (a *App) recordProxyRequestEventWithRouteTargetCacheAndContext(
 		ResponseBytes: responseBytes,
 		Context:       requestContext,
 	})
-}
-
-func dashboardListenerSummaries(rows []db.ListTopProxyListenersSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
-	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_LISTENER,
-			row.ID,
-			row.Label,
-			row.Requests,
-			row.Success,
-			row.ClientError,
-			row.ServerError,
-			row.InternalError,
-			row.AvgDurationMs,
-			row.RequestBytes,
-			row.ResponseBytes,
-		))
-	}
-	return items
-}
-
-func dashboardRouteSummaries(rows []db.ListTopProxyRoutesSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
-	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE,
-			row.ID,
-			row.Label,
-			row.Requests,
-			row.Success,
-			row.ClientError,
-			row.ServerError,
-			row.InternalError,
-			row.AvgDurationMs,
-			row.RequestBytes,
-			row.ResponseBytes,
-		))
-	}
-	return items
-}
-
-func dashboardRouteTargetSummaries(rows []db.ListTopProxyRouteTargetsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
-	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ROUTE_TARGET,
-			row.ID,
-			row.Label,
-			row.Requests,
-			row.Success,
-			row.ClientError,
-			row.ServerError,
-			row.InternalError,
-			row.AvgDurationMs,
-			row.RequestBytes,
-			row.ResponseBytes,
-		))
-	}
-	return items
-}
-
-func dashboardAgentSummaries(rows []db.ListTopProxyAgentsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
-	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_AGENT,
-			row.ID,
-			row.Label,
-			row.Requests,
-			row.Success,
-			row.ClientError,
-			row.ServerError,
-			row.InternalError,
-			row.AvgDurationMs,
-			row.RequestBytes,
-			row.ResponseBytes,
-		))
-	}
-	return items
-}
-
-func dashboardErrorKindSummaries(rows []db.ListTopProxyErrorKindsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
-	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_ERROR_KIND,
-			row.ID,
-			row.Label,
-			row.Requests,
-			row.Success,
-			row.ClientError,
-			row.ServerError,
-			row.InternalError,
-			row.AvgDurationMs,
-			row.RequestBytes,
-			row.ResponseBytes,
-		))
-	}
-	return items
-}
-
-func dashboardStatusClassSummaries(rows []db.ListProxyStatusClassesSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
-	items := make([]*p2pstreamv1.DashboardProxyDimensionSummary, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, dashboardDimensionSummary(
-			p2pstreamv1.DashboardProxyDimension_DASHBOARD_PROXY_DIMENSION_STATUS_CLASS,
-			row.ID,
-			row.Label,
-			row.Requests,
-			row.Success,
-			row.ClientError,
-			row.ServerError,
-			row.InternalError,
-			row.AvgDurationMs,
-			row.RequestBytes,
-			row.ResponseBytes,
-		))
-	}
-	return items
 }
 
 func dashboardRollupListenerSummaries(rows []db.ListTopProxyListenersRollupsSinceRow) []*p2pstreamv1.DashboardProxyDimensionSummary {
@@ -1387,24 +1257,6 @@ func dashboardDimensionSummary(
 	}
 }
 
-func dashboardTrafficBuckets(rows []db.ListProxyTrafficBucketsSinceRow) []*p2pstreamv1.DashboardTrafficBucket {
-	items := make([]*p2pstreamv1.DashboardTrafficBucket, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, &p2pstreamv1.DashboardTrafficBucket{
-			BucketUnixMillis: row.BucketUnixMillis,
-			Requests:         row.Requests,
-			Success:          row.Success,
-			ClientError:      row.ClientError,
-			ServerError:      row.ServerError,
-			InternalError:    row.InternalError,
-			RequestBytes:     uint64FromInt64(row.RequestBytes),
-			ResponseBytes:    uint64FromInt64(row.ResponseBytes),
-			AvgDurationMs:    row.AvgDurationMs,
-		})
-	}
-	return items
-}
-
 func dashboardRollupTrafficBuckets(rows []db.ListProxyTrafficBucketRollupsSinceRow) []*p2pstreamv1.DashboardTrafficBucket {
 	items := make([]*p2pstreamv1.DashboardTrafficBucket, 0, len(rows))
 	for _, row := range rows {
@@ -1692,12 +1544,7 @@ func (a *App) agentAvailability(
 	now time.Time,
 ) (*p2pstreamv1.GetAgentAvailabilityResponse, error) {
 	now = now.UTC()
-	retentionSince := now.AddDate(0, 0, -a.observabilityRetentionDays()).UTC()
-	observedSince := maxTime(now.Add(-window), retentionSince)
-	observedSince = maxTime(observedSince, agent.CreatedAt.UTC())
-	if observedSince.After(now) {
-		observedSince = now
-	}
+	observedSince := a.agentAvailabilityObservedSince(agent, window, now)
 
 	rows, err := a.DB.ListAgentConnectionsSince(ctx, db.ListAgentConnectionsSinceParams{
 		AgentID: sql.NullInt64{Int64: agent.ID, Valid: true},
@@ -1706,6 +1553,46 @@ func (a *App) agentAvailability(
 	if err != nil {
 		return nil, err
 	}
+	resp := a.computeAgentAvailability(agent, observedSince, now, rows)
+	resp.WindowLabel = windowLabel
+	return resp, nil
+}
+
+// agentAvailabilityWindowSince is the fleet-wide start of an availability
+// window: the requested duration, clamped to observability retention.
+func (a *App) agentAvailabilityWindowSince(window time.Duration, now time.Time) time.Time {
+	now = now.UTC()
+	retentionSince := now.AddDate(0, 0, -a.observabilityRetentionDays()).UTC()
+	since := maxTime(now.Add(-window), retentionSince)
+	if since.After(now) {
+		since = now
+	}
+	return since
+}
+
+// agentAvailabilityObservedSince additionally clamps the window to the
+// agent's creation time.
+func (a *App) agentAvailabilityObservedSince(agent db.Agent, window time.Duration, now time.Time) time.Time {
+	now = now.UTC()
+	observedSince := a.agentAvailabilityWindowSince(window, now)
+	observedSince = maxTime(observedSince, agent.CreatedAt.UTC())
+	if observedSince.After(now) {
+		observedSince = now
+	}
+	return observedSince
+}
+
+// computeAgentAvailability derives one agent's availability from its
+// connection rows (ordered by connected_at) and the live hub state. Rows that
+// end before observedSince are ignored, so callers may pass rows fetched with
+// an earlier since bound. WindowLabel is left for the caller to fill in.
+func (a *App) computeAgentAvailability(
+	agent db.Agent,
+	observedSince time.Time,
+	now time.Time,
+	rows []db.ListAgentConnectionsSinceRow,
+) *p2pstreamv1.GetAgentAvailabilityResponse {
+	now = now.UTC()
 
 	connected := false
 	var activeConnection *AgentConn
@@ -1772,7 +1659,6 @@ func (a *App) agentAvailability(
 	return &p2pstreamv1.GetAgentAvailabilityResponse{
 		AgentPublicId:           agent.PublicID,
 		AgentName:               agent.Name,
-		WindowLabel:             windowLabel,
 		ObservedSinceUnixMillis: observedSince.UnixMilli(),
 		ObservedUntilUnixMillis: now.UnixMilli(),
 		UptimeMillis:            uptimeMillis,
@@ -1782,7 +1668,7 @@ func (a *App) agentAvailability(
 		LongestDowntimeMillis:   longestDashboardGapMillis(observedSince, now, merged),
 		Connected:               connected,
 		Intervals:               protoIntervals,
-	}, nil
+	}
 }
 
 func mergeDashboardTimeIntervals(intervals []dashboardTimeInterval) []dashboardTimeInterval {

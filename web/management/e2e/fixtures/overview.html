@@ -1,0 +1,44 @@
+<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview availability fixture</title>
+<div id="app"></div>
+<script type="module">
+import { createApp, computed, h, provide, ref } from 'vue';
+import { createRouter, createWebHashHistory } from 'vue-router';
+import { NAlert, NConfigProvider, darkTheme } from 'naive-ui';
+import { create } from '@bufbuild/protobuf';
+import { UserSchema } from '/src/gen/proto/p2pstream/v1/management_pb.ts';
+import { useDashboardRefresh } from '/src/composables/useDashboardRefresh.ts';
+import { dashboardKey, publicProxyConfigKey } from '/src/composables/managementContextKeys.ts';
+import Overview from '/src/views/Overview.vue';
+import '/src/styles.css';
+
+// Exercise the real view and refresh handling with isolated browser RPC routes.
+const theme = new URLSearchParams(location.search).get('theme');
+document.documentElement.classList.toggle('dark', theme === 'dark');
+const app = createApp({
+  setup() {
+    const error = ref(null);
+    const refresh = useDashboardRefresh({
+      currentUser: ref(create(UserSchema, { username: 'fixture' })),
+      error,
+      isBusy: ref(false),
+      isLoading: ref(false),
+    });
+    provide(dashboardKey, computed(() => refresh.dashboard.value));
+    provide(publicProxyConfigKey, computed(() => refresh.publicProxyConfig.value));
+    void refresh.loadDashboard();
+    return () => h(NConfigProvider, { theme: theme === 'dark' ? darkTheme : null }, {
+      default: () => h('div', { style: 'max-width:1100px;margin:1rem auto;padding:1rem' }, [
+        h('button', { onClick: () => refresh.loadDashboard() }, 'Refresh fixture'),
+        error.value ? h(NAlert, { type: 'error', role: 'alert' }, { default: () => error.value }) : null,
+        h(Overview),
+      ]),
+    });
+  },
+});
+const router = createRouter({ history: createWebHashHistory(), routes: [{ path: '/:pathMatch(.*)*', component: Overview }] });
+app.use(router);
+await router.isReady();
+app.mount('#app');
+</script>

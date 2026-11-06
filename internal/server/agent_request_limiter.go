@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/yamux"
 	"p2pstream/internal/tunnel"
 )
 
@@ -33,13 +34,58 @@ func newAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, release func()) n
 	return &agentTunnelStreamConn{Conn: conn, agent: agent, release: release}
 }
 
-func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease) net.Conn {
+func newCapacityManagedAgentTunnelStreamConn(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, window ...int64) net.Conn {
+	return newCapacityManagedAgentTunnelStreamConnWithRelease(conn, agent, lease, nil, nil, window...)
+}
+
+func newCapacityManagedAgentTunnelStreamConnWithRelease(conn net.Conn, agent *AgentConn, lease *agentStreamCapacityLease, releaseExtra func(), aggregateGrowth *tunnel.AggregateReceiveWindowGrowth, window ...int64) net.Conn {
+	maximum := tunnel.DefaultMaxStreamWindowSizeBytes
+	if len(window) > 0 {
+		maximum = window[0]
+	}
+	var growing *tunnel.GrowingConn
+	stream, isStream := conn.(*yamux.Stream)
+	if aggregateGrowth != nil || isStream && stream.Session().AggregateFlowControlEnabled() {
+		growing = tunnel.NewAggregateGrowingConn(conn, maximum, aggregateGrowth)
+	} else {
+		growing = tunnel.NewGrowingConn(conn, maximum, func(bytes int64) (func(), bool) {
+			release, ok, _ := lease.manager.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
+			return release, ok
+		})
+	}
 	return &agentTunnelStreamConn{
-		Conn:        conn,
+		Conn:        growing,
 		agent:       agent,
 		markClosing: func() { lease.markClosing() },
-		release:     func() { lease.release() },
+		release: func() {
+			growing.Release()
+			lease.release()
+			if releaseExtra != nil {
+				releaseExtra()
+			}
+		},
 	}
+}
+
+// fenceFailedAgentStream returns opening resources only after a terminal Yamux
+// reset or, for alternate net.Conn implementations, after the peer close is
+// observable. Local FIN alone does not end the receive-window promise.
+func fenceFailedAgentStream(conn net.Conn, agent *AgentConn, release func()) {
+	if conn == nil {
+		if release != nil {
+			release()
+		}
+		return
+	}
+	if resetter, ok := conn.(interface{ Reset() error }); ok {
+		_ = resetter.Reset()
+		if release != nil {
+			release()
+		}
+		return
+	}
+	failed := newAgentTunnelStreamConn(conn, agent, release)
+	_ = failed.Close()
 }
 
 func (c *agentTunnelStreamConn) Read(p []byte) (int, error) {
@@ -56,7 +102,7 @@ func agentConnectionEnded(agent *AgentConn) bool {
 	if agent == nil {
 		return false
 	}
-	if agent.Session != nil && agent.Session.IsClosed() {
+	if !agent.AggregateFlowControl && agent.Session != nil && agent.tunnelSession(0) == nil {
 		return true
 	}
 	select {
@@ -94,6 +140,7 @@ func (c *agentTunnelStreamConn) releaseAfterStreamClosed() {
 	var buf [4 * 1024]byte
 	for {
 		if _, err := c.Conn.Read(buf[:]); err != nil {
+			tunnel.DisposeConn(c.Conn)
 			c.release()
 			return
 		}

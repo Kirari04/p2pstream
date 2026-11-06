@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/pressly/goose/v3"
+
+	"p2pstream/internal/db/migrations"
 )
 
 func TestPublicGeoSchemaDefaultsAndRoundTrips(t *testing.T) {
@@ -115,25 +119,26 @@ func TestPublicGeoSchemaDefaultsAndRoundTrips(t *testing.T) {
 }
 
 func TestGeoMigrationUpgradesExistingWafRules(t *testing.T) {
-	raw, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "legacy-geo.db"))
+	raw, err := sql.Open("sqlite3", filepath.Join(t.TempDir(), "version1-geo.db"))
 	if err != nil {
 		t.Fatalf("open raw db: %v", err)
 	}
 	defer func() { _ = raw.Close() }()
-	if _, err := raw.Exec(`
-		CREATE TABLE public_waf_rules (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL UNIQUE
-		);
-		INSERT INTO public_waf_rules (name) VALUES ('legacy-waf');
-	`); err != nil {
-		t.Fatalf("create legacy WAF schema: %v", err)
+	provider, err := goose.NewProvider(goose.DialectSQLite3, raw, migrations.FS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.UpTo(context.Background(), 1); err != nil {
+		t.Fatalf("create Goose version 1 schema: %v", err)
+	}
+	if _, err := raw.Exec(`INSERT INTO public_waf_rules (name) VALUES ('existing-waf')`); err != nil {
+		t.Fatalf("create existing WAF rule: %v", err)
 	}
 	if err := runEmbeddedMigrations(raw); err != nil {
 		t.Fatalf("run embedded migrations: %v", err)
 	}
 	var mode, countryCodes, unknownBehavior string
-	if err := raw.QueryRow(`SELECT geo_mode, geo_country_codes_json, geo_unknown_behavior FROM public_waf_rules WHERE name = 'legacy-waf'`).Scan(&mode, &countryCodes, &unknownBehavior); err != nil {
+	if err := raw.QueryRow(`SELECT geo_mode, geo_country_codes_json, geo_unknown_behavior FROM public_waf_rules WHERE name = 'existing-waf'`).Scan(&mode, &countryCodes, &unknownBehavior); err != nil {
 		t.Fatalf("read migrated WAF row: %v", err)
 	}
 	if mode != "disabled" || countryCodes != "[]" || unknownBehavior != "apply_rule" {

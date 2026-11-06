@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -11,12 +13,12 @@ import (
 	"strings"
 	"sync"
 
+	"cel.dev/cel-go/cel"
+	celast "cel.dev/cel-go/common/ast"
+	"cel.dev/cel-go/common/types"
+	"cel.dev/cel-go/common/types/ref"
+	"cel.dev/cel-go/interpreter"
 	"connectrpc.com/connect"
-	"github.com/google/cel-go/cel"
-	celast "github.com/google/cel-go/common/ast"
-	"github.com/google/cel-go/common/types"
-	"github.com/google/cel-go/common/types/ref"
-	"github.com/google/cel-go/interpreter"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
 )
@@ -27,6 +29,8 @@ const (
 	maxPublicPolicyMatchConditionValues = 64
 	maxPublicPolicyMatchValueBytes      = 512
 	publicPolicyMatchCostLimit          = 20000
+	publicPolicyMatchFailureErrorKind   = "policy_match_failed"
+	publicPolicyMatchFailureBody        = "Service Unavailable\n"
 
 	publicPolicyMatchBooleanAll = "all"
 	publicPolicyMatchBooleanAny = "any"
@@ -63,12 +67,11 @@ type publicPolicyMatchGroupConfig struct {
 }
 
 type publicPolicyMatchConditionConfig struct {
-	Field            string   `json:"field"`
-	Name             string   `json:"name,omitempty"`
-	Operator         string   `json:"operator"`
-	Values           []string `json:"values,omitempty"`
-	Negated          bool     `json:"negated,omitempty"`
-	LegacyFirstValue bool     `json:"legacy_first_value,omitempty"`
+	Field    string   `json:"field"`
+	Name     string   `json:"name,omitempty"`
+	Operator string   `json:"operator"`
+	Values   []string `json:"values,omitempty"`
+	Negated  bool     `json:"negated,omitempty"`
 }
 
 var (
@@ -160,7 +163,15 @@ func decodePublicPolicyMatchJSON(raw string) (publicPolicyMatchConfig, error) {
 	if strings.TrimSpace(raw) == "" {
 		return match, nil
 	}
-	if err := json.Unmarshal([]byte(raw), &match); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&match); err != nil {
+		return publicPolicyMatchConfig{}, err
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			return publicPolicyMatchConfig{}, errors.New("policy match JSON must contain exactly one value")
+		}
 		return publicPolicyMatchConfig{}, err
 	}
 	if err := compilePublicPolicyMatch(&match); err != nil {
@@ -305,29 +316,37 @@ func publicPolicyMatchStringLiteral(expr celast.Expr) (string, bool) {
 }
 
 func (match publicPolicyMatchConfig) matches(listener publicListenerConfig, r *http.Request) bool {
+	matches, _ := match.evaluate(listener, r)
+	return matches
+}
+
+func (match publicPolicyMatchConfig) evaluate(listener publicListenerConfig, r *http.Request) (bool, error) {
 	if program, ok := match.program.(cel.Program); ok && program != nil {
 		return publicPolicyMatchProgramMatches(program, listener, r)
 	}
 	if strings.TrimSpace(match.CELExpression) != "" {
 		compiled := match
 		if err := compilePublicPolicyMatch(&compiled); err != nil {
-			return false
+			return false, fmt.Errorf("compile public policy match: %w", err)
 		}
 		if program, ok := compiled.program.(cel.Program); ok && program != nil {
 			return publicPolicyMatchProgramMatches(program, listener, r)
 		}
-		return true
+		return true, nil
 	}
-	return true
+	return true, nil
 }
 
-func publicPolicyMatchProgramMatches(program cel.Program, listener publicListenerConfig, r *http.Request) bool {
+func publicPolicyMatchProgramMatches(program cel.Program, listener publicListenerConfig, r *http.Request) (bool, error) {
 	out, _, err := program.Eval(publicPolicyMatchActivation(listener, r))
 	if err != nil {
-		return false
+		return false, fmt.Errorf("evaluate public policy match: %w", err)
 	}
 	value, ok := out.Value().(bool)
-	return ok && value
+	if !ok {
+		return false, fmt.Errorf("evaluate public policy match: result is not bool")
+	}
+	return value, nil
 }
 
 func publicPolicyMatchActivation(listener publicListenerConfig, r *http.Request) map[string]any {
@@ -502,9 +521,6 @@ func normalizePublicPolicyMatchCondition(condition *publicPolicyMatchConditionCo
 		}
 	default:
 		condition.Name = ""
-	}
-	if condition.LegacyFirstValue && condition.Field != publicPolicyMatchFieldHeader && condition.Field != publicPolicyMatchFieldQueryParam {
-		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("policy match legacy first-value flag is invalid"))
 	}
 	if condition.Operator == publicPolicyMatchOperatorPresent {
 		if condition.Field != publicPolicyMatchFieldHeader && condition.Field != publicPolicyMatchFieldCookie && condition.Field != publicPolicyMatchFieldQueryParam {
@@ -731,19 +747,6 @@ func publicPolicyMatchRepeatedFieldExpression(mapName string, condition publicPo
 	if condition.Operator == publicPolicyMatchOperatorPresent {
 		return present
 	}
-	if condition.LegacyFirstValue {
-		values := mapName + "[" + name + "]"
-		first := values + "[0]"
-		var comparison string
-		if condition.Operator == publicPolicyMatchOperatorIn {
-			comparison = first + " in " + publicPolicyMatchCELStringList(condition.Values)
-		} else {
-			comparison = publicPolicyMatchAnyValueExpression(condition.Values, func(value string) string {
-				return publicPolicyMatchStringComparison(first, condition.Operator, value)
-			})
-		}
-		return "(" + present + " && " + values + ".size() > 0 && (" + comparison + "))"
-	}
 	var comparison string
 	if condition.Operator == publicPolicyMatchOperatorIn {
 		comparison = "v in " + publicPolicyMatchCELStringList(condition.Values)
@@ -812,24 +815,7 @@ func publicPolicyMatchBuilderToProto(builder *publicPolicyMatchBuilderConfig) *p
 	if builder == nil || builder.Root == nil {
 		return nil
 	}
-	if publicPolicyMatchGroupHasLegacyFirstValue(*builder.Root) {
-		return nil
-	}
 	return &p2pstreamv1.PublicPolicyMatchBuilder{Root: publicPolicyMatchGroupToProto(*builder.Root)}
-}
-
-func publicPolicyMatchGroupHasLegacyFirstValue(group publicPolicyMatchGroupConfig) bool {
-	for _, condition := range group.Conditions {
-		if condition.LegacyFirstValue {
-			return true
-		}
-	}
-	for _, child := range group.Groups {
-		if publicPolicyMatchGroupHasLegacyFirstValue(child) {
-			return true
-		}
-	}
-	return false
 }
 
 func publicPolicyMatchGroupToProto(group publicPolicyMatchGroupConfig) *p2pstreamv1.PublicPolicyMatchGroup {

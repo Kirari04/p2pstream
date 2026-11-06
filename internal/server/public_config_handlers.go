@@ -85,17 +85,43 @@ func (s *publicConfigService) createPublicListener(
 	if err != nil {
 		return nil, err
 	}
-	listener, err := s.db.CreatePublicListener(ctx, db.CreatePublicListenerParams{
-		Name:        params.Name,
-		BindAddress: params.BindAddress,
-		Port:        params.Port,
-		Protocol:    params.Protocol,
-		Enabled:     params.Enabled,
-	})
+	if err := a.ensurePublicConfigCandidatePrerequisites(ctx); err != nil {
+		return nil, err
+	}
+	var listener db.PublicListener
+	err = func() error {
+		a.publicConfigRefreshMu.Lock()
+		defer a.publicConfigRefreshMu.Unlock()
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		q := s.db.Queries.WithTx(tx)
+		listener, err = q.CreatePublicListener(ctx, db.CreatePublicListenerParams{
+			Name: params.Name, BindAddress: params.BindAddress, Port: params.Port,
+			Protocol: params.Protocol, Enabled: params.Enabled,
+		})
+		if err != nil {
+			return err
+		}
+		if err := q.MarkPublicListenerSiteMigrated(ctx, listener.ID); err != nil {
+			return err
+		}
+		rows, snapshot, err := preparePublicConfigCandidateTx(ctx, q)
+		if err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		a.applyPreparedPublicConfigCandidate(rows, snapshot)
+		return nil
+	}()
 	if err != nil {
 		return nil, publicDBError(err)
 	}
-	status, err := a.reconcilePublicListenerAfterMutation(ctx, listener.ID)
+	status, err := a.reconcilePublicListenerAfterPreparedMutation(ctx, listener.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -126,11 +152,49 @@ func (s *publicConfigService) updatePublicListener(
 		return nil, err
 	}
 	params.ID = req.Msg.Id
-	listener, err := s.db.UpdatePublicListener(ctx, params)
+	if err := a.ensurePublicConfigCandidatePrerequisites(ctx); err != nil {
+		return nil, err
+	}
+	var listener db.PublicListener
+	err = func() error {
+		a.publicConfigRefreshMu.Lock()
+		defer a.publicConfigRefreshMu.Unlock()
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		q := s.db.Queries.WithTx(tx)
+		existing, err := q.GetPublicListener(ctx, req.Msg.Id)
+		if err != nil {
+			return err
+		}
+		listener, err = q.UpdatePublicListener(ctx, params)
+		if err != nil {
+			return err
+		}
+		if existing.Protocol != listener.Protocol {
+			if err := validatePublishedSitesForListenerProtocolChangeTx(ctx, q, listener.ID); err != nil {
+				return err
+			}
+		}
+		rows, snapshot, err := preparePublicConfigCandidateTx(ctx, q)
+		if err != nil {
+			return err
+		}
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		a.applyPreparedPublicConfigCandidate(rows, snapshot)
+		return nil
+	}()
 	if err != nil {
+		if connect.CodeOf(err) != connect.CodeUnknown {
+			return nil, err
+		}
 		return nil, publicDBError(err)
 	}
-	status, err := a.reconcilePublicListenerAfterMutation(ctx, listener.ID)
+	status, err := a.reconcilePublicListenerAfterPreparedMutation(ctx, listener.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,21 +220,39 @@ func (s *publicConfigService) deletePublicListener(
 	req *connect.Request[p2pstreamv1.DeletePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.DeletePublicListenerResponse], error) {
 	a := s.app
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
+	a.publicConfigRefreshMu.Lock()
+	defer a.publicConfigRefreshMu.Unlock()
 	a.proxyMu.Lock()
-	running := false
+	busy := false
 	if runtime := a.publicListenerState[req.Msg.Id]; runtime != nil {
-		running = runtime.Server != nil
+		busy = runtime.Server != nil || runtime.State == p2pstreamv1.ProxyState_PROXY_STATE_STARTING || runtime.State == p2pstreamv1.ProxyState_PROXY_STATE_STOPPING || runtime.State == p2pstreamv1.ProxyState_PROXY_STATE_RUNNING
 	}
 	a.proxyMu.Unlock()
-	if running {
+	if busy {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("stop or disable listener before deleting it"))
 	}
-	if err := s.db.DeletePublicListener(ctx, req.Msg.Id); err != nil {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
 		return nil, publicDBError(err)
 	}
-	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
-		return nil, err
+	defer tx.Rollback()
+	q := s.db.Queries.WithTx(tx)
+	if _, err := q.GetPublicListener(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
 	}
+	if err := q.DeletePublicListener(ctx, req.Msg.Id); err != nil {
+		return nil, publicDBError(err)
+	}
+	rows, snapshot, err := preparePublicConfigCandidateTx(ctx, q)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, publicDBError(err)
+	}
+	a.applyPreparedPublicConfigCandidate(rows, snapshot)
 	return connect.NewResponse(&p2pstreamv1.DeletePublicListenerResponse{}), nil
 }
 
@@ -226,6 +308,8 @@ func (s *publicConfigService) disablePublicListener(
 	req *connect.Request[p2pstreamv1.DisablePublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.DisablePublicListenerResponse], error) {
 	a := s.app
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
 	listener, err := s.db.SetPublicListenerEnabled(ctx, db.SetPublicListenerEnabledParams{ID: req.Msg.Id, Enabled: 0})
 	if err != nil {
 		return nil, publicDBError(err)
@@ -259,6 +343,8 @@ func (s *publicConfigService) startPublicListener(
 	req *connect.Request[p2pstreamv1.StartPublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.StartPublicListenerResponse], error) {
 	a := s.app
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -284,6 +370,8 @@ func (s *publicConfigService) stopPublicListener(
 	req *connect.Request[p2pstreamv1.StopPublicListenerRequest],
 ) (*connect.Response[p2pstreamv1.StopPublicListenerResponse], error) {
 	a := s.app
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
@@ -309,9 +397,13 @@ func (s *publicConfigService) createPublicRoute(
 	req *connect.Request[p2pstreamv1.CreatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.CreatePublicRouteResponse], error) {
 	a := s.app
+	if req.Msg.SiteId != nil && *req.Msg.SiteId < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("site ID cannot be negative"))
+	}
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
+		optionalPublicSiteID(req.Msg.SiteId),
 		req.Msg.Priority,
 		req.Msg.HostPattern,
 		req.Msg.PathPrefix,
@@ -358,13 +450,25 @@ func (s *publicConfigService) updatePublicRoute(
 	req *connect.Request[p2pstreamv1.UpdatePublicRouteRequest],
 ) (*connect.Response[p2pstreamv1.UpdatePublicRouteResponse], error) {
 	a := s.app
+	if req.Msg.SiteId != nil && *req.Msg.SiteId < 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("site ID cannot be negative"))
+	}
 	existingSecrets, err := a.existingPublicRouteTargetSecrets(ctx, req.Msg.Id)
 	if err != nil {
 		return nil, publicDBError(err)
 	}
+	existingRoute, err := s.db.GetPublicRoute(ctx, req.Msg.Id)
+	if err != nil {
+		return nil, publicDBError(err)
+	}
+	siteID := existingRoute.SiteID
+	if req.Msg.SiteId != nil {
+		siteID = optionalPublicSiteID(req.Msg.SiteId)
+	}
 	params, routeTargets, err := a.validatePublicRouteInput(
 		ctx,
 		req.Msg.ListenerId,
+		siteID,
 		req.Msg.Priority,
 		req.Msg.HostPattern,
 		req.Msg.PathPrefix,
@@ -444,6 +548,7 @@ func (a *App) createPublicRouteWithTargets(
 	qtx := a.DB.WithTx(tx)
 	route, err := qtx.CreatePublicRoute(ctx, db.CreatePublicRouteParams{
 		ListenerID:                 params.ListenerID,
+		SiteID:                     params.SiteID,
 		Priority:                   params.Priority,
 		HostPattern:                params.HostPattern,
 		PathPrefix:                 params.PathPrefix,

@@ -8,9 +8,12 @@ defineProps<{
 <template>
   <header class="page-header">
     <div class="page-header__copy">
-      <h1>{{ title }}</h1>
-      <p v-if="description">
-        {{ description }}
+      <div class="page-header__title-row">
+        <h1 class="page-header__title">{{ title }}</h1>
+        <slot name="badge" />
+      </div>
+      <p v-if="description || $slots.description" class="page-header__description">
+        <slot name="description">{{ description }}</slot>
       </p>
       <slot />
     </div>
@@ -23,29 +26,36 @@ defineProps<{
 <style scoped>
 .page-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 1rem 1.5rem;
 }
 
 .page-header__copy {
+  display: grid;
   min-width: 0;
+  gap: 0.25rem;
 }
 
-.page-header h1 {
-  margin: 0;
+.page-header__title-row {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.page-header__title {
   color: var(--app-text);
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
   line-height: 1.25;
   text-wrap: balance;
 }
 
-.page-header p {
-  max-width: 70ch;
-  margin: 0.375rem 0 0;
+.page-header__description {
+  max-width: 72ch;
   color: var(--app-text-muted);
   font-size: 0.875rem;
   line-height: 1.55;
@@ -65,11 +75,10 @@ defineProps<{
   .page-header {
     align-items: stretch;
     flex-direction: column;
-    gap: 1rem;
   }
 
   .page-header__actions {
-    justify-content: stretch;
+    justify-content: flex-start;
   }
 }
 </style>

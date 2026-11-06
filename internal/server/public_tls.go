@@ -140,7 +140,7 @@ func newPublicTLSSelector(listenerID int64, snap *publicProxySnapshot, acmeManag
 			}
 			return nil, err
 		}
-		pattern := normalizeHostPattern(certConfig.HostnamePattern)
+		pattern := canonicalPublicHostnamePatternOrLegacy(certConfig.HostnamePattern)
 		if strings.HasPrefix(pattern, "*.") {
 			selector.wildcard = append(selector.wildcard, publicWildcardCertificate{
 				pattern: pattern,
@@ -180,8 +180,7 @@ func (s *publicTLSSelector) GetCertificate(hello *tls.ClientHelloInfo) (*tls.Cer
 			return cert, nil
 		}
 		for _, wildcard := range s.wildcard {
-			if strings.HasSuffix(serverName, wildcard.suffix) &&
-				len(serverName) > len(strings.TrimPrefix(wildcard.suffix, ".")) {
+			if strictPublicSiteHostMatches(serverName, wildcard.pattern) {
 				return wildcard.cert, nil
 			}
 		}
@@ -299,14 +298,14 @@ func generateSelfSignedCertificatePEM(validFor time.Duration) ([]byte, []byte, e
 	template := &x509.Certificate{
 		SerialNumber: randomSerialNumber(),
 		Subject: pkix.Name{
-			CommonName: "p2pstream.local",
+			CommonName: defaultSelfSignedTLSHost,
 		},
 		NotBefore:             now.Add(-time.Minute),
 		NotAfter:              now.Add(validFor),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
-		DNSNames:              []string{"localhost", "p2pstream.local"},
+		DNSNames:              []string{defaultSelfSignedTLSHost},
 		IPAddresses: []net.IP{
 			net.ParseIP("127.0.0.1"),
 			net.ParseIP("::1"),

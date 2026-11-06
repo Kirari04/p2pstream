@@ -40,8 +40,8 @@ const kindOptions = [
   { label: "Local access sign-in page", value: PublicResponseTemplateKind.LOCAL_ACCESS_LOGIN_PAGE },
 ];
 
-const modalTitle = computed(() => form.id ? "Edit Response Template" : "Add Response Template");
-const submitLabel = computed(() => form.id ? "Save Changes" : "Create Template");
+const modalTitle = computed(() => form.id ? "Edit response template" : "Add response template");
+const submitLabel = computed(() => form.id ? "Save changes" : "Create template");
 const requiredPlaceholders = computed(() => {
   switch (form.kind) {
     case PublicResponseTemplateKind.WAF_CAPTCHA_PAGE:
@@ -227,37 +227,46 @@ defineExpose({ openCreate, openEdit, close });
   >
     <NDrawerContent :title="modalTitle" closable>
     <form class="editor-drawer-form layout-grid space-xl" @submit.prevent="submit">
-      <section class="layout-grid space-lg response-template-form-grid">
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Name
-          <NInput v-model:value="form.name" size="small" required />
-        </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Kind
-          <AccessibleSelect
-            :value="form.kind"
-            accessible-label="Response template kind"
-            size="small"
-            :options="kindOptions"
-            :disabled="Boolean(form.id)"
-            @update:value="applyKind(Number($event) as PublicResponseTemplateKind)"
-          />
-          <span v-if="form.id" class="normal-text letter-normal">Kind cannot be changed after creation.</span>
-        </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Description
-          <NInput v-model:value="form.description" size="small" />
-        </label>
-        <label class="layout-grid space-xs copy-xs weight-medium label-case letter-wide muted-text">
-          Content type
-          <NInput v-model:value="form.contentType" size="small" />
-        </label>
+      <section class="template-editor-group" aria-labelledby="response-template-details-heading">
+        <h3 id="response-template-details-heading" class="template-editor-group__title">Details</h3>
+        <div class="template-editor-fields">
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Name
+            <NInput v-model:value="form.name" size="small" required />
+          </label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Kind
+            <AccessibleSelect
+              :value="form.kind"
+              accessible-label="Response template kind"
+              size="small"
+              :options="kindOptions"
+              :disabled="Boolean(form.id)"
+              @update:value="applyKind(Number($event) as PublicResponseTemplateKind)"
+            />
+            <span v-if="form.id" class="template-editor-help">Kind cannot be changed after creation.</span>
+          </label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Description
+            <NInput v-model:value="form.description" size="small" />
+          </label>
+          <label class="layout-grid space-xs copy-xs weight-medium muted-text">
+            Content type
+            <NInput v-model:value="form.contentType" size="small" class="mono-text" />
+          </label>
+        </div>
       </section>
 
-      <HtmlTemplateEditor v-model="form.body" :kind="form.kind" :content-type="form.contentType" />
+      <section class="template-editor-group" aria-labelledby="response-template-body-heading">
+        <div class="template-editor-group__heading">
+          <h3 id="response-template-body-heading" class="template-editor-group__title">Body</h3>
+          <p class="template-editor-help">The preview renders the source with sample data in a sandboxed frame.</p>
+        </div>
+        <HtmlTemplateEditor v-model="form.body" :kind="form.kind" :content-type="form.contentType" />
+      </section>
 
       <div class="editor-drawer-actions layout-row align-end-row space-md">
-        <NButton secondary @click="close">Cancel</NButton>
+        <NButton secondary attr-type="button" @click="close">Cancel</NButton>
         <DisabledHint :disabled="Boolean(disabledReason)" :reason="disabledReason">
           <NButton type="primary" attr-type="submit" :disabled="Boolean(disabledReason)">
             {{ submitLabel }}
@@ -268,3 +277,51 @@ defineExpose({ openCreate, openEdit, close });
     </NDrawerContent>
   </NDrawer>
 </template>
+
+<style scoped>
+.template-editor-group {
+  display: grid;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.template-editor-group + .template-editor-group {
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1.25rem;
+}
+
+.template-editor-group__heading {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.template-editor-group__title {
+  color: var(--app-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.template-editor-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem 1.25rem;
+}
+
+.template-editor-fields > label {
+  align-content: start;
+}
+
+.template-editor-help {
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+@media (min-width: 640px) {
+  .template-editor-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+</style>

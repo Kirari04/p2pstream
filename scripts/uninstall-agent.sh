@@ -4,10 +4,15 @@ set -Eeuo pipefail
 readonly SERVICE_NAME="p2pstream-agent"
 readonly CONFIG_DIR="${P2PSTREAM_CONFIG_DIR:-/etc/p2pstream}"
 readonly INSTALL_PATH="${P2PSTREAM_INSTALL_PATH:-/usr/local/bin/p2pstream}"
+readonly AGENT_INSTALL_ROOT="${P2PSTREAM_AGENT_INSTALL_ROOT:-/opt/p2pstream-agent}"
 readonly SYSTEMD_DIR="${P2PSTREAM_SYSTEMD_DIR:-/etc/systemd/system}"
 readonly SERVICE_FILE="${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 readonly SERVICE_DROPIN_DIR="${SERVICE_FILE}.d"
 readonly AGENT_STATE_DIR="${P2PSTREAM_AGENT_STATE_DIR:-/var/lib/p2pstream-agent}"
+readonly UPDATER_CONFIG_DIR="${P2PSTREAM_UPDATER_CONFIG_DIR:-/etc/p2pstream-updater}"
+readonly UPDATER_STATE_DIR="${P2PSTREAM_UPDATER_STATE_DIR:-/var/lib/p2pstream-updater}"
+readonly UPDATER_USER="p2pstream-updater"
+readonly UPDATER_GROUP="p2pstream-updater"
 readonly SERVICE_USER="p2pstream"
 readonly SERVICE_GROUP="p2pstream"
 readonly CONFIRM_VALUE="full-purge"
@@ -23,6 +28,12 @@ warn() {
 
 info() {
   printf '%s\n' "$*"
+}
+
+require_local_pinned_uninstaller() {
+  local source_path="${BASH_SOURCE[0]:-}"
+  [[ "$source_path" == /* && -f "$source_path" && ! -L "$source_path" ]] \
+    || fail "run a locally supplied, pinned uninstaller file by absolute path; piping remote code into root is forbidden"
 }
 
 is_dry_run() {
@@ -77,6 +88,17 @@ require_safe_install_path() {
   esac
 }
 
+require_safe_updater_paths() {
+  local path
+  for path in "$AGENT_INSTALL_ROOT" "$UPDATER_CONFIG_DIR" "$UPDATER_STATE_DIR"; do
+    case "$path" in
+      ""|"/"|"/etc"|"/opt"|"/usr"|"/usr/local"|"/usr/local/bin"|"/var"|"/var/lib")
+        fail "refusing unsafe managed updater path: ${path}"
+        ;;
+    esac
+  done
+}
+
 require_safe_state_dir() {
   [[ "$AGENT_STATE_DIR" =~ ^/[A-Za-z0-9._/-]+$ ]] \
     || fail "P2PSTREAM_AGENT_STATE_DIR must be an absolute path containing only letters, numbers, dots, underscores, dashes, and slashes"
@@ -125,6 +147,13 @@ stop_service() {
   else
     info "Systemd unit is not registered: ${SERVICE_NAME}"
   fi
+
+  local updater_unit
+  for updater_unit in p2pstream-updater.timer p2pstream-updater-activate.path p2pstream-updater.service p2pstream-updater-activate.service; do
+    if [[ -f "${SYSTEMD_DIR}/${updater_unit}" ]]; then
+      run_cmd_tolerate systemctl disable --now "$updater_unit"
+    fi
+  done
 }
 
 reload_systemd() {
@@ -134,9 +163,22 @@ reload_systemd() {
 
   run_cmd_tolerate systemctl daemon-reload
   run_cmd_tolerate systemctl reset-failed "$SERVICE_NAME"
+  run_cmd_tolerate systemctl reset-failed p2pstream-updater.service p2pstream-updater-activate.service
 }
 
 delete_service_user() {
+  if id -u "$UPDATER_USER" >/dev/null 2>&1; then
+    run_cmd_tolerate userdel "$UPDATER_USER"
+  else
+    info "User is already absent: ${UPDATER_USER}"
+  fi
+
+  if getent group "$UPDATER_GROUP" >/dev/null 2>&1; then
+    run_cmd_tolerate groupdel "$UPDATER_GROUP"
+  else
+    info "Group is already absent: ${UPDATER_GROUP}"
+  fi
+
   if id -u "$SERVICE_USER" >/dev/null 2>&1; then
     run_cmd_tolerate userdel "$SERVICE_USER"
   else
@@ -151,12 +193,14 @@ delete_service_user() {
 }
 
 main() {
+  require_local_pinned_uninstaller
   require_confirmation
   require_linux
   require_root_for_changes
   require_safe_config_dir
   require_safe_install_path
   require_safe_state_dir
+  require_safe_updater_paths
 
   info "Uninstalling p2pstream agent with full purge."
   info "Service: ${SERVICE_NAME}"
@@ -172,9 +216,16 @@ main() {
   stop_service
   remove_file "$SERVICE_FILE"
   remove_dir "$SERVICE_DROPIN_DIR"
+  remove_file "${SYSTEMD_DIR}/p2pstream-updater.service"
+  remove_file "${SYSTEMD_DIR}/p2pstream-updater.timer"
+  remove_file "${SYSTEMD_DIR}/p2pstream-updater-activate.service"
+  remove_file "${SYSTEMD_DIR}/p2pstream-updater-activate.path"
   reload_systemd
   remove_dir "$CONFIG_DIR"
   remove_dir "$AGENT_STATE_DIR"
+  remove_dir "$UPDATER_CONFIG_DIR"
+  remove_dir "$UPDATER_STATE_DIR"
+  remove_dir "$AGENT_INSTALL_ROOT"
   remove_file "$INSTALL_PATH"
   delete_service_user
 

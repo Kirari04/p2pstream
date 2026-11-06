@@ -35,7 +35,7 @@ Cache and retry `route_ids` and `target_ids` are separate post-routing filters. 
 
 When both fields are supplied, `cel_expression` must exactly match the expression generated from `builder`.
 
-Legacy `match` fields are removed from the public API. Existing stored legacy rows are migrated automatically to CEL/builder JSON.
+Policy APIs accept `match_rule` with CEL and optional builder JSON. Stored policy rules must use this supported format.
 
 ## Variables
 
@@ -108,7 +108,8 @@ Builder mode generates CEL from groups and conditions:
 | `Host pattern` operator | Valid only for host fields. |
 | `Path prefix` operator | Values must start with `/`. |
 
-Header and query conditions check all repeated values. Internally migrated legacy rules can preserve first-value behavior for old stored rows.
+Header and query conditions check all repeated values. Use an explicit CEL
+expression when a policy must inspect only the first value.
 
 ## Limits And Validation
 
@@ -122,6 +123,8 @@ Header and query conditions check all repeated values. Internally migrated legac
 
 Expressions must compile and evaluate to bool. Regex literals are validated when p2pstream can see them statically.
 Regex arguments to `.matches()` must be string literals; dynamic regex patterns from request fields such as headers, cookies, or query parameters are rejected during policy validation and stored rule loading.
+
+Evaluation is bounded by the cost limit. If a request exhausts that budget or otherwise causes evaluation to fail, WAF, rate-limit, and traffic-shaper enforcement fails closed with a local `503 Service Unavailable` response. Cache evaluation errors bypass caching for that request, and retry evaluation errors skip retries. An evaluation error never selects a later cache or retry rule.
 
 For routes that allow encoded path separators, CEL still receives the decoded `path`. Use route-scoped compatibility sparingly and avoid CEL authorization logic that depends on slash boundaries that an upstream interprets differently.
 

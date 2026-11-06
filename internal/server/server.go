@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"math"
 	"net"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/google/uuid"
 	"github.com/hashicorp/yamux"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -33,6 +35,16 @@ type AgentConn struct {
 	PublicID                       string
 	Name                           string
 	Session                        *yamux.Session
+	TunnelGroup                    string
+	AggregateFlowControl           bool
+	tunnelOwners                   tunnel.LaneOwners
+	tunnelMu                       sync.RWMutex
+	tunnels                        [tunnel.MaxTunnelLaneSlots]*yamux.Session
+	tunnelResources                [tunnel.MaxTunnelLaneSlots]agentTunnelOwnedResource
+	tunnelsInitialized             bool
+	nextTunnel                     int
+	controlGateMu                  sync.Mutex
+	controlGate                    chan struct{}
 	Done                           chan struct{}
 	doneOnce                       sync.Once
 	streamOpenMu                   sync.Mutex
@@ -45,6 +57,8 @@ type AgentConn struct {
 	ActiveRequests                 atomic.Int64
 	ConnectedAt                    time.Time
 	ConnectionDBID                 int64
+	BuildVersion                   string
+	BuildCommit                    string
 }
 
 type agentTunnelReadGateConn struct {
@@ -80,6 +94,7 @@ func (c *AgentConn) signalDone() {
 		default:
 			close(c.Done)
 		}
+		c.tunnelOwners.Close()
 	})
 }
 
@@ -142,6 +157,11 @@ func (c *AgentConn) acquireStreamOpenAdmission(ctx context.Context) (func(), boo
 }
 
 type App struct {
+	agentTunnelWrapConn                func(int, net.Conn) net.Conn // immutable test transport, nil in production
+	agentTunnelBeforeRetirementPublish func()                       // immutable test barrier, nil in production
+	agentTunnelForceRetirementPublish  bool                         // immutable protocol-test override, false in production
+	agentTunnelRetirementInterval      time.Duration                // immutable before serving; zero uses production default
+
 	Config              *config.Config
 	DB                  *db.DB
 	StartedAt           time.Time
@@ -190,9 +210,34 @@ type App struct {
 	publicConnectionLimitRejected   atomic.Uint64
 	publicConnectionResourceReject  atomic.Uint64
 	publicClientRequestRejected     atomic.Uint64
+	publicAdmissionReclaimMu        sync.Mutex
+	publicAdmissionLastReclaim      time.Time
+	publicAdmissionReclaimInFlight  bool
+	publicAdmissionReclaimNow       func() time.Time
 	managementClientIdentity        *ClientIdentityResolver
 	managementClientIdentityErr     error
 	ManagementTLS                   *ManagementTLSRuntime
+	// TrustedAgentUpdates resolves only manifests already verified against the
+	// configured release trust root. Managed campaigns fail closed when unset.
+	TrustedAgentUpdates           TrustedAgentUpdateCatalog
+	AgentUpdateBootstrap          AgentUpdateBootstrapProvider
+	AgentUpdateAuthority          AgentUpdateManagementAuthority
+	AgentUpdateAuthorityWarning   string
+	agentUpdatesMu                sync.Mutex
+	agentUpdateTrafficMu          sync.RWMutex
+	agentUpdateCordoned           atomic.Pointer[map[int64]struct{}] // immutable agent ID set
+	agentUpdateFreshTunnelWrite   func(context.Context, string, ...any) (sql.Result, error)
+	agentUpdateCatalogWarningOnce sync.Once
+	agentUpdateRequestGate        chan struct{}
+	agentUpdatePeerRequests       *keyedStringRequestCapacityLimiter
+	agentUpdateIdentityRequests   *keyedRequestCapacityLimiter
+	agentUpdateGlobalRate         *agentUpdateRateLimiter
+	agentUpdatePeerRate           *agentUpdateRateLimiter
+	agentUpdateIdentityRate       *agentUpdateRateLimiter
+	agentUpdateDrainReady         func(int64) bool
+	agentUpdateRouteBlockersHook  func(int64, int64) []string
+	agentUpdateBeforeSuccessCAS   func()
+	agentUpdateMaintenanceStarted atomic.Bool
 
 	ProxyIsRunning atomic.Bool
 	ProxyLastError atomic.Pointer[string]
@@ -202,18 +247,20 @@ type App struct {
 	generatedSetupToken string
 	setupTokenLogOnce   sync.Once
 
-	proxyMu                  sync.Mutex
-	proxyServiceActive       bool
-	proxyState               p2pstreamv1.ProxyState
-	proxyLastError           string
-	publicSnapshot           *publicProxySnapshot
-	publicSnapshotPtr        atomic.Pointer[publicProxySnapshot]
-	publicSnapshotGeneration uint64
-	publicListenerState      map[int64]*publicListenerRuntime
+	proxyMu                   sync.Mutex
+	proxyServiceActive        bool
+	proxyState                p2pstreamv1.ProxyState
+	proxyLastError            string
+	publicSnapshot            *publicProxySnapshot
+	publicSnapshotPtr         atomic.Pointer[publicProxySnapshot]
+	publicSnapshotGeneration  uint64
+	publicListenerState       map[int64]*publicListenerRuntime
+	publicListenerLifecycleMu sync.Mutex
 
-	publicConfigCacheMu sync.RWMutex
-	publicConfigCache   cachedPublicConfig
-	publicGeoConfigMu   sync.Mutex
+	publicConfigCacheMu   sync.RWMutex
+	publicConfigCache     cachedPublicConfig
+	publicConfigRefreshMu sync.Mutex
+	publicGeoConfigMu     sync.Mutex
 
 	publicGeoMaintenanceMu      sync.Mutex
 	publicGeoMaintenanceStarted bool
@@ -227,6 +274,8 @@ type App struct {
 	agentDisconnectAfterHubRemoval        func(*AgentConn, bool)
 	publicTLSSelectorRefreshBeforePublish func(uint64)
 }
+
+const managementRPCMaxMessageBytes = 8 << 20
 
 type agentAuthLockMap struct {
 	mu    sync.Mutex
@@ -261,6 +310,16 @@ func (a *App) lockAgentAuth(agentID int64) func() {
 }
 
 func NewApp(cfg *config.Config, database *db.DB) *App {
+	app, err := NewAppWithError(cfg, database)
+	if err != nil {
+		panic(fmt.Sprintf("initialize server application: %v", err))
+	}
+	return app
+}
+
+// NewAppWithError constructs the production application and reports failures
+// that would make persisted routing safety state unavailable.
+func NewAppWithError(cfg *config.Config, database *db.DB) (*App, error) {
 	if cfg == nil {
 		cfg = &config.Config{}
 	}
@@ -283,6 +342,15 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		publicConnections:           newPublicConnectionCapacityLimiter(cfg.PublicMaxConcurrentConnections, cfg.PublicMaxConnectionsPerPeer),
 		publicTargetRequests:        newKeyedRequestCapacityLimiter(publicMaxRequestsPerTarget, publicMaxRequests),
 		retryReplayBudget:           newRetryReplayBudget(defaultPublicRetryReplayBudgetBytes),
+		agentUpdateRequestGate:      make(chan struct{}, 64),
+		agentUpdatePeerRequests:     newKeyedStringRequestCapacityLimiter(8),
+		agentUpdateIdentityRequests: newKeyedRequestCapacityLimiter(1, 1),
+		// A 1,000-agent fleet polling every 30 seconds generates roughly 2,000
+		// checks/minute before reports. These guards absorb abuse without turning
+		// normal shared-egress fleets into an update outage.
+		agentUpdateGlobalRate:       newAgentUpdateRateLimiter(60_000, time.Minute, 1024, 1),
+		agentUpdatePeerRate:         newAgentUpdateRateLimiter(6_000, time.Minute, 128, 4096),
+		agentUpdateIdentityRate:     newAgentUpdateRateLimiter(30, time.Minute, 8, agentUpdateMaxAgents),
 		managementClientIdentity:    managementIdentity,
 		managementClientIdentityErr: managementIdentityErr,
 	}
@@ -301,8 +369,11 @@ func NewApp(cfg *config.Config, database *db.DB) *App {
 		app.closeStaleAgentConnections(context.Background(), time.Now().UTC())
 		app.initializeSetupToken(context.Background())
 		app.ensureBootstrapAgent(context.Background())
+		if err := app.loadAgentUpdateCordons(context.Background()); err != nil {
+			return nil, fmt.Errorf("load managed-update cordons: %w", err)
+		}
 	}
-	return app
+	return app, nil
 }
 
 func (a *App) closeStaleAgentConnections(ctx context.Context, now time.Time) {
@@ -323,14 +394,14 @@ func (a *App) closeStaleAgentConnections(ctx context.Context, now time.Time) {
 
 // RegisterManagementRoutes attaches the agent tunnel and ConnectRPC APIs (Port 8081).
 func (a *App) RegisterManagementRoutes(mux *http.ServeMux) {
-	mux.HandleFunc(sourceOfferPath, sourceOfferHandler)
 	mux.HandleFunc(tunnel.BootstrapPath, a.agentTunnelHandler)
 	mux.Handle(environmentProxyPrefix, a.environmentProxyHandler())
 	path, handler := p2pstreamv1connect.NewAgentManagementServiceHandler(a,
+		connect.WithReadMaxBytes(managementRPCMaxMessageBytes),
 		connect.WithCodec(strictProtoJSONCodec{name: "json"}),
 		connect.WithCodec(strictProtoJSONCodec{name: "json; charset=utf-8"}),
 	)
-	mux.Handle(path, handler)
+	mux.Handle(path, a.agentUpdateHTTPAdmission(handler))
 	if !a.Config.ManagementUIDisabled {
 		mux.Handle("/", managementui.NewHandler(a.Config.ManagementUIDevProxy, a.Config.ManagementUIDistDir))
 	}
@@ -379,6 +450,7 @@ func (a *App) ReportStats(
 	resourceLastGoodAt := normalizedAgentResourceTimestamp(payload.ResourceLastGoodUnixMillis, reportedAt)
 	build := agentBuildIdentityFromStats(payload)
 	a.storeLatestAgentBuild(agentRow.ID, build)
+	a.recordAgentUpdateObservedBuild(agentRow.ID, build)
 
 	s := stats.AgentStats{
 		Timestamp:                reportedAt,
@@ -542,14 +614,8 @@ func agentBuildIdentityFromStats(payload *p2pstreamv1.AgentStatsRequest) agentBu
 	if payload == nil {
 		return agentBuildIdentity{}
 	}
-	version := payload.AgentVersion
-	if strings.TrimSpace(version) == "" && payload.ManagementTrustStatus != nil {
-		// Compatibility with agents released before build identity was promoted
-		// to a top-level heartbeat field.
-		version = payload.ManagementTrustStatus.AgentVersion
-	}
 	return agentBuildIdentity{
-		Version: truncateProxyRequestContextValue(version, 128),
+		Version: truncateProxyRequestContextValue(payload.AgentVersion, 128),
 		Commit:  truncateProxyRequestContextValue(payload.AgentCommit, 128),
 	}
 }
@@ -664,6 +730,7 @@ func (a *App) statusResponse() *p2pstreamv1.GetStatusResponse {
 		Proxy:          a.proxyStatus(),
 		Version:        buildinfo.Version,
 		Commit:         buildinfo.Commit,
+		ReleaseChannel: buildinfo.Channel,
 	}
 
 	if latest := a.LatestAgentStats.Load(); latest != nil {
@@ -694,7 +761,7 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unsupported tunnel version", http.StatusUpgradeRequired)
 		return
 	}
-	advertisedStreams, advertised, err := tunnel.ParseOptionalMaxConcurrentStreams(
+	advertisedStreams, err := tunnel.ParseMaxConcurrentStreams(
 		r.Header.Get(tunnel.TunnelMaxConcurrentStreamsHeader),
 		tunnel.MaxConcurrentAgentRequestsLimit,
 	)
@@ -702,10 +769,32 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if !advertised {
-		advertisedStreams = tunnel.DefaultMaxConcurrentAgentRequests
+	flowConfig, laneRole, aggregateOffered, err := tunnel.ParseAggregateFlowControlHeaders(r.Header)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	capacityMode, _, err := tunnel.ParseOptionalCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
+	group, lane, err := tunnel.ParseTunnelLaneHeaders(r.Header, aggregateOffered)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if aggregateOffered {
+		wantRole := tunnel.TunnelLaneRoleControl
+		if lane > 0 {
+			wantRole = tunnel.TunnelLaneRoleBulk
+		}
+		if group == "" || laneRole != wantRole || !flowConfig.Equal(tunnel.DefaultAggregateFlowControlConfig()) {
+			http.Error(w, "invalid aggregate tunnel lane contract", http.StatusBadRequest)
+			return
+		}
+	}
+	retirement, ownerID, replacesID, err := tunnel.ParseLaneRetirement(r.Header)
+	if err != nil || retirement && (!aggregateOffered || lane == 0) {
+		http.Error(w, "invalid lane retirement offer", http.StatusBadRequest)
+		return
+	}
+	capacityMode, err := tunnel.ParseCapacityMode(r.Header.Get(tunnel.TunnelCapacityModeHeader))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -768,14 +857,56 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		NegotiatedMaxConcurrentStreams: negotiatedStreams,
 		AdaptiveCapacity:               adaptiveCapacity,
 		ConnectedAt:                    time.Now(),
+		BuildVersion:                   truncateProxyRequestContextValue(r.Header.Get(tunnel.TunnelAgentVersionHeader), 128),
+		BuildCommit:                    truncateProxyRequestContextValue(r.Header.Get(tunnel.TunnelAgentCommitHeader), 128),
 	}
-	if adaptiveCapacity {
-		// The negotiated value is only a protocol guard. Do not present it as a
-		// live allowance until the newly connected agent reports a resource
-		// snapshot for this connection generation.
-		agent.CurrentAdmissionLimit.Store(0)
-	} else {
-		agent.CurrentAdmissionLimit.Store(negotiatedStreams)
+	agent.TunnelGroup = group
+	joiningGroup := false
+	aggregateNegotiated := aggregateOffered
+	var current *AgentConn
+	if group != "" {
+		current = a.AgentHub.connectedByID(agentRow.ID)
+		if current != nil && current.TunnelGroup == group {
+			if current.AggregateFlowControl != aggregateOffered || current.NegotiatedMaxConcurrentStreams != negotiatedStreams || current.AdaptiveCapacity != adaptiveCapacity || current.BuildVersion != agent.BuildVersion || current.BuildCommit != agent.BuildCommit {
+				http.Error(w, "tunnel group capability mismatch", http.StatusConflict)
+				return
+			}
+			agent = current
+			joiningGroup = true
+		} else if lane != 0 {
+			http.Error(w, "primary tunnel must establish the agent group first", http.StatusConflict)
+			return
+		}
+	}
+	var predecessor *tunnel.LaneOwner
+	retirementQuiet := tunnel.DefaultLaneRetirementInterval
+	if a.agentTunnelRetirementInterval > 0 {
+		retirementQuiet = a.agentTunnelRetirementInterval
+	}
+	if retirement && replacesID != "" {
+		if a.isAgentUpdateCordoned(agent.AgentID) {
+			http.Error(w, "agent update drain in progress", http.StatusServiceUnavailable)
+			return
+		}
+		owner := agent.tunnelOwners.Predecessor(lane, replacesID)
+		if owner == nil {
+			http.Error(w, "lane replacement no longer current", http.StatusConflict)
+			return
+		}
+		predecessor = owner
+		grown := r.Header.Values(tunnel.LaneGrowthHeader)
+		if len(grown) > 1 || len(grown) == 1 && grown[0] != "1" {
+			http.Error(w, "invalid lane growth hint", http.StatusBadRequest)
+			return
+		}
+		if owner.State() == tunnel.LaneServing && !owner.IdleFor(retirementQuiet) {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if len(grown) == 0 && owner.State() == tunnel.LaneServing && owner.Session().AggregateReceiveWindowStats().ReceiveLimit <= tunnel.AggregateInitialSessionWindowBytes {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 	}
 	effectiveStreamWindowBytes, err := effectiveServerTunnelStreamWindowBytes(a.Config)
 	if err != nil {
@@ -783,7 +914,99 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid agent tunnel resource configuration", http.StatusInternalServerError)
 		return
 	}
-	yamuxConfig, err := tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
+	var laneOwner *tunnel.LaneOwner
+	var releaseSessionResource func()
+	var sessionResourceBytes int64
+	var sessionResource agentTunnelOwnedResource
+	if aggregateNegotiated {
+		if laneRole == tunnel.TunnelLaneRoleControl {
+			sessionResourceBytes, err = tunnel.NegotiatedControlSessionResourceBytes(effectiveStreamWindowBytes)
+			sessionResource.LegacyControlSupplementBytes = sessionResourceBytes
+		} else {
+			sessionResourceBytes, err = tunnel.AggregateSessionResourceBytes(flowConfig.InitialSessionWindow, 0)
+			sessionResource.AggregateInitialPoolBytes = int64(yamux.AggregateReceiveWindowMemory(flowConfig.InitialSessionWindow))
+			sessionResource.SessionMetadataBytes = sessionResourceBytes - sessionResource.AggregateInitialPoolBytes
+		}
+		if err != nil {
+			http.Error(w, "invalid aggregate tunnel resource configuration", http.StatusInternalServerError)
+			return
+		}
+		var ok bool
+		if aggregateNegotiated {
+			if !retirement {
+				ownerID = uuid.NewString()
+				// Old peers retain break-before-make behavior on reconnect;
+				// join the exact former owner before admitting another lease.
+				if old := agent.tunnelSession(lane); old != nil {
+					if owner := agent.tunnelOwners.Find(old); owner != nil {
+						// Optional capability can be absent on a fresh lane, but
+						// cannot withdraw an already-owned overlap contract and
+						// truncate its serving/draining work in the same generation.
+						if lane > 0 && owner.ReservedBaselineBytes() != sessionResourceBytes {
+							http.Error(w, "lane retirement capability changed", http.StatusConflict)
+							return
+						}
+						owner.Close()
+					} else {
+						_ = old.Close()
+					}
+				}
+			}
+			slots := int64(1)
+			if retirement {
+				slots = 2
+			}
+			var ownerErr error
+			laneOwner, ownerErr = agent.tunnelOwners.Acquire(lane, ownerID, replacesID, slots*sessionResourceBytes, func() (func(), bool) {
+				release, allowed, _ := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, slots*sessionResourceBytes, 0)
+				return release, allowed
+			})
+			ok = ownerErr == nil
+			if ok {
+				releaseSessionResource = laneOwner.Close
+			}
+		} else {
+			releaseSessionResource, ok, _ = a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, sessionResourceBytes, 0)
+		}
+		if !ok {
+			http.Error(w, "aggregate tunnel resource capacity reached", http.StatusServiceUnavailable)
+			return
+		}
+	}
+	if releaseSessionResource == nil {
+		releaseSessionResource = func() {}
+	}
+	releaseSessionResourceOwned := true
+	defer func() {
+		if releaseSessionResourceOwned {
+			releaseSessionResource()
+		}
+	}()
+	if !joiningGroup {
+		agent.AggregateFlowControl = aggregateNegotiated
+	}
+	if !joiningGroup && adaptiveCapacity {
+		// The negotiated value is only a protocol guard. Do not present it as a
+		// live allowance until the newly connected agent reports a resource
+		// snapshot for this connection generation.
+		agent.CurrentAdmissionLimit.Store(0)
+	} else if !joiningGroup {
+		agent.CurrentAdmissionLimit.Store(negotiatedStreams)
+	}
+	var yamuxConfig *yamux.Config
+	if aggregateNegotiated {
+		if laneRole == tunnel.TunnelLaneRoleControl {
+			yamuxConfig, err = tunnel.NewNegotiatedControlYamuxConfig(nil, effectiveStreamWindowBytes, -1)
+		} else {
+			aggregateMaxStreamWindowBytes := tunnel.DefaultMaxStreamWindowSizeBytes
+			if a.Config != nil {
+				aggregateMaxStreamWindowBytes = a.Config.TunnelMaxStreamWindowBytes
+			}
+			yamuxConfig, err = tunnel.NewAggregateYamuxConfig(nil, aggregateMaxStreamWindowBytes, -1)
+		}
+	} else {
+		yamuxConfig, err = tunnel.NewYamuxConfig(nil, effectiveStreamWindowBytes)
+	}
 	if err != nil {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Invalid agent tunnel yamux configuration")
 		http.Error(w, "invalid agent tunnel configuration", http.StatusInternalServerError)
@@ -806,8 +1029,31 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = rw.WriteString("Upgrade: " + tunnel.UpgradeToken + "\r\n")
 	_, _ = rw.WriteString(tunnel.TunnelVersionHeader + ": " + version + "\r\n")
 	_, _ = rw.WriteString(tunnel.TunnelMaxConcurrentStreamsHeader + ": " + strconv.FormatInt(negotiatedStreams, 10) + "\r\n")
-	if adaptiveCapacity {
-		_, _ = rw.WriteString(tunnel.TunnelCapacityModeHeader + ": " + tunnel.TunnelCapacityModeAdaptive + "\r\n")
+	if group != "" {
+		_, _ = rw.WriteString(tunnel.TunnelGroupHeader + ": " + group + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelLaneHeader + ": " + strconv.Itoa(lane) + "\r\n")
+	}
+	_, _ = rw.WriteString(tunnel.TunnelCapacityModeHeader + ": " + capacityMode + "\r\n")
+	if aggregateNegotiated {
+		_, _ = rw.WriteString(tunnel.TunnelFlowControlHeader + ": " + tunnel.TunnelFlowControlAggregateV1 + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelLaneRoleHeader + ": " + laneRole + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelSessionWindowHeader + ": " + strconv.FormatUint(uint64(flowConfig.InitialSessionWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelSessionWindowMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxSessionWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelAllocationWindowHeader + ": " + strconv.FormatUint(uint64(flowConfig.InitialStreamWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelAllocationWindowMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxStreamWindow), 10) + "\r\n")
+		_, _ = rw.WriteString(tunnel.TunnelDataFrameMaxHeader + ": " + strconv.FormatUint(uint64(flowConfig.MaxDataFrame), 10) + "\r\n")
+	}
+	if retirement {
+		interval := tunnel.DefaultLaneRetirementInterval
+		if a.agentTunnelRetirementInterval > 0 {
+			interval = a.agentTunnelRetirementInterval
+		}
+		_, _ = rw.WriteString(tunnel.LaneRetirementHeader + ": 1\r\n")
+		_, _ = rw.WriteString(tunnel.LaneOwnerHeader + ": " + ownerID + "\r\n")
+		if replacesID != "" {
+			_, _ = rw.WriteString(tunnel.LaneReplacesHeader + ": " + replacesID + "\r\n")
+		}
+		_, _ = rw.WriteString(tunnel.LaneRetirementIntervalHeader + ": " + strconv.FormatInt(interval.Milliseconds(), 10) + "\r\n")
 	}
 	_, _ = rw.WriteString("\r\n")
 	if err := rw.Flush(); err != nil {
@@ -820,7 +1066,11 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 	// GoAway has set localGoAway so even a SYN sent during session setup is RST
 	// instead of entering the unbudgeted accept backlog.
 	gatedConn := &agentTunnelReadGateConn{Conn: rawConn, ready: make(chan struct{})}
-	session, err := yamux.Server(gatedConn, yamuxConfig)
+	sessionConn := net.Conn(gatedConn)
+	if a.agentTunnelWrapConn != nil {
+		sessionConn = a.agentTunnelWrapConn(lane, sessionConn)
+	}
+	session, err := yamux.Server(sessionConn, yamuxConfig)
 	if err != nil {
 		gatedConn.releaseReads()
 		_ = rawConn.Close()
@@ -837,48 +1087,160 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Str("agent", agent.PublicID).Msg("Failed to restrict agent tunnel stream direction")
 		return
 	}
-	gatedConn.releaseReads()
-	agent.Session = session
-
-	if a.DB != nil {
-		id, err := a.DB.InsertConnection(r.Context(), sql.NullInt64{Int64: agentRow.ID, Valid: true})
-		if err == nil {
-			agent.ConnectionDBID = id
-			if err := a.DB.MarkAgentConnected(r.Context(), agentRow.ID); err != nil {
-				log.Warn().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to update agent connected timestamp")
+	if laneOwner != nil && lane == 0 {
+		if !laneOwner.Attach(session, nil) {
+			_ = session.Close()
+			return
+		}
+	}
+	if aggregateNegotiated && laneRole == tunnel.TunnelLaneRoleBulk {
+		reserveGrowth := func(bytes int64) (func(), bool) {
+			release, ok, _ := a.agentStreamCapacity.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytes, 0)
+			return release, ok
+		}
+		if laneOwner != nil {
+			if !laneOwner.Attach(session, reserveGrowth) {
+				_ = session.Close()
+				return
+			}
+			sessionResource.AggregateGrowth = laneOwner.Growth()
+			if !retirement {
+				sessionResource.AggregateGrowth.SetPoolLimit(tunnel.AggregateInitialSessionWindowBytes)
 			}
 		} else {
-			log.Warn().Err(err).Msg("Failed to insert connection into DB")
+			sessionResource.AggregateGrowth = tunnel.NewAggregateReceiveWindowGrowth(session, reserveGrowth)
+			// Without negotiated lane retirement, published growth cannot be
+			// reclaimed without interrupting arbitrary active work.
+			sessionResource.AggregateGrowth.SetPoolLimit(tunnel.AggregateInitialSessionWindowBytes)
 		}
 	}
 	sessionCapacityKey := agentStreamCapacitySessionKey(agent, session)
-	if a.agentStreamCapacity != nil {
-		// Register before publishing through AgentHub so a selected connection
-		// can never receive the unregistered single-session allowance.
+	sessionRegistered := !joiningGroup
+	if sessionRegistered && a.agentStreamCapacity != nil {
+		// All lanes share the authenticated generation key and public quota. The
+		// negotiated control cap is a separate lease-bound gate on AgentConn.
 		a.agentStreamCapacity.registerSessionWithLimit(sessionCapacityKey, negotiatedStreamLimit)
 	}
-	displaced, err := a.AgentHub.replace(agent)
-	if err != nil {
-		if a.agentStreamCapacity != nil {
+	sessionRegistrationOwned := sessionRegistered
+	defer func() {
+		if sessionRegistrationOwned && a.agentStreamCapacity != nil {
 			a.agentStreamCapacity.unregisterSession(sessionCapacityKey)
 		}
-		_ = session.Close()
-		if a.DB != nil && agent.ConnectionDBID > 0 {
-			if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
-				log.Warn().Err(err).Msg("Failed to update rejected connection disconnection time")
+	}()
+	gatedConn.releaseReads()
+	var readiness *yamux.Stream
+	if retirement {
+		readiness, err = tunnel.PrepareLaneRetirement(session, ownerID)
+		if err != nil {
+			_ = session.Close()
+			return
+		}
+		defer func() {
+			// A successful commit can still be buffered at the peer. Reset would
+			// discard it before the agent reads it and turn readiness into failure.
+			if readiness != nil {
+				_ = readiness.Reset()
 			}
-			if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
-				log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update rejected agent disconnected timestamp")
+		}()
+	}
+	if !joiningGroup {
+		agent.Session = session
+	}
+	if predecessor != nil && a.agentTunnelBeforeRetirementPublish != nil {
+		a.agentTunnelBeforeRetirementPublish()
+	}
+	var old *yamux.Session
+	if laneOwner != nil {
+		var installed bool
+		if predecessor != nil && predecessor.State() == tunnel.LaneServing {
+			if a.isAgentUpdateCordoned(agent.AgentID) {
+				return
+			}
+			if a.agentTunnelForceRetirementPublish {
+				old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
+			} else {
+				old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource, retirementQuiet)
+			}
+		} else {
+			old, installed = agent.installOwnedTunnel(lane, laneOwner, sessionResource)
+		}
+		if !installed {
+			_ = session.Close()
+			return
+		}
+	} else {
+		old = agent.installTunnel(lane, session, sessionResource)
+	}
+	if old != nil {
+		a.AgentTransports.closeTunnelLane(agent, lane)
+		if laneOwner == nil {
+			_ = old.Close()
+		}
+	}
+
+	if readiness != nil {
+		if predecessor != nil {
+			// Idle publication already excludes server openings and owners. The
+			// old-wire acknowledgment is an additional safeguard while the predecessor
+			// stays open; its drain monitor may close it before the reply arrives.
+			// Release auth serialization so revocation can close both sessions.
+			unlockAgentAuth()
+			barrierCtx, cancelBarrier := context.WithTimeout(r.Context(), 10*time.Second)
+			barrierErr := predecessor.AcknowledgeOpeningFence(barrierCtx)
+			cancelBarrier()
+			if barrierErr != nil && !predecessor.Session().IsClosed() {
+				_ = session.Close()
+				agent.removeTunnel(lane, session)
+				a.AgentTransports.closeTunnelLane(agent, lane)
+				return
+			}
+			// A closed predecessor, including one closed by normal idle drain, has no
+			// viable openings. Its owner retains the physical cleanup/refund duty.
+		}
+		if err := tunnel.CommitLaneRetirement(readiness); err != nil {
+			_ = session.Close()
+			agent.removeTunnel(lane, session)
+			a.AgentTransports.closeTunnelLane(agent, lane)
+			return
+		}
+		readiness = nil // Commit closed the write half; the peer drains it.
+	}
+	if !joiningGroup {
+		if a.DB != nil {
+			id, err := a.DB.InsertConnection(r.Context(), sql.NullInt64{Int64: agentRow.ID, Valid: true})
+			if err == nil {
+				agent.ConnectionDBID = id
+				if err := a.DB.MarkAgentConnected(r.Context(), agentRow.ID); err != nil {
+					log.Warn().Err(err).Str("agent", agentRow.PublicID).Msg("Failed to update agent connected timestamp")
+				}
+			} else {
+				log.Warn().Err(err).Msg("Failed to insert connection into DB")
 			}
 		}
-		log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to register agent tunnel")
-		return
-	}
-	for _, old := range displaced {
-		a.retireDisplacedAgentConnection(old)
-	}
-	if a.TargetHealth != nil {
-		a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
+		displaced, err := a.AgentHub.replace(agent)
+		if err != nil {
+			_ = session.Close()
+			if a.DB != nil && agent.ConnectionDBID > 0 {
+				if err := a.DB.UpdateConnectionDisconnected(context.Background(), agent.ConnectionDBID); err != nil {
+					log.Warn().Err(err).Msg("Failed to update rejected connection disconnection time")
+				}
+				if err := a.DB.MarkAgentDisconnected(context.Background(), agent.AgentID); err != nil {
+					log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to update rejected agent disconnected timestamp")
+				}
+			}
+			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to register agent tunnel")
+			return
+		}
+		for _, old := range displaced {
+			a.retireDisplacedAgentConnection(old)
+		}
+		if a.TargetHealth != nil {
+			a.TargetHealth.recordAgentConnectedForAll(agent.AgentID, agent.PublicID)
+		}
+		// A campaign only accepts a tunnel established after the attested
+		// activation edge. Run persistence asynchronously after the tunnel is
+		// published so database latency cannot delay tunnel admission.
+		go a.recordAgentUpdateFreshTunnel(agent)
 	}
 	unlockAgentAuth()
 
@@ -889,39 +1251,58 @@ func (a *App) agentTunnelHandler(w http.ResponseWriter, r *http.Request) {
 		Int64("advertised_max_streams", advertisedStreams).
 		Int64("negotiated_max_streams", negotiatedStreams).
 		Bool("adaptive_capacity", adaptiveCapacity).
+		Bool("aggregate_flow_control", aggregateNegotiated).
+		Int("tunnel_lane", lane).
 		Msg("Agent tunnel connected successfully")
 
 	go func() {
-		select {
-		case <-agent.Done:
-			_ = session.Close()
-		case <-session.CloseChan():
+		if laneOwner != nil {
+			tick := time.NewTicker(100 * time.Millisecond)
+		waitOwned:
+			for {
+				select {
+				case <-agent.Done:
+					break waitOwned
+				case <-session.CloseChan():
+					break waitOwned
+				case <-tick.C:
+					if laneOwner.State() == tunnel.LaneDraining && laneOwner.Quiescent() {
+						break waitOwned
+					}
+				}
+			}
+			tick.Stop()
+		} else {
+			select {
+			case <-agent.Done:
+			case <-session.CloseChan():
+			}
 		}
-		a.cleanupAgentConnection(agent)
+		// CloseChan signals shutdown initiation. Complete all Yamux workers and
+		// clear the aggregate slabs before returning their lifetime reservation.
+		_ = session.Close()
+		sessionResource.AggregateGrowth.Release()
+		releaseSessionResource()
+		a.cleanupAgentTunnel(agent, lane, session)
 		log.Info().
+			Int("tunnel_lane", lane).
 			Str("agent", agent.PublicID).
 			Int64("duration_ms", time.Since(agent.ConnectedAt).Milliseconds()).
 			Int64("active_requests", agent.ActiveRequests.Load()).
 			Msg("Agent tunnel disconnected")
 	}()
+	releaseSessionResourceOwned = false
+	sessionRegistrationOwned = false
 }
 
-// effectiveServerTunnelStreamWindowBytes keeps the Yamux receive credit within
-// the per-stream lifetime charge whenever the server resource ledger is active.
-// An explicit stream count is only an additional ceiling; it must not disable
-// the memory/FD safety model used for automatic capacity.
+// effectiveServerTunnelStreamWindowBytes returns the initial legacy receive
+// promise. Negotiated aggregate sessions own that storage in their shared pool;
+// legacy sessions acquire an exact per-stream supplement before Open.
 func effectiveServerTunnelStreamWindowBytes(cfg *config.Config) (int64, error) {
 	if cfg == nil {
-		return tunnel.DefaultMaxStreamWindowSizeBytes, nil
+		return tunnel.DefaultAdaptiveReceiveWindowBytes, nil
 	}
-	if cfg.ServerTunnelCapacityAuto || cfg.ServerTunnelMaxConcurrentStreams > 0 {
-		return tunnel.AdaptiveMaxStreamWindowSizeBytes(
-			cfg.TunnelMaxStreamWindowBytes,
-			cfg.ServerTunnelEstimatedStreamBytes,
-		)
-	}
-	window, err := tunnel.NormalizeMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes)
-	return int64(window), err
+	return tunnel.InitialReceiveWindow(cfg.TunnelMaxStreamWindowBytes)
 }
 
 func (a *App) cleanupAgentConnection(agent *AgentConn) bool {
@@ -930,7 +1311,10 @@ func (a *App) cleanupAgentConnection(agent *AgentConn) bool {
 	}
 	unlock := a.lockAgentAuth(agent.AgentID)
 	defer unlock()
+	return a.cleanupAgentConnectionLocked(agent)
+}
 
+func (a *App) cleanupAgentConnectionLocked(agent *AgentConn) bool {
 	disconnected := false
 	if a.AgentHub != nil {
 		disconnected = a.AgentHub.disconnect(agent)
@@ -972,6 +1356,7 @@ func (a *App) retireDisplacedAgentConnection(agent *AgentConn) {
 		a.agentStreamCapacity.unregisterSession(agentStreamCapacitySessionKey(agent, agent.Session))
 	}
 	agent.signalDone()
+	agent.tunnelOwners.Close()
 	if agent.Session != nil {
 		if err := agent.Session.Close(); err != nil {
 			log.Warn().Err(err).Str("agent", agent.PublicID).Msg("Failed to close displaced agent tunnel session")

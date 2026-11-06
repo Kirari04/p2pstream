@@ -154,6 +154,7 @@ func checkPublicForwardAuth(
 			req.Header.Add(name, value)
 		}
 	}
+	removePublicManagementSessionCookie(req.Header)
 	proto := forwardedProtoForPublicListener(listener)
 	originalURL := publicAccessOriginalURL(in, listener)
 	req.Header.Set("X-Forwarded-Method", in.Method)
@@ -200,6 +201,30 @@ func checkPublicForwardAuth(
 	}
 	result.Body = body
 	return result, nil
+}
+
+func removePublicManagementSessionCookie(header http.Header) {
+	if header == nil {
+		return
+	}
+	rawLines := header.Values("Cookie")
+	header.Del("Cookie")
+	for _, rawLine := range rawLines {
+		cookies, err := http.ParseCookie(rawLine)
+		if err != nil {
+			continue
+		}
+		values := make([]string, 0, len(cookies))
+		for _, cookie := range cookies {
+			if cookie.Name == sessionCookieName {
+				continue
+			}
+			values = append(values, cookie.String())
+		}
+		if len(values) > 0 {
+			header.Add("Cookie", strings.Join(values, "; "))
+		}
+	}
 }
 
 func publicAccessPrincipalFromResponse(provider publicAccessProviderConfig, header http.Header) (publicAccessPrincipal, error) {
@@ -421,6 +446,8 @@ func publicAccessOriginalURL(r *http.Request, listener publicListenerConfig) str
 	port := forwardedPortForPublicListener(listener, scheme)
 	if host != "" && port != "" && !((scheme == "http" && port == "80") || (scheme == "https" && port == "443")) {
 		host = net.JoinHostPort(strings.Trim(host, "[]"), port)
+	} else if ip := net.ParseIP(strings.Trim(host, "[]")); ip != nil && strings.Contains(host, ":") {
+		host = "[" + strings.Trim(host, "[]") + "]"
 	}
 	return (&url.URL{
 		Scheme:   scheme,

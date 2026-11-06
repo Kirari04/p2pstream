@@ -17,20 +17,20 @@ Generic templates only replace the body text. The object that references the tem
 
 Choose **Templates** under **Configure** in the management UI. Summary cards show total, generic, captcha, waiting-room, and sign-in counts. The compact template table shows name and description, kind and content type, usage count, required placeholders, updated time, and actions.
 
-1. Choose **Add Template**.
+1. Choose **Add template**.
 2. Select the template kind.
 3. Set a name, description, content type, and body.
 4. Use the HTML editor for page templates. It includes HTML autocomplete, Emmet expansion with `Tab`, placeholder autocomplete, and a live preview with sample values.
 5. Save the template, then select it from the relevant rate-limit, WAF rule, or local identity-provider drawer. The API supports selecting a generic template for a static route target, but the current route drawer exposes inline static bodies only; configure that association through the management API.
 
-The **New Generic Body**, **New Captcha Page**, **New Waiting Room**, and **New Sign-in Page** shortcuts below the table open the same drawer with the corresponding kind preselected.
+The **New generic body**, **New captcha page**, **New waiting room**, and **New sign-in page** shortcuts below the table open the same drawer with the corresponding kind preselected.
 
 Template names follow the same public resource name rules as listeners, routes, targets, and rules: 1 to 64 characters, starting with an alphanumeric character, using only letters, numbers, dots, dashes, and underscores.
 
 Template kind is immutable after creation, so the edit drawer locks **Kind**. To change a generic body into a WAF page template, create a new template of the target kind and move references to it.
 
 <figure class="doc-screenshot">
-  <img src="../assets/new/response_template_page.png" alt="p2pstream Response Templates page showing kind summary cards and a compact table with template descriptions, kind, content type, usage count, required placeholders, updated time, and actions">
+  <img src="../assets/new/response_template_page.png" alt="p2pstream Response templates page showing kind summary cards and a compact table with template descriptions, kind, content type, usage count, required placeholders, updated time, and actions">
   <figcaption>The Templates page shows reusable response bodies and WAF pages with their kind, content type, usage count, required placeholders, and whether deletion is available.</figcaption>
 </figure>
 

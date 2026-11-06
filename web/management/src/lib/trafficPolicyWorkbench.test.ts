@@ -417,9 +417,9 @@ describe("trafficPolicyWorkbench", () => {
       ],
       cacheSettings: create(PublicCacheSettingsSchema, { enabled: false }),
       cacheRules: [
-        cacheRule({ id: 30n, priority: 1n, allowCookieRequests: true }),
+        cacheRule({ id: 30n, priority: 1n }),
         cacheRule({ id: 31n, priority: 1n, matchRule: pathRule("/cache") }),
-        cacheRule({ id: 32n, priority: 2n, enabled: false, allowCookieRequests: true }),
+        cacheRule({ id: 32n, priority: 2n, enabled: false }),
       ],
       retryRules: [
         retryRule({ id: 40n, priority: 1n, failureMode: PublicRetryFailureMode.PRE_RESPONSE_FAILURES }),
@@ -442,12 +442,10 @@ describe("trafficPolicyWorkbench", () => {
     expect(warnings.map((warning) => warning.code)).toContain("captcha-provider-disabled");
     expect(warnings.map((warning) => warning.code)).toContain("captcha-provider-secret-missing");
     expect(warnings.map((warning) => warning.code)).toContain("cache-settings-disabled");
-    expect(warnings.map((warning) => warning.code)).toContain("cache-allows-cookie-requests");
     expect(warnings.map((warning) => warning.code)).toContain("retry-duplicate-risk");
     expect(warnings.some((warning) => warning.ruleId === 42n && warning.code === "retry-duplicate-risk")).toBe(true);
     expect(warnings.some((warning) => warning.ruleId === 43n && warning.code === "retry-duplicate-risk")).toBe(true);
     expect(warnings.some((warning) => warning.ruleId === 2n && warning.code === "any-request-rule")).toBe(false);
-    expect(warnings.some((warning) => warning.ruleId === 32n && warning.code === "cache-allows-cookie-requests")).toBe(false);
   });
 });
 
@@ -555,7 +553,6 @@ function cacheRule(overrides: Partial<PublicCacheRule>): PublicCacheRule {
     routeIds: overrides.routeIds ?? [],
     targetIds: overrides.targetIds ?? [],
     matchRule: overrides.matchRule,
-    allowCookieRequests: overrides.allowCookieRequests ?? false,
   });
 }
 

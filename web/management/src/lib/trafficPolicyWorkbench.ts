@@ -108,7 +108,6 @@ export type TrafficPolicyAttentionWarningCode =
   | "captcha-provider-disabled"
   | "captcha-provider-secret-missing"
   | "cache-settings-disabled"
-  | "cache-allows-cookie-requests"
   | "retry-duplicate-risk";
 
 export type TrafficPolicyAttentionWarning = {
@@ -274,16 +273,6 @@ export function trafficPolicyAttentionWarnings(config: TrafficPolicyWorkbenchCon
       code: "cache-settings-disabled",
       policyKind: "cache",
       message: "Cache settings are disabled while one or more cache rules are enabled.",
-    });
-  }
-
-  for (const rule of cacheRules) {
-    if (!rule.enabled || !rule.allowCookieRequests) continue;
-    warnings.push({
-      code: "cache-allows-cookie-requests",
-      policyKind: "cache",
-      ruleId: rule.id,
-      message: `Cache rule ${ruleDisplayName(rule)} preserves the legacy Cookie opt-in flag; Cookie requests still bypass shared cache.`,
     });
   }
 

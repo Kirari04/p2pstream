@@ -3,16 +3,18 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/caarlos0/env/v10"
 	"github.com/joho/godotenv"
 
+	"p2pstream/internal/buildinfo"
+	"p2pstream/internal/releaseversion"
 	"p2pstream/internal/tunnel"
 )
 
@@ -45,32 +47,35 @@ type Config struct {
 	ManagementClientIPMode            string `env:"MANAGEMENT_CLIENT_IP_MODE" envDefault:"trusted_chain"`
 	ManagementAdvertiseHost           string `env:"MANAGEMENT_ADVERTISE_HOST"`
 	ManagementTLSExtraHosts           string `env:"MANAGEMENT_TLS_EXTRA_HOSTS"`
+	AgentUpdatesEnabled               bool   `env:"AGENT_UPDATES_ENABLED" envDefault:"true"`
+	AgentUpdateRepository             string `env:"AGENT_UPDATE_REPOSITORY" envDefault:"Kirari04/p2pstream"`
+	AgentUpdateChannel                string `env:"AGENT_UPDATE_CHANNEL"`
+	AgentUpdateAuthorityKeyFile       string `env:"AGENT_UPDATE_AUTHORITY_KEY_FILE"`
+	AgentUpdateCatalogRefreshMillis   int64  `env:"AGENT_UPDATE_CATALOG_REFRESH_MILLIS" envDefault:"300000"`
+	AgentUpdateHTTPTimeoutMillis      int64  `env:"AGENT_UPDATE_HTTP_TIMEOUT_MILLIS" envDefault:"15000"`
 	PublicCacheDir                    string `env:"PUBLIC_CACHE_DIR"`
 	PublicMaxHeaderBytes              int    `env:"PUBLIC_MAX_HEADER_BYTES" envDefault:"65536"`
 	PublicMaxRequestBodyBytes         int64  `env:"PUBLIC_MAX_REQUEST_BODY_BYTES" envDefault:"1073741824"`
 	PublicRequestBodyIdleMillis       int64  `env:"PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS" envDefault:"30000"`
-	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"2048"`
+	PublicMaxConcurrentRequests       int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS" envDefault:"0"`
 	PublicMaxConcurrentPerTarget      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET" envDefault:"0"`
-	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"512"`
+	PublicMaxConcurrentPerClient      int64  `env:"PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT" envDefault:"0"`
 	PublicMaxConcurrentConnections    int64  `env:"PUBLIC_MAX_CONCURRENT_CONNECTIONS" envDefault:"0"`
-	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"256"`
-	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"256"`
+	PublicMaxConnectionsPerPeer       int64  `env:"PUBLIC_MAX_CONNECTIONS_PER_PEER" envDefault:"0"`
+	PublicMaxConnectionsPerTarget     int    `env:"PUBLIC_MAX_CONNECTIONS_PER_TARGET" envDefault:"0"`
 	BootstrapAgentID                  string `env:"BOOTSTRAP_AGENT_ID"`
 	BootstrapAgentName                string `env:"BOOTSTRAP_AGENT_NAME"`
 	BootstrapAgentToken               string `env:"BOOTSTRAP_AGENT_TOKEN"`
 	ObservabilityRetentionDays        int    `env:"OBSERVABILITY_RETENTION_DAYS" envDefault:"30"`
 	ObservabilityMaxRows              int64  `env:"OBSERVABILITY_MAX_ROWS" envDefault:"1000000"`
 	LoginThrottleMaxKeys              int    `env:"LOGIN_THROTTLE_MAX_KEYS" envDefault:"50000"`
-	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"2097152"`
-	TunnelMaxConcurrentRequests       int64  `env:"TUNNEL_MAX_CONCURRENT_REQUESTS" envDefault:"64"`
+	TunnelMaxStreamWindowBytes        int64  `env:"TUNNEL_MAX_STREAM_WINDOW_BYTES" envDefault:"1073741824"`
 	ServerTunnelMaxConcurrentStreams  int64  `env:"SERVER_TUNNEL_MAX_CONCURRENT_STREAMS" envDefault:"0"`
-	ServerTunnelMemoryPercent         int64  `env:"SERVER_TUNNEL_MEMORY_PERCENT" envDefault:"50"`
-	ServerTunnelMemoryReserveBytes    int64  `env:"SERVER_TUNNEL_MEMORY_RESERVE_BYTES" envDefault:"536870912"`
 	ServerTunnelMemorySoftPercent     int64  `env:"SERVER_TUNNEL_MEMORY_SOFT_PERCENT" envDefault:"80"`
 	ServerTunnelMemoryHardPercent     int64  `env:"SERVER_TUNNEL_MEMORY_HARD_PERCENT" envDefault:"90"`
 	ServerTunnelMemoryRecoveryPercent int64  `env:"SERVER_TUNNEL_MEMORY_RECOVERY_PERCENT" envDefault:"75"`
 	ServerTunnelMemorySampleMillis    int64  `env:"SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS" envDefault:"100"`
-	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"1310720"`
+	ServerTunnelEstimatedStreamBytes  int64  `env:"SERVER_TUNNEL_ESTIMATED_STREAM_BYTES" envDefault:"0"`
 
 	CertsDir                         string `env:"-"`
 	ManagementTLSEnabled             bool   `env:"-"`
@@ -82,29 +87,31 @@ type Config struct {
 	PublicMaxConcurrentPerTargetAuto bool   `env:"-"`
 	ServerTunnelCapacityAuto         bool   `env:"-"`
 	ServerTunnelDetectedMemoryBytes  int64  `env:"-"`
+	AgentUpdateCatalogStateFile      string `env:"-"`
 }
+
+var agentUpdateRepositoryRE = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 
 // Load reads .env files and environment variables into the Config struct.
 func Load() (*Config, error) {
+	return loadConfig(nil)
+}
+
+// LoadWithGuard parses one environment snapshot, then invokes guard before
+// creating or changing any application data directories. Server processes use
+// it to acquire and validate their lifetime data lease before initialization.
+func LoadWithGuard(guard func(*Config) error) (*Config, error) {
+	return loadConfig(guard)
+}
+
+func loadConfig(guard func(*Config) error) (*Config, error) {
 	// Attempt to load .env file; it's okay if it doesn't exist.
 	_ = godotenv.Load()
 
 	_, explicitDatabaseURL := os.LookupEnv("DATABASE_URL")
-	_, explicitPublicClientLimit := os.LookupEnv("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT")
-	_, explicitPublicPeerLimit := os.LookupEnv("PUBLIC_MAX_CONNECTIONS_PER_PEER")
-
 	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
-	}
-	// New fairness defaults must not make an existing lower global limit fail
-	// startup after an upgrade. Only automatic defaults are narrowed; explicit
-	// contradictory values still fail validation below.
-	if !explicitPublicClientLimit && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
-		cfg.PublicMaxConcurrentPerClient = cfg.PublicMaxConcurrentRequests
-	}
-	if !explicitPublicPeerLimit && cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
-		cfg.PublicMaxConnectionsPerPeer = cfg.PublicMaxConcurrentConnections
 	}
 	if err := resolveServerTunnelCapacity(cfg, DetectProcessMemoryLimitBytes()); err != nil {
 		return nil, err
@@ -118,19 +125,38 @@ func Load() (*Config, error) {
 	}
 	cfg.ConfigDir = filepath.Clean(cfg.ConfigDir)
 	cfg.CertsDir = filepath.Join(cfg.ConfigDir, certsDirName)
+	catalogStateName := "agent-update-catalog-state.json"
+	if cfg.AgentUpdateChannel == releaseversion.ChannelStaging {
+		catalogStateName = "agent-update-catalog-state-staging.json"
+	}
+	cfg.AgentUpdateCatalogStateFile = filepath.Join(cfg.ConfigDir, catalogStateName)
+	authorityKeyPath := strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
+	if authorityKeyPath == "" {
+		authorityKeyPath = filepath.Join(cfg.ConfigDir, "agent-update-management-authority.json")
+	}
+	authorityKeyPath, err := filepath.Abs(filepath.Clean(authorityKeyPath))
+	if err != nil {
+		return nil, fmt.Errorf("resolve AGENT_UPDATE_AUTHORITY_KEY_FILE: %w", err)
+	}
+	cfg.AgentUpdateAuthorityKeyFile = authorityKeyPath
 	if strings.TrimSpace(cfg.PublicCacheDir) == "" {
 		cfg.PublicCacheDir = filepath.Join(cfg.ConfigDir, "cache", "public")
 	} else {
 		cfg.PublicCacheDir = filepath.Clean(cfg.PublicCacheDir)
 	}
 
+	if guard != nil {
+		if err := guard(cfg); err != nil {
+			return nil, err
+		}
+	}
 	if err := prepareConfigDir(cfg.ConfigDir, cfg.CertsDir); err != nil {
 		return nil, err
 	}
 
 	if !explicitDatabaseURL || strings.TrimSpace(cfg.DatabaseURL) == "" {
 		dbPath := filepath.Join(cfg.ConfigDir, databaseFileName)
-		if err := migrateLegacyDefaultDatabase(dbPath); err != nil {
+		if err := rejectLegacyDefaultDatabase(dbPath); err != nil {
 			return nil, err
 		}
 		cfg.DatabaseURL = defaultDatabaseURL(dbPath)
@@ -159,17 +185,17 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.PublicRequestBodyIdleMillis < 5000 || cfg.PublicRequestBodyIdleMillis > 10*60*1000 {
 		return errors.New("PUBLIC_REQUEST_BODY_IDLE_TIMEOUT_MILLIS must be between 5000 and 600000")
 	}
-	if cfg.PublicMaxConcurrentRequests < 1 || cfg.PublicMaxConcurrentRequests > 100000 {
-		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be between 1 and 100000")
+	if cfg.PublicMaxConcurrentRequests < 0 || cfg.PublicMaxConcurrentRequests > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS must be 0 (automatic) or between 1 and 1000000")
 	}
-	if cfg.PublicMaxConcurrentPerTarget < 0 || cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests {
+	if cfg.PublicMaxConcurrentPerTarget < 0 || cfg.PublicMaxConcurrentPerTarget > 1_000_000 || (cfg.PublicMaxConcurrentRequests > 0 && cfg.PublicMaxConcurrentPerTarget > cfg.PublicMaxConcurrentRequests) {
 		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_TARGET must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
 	}
 	if cfg.PublicMaxConcurrentPerTarget == 0 {
 		cfg.PublicMaxConcurrentPerTarget = cfg.PublicMaxConcurrentRequests
 		cfg.PublicMaxConcurrentPerTargetAuto = true
 	}
-	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests {
+	if cfg.PublicMaxConcurrentPerClient < 0 || cfg.PublicMaxConcurrentPerClient > 1_000_000 || (cfg.PublicMaxConcurrentRequests > 0 && cfg.PublicMaxConcurrentPerClient > cfg.PublicMaxConcurrentRequests) {
 		return errors.New("PUBLIC_MAX_CONCURRENT_REQUESTS_PER_CLIENT must be 0 or between 1 and PUBLIC_MAX_CONCURRENT_REQUESTS")
 	}
 	if cfg.PublicMaxConcurrentConnections < 0 || cfg.PublicMaxConcurrentConnections > 1_000_000 {
@@ -181,13 +207,10 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.PublicMaxConcurrentConnections > 0 && cfg.PublicMaxConnectionsPerPeer > cfg.PublicMaxConcurrentConnections {
 		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_PEER must not exceed PUBLIC_MAX_CONCURRENT_CONNECTIONS")
 	}
-	if cfg.PublicMaxConnectionsPerTarget < 1 || cfg.PublicMaxConnectionsPerTarget > 65535 {
-		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be between 1 and 65535")
+	if cfg.PublicMaxConnectionsPerTarget < 0 || cfg.PublicMaxConnectionsPerTarget > 1_000_000 {
+		return errors.New("PUBLIC_MAX_CONNECTIONS_PER_TARGET must be 0 (automatic) or between 1 and 1000000")
 	}
 	if _, err := tunnel.NormalizeMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes); err != nil {
-		return err
-	}
-	if _, err := tunnel.NormalizeMaxConcurrentAgentRequests(cfg.TunnelMaxConcurrentRequests); err != nil {
 		return err
 	}
 	if cfg.ServerTunnelMaxConcurrentStreams < 1 || cfg.ServerTunnelMaxConcurrentStreams > tunnel.MaxServerConcurrentStreamsLimit {
@@ -205,9 +228,13 @@ func validateManagementTLSConfig(cfg *Config) error {
 	if cfg.ServerTunnelMemorySampleMillis < 10 || cfg.ServerTunnelMemorySampleMillis > 10000 {
 		return errors.New("SERVER_TUNNEL_MEMORY_SAMPLE_MILLIS must be between 10 and 10000")
 	}
-	if cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit {
+	if cfg.ServerTunnelEstimatedStreamBytes != 0 && (cfg.ServerTunnelEstimatedStreamBytes < tunnel.MinimumAdaptiveStreamChargeBytes || cfg.ServerTunnelEstimatedStreamBytes > tunnel.MaxStreamWindowSizeBytesLimit) {
 		return fmt.Errorf("SERVER_TUNNEL_ESTIMATED_STREAM_BYTES must be between %d and %d", tunnel.MinimumAdaptiveStreamChargeBytes, tunnel.MaxStreamWindowSizeBytesLimit)
 	}
+	// Preserve the historical full-stream override contract. Production treats
+	// a non-zero value as a conservative admitted-stream base while separately
+	// charging negotiated session pools or legacy receive supplements; keeping
+	// this validation avoids silently reinterpreting an operator safety setting.
 	if _, err := tunnel.AdaptiveMaxStreamWindowSizeBytes(cfg.TunnelMaxStreamWindowBytes, cfg.ServerTunnelEstimatedStreamBytes); err != nil {
 		return err
 	}
@@ -222,6 +249,25 @@ func validateManagementTLSConfig(cfg *Config) error {
 	cfg.ManagementClientIPMode = strings.ToLower(strings.TrimSpace(cfg.ManagementClientIPMode))
 	cfg.ManagementAdvertiseHost = strings.TrimSpace(cfg.ManagementAdvertiseHost)
 	cfg.ManagementTLSExtraHosts = strings.TrimSpace(cfg.ManagementTLSExtraHosts)
+	cfg.AgentUpdateRepository = strings.TrimSpace(cfg.AgentUpdateRepository)
+	agentUpdateChannel, err := resolveAgentUpdateChannel(cfg.AgentUpdateChannel, buildinfo.Channel)
+	if err != nil {
+		return err
+	}
+	cfg.AgentUpdateChannel = agentUpdateChannel
+	cfg.AgentUpdateAuthorityKeyFile = strings.TrimSpace(cfg.AgentUpdateAuthorityKeyFile)
+	if !agentUpdateRepositoryRE.MatchString(cfg.AgentUpdateRepository) {
+		return errors.New("AGENT_UPDATE_REPOSITORY must use GitHub owner/repo syntax")
+	}
+	if cfg.AgentUpdateChannel != releaseversion.ChannelStable && cfg.AgentUpdateChannel != releaseversion.ChannelStaging {
+		return errors.New("AGENT_UPDATE_CHANNEL must be stable or staging")
+	}
+	if cfg.AgentUpdateCatalogRefreshMillis < 10_000 || cfg.AgentUpdateCatalogRefreshMillis > 3_600_000 {
+		return errors.New("AGENT_UPDATE_CATALOG_REFRESH_MILLIS must be between 10000 and 3600000")
+	}
+	if cfg.AgentUpdateHTTPTimeoutMillis < 1_000 || cfg.AgentUpdateHTTPTimeoutMillis > 60_000 {
+		return errors.New("AGENT_UPDATE_HTTP_TIMEOUT_MILLIS must be between 1000 and 60000")
+	}
 	cfg.BootstrapAgentID = strings.TrimSpace(cfg.BootstrapAgentID)
 	cfg.BootstrapAgentName = strings.TrimSpace(cfg.BootstrapAgentName)
 	cfg.BootstrapAgentToken = strings.TrimSpace(cfg.BootstrapAgentToken)
@@ -272,6 +318,25 @@ func validateManagementTLSConfig(cfg *Config) error {
 		}
 	}
 	return nil
+}
+
+func resolveAgentUpdateChannel(configured, compiled string) (string, error) {
+	configured = strings.ToLower(strings.TrimSpace(configured))
+	compiled = strings.ToLower(strings.TrimSpace(compiled))
+	compiledIsRelease := compiled == releaseversion.ChannelStable || compiled == releaseversion.ChannelStaging
+	if configured == "" {
+		if compiledIsRelease {
+			return compiled, nil
+		}
+		return releaseversion.ChannelStable, nil
+	}
+	if configured != releaseversion.ChannelStable && configured != releaseversion.ChannelStaging {
+		return "", errors.New("AGENT_UPDATE_CHANNEL must be stable or staging")
+	}
+	if compiledIsRelease && configured != compiled {
+		return "", errors.New("AGENT_UPDATE_CHANNEL must match the compiled release channel")
+	}
+	return configured, nil
 }
 
 func validateConfiguredSecret(name, value string) error {
@@ -407,7 +472,7 @@ func defaultDatabaseURL(dbPath string) string {
 	return "file:" + filepath.ToSlash(dbPath) + "?" + values.Encode()
 }
 
-func migrateLegacyDefaultDatabase(newDBPath string) error {
+func rejectLegacyDefaultDatabase(newDBPath string) error {
 	if _, err := os.Stat(newDBPath); err == nil {
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -415,70 +480,11 @@ func migrateLegacyDefaultDatabase(newDBPath string) error {
 	}
 
 	legacyDBPath := databaseFileName
-	if samePath(legacyDBPath, newDBPath) {
-		return nil
-	}
 	if _, err := os.Stat(legacyDBPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil
 		}
 		return fmt.Errorf("failed to inspect legacy database %q: %w", legacyDBPath, err)
 	}
-
-	for _, suffix := range []string{"", "-wal", "-shm"} {
-		src := legacyDBPath + suffix
-		dst := newDBPath + suffix
-		if err := copyFileIfExists(src, dst); err != nil {
-			return fmt.Errorf("failed to migrate legacy database file %q to %q: %w", src, dst, err)
-		}
-	}
-	return nil
-}
-
-func samePath(a, b string) bool {
-	absA, errA := filepath.Abs(a)
-	absB, errB := filepath.Abs(b)
-	if errA != nil || errB != nil {
-		return filepath.Clean(a) == filepath.Clean(b)
-	}
-	return absA == absB
-}
-
-func copyFileIfExists(src, dst string) error {
-	info, err := os.Stat(src)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-		return err
-	}
-	if info.IsDir() {
-		return fmt.Errorf("source is a directory")
-	}
-
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	mode := info.Mode().Perm()
-	if mode == 0 {
-		mode = 0600
-	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
-	if err != nil {
-		return err
-	}
-	_, copyErr := io.Copy(out, in)
-	closeErr := out.Close()
-	if copyErr != nil {
-		_ = os.Remove(dst)
-		return copyErr
-	}
-	if closeErr != nil {
-		_ = os.Remove(dst)
-		return closeErr
-	}
-	return nil
+	return fmt.Errorf("legacy database found at %q; automatic migration is unsupported, move it to %q or set DATABASE_URL explicitly", legacyDBPath, newDBPath)
 }

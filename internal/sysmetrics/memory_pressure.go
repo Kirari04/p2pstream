@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
@@ -97,13 +98,22 @@ func (f MemoryUsageSamplerFunc) SampleMemoryUsage() (MemoryUsage, error) {
 	return f()
 }
 
+type AdaptiveAdmissionRole string
+
+const (
+	AdaptiveAdmissionRoleAgentStream  AdaptiveAdmissionRole = "agent_stream"
+	AdaptiveAdmissionRoleServerStream AdaptiveAdmissionRole = "server_stream"
+)
+
 type AdaptiveMemoryConfig struct {
-	SoftLimitPercent           int64
-	HardLimitPercent           int64
-	RecoveryPercent            int64
-	SampleInterval             time.Duration
-	EstimatedBytesPerAdmission int64
-	MaxSampleStaleness         time.Duration
+	SoftLimitPercent            int64
+	HardLimitPercent            int64
+	RecoveryPercent             int64
+	SampleInterval              time.Duration
+	EstimatedBytesPerAdmission  int64
+	AdmissionRole               AdaptiveAdmissionRole
+	FileDescriptorsPerAdmission int64
+	MaxSampleStaleness          time.Duration
 }
 
 func DefaultAdaptiveMemoryConfig() AdaptiveMemoryConfig {
@@ -112,11 +122,12 @@ func DefaultAdaptiveMemoryConfig() AdaptiveMemoryConfig {
 		HardLimitPercent: 90,
 		RecoveryPercent:  75,
 		SampleInterval:   100 * time.Millisecond,
-		// Adaptive Yamux sessions cap their receive window to this value. The
-		// controller conservatively reserves the full charge for every live
-		// stream until its admission lease is released.
-		EstimatedBytesPerAdmission: tunnel.DefaultAdaptiveStreamChargeBytes,
-		MaxSampleStaleness:         time.Second,
+		// Reserve initial credit and overhead for every live stream until its
+		// lease is released. Window growth acquires additional byte reservations.
+		EstimatedBytesPerAdmission:  tunnel.DefaultAdaptiveStreamChargeBytes,
+		AdmissionRole:               AdaptiveAdmissionRoleAgentStream,
+		FileDescriptorsPerAdmission: 2,
+		MaxSampleStaleness:          time.Second,
 	}
 }
 
@@ -130,8 +141,18 @@ func (c AdaptiveMemoryConfig) Validate() error {
 		return errors.New("memory hard-limit percentage must be at most 99")
 	case c.SampleInterval <= 0:
 		return errors.New("memory sample interval must be positive")
-	case c.EstimatedBytesPerAdmission < tunnel.MinimumAdaptiveStreamChargeBytes:
-		return fmt.Errorf("estimated bytes per admission must be at least %d bytes", tunnel.MinimumAdaptiveStreamChargeBytes)
+	case c.AdmissionRole != AdaptiveAdmissionRoleAgentStream && c.AdmissionRole != AdaptiveAdmissionRoleServerStream:
+		return fmt.Errorf("unknown adaptive admission role %q", c.AdmissionRole)
+	case c.FileDescriptorsPerAdmission < 0:
+		return errors.New("file descriptors per admission must not be negative")
+	case c.AdmissionRole == AdaptiveAdmissionRoleAgentStream && c.FileDescriptorsPerAdmission < 2:
+		return errors.New("agent stream admission must reserve both peak dial file descriptors")
+	case c.AdmissionRole == AdaptiveAdmissionRoleServerStream && c.FileDescriptorsPerAdmission != 0:
+		return errors.New("server logical stream admission must not reserve physical file descriptors")
+	case c.AdmissionRole == AdaptiveAdmissionRoleAgentStream && c.EstimatedBytesPerAdmission < minimumAgentStreamAdmissionBytes():
+		return fmt.Errorf("estimated bytes per agent admission must be at least %d bytes", minimumAgentStreamAdmissionBytes())
+	case c.AdmissionRole == AdaptiveAdmissionRoleServerStream && c.EstimatedBytesPerAdmission < minimumServerStreamAdmissionBytes():
+		return fmt.Errorf("estimated bytes per server admission must be at least %d bytes", minimumServerStreamAdmissionBytes())
 	case c.MaxSampleStaleness <= 0:
 		return errors.New("maximum sample staleness must be positive")
 	default:
@@ -139,25 +160,94 @@ func (c AdaptiveMemoryConfig) Validate() error {
 	}
 }
 
+func minimumServerStreamAdmissionBytes() int64 {
+	return tunnel.ServerStreamBaseResourceModel().MemoryBytes
+}
+
+func minimumAgentStreamAdmissionBytes() int64 {
+	model, err := tunnel.AgentStreamBaseResourceModel(16 * 1024)
+	if err != nil {
+		return math.MaxInt64
+	}
+	return model.MemoryBytes
+}
+
 type AdaptiveMemorySnapshot struct {
-	Generation         uint64
-	Usage              MemoryUsage
-	Level              MemoryPressureLevel
-	AdmissionLimit     int
-	Maximum            int
-	RejectNew          bool
-	SampledAt          time.Time
-	NextSampleAt       time.Time
-	SampleError        string
-	HeadroomToHardByte int64
-	ReservedStreamByte int64
-	StreamChargeByte   int64
-	FDUsed             int64
-	FDLimit            int64
-	FDHeadroomToHard   int64
-	ReservedStreamFD   int64
-	PressureReason     string
-	LastGoodSampleAt   time.Time
+	Generation           uint64
+	Usage                MemoryUsage
+	Level                MemoryPressureLevel
+	AdmissionLimit       int
+	MemoryAdmissionLimit int
+	FDAdmissionLimit     int
+	Maximum              int
+	RejectNew            bool
+	SampledAt            time.Time
+	NextSampleAt         time.Time
+	SampleError          string
+	HeadroomToHardByte   int64
+	ReservedStreamByte   int64
+	StreamChargeByte     int64
+	StreamChargeFD       int64
+	AdmissionRole        AdaptiveAdmissionRole
+	FDUsed               int64
+	FDLimit              int64
+	FDHeadroomToHard     int64
+	ReservedStreamFD     int64
+	PressureReason       string
+	LastGoodSampleAt     time.Time
+}
+
+// AdmissionLimitWithExternal keeps byte and descriptor accounting separate.
+// Charging a byte-only owner against the minimum of both limits would consume
+// imaginary descriptors and prematurely reject multiplexed requests/windows.
+// A negative result means the external owners alone overdraw the envelope;
+// this is distinct from zero remaining stream slots with a valid reservation.
+func (s AdaptiveMemorySnapshot) AdmissionLimitWithExternal(bytes, fds int64) int {
+	memoryLimit, fdLimit := s.MemoryAdmissionLimit, s.FDAdmissionLimit
+	if memoryLimit == 0 && fdLimit == 0 {
+		// Preserve synthetic/older snapshots that only contain the joint limit.
+		memoryLimit, fdLimit = s.AdmissionLimit, s.AdmissionLimit
+	}
+	if s.StreamChargeByte > 0 && bytes > 0 {
+		cost := bytes / s.StreamChargeByte
+		if bytes%s.StreamChargeByte != 0 {
+			cost++
+		}
+		if cost > int64(memoryLimit) {
+			return -1
+		}
+		memoryLimit -= int(cost)
+	}
+	fdCharge := s.StreamChargeFD
+	if s.AdmissionRole == "" && fdCharge == 0 {
+		// Preserve synthetic snapshots and callers created before resource roles
+		// were explicit. The historical admission model charged two FDs.
+		fdCharge = 2
+	}
+	if fds > 0 {
+		if fdCharge == 0 {
+			// Logical server streams own no descriptors. External owners still
+			// consume real descriptor headroom directly, without translating that
+			// usage into fictitious logical-stream slots.
+			if s.FDLimit > 0 && fds > s.FDHeadroomToHard {
+				return -1
+			}
+		} else {
+			cost := fds / fdCharge
+			if fds%fdCharge != 0 {
+				cost++
+			}
+			if cost > int64(fdLimit) {
+				return -1
+			}
+			fdLimit -= int(cost)
+		}
+	}
+	limit := min(memoryLimit, fdLimit)
+	if s.Maximum > 0 {
+		limit = min(limit, s.Maximum)
+	}
+	return max(0, limit)
 }
 
 // AdaptiveMemoryController turns actual resource pressure into a temporary
@@ -255,6 +345,8 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 		SampledAt:        now,
 		NextSampleAt:     now.Add(c.config.SampleInterval),
 		StreamChargeByte: c.config.EstimatedBytesPerAdmission,
+		StreamChargeFD:   c.config.FileDescriptorsPerAdmission,
+		AdmissionRole:    c.config.AdmissionRole,
 	}
 	if err == nil {
 		for _, usage := range usages {
@@ -293,6 +385,8 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 			snapshot.AdmissionLimit = inUse
 			snapshot.RejectNew = true
 		}
+		snapshot.MemoryAdmissionLimit = inUse
+		snapshot.FDAdmissionLimit = inUse
 		c.snapshot = snapshot
 		c.nextSampleAt = snapshot.NextSampleAt
 		return snapshot
@@ -360,18 +454,19 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 		unreservedMemoryHeadroom = 0
 	}
 	additional := unreservedMemoryHeadroom / c.config.EstimatedBytesPerAdmission
-	if fdUsage.Valid() {
-		// A default Go TCP dial may temporarily hold two sockets while Happy
-		// Eyeballs races address families. Reserve both descriptors for every
-		// admitted stream so synchronized slow dual-stack dials cannot exhaust
-		// RLIMIT_NOFILE between samples.
-		const descriptorsPerAdmission = int64(2)
+	// Keep resource dimensions independent of the stream implementation guard.
+	// Logical HTTP/2 requests and window growth do not create physical streams.
+	snapshot.MemoryAdmissionLimit = inUse + int(min(additional, int64(math.MaxInt-inUse)))
+	snapshot.FDAdmissionLimit = math.MaxInt
+	if fdUsage.Valid() && c.config.FileDescriptorsPerAdmission > 0 {
+		descriptorsPerAdmission := c.config.FileDescriptorsPerAdmission
 		snapshot.ReservedStreamFD = saturatingMultiply(int64(inUse), descriptorsPerAdmission)
 		unreservedFDHeadroom := snapshot.FDHeadroomToHard - snapshot.ReservedStreamFD
 		if unreservedFDHeadroom < 0 {
 			unreservedFDHeadroom = 0
 		}
 		fdAdditional := unreservedFDHeadroom / descriptorsPerAdmission
+		snapshot.FDAdmissionLimit = inUse + int(min(fdAdditional, int64(math.MaxInt-inUse)))
 		if fdAdditional < additional {
 			additional = fdAdditional
 		}
@@ -383,9 +478,12 @@ func (c *AdaptiveMemoryController) snapshotAt(maximum, inUse int, force bool) Ad
 		additional = 0
 	}
 	snapshot.AdmissionLimit = inUse + int(additional)
-	switch c.level {
-	case MemoryPressureCritical:
+	memoryCritical := memoryPercent >= float64(c.config.HardLimitPercent)
+	fdCritical := fdUsage.Valid() && fdUsage.Percent() >= float64(c.config.HardLimitPercent)
+	if memoryCritical || (fdCritical && c.config.FileDescriptorsPerAdmission > 0) {
 		snapshot.AdmissionLimit = inUse
+		snapshot.MemoryAdmissionLimit = inUse
+		snapshot.FDAdmissionLimit = inUse
 		snapshot.RejectNew = true
 	}
 	c.snapshot = snapshot
@@ -456,7 +554,6 @@ func (s *systemMemoryUsageSampler) SampleMemoryUsage() (MemoryUsage, error) {
 
 func (s *systemMemoryUsageSampler) SampleMemoryUsages() ([]MemoryUsage, error) {
 	candidates := make([]MemoryUsage, 0, 4)
-	hasFiniteCgroup := false
 	var paths []memoryCgroupPath
 	if s.resolveCgroups != nil {
 		paths = s.resolveCgroups(s.cgroupPath, s.mountInfoPath)
@@ -486,11 +583,19 @@ func (s *systemMemoryUsageSampler) SampleMemoryUsages() ([]MemoryUsage, error) {
 		}
 		if finite {
 			candidates = append(candidates, usage)
-			hasFiniteCgroup = true
 			currentFiniteCgroups[constraintKey] = struct{}{}
 		}
 	}
 	s.finiteCgroups = currentFiniteCgroups
+	// Kernel TCP queues are host memory and may not be represented by Go
+	// MemStats or by every cgroup-v1 configuration. A finite cgroup can also be
+	// larger than physical RAM. Require the host signal on every Linux sample
+	// and retain cgroup/Go limits as additional independent constraints.
+	host, err := readHostMemoryUsage(s.memInfoPath)
+	if err != nil {
+		return nil, fmt.Errorf("read host memory constraint: %w", err)
+	}
+	candidates = append(candidates, host)
 	if limit := debug.SetMemoryLimit(-1); finiteMemoryLimit(limit) {
 		var mem runtime.MemStats
 		runtime.ReadMemStats(&mem)
@@ -500,14 +605,6 @@ func (s *systemMemoryUsageSampler) SampleMemoryUsages() ([]MemoryUsage, error) {
 			used = math.MaxInt64
 		}
 		candidates = append(candidates, MemoryUsage{UsedBytes: used, LimitBytes: limit, Source: "go"})
-	}
-	if !hasFiniteCgroup {
-		if usage, ok := readHostMemoryUsage(s.memInfoPath); ok {
-			candidates = append(candidates, usage)
-		}
-	}
-	if len(candidates) == 0 {
-		return nil, errors.New("no finite cgroup, Go, or host memory limit is available")
 	}
 	return candidates, nil
 }
@@ -623,11 +720,11 @@ func currentProcessMemoryCgroupPaths(cgroupPath, mountInfoPath string) []memoryC
 }
 
 func resolveCurrentProcessMemoryCgroupPaths(cgroupPath, mountInfoPath string) ([]memoryCgroupPath, error) {
-	cgroupData, err := os.ReadFile(cgroupPath)
+	cgroupData, err := readResourceFile(cgroupPath)
 	if err != nil {
 		return nil, fmt.Errorf("read process cgroup membership: %w", err)
 	}
-	mountInfoData, err := os.ReadFile(mountInfoPath)
+	mountInfoData, err := readResourceFile(mountInfoPath)
 	if err != nil {
 		return nil, fmt.Errorf("read cgroup mount information: %w", err)
 	}
@@ -719,9 +816,12 @@ func parseCgroupMounts(data string) []cgroupMount {
 		if !ok {
 			continue
 		}
-		left := strings.Fields(before)
 		right := strings.Fields(after)
-		if len(left) < 5 || len(right) < 3 || (right[0] != "cgroup" && right[0] != "cgroup2") {
+		if len(right) < 3 || (right[0] != "cgroup" && right[0] != "cgroup2") {
+			continue
+		}
+		left := strings.Fields(before)
+		if len(left) < 5 {
 			continue
 		}
 		mounts = append(mounts, cgroupMount{
@@ -759,14 +859,17 @@ func controllerListContains(list, want string) bool {
 	return false
 }
 
+// The escape rules are fixed. Replacer supports concurrent use and initializes
+// its replacement state once, rather than rebuilding it for each sampled path.
+var mountInfoPathUnescaper = strings.NewReplacer(
+	`\040`, " ",
+	`\011`, "\t",
+	`\012`, "\n",
+	`\134`, `\`,
+)
+
 func unescapeMountInfoPath(value string) string {
-	replacer := strings.NewReplacer(
-		`\040`, " ",
-		`\011`, "\t",
-		`\012`, "\n",
-		`\134`, `\`,
-	)
-	return replacer.Replace(value)
+	return mountInfoPathUnescaper.Replace(value)
 }
 
 func readMemoryUsagePair(source, usagePath, limitPath string) (MemoryUsage, bool, error) {
@@ -787,8 +890,37 @@ func readMemoryUsagePair(source, usagePath, limitPath string) (MemoryUsage, bool
 	return MemoryUsage{UsedBytes: used, LimitBytes: limit, Source: source}, true, nil
 }
 
+// readResourceFile reads fresh proc/cgroup contents without a preliminary Stat
+// or speculative EOF growth. Every underlying read has at least 512 bytes of
+// space, including after short reads, as required by proc-like files (Go #72080).
+// Inputs are not capped: long membership/mount lines and metric tails must be
+// read completely so the existing parsers retain their validation behavior.
+func readResourceFile(path string) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return readResourceFileContents(file)
+}
+
+func readResourceFileContents(file *os.File) ([]byte, error) {
+	var scratch [4096]byte
+	var data []byte
+	for {
+		n, err := file.Read(scratch[:])
+		data = append(data, scratch[:n]...)
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return data, err
+		}
+	}
+}
+
 func readMemoryMetricFile(path string) (int64, bool, error) {
-	data, err := os.ReadFile(path)
+	data, err := readResourceFile(path)
 	if err != nil {
 		return 0, false, err
 	}
@@ -810,10 +942,10 @@ func finiteMemoryLimit(limit int64) bool {
 	return limit > 0 && limit < math.MaxInt64/2
 }
 
-func readHostMemoryUsage(path string) (MemoryUsage, bool) {
+func readHostMemoryUsage(path string) (MemoryUsage, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return MemoryUsage{}, false
+		return MemoryUsage{}, err
 	}
 	defer file.Close()
 	var total, available int64
@@ -821,26 +953,38 @@ func readHostMemoryUsage(path string) (MemoryUsage, bool) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) < 2 {
+		if len(fields) == 0 || (fields[0] != "MemTotal:" && fields[0] != "MemAvailable:") {
 			continue
+		}
+		if len(fields) != 3 || fields[2] != "kB" {
+			return MemoryUsage{}, fmt.Errorf("invalid %s metric", fields[0])
 		}
 		value, err := strconv.ParseInt(fields[1], 10, 64)
 		if err != nil || value < 0 || value > math.MaxInt64/1024 {
-			continue
+			return MemoryUsage{}, fmt.Errorf("invalid %s metric", fields[0])
 		}
 		switch fields[0] {
 		case "MemTotal:":
+			if sawTotal {
+				return MemoryUsage{}, errors.New("duplicate MemTotal metric")
+			}
 			total = value * 1024
 			sawTotal = true
 		case "MemAvailable:":
+			if sawAvailable {
+				return MemoryUsage{}, errors.New("duplicate MemAvailable metric")
+			}
 			available = value * 1024
 			sawAvailable = true
 		}
 	}
-	if !sawTotal || !sawAvailable || total <= 0 || available < 0 || available > total {
-		return MemoryUsage{}, false
+	if err := scanner.Err(); err != nil {
+		return MemoryUsage{}, err
 	}
-	return MemoryUsage{UsedBytes: total - available, LimitBytes: total, Source: "host"}, true
+	if !sawTotal || !sawAvailable || total <= 0 || available < 0 || available > total {
+		return MemoryUsage{}, errors.New("valid MemTotal and MemAvailable metrics are required")
+	}
+	return MemoryUsage{UsedBytes: total - available, LimitBytes: total, Source: "host"}, nil
 }
 
 func readProcessRSSBytes(path string) (int64, bool) {

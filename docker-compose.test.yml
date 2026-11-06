@@ -2,6 +2,18 @@ x-runtime-build: &runtime-build
   context: .
   target: runtime
 
+# Exercise the production runtime restrictions, including privileged listener ports.
+x-runtime-security: &runtime-security
+  read_only: true
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  cap_add:
+    - NET_BIND_SERVICE
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,mode=1777
+
 services:
   upstream:
     image: p2pstream:docker-smoke-upstream
@@ -12,31 +24,32 @@ services:
       SMOKE_UPSTREAM_ADDR: ":9000"
 
   server:
+    <<: *runtime-security
     image: p2pstream:docker-smoke-runtime
     build: *runtime-build
     command: ["/app/p2pstream", "server"]
     environment:
       MANAGEMENT_PORT: "8081"
       MANAGEMENT_BIND_ADDRESS: "0.0.0.0"
-      MANAGEMENT_SETUP_TOKEN: "docker-smoke-management-setup-token-2026"
+      MANAGEMENT_SETUP_TOKEN: "${SMOKE_SETUP_TOKEN:?Run scripts/run-docker-smoke.sh}"
       PORT: "8080"
       CONFIG_DIR: "/data"
       BOOTSTRAP_AGENT_ID: "docker-agent"
       BOOTSTRAP_AGENT_NAME: "Docker Smoke Agent"
-      BOOTSTRAP_AGENT_TOKEN: "docker-smoke-agent-token-2026-secure"
-      MANAGEMENT_COOKIE_SECURE: "false"
+      BOOTSTRAP_AGENT_TOKEN: "${SMOKE_AGENT_TOKEN:?Run scripts/run-docker-smoke.sh}"
     ports:
-      - "18081:8081"
-      - "18080:8080"
-      - "18089:8089"
-      - "18088:8088"
-      - "18443:443"
+      - "127.0.0.1:18081:8081"
+      - "127.0.0.1:18080:8080"
+      - "127.0.0.1:18089:8089"
+      - "127.0.0.1:18088:8088"
+      - "127.0.0.1:18443:443"
     volumes:
       - p2pstream-data:/data
     depends_on:
       - upstream
 
   agent:
+    <<: *runtime-security
     image: p2pstream:docker-smoke-runtime
     build: *runtime-build
     command: ["sh", "-c", "while [ ! -s /data/certs/management/ca.crt.pem ]; do sleep 0.2; done; /app/p2pstream agent"]
@@ -44,7 +57,7 @@ services:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
       AGENT_ID: "docker-agent"
-      AGENT_TOKEN: "docker-smoke-agent-token-2026-secure"
+      AGENT_TOKEN: "${SMOKE_AGENT_TOKEN:?Run scripts/run-docker-smoke.sh}"
       AGENT_ALLOW_TARGETS: "upstream:9000"
     volumes:
       - p2pstream-data:/data:ro
@@ -53,6 +66,7 @@ services:
       - upstream
 
   retry-agent-primary:
+    <<: *runtime-security
     image: p2pstream:docker-smoke-runtime
     build: *runtime-build
     command:
@@ -79,6 +93,7 @@ services:
       - upstream
 
   retry-agent-backup:
+    <<: *runtime-security
     image: p2pstream:docker-smoke-runtime
     build: *runtime-build
     command:
@@ -113,13 +128,14 @@ services:
     environment:
       MANAGEMENT_URL: "https://server:8081"
       MANAGEMENT_CA_FILE: "/data/certs/management/ca.crt.pem"
-      MANAGEMENT_SETUP_TOKEN: "docker-smoke-management-setup-token-2026"
+      MANAGEMENT_SETUP_TOKEN: "${SMOKE_SETUP_TOKEN:?Run scripts/run-docker-smoke.sh}"
       PUBLIC_DEFAULT_URL: "http://server:8080"
       PUBLIC_AGENT_URL: "http://server:8089"
       PUBLIC_STATIC_URL: "http://server:8088"
       PUBLIC_HTTPS_URL: "https://server:443"
       UPSTREAM_URL: "http://upstream:9000"
       SMOKE_CONTROL_DIR: "/control"
+      SMOKE_ADMIN_PASSWORD: "${SMOKE_ADMIN_PASSWORD:?Run scripts/run-docker-smoke.sh}"
     volumes:
       - p2pstream-data:/data:ro
       - smoke-control:/control

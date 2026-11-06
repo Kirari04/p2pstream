@@ -118,6 +118,21 @@ func (h *agentHub) connectedByID(agentID int64) *AgentConn {
 	return h.byID[agentID]
 }
 
+// lockCurrentConnection keeps an exact tunnel registered while a caller makes
+// a decisive state transition. Callers must release before invoking code that
+// may acquire another AgentHub read lock.
+func (h *agentHub) lockCurrentConnection(agentID int64, expected *AgentConn) (func(), bool) {
+	if h == nil || expected == nil {
+		return func() {}, false
+	}
+	h.mu.RLock()
+	if h.byID[agentID] != expected {
+		h.mu.RUnlock()
+		return func() {}, false
+	}
+	return h.mu.RUnlock, true
+}
+
 func (h *agentHub) connectedCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

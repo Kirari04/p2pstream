@@ -68,14 +68,12 @@ func (a *App) dashboardCacheActive() bool {
 	return a != nil && a.DashboardCache != nil && a.DashboardCache.started.Load()
 }
 
-func (a *App) dashboardResponseFromCache(now time.Time) *p2pstreamv1.GetDashboardResponse {
+func (a *App) dashboardResponseFromCache(now time.Time) (*p2pstreamv1.GetDashboardResponse, bool) {
 	if resp, ok := a.DashboardCache.clone(); ok {
 		a.overlayDashboardLive(resp, now)
-		return resp
+		return resp, true
 	}
-	resp := a.emptyDashboardResponse(now)
-	a.overlayDashboardLive(resp, now)
-	return resp
+	return nil, false
 }
 
 func (c *dashboardResponseCache) clone() (*p2pstreamv1.GetDashboardResponse, bool) {
@@ -138,24 +136,6 @@ func (a *App) refreshDashboardCache(ctx context.Context) {
 	cache.store(resp)
 }
 
-func (a *App) emptyDashboardResponse(now time.Time) *p2pstreamv1.GetDashboardResponse {
-	windows := make([]*p2pstreamv1.DashboardWindowSummary, 0, len(dashboardWindows))
-	for _, window := range dashboardWindows {
-		windows = append(windows, &p2pstreamv1.DashboardWindowSummary{
-			Label:           window.Label,
-			SinceUnixMillis: rollupBucketUnixMillis(now.Add(-window.Since)),
-		})
-	}
-	return &p2pstreamv1.GetDashboardResponse{
-		Windows:                windows,
-		AgentConnections:       &p2pstreamv1.AgentConnectionSummary{},
-		RetentionDays:          int64(a.observabilityRetentionDays()),
-		GeneratedAtUnixMillis:  now.UnixMilli(),
-		AgentUptimeSummaries:   []*p2pstreamv1.AgentUptimeSummary{},
-		RecentAgentConnections: []*p2pstreamv1.AgentConnectionSession{},
-	}
-}
-
 func (a *App) overlayDashboardLive(resp *p2pstreamv1.GetDashboardResponse, now time.Time) {
 	resp.Status = a.statusResponse()
 	resp.ManagementSecurity = a.managementSecurity()
@@ -180,6 +160,15 @@ func (a *App) dashboardAgentStreamCapacitySummary() *p2pstreamv1.AgentStreamCapa
 	for constraint, count := range snapshot.AdmissionMissesByConstraint {
 		admissionMissesByConstraint[constraint] = count
 	}
+	resourceOwners := make([]*p2pstreamv1.ResourceOwnerSummary, 0, adaptiveResourceOwnerCount)
+	for owner := adaptiveResourceOwner(0); owner < adaptiveResourceOwnerCount; owner++ {
+		resourceOwners = append(resourceOwners, &p2pstreamv1.ResourceOwnerSummary{
+			Name:            owner.String(),
+			Bytes:           snapshot.AdaptiveExternalBytesByOwner[owner],
+			FileDescriptors: snapshot.AdaptiveExternalFDsByOwner[owner],
+			Reservations:    snapshot.AdaptiveExternalReservationsByOwner[owner],
+		})
+	}
 	pooledShards := 0
 	poolStats := agentTransportPoolStats{}
 	if a.AgentTransports != nil {
@@ -187,56 +176,60 @@ func (a *App) dashboardAgentStreamCapacitySummary() *p2pstreamv1.AgentStreamCapa
 		poolStats = a.AgentTransports.stats()
 	}
 	return &p2pstreamv1.AgentStreamCapacitySummary{
-		TotalCapacity:                    int64(snapshot.Total.Capacity),
-		TotalInUse:                       int64(snapshot.Total.InUse),
-		PublicCapacity:                   int64(snapshot.Public.Capacity),
-		PublicInUse:                      int64(snapshot.Public.InUse),
-		PooledCapacity:                   int64(snapshot.Pooled.Capacity),
-		PooledInUse:                      int64(snapshot.Pooled.InUse),
-		HealthCapacity:                   int64(snapshot.Control.Capacity),
-		HealthInUse:                      int64(snapshot.Control.InUse),
-		Opening:                          int64(snapshot.States.Opening),
-		Live:                             int64(snapshot.States.Live),
-		Closing:                          int64(snapshot.States.Closing),
-		Waiters:                          int64(snapshot.Waiters),
-		PublicWaiters:                    int64(snapshot.WaitersByClass[agentStreamCapacityPublicPooled] + snapshot.WaitersByClass[agentStreamCapacityPublicOneShot]),
-		HealthWaiters:                    int64(snapshot.WaitersByClass[agentStreamCapacityTrustedHealth]),
-		RegisteredSessions:               int64(snapshot.RegisteredSessions),
-		PooledTransportShards:            int64(pooledShards),
-		MaxSessionPublicInUse:            int64(snapshot.MaxSessionPublicInUse),
-		ContendedSessionPublicLimit:      int64(snapshot.ContendedSessionPublicLimit),
-		OldestClosingAgeMillis:           snapshot.OldestClosingAgeMillis,
-		Granted:                          snapshot.Granted,
-		Released:                         snapshot.Released,
-		AdmissionMissesByConstraint:      admissionMissesByConstraint,
-		WaitersByConstraint:              waitersByConstraint,
-		ReclaimAttempts:                  poolStats.ReclaimAttempts,
-		ReclaimSuccesses:                 poolStats.ReclaimSuccesses,
-		ReclaimNoCandidate:               poolStats.ReclaimNoCandidate,
-		FallbackAttempts:                 poolStats.FallbackAttempts,
-		FallbackRecovered:                poolStats.FallbackRecovered,
-		FallbackFailed:                   poolStats.FallbackFailed,
-		TerminalCapacityFailures:         poolStats.TerminalCapacityFailure,
-		Adaptive:                         snapshot.Adaptive,
-		AdaptiveAdmissionLimit:           int64(snapshot.AdaptiveAdmissionLimit),
-		AdaptiveRawAdmissionLimit:        int64(snapshot.AdaptiveRawAdmissionLimit),
-		AdaptivePublicAdmissionLimit:     int64(snapshot.AdaptivePublicLimit),
-		AdaptiveExternalBytes:            snapshot.AdaptiveExternalBytes,
-		AdaptiveExternalFileDescriptors:  snapshot.AdaptiveExternalFDs,
-		PublicConnections:                a.publicConnections.inUse(),
-		PublicConnectionLimitRejected:    a.publicConnectionLimitRejected.Load(),
-		PublicConnectionResourceRejected: a.publicConnectionResourceReject.Load(),
-		PublicClientRequestRejected:      a.publicClientRequestRejected.Load(),
-		MemoryPressure:                   snapshot.MemoryPressure,
-		MemoryUsedBytes:                  snapshot.MemoryUsedBytes,
-		MemoryLimitBytes:                 snapshot.MemoryLimitBytes,
-		MemorySource:                     snapshot.MemorySource,
-		MemoryHeadroomToHardBytes:        snapshot.MemoryHeadroomToHardBytes,
-		FileDescriptorsUsed:              snapshot.FileDescriptorsUsed,
-		FileDescriptorsLimit:             snapshot.FileDescriptorsLimit,
-		ResourcePressureReason:           snapshot.ResourcePressureReason,
-		ResourceSampleError:              normalizedAgentResourceSampleError(snapshot.ResourceSampleError),
-		ResourceLastGoodUnixMillis:       unixMillisOrZero(snapshot.ResourceLastGoodAt),
+		TotalCapacity:                       int64(snapshot.Total.Capacity),
+		TotalInUse:                          int64(snapshot.Total.InUse),
+		PublicCapacity:                      int64(snapshot.Public.Capacity),
+		PublicInUse:                         int64(snapshot.Public.InUse),
+		PooledCapacity:                      int64(snapshot.Pooled.Capacity),
+		PooledInUse:                         int64(snapshot.Pooled.InUse),
+		HealthCapacity:                      int64(snapshot.Control.Capacity),
+		HealthInUse:                         int64(snapshot.Control.InUse),
+		Opening:                             int64(snapshot.States.Opening),
+		Live:                                int64(snapshot.States.Live),
+		Closing:                             int64(snapshot.States.Closing),
+		Waiters:                             int64(snapshot.Waiters),
+		PublicWaiters:                       int64(snapshot.WaitersByClass[agentStreamCapacityPublicPooled] + snapshot.WaitersByClass[agentStreamCapacityPublicOneShot]),
+		HealthWaiters:                       int64(snapshot.WaitersByClass[agentStreamCapacityTrustedHealth]),
+		RegisteredSessions:                  int64(snapshot.RegisteredSessions),
+		PooledTransportShards:               int64(pooledShards),
+		MaxSessionPublicInUse:               int64(snapshot.MaxSessionPublicInUse),
+		ContendedSessionPublicLimit:         int64(snapshot.ContendedSessionPublicLimit),
+		OldestClosingAgeMillis:              snapshot.OldestClosingAgeMillis,
+		Granted:                             snapshot.Granted,
+		Released:                            snapshot.Released,
+		AdmissionMissesByConstraint:         admissionMissesByConstraint,
+		WaitersByConstraint:                 waitersByConstraint,
+		ReclaimAttempts:                     poolStats.ReclaimAttempts,
+		ReclaimSuccesses:                    poolStats.ReclaimSuccesses,
+		ReclaimNoCandidate:                  poolStats.ReclaimNoCandidate,
+		FallbackAttempts:                    poolStats.FallbackAttempts,
+		FallbackRecovered:                   poolStats.FallbackRecovered,
+		FallbackFailed:                      poolStats.FallbackFailed,
+		TerminalCapacityFailures:            poolStats.TerminalCapacityFailure,
+		Adaptive:                            snapshot.Adaptive,
+		AdaptiveAdmissionLimit:              int64(snapshot.AdaptiveAdmissionLimit),
+		AdaptiveRawAdmissionLimit:           int64(snapshot.AdaptiveRawAdmissionLimit),
+		AdaptivePublicAdmissionLimit:        int64(snapshot.AdaptivePublicLimit),
+		AdaptiveExternalBytes:               snapshot.AdaptiveExternalBytes,
+		AdaptiveExternalFileDescriptors:     snapshot.AdaptiveExternalFDs,
+		ResourceOwners:                      resourceOwners,
+		AdaptiveAdmissionRole:               string(snapshot.AdaptiveAdmissionRole),
+		AdaptiveStreamChargeBytes:           snapshot.AdaptiveStreamChargeBytes,
+		AdaptiveStreamChargeFileDescriptors: snapshot.AdaptiveStreamChargeFDs,
+		PublicConnections:                   a.publicConnections.inUse(),
+		PublicConnectionLimitRejected:       a.publicConnectionLimitRejected.Load(),
+		PublicConnectionResourceRejected:    a.publicConnectionResourceReject.Load(),
+		PublicClientRequestRejected:         a.publicClientRequestRejected.Load(),
+		MemoryPressure:                      snapshot.MemoryPressure,
+		MemoryUsedBytes:                     snapshot.MemoryUsedBytes,
+		MemoryLimitBytes:                    snapshot.MemoryLimitBytes,
+		MemorySource:                        snapshot.MemorySource,
+		MemoryHeadroomToHardBytes:           snapshot.MemoryHeadroomToHardBytes,
+		FileDescriptorsUsed:                 snapshot.FileDescriptorsUsed,
+		FileDescriptorsLimit:                snapshot.FileDescriptorsLimit,
+		ResourcePressureReason:              snapshot.ResourcePressureReason,
+		ResourceSampleError:                 normalizedAgentResourceSampleError(snapshot.ResourceSampleError),
+		ResourceLastGoodUnixMillis:          unixMillisOrZero(snapshot.ResourceLastGoodAt),
 	}
 }
 
@@ -285,34 +278,35 @@ func (a *App) buildDashboardCacheSnapshot(ctx context.Context, now time.Time) (*
 
 	rows, _, err := a.cachedOrLoadPublicConfig(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard public configuration: %w", err)
 	}
 	labels := dashboardLabelsFromPublicRows(rows)
 
 	sinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardMaxWindow()))
 	proxyRows, err := a.DB.ListProxyRequestRollupMinutesSince(ctx, sinceUnixMillis)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard proxy rollup minutes: %w", err)
 	}
 	agentRows, err := a.DB.ListAgentStatRollupMinutesSince(ctx, sinceUnixMillis)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard agent rollup minutes: %w", err)
 	}
-	tupleRows, err := a.DB.ListProxyRequestTupleRollupMinutesSince(ctx, sinceUnixMillis)
+	// Tuple data serves only the top dimensions; long windows use totals above.
+	topSinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardTopWindow))
+	tupleRows, err := a.DB.ListProxyRequestTupleRollupMinutesSince(ctx, topSinceUnixMillis)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard proxy tuple rollup minutes: %w", err)
 	}
 
 	agentConnections, err := a.agentConnectionSummary(ctx, now)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard agent connection summary: %w", err)
 	}
 	agentUptimeSummaries, recentAgentConnections, err := a.agentUptimeDashboard(ctx, now)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load dashboard agent uptime: %w", err)
 	}
 
-	topSinceUnixMillis := rollupBucketUnixMillis(now.Add(-dashboardTopWindow))
 	resp := &p2pstreamv1.GetDashboardResponse{
 		Status:                 a.statusResponse(),
 		Windows:                dashboardRollupWindows(now, proxyRows, agentRows),

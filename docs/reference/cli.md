@@ -2,7 +2,7 @@
 
 The runtime image and release archive contain one binary: `p2pstream`.
 
-Release archives also include `LICENSE`, `NOTICE`, `SOURCE.txt`, and third-party legal notices. p2pstream is licensed under `AGPL-3.0-or-later`; see [License](./license).
+Release archives also include `LICENSE`, `NOTICE`, and third-party legal notices. p2pstream is licensed under `AGPL-3.0-or-later`; see [License](./license).
 
 ## Exact Commands And Flags
 
@@ -42,8 +42,10 @@ p2pstream agent [flags]
 | `--tls-cert-file` | `AGENT_TLS_CERT_FILE` | Client certificate for management mTLS. |
 | `--tls-key-file` | `AGENT_TLS_KEY_FILE` | Client private key for management mTLS. |
 | `--allow-insecure-management` | `AGENT_ALLOW_INSECURE_MANAGEMENT` | Permit HTTP management URL. |
-| `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum Yamux receive window per tunnel stream; adaptive mode may lower it to the lifetime stream charge. |
-| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Optional fixed request limit. When omitted, local nested-cgroup/host/Go memory and file-descriptor pressure control admission dynamically. |
+| `--tunnel-max-stream-window-bytes` | `TUNNEL_MAX_STREAM_WINDOW_BYTES` | Maximum receive window; grows from up to 512 KiB as sustained traffic acquires memory credit. |
+| `--tunnel-connections` | `TUNNEL_CONNECTIONS` | Parallel TCP tunnels per agent, default 4; range 1–32. All lanes share one capacity budget. |
+| `--tunnel-upstream-socket-buffer-bytes` | `TUNNEL_UPSTREAM_SOCKET_BUFFER_BYTES` | Origin TCP buffering: `0` (default) uses Linux autotuning. An explicit 16 KiB–16 MiB value fixes each direction and increases the initial stream reservation. |
+| `--tunnel-max-concurrent-requests` | `TUNNEL_MAX_CONCURRENT_REQUESTS` | Optional fixed request limit. When omitted, mandatory host memory plus finite nested-cgroup/Go constraints and file-descriptor pressure control admission dynamically. |
 | `--allow-target` | `AGENT_ALLOW_TARGETS` | Opt-in destination allowlist entry. Repeat the flag, or separate env entries with commas/whitespace. |
 | `--allow-any-target` | `AGENT_ALLOW_ANY_TARGET` | Explicitly permit any destination reachable by the agent. |
 
@@ -53,7 +55,7 @@ p2pstream agent [flags]
 - Use only one password source: prompt, `--password-env`, or `--password-file`.
 - `agent` requires `AGENT_ID` and `AGENT_TOKEN`.
 - Agent HTTP management URLs are rejected unless `--allow-insecure-management` or `AGENT_ALLOW_INSECURE_MANAGEMENT` is set.
-- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `67108864`.
+- `--tunnel-max-stream-window-bytes` must be at least `262144` and at most `1073741824`.
 - `--tunnel-max-concurrent-requests` must be between `1` and `2048`.
 - When neither an allowlist nor `--allow-any-target`/`AGENT_ALLOW_ANY_TARGET=true` is set, the agent permits only IPv4 and IPv6 loopback destinations.
 - `--allow-any-target` cannot be combined with `--allow-target` entries.

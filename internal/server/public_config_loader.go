@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -32,6 +34,7 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 		AccessUsers:         publicAccessUsersToProto(rows.AccessUsers),
 		AccessPolicies:      publicAccessPoliciesToProto(rows.AccessPolicies),
 		Listeners:           publicListenersToProto(rows.Listeners),
+		Sites:               publicSitesToProto(rows.Sites, rows.SiteHosts, rows.SiteListenerBindings, rows.Listeners, rows.TLSCertificates, rows.Routes, rows.RouteTargets),
 		Routes:              publicRoutesToProto(rows.Routes, rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		RouteTargets:        publicRouteTargetsToProto(rows.RouteTargets, routeTargetUpstreamHeaders, routeTargetResponseHeaders, a.TargetHealth),
 		TlsCertificates:     publicTLSCertificatesToProto(rows.TLSCertificates),
@@ -53,7 +56,13 @@ func (a *App) publicProxyConfigResponse(ctx context.Context) (*p2pstreamv1.GetPu
 }
 
 func (a *App) refreshPublicProxySnapshot(ctx context.Context) error {
-	snap, err := a.loadPublicProxySnapshot(ctx)
+	a.publicConfigRefreshMu.Lock()
+	defer a.publicConfigRefreshMu.Unlock()
+	return a.refreshPublicProxySnapshotAlreadyLocked(ctx)
+}
+
+func (a *App) refreshPublicProxySnapshotAlreadyLocked(ctx context.Context) error {
+	snap, err := a.loadPublicProxySnapshotLocked(ctx)
 	if err != nil {
 		return err
 	}
@@ -140,11 +149,13 @@ func routeTargetTransportSignatureFor(target publicRouteTargetConfig) routeTarge
 }
 
 func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot, error) {
+	a.publicConfigRefreshMu.Lock()
+	defer a.publicConfigRefreshMu.Unlock()
+	return a.loadPublicProxySnapshotLocked(ctx)
+}
+
+func (a *App) loadPublicProxySnapshotLocked(ctx context.Context) (*publicProxySnapshot, error) {
 	rows, err := a.loadPublicConfigRows(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows.RouteTargets, err = a.migrateLegacyPublicTargetOrigins(ctx, rows.RouteTargets)
 	if err != nil {
 		return nil, err
 	}
@@ -155,44 +166,6 @@ func (a *App) loadPublicProxySnapshot(ctx context.Context) (*publicProxySnapshot
 	a.storePublicConfigCache(rows, snap)
 	return snap, nil
 }
-
-func (a *App) migrateLegacyPublicTargetOrigins(ctx context.Context, targets []db.PublicRouteTarget) ([]db.PublicRouteTarget, error) {
-	if a == nil || a.DB == nil {
-		return targets, nil
-	}
-	for i := range targets {
-		target := &targets[i]
-		if normalizePublicRouteTargetType(target.TargetType) != publicRouteTargetTypeProxy {
-			continue
-		}
-		normalized, needsMigration, err := normalizeLegacyPublicTargetOrigin(target.Url)
-		if err != nil || !needsMigration {
-			continue
-		}
-		result, err := a.DB.ExecContext(ctx, `
-			UPDATE public_route_targets
-			SET url = ?, updated_at = CURRENT_TIMESTAMP
-			WHERE id = ? AND url = ?
-		`, normalized, target.ID, target.Url)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("normalize legacy route target origin: %w", err))
-		}
-		updated, err := result.RowsAffected()
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("inspect legacy route target origin migration: %w", err))
-		}
-		if updated != 1 {
-			return nil, connect.NewError(connect.CodeAborted, errors.New("route target changed while its legacy origin was being normalized; retry"))
-		}
-		target.Url = normalized
-		log.Warn().
-			Int64("route_target_id", target.ID).
-			Str("route_target_name", target.Name).
-			Msg("Normalized ignored path, query, fragment, or credentials from a legacy route target URL")
-	}
-	return targets, nil
-}
-
 func (a *App) cachedOrLoadPublicConfig(ctx context.Context) (publicConfigRows, *publicProxySnapshot, error) {
 	if rows, snap, ok := a.cachedPublicConfig(); ok {
 		return rows, snap, nil
@@ -231,105 +204,153 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 	if err := a.ensurePublicProxySeeded(ctx); err != nil {
 		return publicConfigRows{}, err
 	}
-	accessProviders, err := a.DB.ListPublicAccessProviders(ctx)
+	if err := a.ensurePublicConfigCandidatePrerequisites(ctx); err != nil {
+		return publicConfigRows{}, err
+	}
+	tx, err := a.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	accessPolicies, err := a.DB.ListPublicAccessPolicies(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	accessUsers, err := a.DB.ListPublicAccessUsers(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	responseTemplates, err := a.DB.ListPublicResponseTemplates(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	agents, err := a.DB.ListAgents(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	agentLabels, err := a.DB.ListAgentLabels(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	listeners, err := a.DB.ListPublicListeners(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	routes, err := a.DB.ListPublicRoutes(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	routeTargets, err := a.DB.ListPublicRouteTargets(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	routeTargetUpstreamHeaders, err := a.DB.ListPublicRouteTargetUpstreamHeaders(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	routeTargetResponseHeaders, err := a.DB.ListPublicRouteTargetResponseHeaders(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	certs, err := a.DB.ListPublicTlsCertificates(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	tlsDNSCredentials, err := a.DB.ListPublicTlsDnsCredentials(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	rateLimitRules, err := a.DB.ListPublicRateLimitRules(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	trafficShaperRules, err := a.DB.ListPublicTrafficShaperRules(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	wafCaptchaProviders, err := a.DB.ListPublicWafCaptchaProviders(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	wafRules, err := a.DB.ListPublicWafRules(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	wafSettings, err := a.ensurePublicWafSettings(ctx)
+	defer tx.Rollback()
+	txq := a.DB.Queries.WithTx(tx)
+	rows, err := loadPublicConfigRowsWithQueries(ctx, txq)
 	if err != nil {
 		return publicConfigRows{}, err
 	}
-	geoIPSettings, err := a.ensurePublicGeoIPSettings(ctx)
+	if err := tx.Commit(); err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	return rows, nil
+}
+
+func (a *App) ensurePublicConfigCandidatePrerequisites(ctx context.Context) error {
+	if _, err := a.ensurePublicWafSettings(ctx); err != nil {
+		return err
+	}
+	if _, err := a.ensurePublicGeoIPSettings(ctx); err != nil {
+		return err
+	}
+	if _, err := a.ensurePublicCacheSettings(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func loadPublicConfigRowsWithQueries(ctx context.Context, txq *db.Queries) (publicConfigRows, error) {
+	accessProviders, err := txq.ListPublicAccessProviders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	accessPolicies, err := txq.ListPublicAccessPolicies(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	accessUsers, err := txq.ListPublicAccessUsers(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	responseTemplates, err := txq.ListPublicResponseTemplates(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	agents, err := txq.ListAgents(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	agentLabels, err := txq.ListAgentLabels(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	listeners, err := txq.ListPublicListeners(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	sites, err := txq.ListPublicSites(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	siteHosts, err := txq.ListPublicSiteHosts(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	siteListenerBindings, err := txq.ListPublicSiteListenerBindings(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	routes, err := txq.ListPublicRoutes(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	routeTargets, err := txq.ListPublicRouteTargets(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	routeTargetUpstreamHeaders, err := txq.ListPublicRouteTargetUpstreamHeaders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	routeTargetResponseHeaders, err := txq.ListPublicRouteTargetResponseHeaders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	certs, err := txq.ListPublicTlsCertificates(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	tlsDNSCredentials, err := txq.ListPublicTlsDnsCredentials(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	rateLimitRules, err := txq.ListPublicRateLimitRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	trafficShaperRules, err := txq.ListPublicTrafficShaperRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafCaptchaProviders, err := txq.ListPublicWafCaptchaProviders(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafRules, err := txq.ListPublicWafRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	wafSettings, err := txq.GetPublicWafSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
 	}
-	trustedProxySources, err := a.DB.ListPublicTrustedProxySources(ctx)
-	if err != nil {
-		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
-	}
-	cacheSettings, err := a.ensurePublicCacheSettings(ctx)
+	geoIPSettings, err := txq.GetPublicGeoIpSettings(ctx)
 	if err != nil {
 		return publicConfigRows{}, err
 	}
-	cacheRules, err := a.DB.ListPublicCacheRules(ctx)
+	trustedProxySources, err := txq.ListPublicTrustedProxySources(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	retryRules, err := a.DB.ListPublicRetryRules(ctx)
+	cacheSettings, err := txq.GetPublicCacheSettings(ctx)
+	if err != nil {
+		return publicConfigRows{}, err
+	}
+	cacheRules, err := txq.ListPublicCacheRules(ctx)
 	if err != nil {
 		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
 	}
-	return publicConfigRows{
+	retryRules, err := txq.ListPublicRetryRules(ctx)
+	if err != nil {
+		return publicConfigRows{}, connect.NewError(connect.CodeInternal, err)
+	}
+	rows := publicConfigRows{
 		AccessProviders:            accessProviders,
 		AccessUsers:                accessUsers,
 		AccessPolicies:             accessPolicies,
 		Agents:                     agents,
 		AgentLabels:                agentLabels,
 		Listeners:                  listeners,
+		Sites:                      sites,
+		SiteHosts:                  siteHosts,
+		SiteListenerBindings:       siteListenerBindings,
 		Routes:                     routes,
 		RouteTargets:               routeTargets,
 		RouteTargetUpstreamHeaders: routeTargetUpstreamHeaders,
@@ -347,7 +368,28 @@ func (a *App) loadPublicConfigRows(ctx context.Context) (publicConfigRows, error
 		CacheRules:                 cacheRules,
 		RetryRules:                 retryRules,
 		ResponseTemplates:          responseTemplates,
-	}, nil
+	}
+	return rows, nil
+}
+
+// preparePublicConfigCandidateTx builds the exact runtime candidate represented
+// by an open write transaction. Callers must hold publicConfigRefreshMu until
+// the transaction commits and the prepared snapshot is applied.
+func preparePublicConfigCandidateTx(ctx context.Context, q *db.Queries) (publicConfigRows, *publicProxySnapshot, error) {
+	rows, err := loadPublicConfigRowsWithQueries(ctx, q)
+	if err != nil {
+		return publicConfigRows{}, nil, err
+	}
+	snap, err := snapshotFromPublicRows(rows)
+	if err != nil {
+		return publicConfigRows{}, nil, err
+	}
+	return rows, snap, nil
+}
+
+func (a *App) applyPreparedPublicConfigCandidate(rows publicConfigRows, snap *publicProxySnapshot) {
+	a.storePublicConfigCache(rows, snap)
+	a.applyPublicProxySnapshot(snap)
 }
 
 func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error) {
@@ -356,18 +398,23 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	snap := &publicProxySnapshot{
-		AccessProviders:     make(map[int64]publicAccessProviderConfig),
-		AccessPolicies:      make(map[int64]publicAccessPolicyConfig),
-		RouteTargets:        make(map[int64]publicRouteTargetConfig),
-		Agents:              make(map[int64]publicAgentConfig),
-		Listeners:           make(map[int64]publicListenerConfig),
-		RoutesByListener:    make(map[int64][]publicRouteConfig),
-		CertsByListener:     make(map[int64][]publicTLSCertificateConfig),
-		WafCaptchaProviders: make(map[int64]publicWafCaptchaProviderConfig),
-		WafCookieSecret:     []byte(rows.WafSettings.CookieSigningSecret),
-		CacheSettings:       publicCacheSettingsRowToConfig(rows.CacheSettings),
-		ResponseTemplates:   publicResponseTemplatesToConfig(rows.ResponseTemplates),
-		ClientIdentity:      clientIdentity,
+		AccessProviders:        make(map[int64]publicAccessProviderConfig),
+		AccessPolicies:         make(map[int64]publicAccessPolicyConfig),
+		RouteTargets:           make(map[int64]publicRouteTargetConfig),
+		Agents:                 make(map[int64]publicAgentConfig),
+		Listeners:              make(map[int64]publicListenerConfig),
+		Sites:                  make(map[int64]publicSiteConfig),
+		SiteHostsByListener:    make(map[int64][]publicSiteHostConfig),
+		SiteBindingsByListener: make(map[int64][]publicSiteListenerBindingConfig),
+		DefaultSiteByListener:  make(map[int64]publicSiteListenerBindingConfig),
+		RoutesByListener:       make(map[int64][]publicRouteConfig),
+		RoutesBySite:           make(map[int64][]publicRouteConfig),
+		CertsByListener:        make(map[int64][]publicTLSCertificateConfig),
+		WafCaptchaProviders:    make(map[int64]publicWafCaptchaProviderConfig),
+		WafCookieSecret:        []byte(rows.WafSettings.CookieSigningSecret),
+		CacheSettings:          publicCacheSettingsRowToConfig(rows.CacheSettings),
+		ResponseTemplates:      publicResponseTemplatesToConfig(rows.ResponseTemplates),
+		ClientIdentity:         clientIdentity,
 	}
 	for _, row := range rows.AccessProviders {
 		provider, err := publicAccessProviderRowToConfig(row)
@@ -467,6 +514,9 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			StaticResponseTemplateID: nullInt64Value(target.StaticResponseTemplateID),
 			ParsedURL:                parsed,
 		}
+		if parsed != nil {
+			config.transportOrigin = routeTargetTransportOrigin(config)
+		}
 		snap.RouteTargets[target.ID] = config
 		routeTargetsByRoute[target.RouteID] = append(routeTargetsByRoute[target.RouteID], config)
 	}
@@ -478,6 +528,91 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			Port:        listener.Port,
 			Protocol:    listener.Protocol,
 			Enabled:     listener.Enabled != 0,
+		}
+	}
+	for _, site := range rows.Sites {
+		snap.Sites[site.ID] = publicSiteConfig{
+			ID: site.ID, Name: site.Name, Enabled: site.Enabled != 0, Published: site.Published != 0,
+			DefaultSite: site.DefaultSite != 0, CanonicalHostname: site.CanonicalHostname,
+			PrimaryHostname: site.CanonicalHostname,
+		}
+	}
+	siteHostsBySite := make(map[int64][]publicSiteHostConfig)
+	for _, host := range rows.SiteHosts {
+		if _, ok := snap.Sites[host.SiteID]; !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has no owner", host.HostnamePattern))
+		}
+		normalized, normalizeErr := normalizePublicSiteHostnamePattern(host.HostnamePattern)
+		if normalizeErr != nil || normalized != host.HostnamePattern {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q is not stored canonically", host.HostnamePattern))
+		}
+		if host.Role != publicSiteHostRolePrimary && host.Role != publicSiteHostRoleAlias {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid role", host.HostnamePattern))
+		}
+		if host.Behavior != publicSiteHostBehaviorServe && host.Behavior != publicSiteHostBehaviorRedirect {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid behavior", host.HostnamePattern))
+		}
+		if host.Role == publicSiteHostRolePrimary && (host.Behavior != publicSiteHostBehaviorServe || strings.HasPrefix(host.HostnamePattern, "*.")) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site host %q has invalid primary binding", host.HostnamePattern))
+		}
+		binding := publicSiteHostConfig{
+			ID: host.ID, SiteID: host.SiteID,
+			HostnamePattern: host.HostnamePattern, Primary: host.Role == "primary", Behavior: host.Behavior,
+		}
+		siteHostsBySite[host.SiteID] = append(siteHostsBySite[host.SiteID], binding)
+	}
+	ownedHostPatterns := make(map[int64]map[string]int64)
+	for _, row := range rows.SiteListenerBindings {
+		site, ok := snap.Sites[row.SiteID]
+		if !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site listener binding has no Site %d", row.SiteID))
+		}
+		if _, ok := snap.Listeners[row.ListenerID]; !ok {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site %q references missing listener %d", site.Name, row.ListenerID))
+		}
+		binding := publicSiteListenerBindingConfig{
+			SiteID: row.SiteID, ListenerID: row.ListenerID, Behavior: row.Behavior,
+			RedirectListenerID: nullInt64Value(row.RedirectListenerID), RedirectHostname: row.RedirectHostname,
+		}
+		if site.ListenerID == 0 || row.ListenerID < site.ListenerID {
+			site.ListenerID = row.ListenerID
+			snap.Sites[row.SiteID] = site
+		}
+		if !site.Published {
+			continue
+		}
+		if row.Behavior != publicSiteListenerBehaviorServe && row.Behavior != publicSiteListenerBehaviorRedirectHTTPS {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("site %q has invalid listener behavior %q", site.Name, row.Behavior))
+		}
+		snap.SiteBindingsByListener[row.ListenerID] = append(snap.SiteBindingsByListener[row.ListenerID], binding)
+		if site.DefaultSite {
+			if previous, exists := snap.DefaultSiteByListener[row.ListenerID]; exists && previous.SiteID != row.SiteID {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("listener %d has multiple published Default Sites", row.ListenerID))
+			}
+			snap.DefaultSiteByListener[row.ListenerID] = binding
+			continue
+		}
+		hosts := siteHostsBySite[row.SiteID]
+		if len(hosts) == 0 || len(hosts) > maxPublicSiteHosts {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("published Site %q requires 1-%d hostnames", site.Name, maxPublicSiteHosts))
+		}
+		if ownedHostPatterns[row.ListenerID] == nil {
+			ownedHostPatterns[row.ListenerID] = make(map[string]int64)
+		}
+		for _, host := range hosts {
+			if owner, exists := ownedHostPatterns[row.ListenerID][host.HostnamePattern]; exists && owner != row.SiteID {
+				return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("listener %d hostname %q is owned by multiple published Sites", row.ListenerID, host.HostnamePattern))
+			}
+			ownedHostPatterns[row.ListenerID][host.HostnamePattern] = row.SiteID
+			snap.SiteHostsByListener[row.ListenerID] = append(snap.SiteHostsByListener[row.ListenerID], host)
+		}
+	}
+	for _, site := range snap.Sites {
+		if !site.Published {
+			continue
+		}
+		if site.DefaultSite && len(siteHostsBySite[site.ID]) != 0 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("Default Site %q cannot have hostnames", site.Name))
 		}
 	}
 	for routeID, targets := range routeTargetsByRoute {
@@ -493,9 +628,10 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 		routeTargetsByRoute[routeID] = targets
 	}
 	for _, route := range rows.Routes {
-		snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], publicRouteConfig{
+		config := publicRouteConfig{
 			ID:                         route.ID,
 			ListenerID:                 route.ListenerID,
+			SiteID:                     nullInt64Value(route.SiteID),
 			Priority:                   route.Priority,
 			HostPattern:                normalizeHostPattern(route.HostPattern),
 			PathPrefix:                 route.PathPrefix,
@@ -511,11 +647,20 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 			PathSecurityMode:           normalizePublicRoutePathSecurityMode(route.PathSecurityMode),
 			AccessPolicyID:             nullInt64Value(route.AccessPolicyID),
 			Enabled:                    route.Enabled != 0,
-		})
+		}
+		if config.SiteID != 0 {
+			snap.RoutesBySite[config.SiteID] = append(snap.RoutesBySite[config.SiteID], config)
+		} else {
+			snap.RoutesByListener[route.ListenerID] = append(snap.RoutesByListener[route.ListenerID], config)
+		}
 	}
 	for listenerID, routes := range snap.RoutesByListener {
 		sortPublicRoutes(routes)
 		snap.RoutesByListener[listenerID] = routes
+	}
+	for siteID, routes := range snap.RoutesBySite {
+		sortPublicRoutes(routes)
+		snap.RoutesBySite[siteID] = routes
 	}
 	for _, cert := range rows.TLSCertificates {
 		snap.CertsByListener[cert.ListenerID] = append(snap.CertsByListener[cert.ListenerID], publicTLSCertificateConfig{
@@ -601,9 +746,21 @@ func snapshotFromPublicRows(rows publicConfigRows) (*publicProxySnapshot, error)
 }
 
 func (a *App) reconcilePublicListenerAfterMutation(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
 	if err := a.refreshPublicProxySnapshot(ctx); err != nil {
 		return nil, err
 	}
+	return a.reconcilePublicListenerRuntimeFromCurrentSnapshot(ctx, listenerID)
+}
+
+func (a *App) reconcilePublicListenerAfterPreparedMutation(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
+	a.publicListenerLifecycleMu.Lock()
+	defer a.publicListenerLifecycleMu.Unlock()
+	return a.reconcilePublicListenerRuntimeFromCurrentSnapshot(ctx, listenerID)
+}
+
+func (a *App) reconcilePublicListenerRuntimeFromCurrentSnapshot(ctx context.Context, listenerID int64) (*p2pstreamv1.PublicListenerStatus, error) {
 	a.proxyMu.Lock()
 	snap := a.publicSnapshot
 	listener, ok := snap.Listeners[listenerID]

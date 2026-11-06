@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { NEmpty } from "naive-ui";
+import MetricCard from "@/components/ui/MetricCard.vue";
+import MetricStrip from "@/components/ui/MetricStrip.vue";
+import SectionCard from "@/components/ui/SectionCard.vue";
 import type {
   DashboardRetryFailureSummary,
   DashboardRetryHealthSummary,
@@ -99,7 +102,7 @@ function trendBucketLabel(bucket: RetryTrendBucketLike): string {
 
 function formatBucketTime(value: bigint): string {
   const millis = toNumber(value);
-  if (millis <= 0) return "-";
+  if (millis <= 0) return "—";
   const date = new Date(millis);
   if (Number.isNaN(date.getTime())) return "Invalid time";
   if (props.windowLabel === "30d") {
@@ -128,151 +131,129 @@ function toNumber(value: bigint): number {
 </script>
 
 <template>
-  <section class="retry-health" aria-labelledby="retry-health-heading">
-    <div class="panel-heading retry-health__heading">
-      <div>
-        <span class="retry-health__eyebrow">Resilience telemetry</span>
-        <h4 id="retry-health-heading">Retry Health</h4>
-        <p>How often retry rules activate, whether transport recovers, and where first attempts fail.</p>
+  <section class="retry-health" aria-label="Retry health">
+    <SectionCard title="Retry health" description="How often retry rules activate, whether transport recovers, and where first attempts fail.">
+      <template #badge>
+        <span class="retry-signal" :class="`retry-signal--${signal.tone}`">
+          <span aria-hidden="true" />
+          {{ signal.label }}
+        </span>
+      </template>
+
+      <div v-if="retryHealth && retryHealth.matchedRequests > 0n" class="retry-summary">
+        <MetricStrip variant="tiles" label="Retry health" class="retry-kpis">
+          <MetricCard label="Policy matched" :value="formatNumber(retryHealth.matchedRequests)" detail="requests eligible for a rule" />
+          <MetricCard label="Retry trigger rate" :value="formatPercent(triggerRate)" :detail="`${formatNumber(retryHealth.retriedRequests)} requests retried`" />
+          <MetricCard label="Extra attempts" :value="formatNumber(retryHealth.retryAttempts)" detail="beyond original requests" />
+          <MetricCard label="Transport recovery" :value="optionalPercent(transportRecoveryRate)" :detail="`${formatNumber(retryHealth.recoveredRequests)} recovered`" />
+          <MetricCard
+            label="Not recovered"
+            :value="formatNumber(retryHealth.exhaustedRequests)"
+            :tone="retryHealth.exhaustedRequests > 0n ? 'error' : 'default'"
+            :detail="`${formatNumber(retryHealth.skippedRequests)} skipped by safety`"
+          />
+          <MetricCard label="Retried latency" :value="formatDuration(retryHealth.avgRetriedDurationMs)" :detail="`${formatDuration(retryHealth.avgMatchedDurationMs)} across matched`" />
+        </MetricStrip>
+
+        <div class="retry-trend">
+          <div class="retry-trend__heading">
+            <div>
+              <h3>Retry trigger trend</h3>
+              <p>{{ trendWindowLabel }} · each bar is a {{ bucketDurationLabel }} bucket</p>
+            </div>
+            <div class="retry-trend-legend" aria-label="Chart legend">
+              <span><i class="retry-legend-swatch retry-legend-swatch--trigger" />triggered</span>
+              <span><i class="retry-legend-swatch retry-legend-swatch--failed" />exhausted</span>
+            </div>
+          </div>
+          <div class="retry-chart">
+            <div class="retry-chart__scale" aria-hidden="true">
+              <span>{{ formatPercent(trendScale) }}</span>
+              <span>{{ formatPercent(trendScale / 2) }}</span>
+              <span>0%</span>
+            </div>
+            <div
+              class="retry-chart__plot"
+              role="list"
+              :aria-label="`Retry trigger rate over ${windowLabel}. Vertical scale ends at ${formatPercent(trendScale)}.`"
+            >
+              <div
+                v-for="bucket in trend"
+                :key="bucket.bucketUnixMillis.toString()"
+                class="retry-chart__bucket"
+                role="listitem"
+                :aria-label="trendBucketLabel(bucket)"
+                :title="trendBucketLabel(bucket)"
+              >
+                <span class="retry-chart__bar" :style="{ height: trendHeight(bucket.retriedRequests, bucket.matchedRequests) }" />
+                <span
+                  v-if="bucket.exhaustedRequests > 0n"
+                  class="retry-chart__bar retry-chart__bar--failed"
+                  :style="{ height: trendFailureHeight(bucket.exhaustedRequests, bucket.matchedRequests) }"
+                />
+              </div>
+            </div>
+          </div>
+          <div class="retry-chart__axis" aria-hidden="true">
+            <span>{{ formatBucketTime(trend[0]?.bucketUnixMillis ?? 0n) }}</span>
+            <span>now</span>
+          </div>
+          <p class="retry-definition">
+            “Recovered” means a later agent produced an HTTP response after a transport failure; that response may still be non-success.
+            Health guidance: watch at 1% trigger rate, elevated at 5%, and action needed whenever retries exhaust.
+          </p>
+        </div>
       </div>
-      <span class="retry-signal" :class="`retry-signal--${signal.tone}`">
-        <span aria-hidden="true" />
-        {{ signal.label }}
-      </span>
-    </div>
+
+      <div v-else class="retry-empty-state">
+        <div>
+          <h3>No requests matched a retry rule in this window</h3>
+          <p>The panel will begin charting trigger rate, recovery, and failure attribution when eligible traffic arrives.</p>
+        </div>
+        <RouterLink to="/policies/retries">Review retry rules</RouterLink>
+      </div>
+    </SectionCard>
 
     <template v-if="retryHealth && retryHealth.matchedRequests > 0n">
-      <dl class="retry-kpis">
-        <div>
-          <dt>Policy matched</dt>
-          <dd>{{ formatNumber(retryHealth.matchedRequests) }}</dd>
-          <small>requests eligible for a rule</small>
+      <SectionCard title="Rules" description="Policy volume and outcomes." flush>
+        <template #actions>
+          <RouterLink class="retry-link" to="/policies/retries">Manage rules</RouterLink>
+        </template>
+        <div v-if="retryRules?.length" class="retry-rules-table-shell">
+          <table class="retry-rules-table">
+            <thead>
+              <tr>
+                <th scope="col">Rule</th>
+                <th scope="col">Triggered</th>
+                <th scope="col">Extra attempts</th>
+                <th scope="col">Recovered</th>
+                <th scope="col">Not recovered</th>
+                <th scope="col">Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in retryRules" :key="row.id.toString()">
+                <th scope="row">
+                  <bdi dir="ltr" :title="inspectionValue(row.label)">{{ diagnosticExcerpt(row.label, 46).text }}</bdi>
+                  <small>#{{ row.id.toString() }} · {{ formatNumber(row.matchedRequests) }} matched</small>
+                </th>
+                <td><strong>{{ formatPercent(ruleTriggerRate(row)) }}</strong><small>{{ formatNumber(row.retriedRequests) }} req</small></td>
+                <td>{{ formatNumber(row.retryAttempts) }}</td>
+                <td>{{ formatNumber(row.recoveredRequests) }}</td>
+                <td :class="{ 'retry-table-danger': row.exhaustedRequests > 0n }">
+                  {{ formatNumber(row.exhaustedRequests) }}
+                  <small>{{ formatNumber(row.skippedRequests) }} skipped</small>
+                </td>
+                <td>{{ formatDuration(row.avgRetriedDurationMs) }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div>
-          <dt>Retry trigger rate</dt>
-          <dd>{{ formatPercent(triggerRate) }}</dd>
-          <small>{{ formatNumber(retryHealth.retriedRequests) }} requests retried</small>
-        </div>
-        <div>
-          <dt>Extra attempts</dt>
-          <dd>{{ formatNumber(retryHealth.retryAttempts) }}</dd>
-          <small>beyond original requests</small>
-        </div>
-        <div>
-          <dt>Transport recovery</dt>
-          <dd>{{ optionalPercent(transportRecoveryRate) }}</dd>
-          <small>{{ formatNumber(retryHealth.recoveredRequests) }} recovered</small>
-        </div>
-        <div :class="{ 'retry-kpi--danger': retryHealth.exhaustedRequests > 0n }">
-          <dt>Not recovered</dt>
-          <dd>{{ formatNumber(retryHealth.exhaustedRequests) }}</dd>
-          <small>{{ formatNumber(retryHealth.skippedRequests) }} skipped by safety</small>
-        </div>
-        <div>
-          <dt>Retried latency</dt>
-          <dd>{{ formatDuration(retryHealth.avgRetriedDurationMs) }}</dd>
-          <small>{{ formatDuration(retryHealth.avgMatchedDurationMs) }} across matched</small>
-        </div>
-      </dl>
-
-      <div class="retry-trend-card">
-        <div class="retry-trend-card__heading">
-          <div>
-            <h5>Retry trigger trend</h5>
-            <p>{{ trendWindowLabel }} · each bar is a {{ bucketDurationLabel }} bucket</p>
-          </div>
-          <div class="retry-trend-legend" aria-label="Chart legend">
-            <span><i class="retry-legend-swatch retry-legend-swatch--trigger" />triggered</span>
-            <span><i class="retry-legend-swatch retry-legend-swatch--failed" />exhausted</span>
-          </div>
-        </div>
-        <div class="retry-chart">
-          <div class="retry-chart__scale" aria-hidden="true">
-            <span>{{ formatPercent(trendScale) }}</span>
-            <span>{{ formatPercent(trendScale / 2) }}</span>
-            <span>0%</span>
-          </div>
-          <div
-            class="retry-chart__plot"
-            role="list"
-            :aria-label="`Retry trigger rate over ${windowLabel}. Vertical scale ends at ${formatPercent(trendScale)}.`"
-          >
-            <div
-              v-for="bucket in trend"
-              :key="bucket.bucketUnixMillis.toString()"
-              class="retry-chart__bucket"
-              role="listitem"
-              :aria-label="trendBucketLabel(bucket)"
-              :title="trendBucketLabel(bucket)"
-            >
-              <span class="retry-chart__bar" :style="{ height: trendHeight(bucket.retriedRequests, bucket.matchedRequests) }" />
-              <span
-                v-if="bucket.exhaustedRequests > 0n"
-                class="retry-chart__bar retry-chart__bar--failed"
-                :style="{ height: trendFailureHeight(bucket.exhaustedRequests, bucket.matchedRequests) }"
-              />
-            </div>
-          </div>
-        </div>
-        <div class="retry-chart__axis" aria-hidden="true">
-          <span>{{ formatBucketTime(trend[0]?.bucketUnixMillis ?? 0n) }}</span>
-          <span>now</span>
-        </div>
-        <p class="retry-definition">
-          “Recovered” means a later agent produced an HTTP response after a transport failure; that response may still be non-success.
-          Health guidance: watch at 1% trigger rate, elevated at 5%, and action needed whenever retries exhaust.
-        </p>
-      </div>
+        <NEmpty v-else size="small" class="retry-card-empty" description="No retry rule rollups in this window." />
+      </SectionCard>
 
       <div class="retry-details-grid">
-        <div class="retry-detail-card retry-detail-card--rules">
-          <div class="retry-detail-card__heading">
-            <div>
-              <h5>Rules</h5>
-              <p>Policy volume and outcomes.</p>
-            </div>
-            <RouterLink to="/policies/retries">Manage rules</RouterLink>
-          </div>
-          <div v-if="retryRules?.length" class="retry-rules-table-shell">
-            <table class="retry-rules-table">
-              <thead>
-                <tr>
-                  <th scope="col">Rule</th>
-                  <th scope="col">Triggered</th>
-                  <th scope="col">Extra attempts</th>
-                  <th scope="col">Recovered</th>
-                  <th scope="col">Not recovered</th>
-                  <th scope="col">Latency</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in retryRules" :key="row.id.toString()">
-                  <th scope="row">
-                    <bdi dir="ltr" :title="inspectionValue(row.label)">{{ diagnosticExcerpt(row.label, 46).text }}</bdi>
-                    <small>#{{ row.id.toString() }} · {{ formatNumber(row.matchedRequests) }} matched</small>
-                  </th>
-                  <td><strong>{{ formatPercent(ruleTriggerRate(row)) }}</strong><small>{{ formatNumber(row.retriedRequests) }} req</small></td>
-                  <td>{{ formatNumber(row.retryAttempts) }}</td>
-                  <td>{{ formatNumber(row.recoveredRequests) }}</td>
-                  <td :class="{ 'retry-table-danger': row.exhaustedRequests > 0n }">
-                    {{ formatNumber(row.exhaustedRequests) }}
-                    <small>{{ formatNumber(row.skippedRequests) }} skipped</small>
-                  </td>
-                  <td>{{ formatDuration(row.avgRetriedDurationMs) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <NEmpty v-else size="small" description="No retry rule rollups in this window." />
-        </div>
-
-        <div class="retry-detail-card">
-          <div class="retry-detail-card__heading">
-            <div>
-              <h5>First-failed agents</h5>
-              <p>The agent whose upstream attempt failed. Local proxy failures are not attributed.</p>
-            </div>
-          </div>
+        <SectionCard title="First-failed agents" description="The agent whose upstream attempt failed. Local proxy failures are not attributed." flush>
           <ol v-if="retryFailedAgents?.length" class="retry-failure-list">
             <li v-for="row in retryFailedAgents" :key="`retry-agent-${row.id.toString()}-${row.label}`">
               <button
@@ -291,16 +272,10 @@ function toNumber(value: bigint): number {
               </button>
             </li>
           </ol>
-          <NEmpty v-else size="small" description="No attributed first-agent failures in this window." />
-        </div>
+          <NEmpty v-else size="small" class="retry-card-empty" description="No attributed first-agent failures in this window." />
+        </SectionCard>
 
-        <div class="retry-detail-card">
-          <div class="retry-detail-card__heading">
-            <div>
-              <h5>First error kinds</h5>
-              <p>First transport condition recorded for traffic matched by a retry rule.</p>
-            </div>
-          </div>
+        <SectionCard title="First error kinds" description="First transport condition recorded for traffic matched by a retry rule." flush>
           <ol v-if="retryErrorKinds?.length" class="retry-failure-list">
             <li v-for="row in retryErrorKinds" :key="`retry-error-${row.label}`">
               <button
@@ -319,19 +294,10 @@ function toNumber(value: bigint): number {
               </button>
             </li>
           </ol>
-          <NEmpty v-else size="small" description="No first-attempt retry errors in this window." />
-        </div>
+          <NEmpty v-else size="small" class="retry-card-empty" description="No first-attempt retry errors in this window." />
+        </SectionCard>
       </div>
     </template>
-
-    <div v-else class="retry-empty-state">
-      <div class="retry-empty-state__pulse" aria-hidden="true"><span /></div>
-      <div>
-        <h5>No requests matched a retry rule in this window</h5>
-        <p>The panel will begin charting trigger rate, recovery, and failure attribution when eligible traffic arrives.</p>
-      </div>
-      <RouterLink to="/policies/retries">Review retry rules</RouterLink>
-    </div>
   </section>
 </template>
 
@@ -339,228 +305,106 @@ function toNumber(value: bigint): number {
 .retry-health {
   display: grid;
   min-width: 0;
-  gap: 1rem;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-top: 2px solid color-mix(in srgb, var(--app-warning) 70%, var(--app-accent));
-  border-radius: 6px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--app-warning) 5%, transparent), transparent 34%),
-    var(--app-panel-muted);
-  padding: 1rem;
-}
-
-.panel-heading,
-.retry-trend-card__heading,
-.retry-detail-card__heading {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.retry-health__heading {
-  align-items: center;
-}
-
-.panel-heading h4 {
-  color: var(--app-text);
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.panel-heading p {
-  color: var(--app-text-muted);
-  font-size: 0.82rem;
-}
-
-.retry-health__eyebrow {
-  display: block;
-  margin-bottom: 0.2rem;
-  color: var(--app-warning);
-  font-family: var(--font-mono);
-  font-size: 0.68rem;
-  font-weight: 750;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 1.25rem;
 }
 
 .retry-signal {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 0.45rem;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-panel);
-  padding: 0.35rem 0.6rem;
+  gap: 0.375rem;
+  border-radius: 6px;
+  background: var(--app-panel-muted);
+  padding: 0.125rem 0.5rem;
   color: var(--app-text-muted);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .retry-signal > span {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background: var(--app-text-muted);
-  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--app-text-muted) 14%, transparent);
+  background: currentColor;
 }
 
-.retry-signal--success {
-  border-color: color-mix(in srgb, var(--app-success) 40%, var(--app-border));
-  color: var(--app-success);
-}
-
-.retry-signal--success > span {
-  background: var(--app-success);
-  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--app-success) 14%, transparent);
-}
-
+.retry-signal--success { color: var(--app-success); }
 .retry-signal--watch,
-.retry-signal--warning {
-  border-color: color-mix(in srgb, var(--app-warning) 44%, var(--app-border));
-  color: var(--app-warning);
-}
+.retry-signal--warning { color: var(--app-warning); }
+.retry-signal--danger { color: var(--app-error); }
 
-.retry-signal--watch > span,
-.retry-signal--warning > span {
-  background: var(--app-warning);
-  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--app-warning) 14%, transparent);
-}
-
-.retry-signal--danger {
-  border-color: color-mix(in srgb, var(--app-error) 44%, var(--app-border));
-  color: var(--app-error);
-}
-
-.retry-signal--danger > span {
-  background: var(--app-error);
-  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--app-error) 14%, transparent);
-}
-
-.retry-kpis {
+.retry-summary {
   display: grid;
+  min-width: 0;
+  gap: 1.25rem;
+}
+
+.retry-health .retry-kpis {
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  margin: 0;
-  border-block: 1px solid var(--app-border-subtle);
-  padding-block: 0.8rem;
 }
 
-.retry-kpis > div {
-  display: grid;
+.retry-kpis :deep(.metric-card__detail) {
+  white-space: normal;
+}
+
+.retry-trend {
   min-width: 0;
-  gap: 0.15rem;
-  padding-inline: 0.8rem;
+  border-top: 1px solid var(--app-border-subtle);
+  padding-top: 1rem;
 }
 
-.retry-kpis > div:first-child {
-  padding-left: 0;
-}
-
-.retry-kpis > div + div {
-  border-left: 1px solid var(--app-border-subtle);
-}
-
-.retry-kpis dt,
-.retry-rules-table thead,
-.retry-detail-card__heading p {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-}
-
-.retry-kpis dt {
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-}
-
-.retry-kpis dd {
-  margin: 0;
-  color: var(--app-text);
-  font-family: var(--font-mono);
-  font-size: 1rem;
-  font-weight: 750;
-}
-
-.retry-kpis small,
-.retry-rules-table small {
-  color: var(--app-text-muted);
-  font-size: 0.68rem;
-}
-
-.retry-kpi--danger dd,
-.retry-table-danger {
-  color: var(--app-error);
-}
-
-.retry-trend-card,
-.retry-detail-card {
-  min-width: 0;
-  border: 1px solid var(--app-border-subtle);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--app-panel) 72%, transparent);
-}
-
-.retry-trend-card {
-  padding: 0.9rem;
-}
-
-.retry-trend-card__heading,
-.retry-detail-card__heading {
+.retry-trend__heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
   gap: 0.75rem;
 }
 
-.retry-trend-card h5,
-.retry-detail-card h5,
-.retry-empty-state h5 {
+.retry-trend h3,
+.retry-empty-state h3 {
   color: var(--app-text);
-  font-size: 0.8rem;
-  font-weight: 750;
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
-.retry-trend-card__heading p,
-.retry-detail-card__heading p,
+.retry-trend__heading p,
 .retry-empty-state p,
 .retry-definition {
+  margin-top: 0.125rem;
   color: var(--app-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 .retry-trend-legend {
   display: flex;
   flex: none;
-  gap: 0.75rem;
+  gap: 1rem;
   color: var(--app-text-muted);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
 }
 
 .retry-trend-legend span {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.375rem;
 }
 
 .retry-legend-swatch {
-  width: 0.45rem;
-  height: 0.45rem;
+  width: 0.625rem;
+  height: 0.625rem;
   border-radius: 2px;
 }
 
-.retry-legend-swatch--trigger {
-  background: var(--app-warning);
-}
-
-.retry-legend-swatch--failed {
-  background: var(--app-error);
-}
+.retry-legend-swatch--trigger { background: var(--app-warning); }
+.retry-legend-swatch--failed { background: var(--app-error); }
 
 .retry-chart {
   display: grid;
   height: 9.5rem;
-  grid-template-columns: 3.2rem minmax(0, 1fr);
-  gap: 0.55rem;
-  margin-top: 0.8rem;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.875rem;
 }
 
 .retry-chart__scale {
@@ -569,17 +413,19 @@ function toNumber(value: bigint): number {
   justify-content: space-between;
   color: var(--app-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
+/* Recessive grid: a single hairline at 50%, axis line at the base. */
 .retry-chart__plot {
   display: grid;
   min-width: 0;
   grid-auto-columns: minmax(2px, 1fr);
   grid-auto-flow: column;
   align-items: end;
-  gap: clamp(2px, 0.35vw, 7px);
+  gap: 2px;
   border-bottom: 1px solid var(--app-border);
   background-image: linear-gradient(to bottom, var(--app-border-subtle) 1px, transparent 1px);
   background-size: 100% 50%;
@@ -588,68 +434,67 @@ function toNumber(value: bigint): number {
 .retry-chart__bucket {
   position: relative;
   height: 100%;
+  border-radius: 4px 4px 0 0;
+}
+
+.retry-chart__bucket:hover {
+  background: var(--app-hover);
 }
 
 .retry-chart__bar {
   position: absolute;
-  right: 0;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  width: min(100%, 0.75rem);
   min-height: 0;
-  border-radius: 2px 2px 0 0;
-  background: linear-gradient(180deg, var(--app-warning), color-mix(in srgb, var(--app-warning) 70%, var(--app-accent)));
-  opacity: 0.88;
+  border-radius: 4px 4px 0 0;
+  background: var(--app-warning);
+  transform: translateX(-50%);
 }
 
 .retry-chart__bar--failed {
   z-index: 1;
   background: var(--app-error);
-  opacity: 1;
 }
 
 .retry-chart__axis {
   display: flex;
   justify-content: space-between;
-  margin: 0.3rem 0 0 3.75rem;
+  margin: 0.375rem 0 0 3.5rem;
   color: var(--app-text-muted);
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.6875rem;
 }
 
 .retry-definition {
-  margin-top: 0.8rem;
-  border-left: 2px solid var(--app-warning);
-  padding-left: 0.6rem;
-  line-height: 1.5;
+  margin-top: 0.875rem;
+  max-width: 80ch;
 }
 
-.retry-details-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.65fr) repeat(2, minmax(13rem, 1fr));
-  gap: 0.75rem;
-}
-
-.retry-detail-card {
-  align-content: start;
-  padding: 0.75rem;
-}
-
-.retry-detail-card__heading a,
+.retry-link,
 .retry-empty-state > a {
   color: var(--app-accent);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-decoration: none;
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
-.retry-detail-card__heading a:hover,
+.retry-link:hover,
 .retry-empty-state > a:hover {
   text-decoration: underline;
 }
 
+.retry-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.retry-card-empty {
+  padding: 1.5rem 1rem;
+}
+
 .retry-rules-table-shell {
   overflow-x: auto;
-  margin-top: 0.65rem;
 }
 
 .retry-rules-table {
@@ -657,30 +502,55 @@ function toNumber(value: bigint): number {
   min-width: 42rem;
   border-collapse: collapse;
   color: var(--app-text);
-  font-size: 0.72rem;
+  font-size: 0.8125rem;
+}
+
+.retry-rules-table thead th {
+  background: var(--app-panel-muted);
+  color: var(--app-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .retry-rules-table th,
 .retry-rules-table td {
-  border-top: 1px solid var(--app-border-subtle);
-  padding: 0.55rem 0.45rem;
+  padding: 0.5rem 0.75rem;
   text-align: right;
   vertical-align: top;
 }
 
+.retry-rules-table tbody tr {
+  border-top: 1px solid var(--app-border-subtle);
+}
+
 .retry-rules-table th:first-child {
+  padding-left: 1.25rem;
   text-align: left;
 }
 
+.retry-rules-table th:last-child,
+.retry-rules-table td:last-child {
+  padding-right: 1.25rem;
+}
+
 .retry-rules-table tbody th,
-.retry-rules-table tbody td strong,
 .retry-rules-table tbody td {
   font-family: var(--font-mono);
-  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.retry-rules-table tbody td strong {
+  font-weight: 600;
 }
 
 .retry-rules-table tbody th {
-  max-width: 12rem;
+  max-width: 14rem;
+}
+
+.retry-rules-table small {
+  color: var(--app-text-muted);
+  font-size: 0.6875rem;
 }
 
 .retry-rules-table bdi,
@@ -692,12 +562,19 @@ function toNumber(value: bigint): number {
   white-space: nowrap;
 }
 
+.retry-table-danger {
+  color: var(--app-error);
+}
+
 .retry-failure-list {
   display: grid;
-  gap: 0;
-  margin: 0.65rem 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.retry-failure-list li + li {
+  border-top: 1px solid var(--app-border-subtle);
 }
 
 .retry-failure-list button {
@@ -705,96 +582,71 @@ function toNumber(value: bigint): number {
   width: 100%;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.2rem 0.5rem;
+  gap: 0.25rem 0.75rem;
   border: 0;
-  border-top: 1px solid var(--app-border-subtle);
   background: transparent;
-  padding: 0.55rem 0;
+  padding: 0.625rem 1.25rem;
   color: var(--app-text);
   cursor: pointer;
+  font: inherit;
   text-align: left;
 }
 
-.retry-failure-list button:hover,
-.retry-failure-row--selected {
-  color: var(--app-accent);
+.retry-failure-list button:hover {
+  background: var(--app-hover);
+}
+
+.retry-failure-list button:focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: -2px;
 }
 
 .retry-failure-row--selected {
   box-shadow: inset 2px 0 0 var(--app-accent);
-  padding-left: 0.5rem !important;
+  background: var(--app-accent-soft) !important;
 }
 
 .retry-failure-list bdi {
   min-width: 0;
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-size: 0.8125rem;
+  font-weight: 500;
   text-overflow: ellipsis;
   unicode-bidi: isolate;
   white-space: nowrap;
 }
 
+.retry-failure-row--selected bdi {
+  color: var(--app-accent);
+}
+
 .retry-failure-list strong {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .retry-failure-list span {
   grid-column: 1 / -1;
   color: var(--app-text-muted);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
 }
 
 .retry-empty-state {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.9rem;
-  border: 1px dashed var(--app-border);
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--app-panel) 68%, transparent);
+  gap: 1rem;
+  border-radius: 8px;
+  background: var(--app-panel-muted);
   padding: 1rem;
 }
 
-.retry-empty-state__pulse {
-  display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--app-warning) 38%, var(--app-border));
-  border-radius: 50%;
-}
-
-.retry-empty-state__pulse > span {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 50%;
-  background: var(--app-warning);
-  box-shadow: 0 0 0 0.3rem color-mix(in srgb, var(--app-warning) 12%, transparent);
-}
-
 @media (max-width: 1180px) {
-  .retry-kpis {
+  .retry-health .retry-kpis {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .retry-kpis > div:nth-child(4) {
-    border-left: 0;
-  }
-
-  .retry-kpis > div:nth-child(n + 4) {
-    border-top: 1px solid var(--app-border-subtle);
-    padding-top: 0.65rem;
-  }
-
-  .retry-details-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .retry-detail-card--rules {
-    grid-column: 1 / -1;
   }
 }
 
@@ -802,53 +654,38 @@ function toNumber(value: bigint): number {
   .retry-details-grid {
     grid-template-columns: 1fr;
   }
-
-  .retry-detail-card--rules {
-    grid-column: auto;
-  }
 }
 
-@media (max-width: 520px) {
-  .retry-health__heading,
-  .retry-trend-card__heading,
-  .retry-detail-card__heading {
-    display: grid;
-  }
-
-  .retry-signal {
-    justify-self: start;
-  }
-
-  .retry-kpis {
+@media (max-width: 639px) {
+  .retry-health .retry-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .retry-kpis > div,
-  .retry-kpis > div:nth-child(4) {
-    border-top: 1px solid var(--app-border-subtle);
-    border-left: 0;
-    padding: 0.65rem 0;
-  }
-
-  .retry-kpis > div:nth-child(even) {
-    border-left: 1px solid var(--app-border-subtle);
-    padding-left: 0.65rem;
+  .retry-trend__heading {
+    display: grid;
   }
 
   .retry-chart {
-    grid-template-columns: 2.6rem minmax(0, 1fr);
+    grid-template-columns: 2.5rem minmax(0, 1fr);
   }
 
   .retry-chart__axis {
-    margin-left: 3.15rem;
+    margin-left: 3rem;
   }
 
   .retry-empty-state {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 
-  .retry-empty-state > a {
-    grid-column: 2;
+  .retry-failure-list button,
+  .retry-rules-table th:first-child {
+    padding-left: 1rem;
+  }
+
+  .retry-failure-list button,
+  .retry-rules-table th:last-child,
+  .retry-rules-table td:last-child {
+    padding-right: 1rem;
   }
 }
 

@@ -14,7 +14,7 @@ const (
 	defaultPublicSelfSignedValidityDays                       = int64(3650)
 	minPublicSelfSignedValidityDays                           = int64(1)
 	maxPublicSelfSignedValidityDays                           = int64(3650)
-	defaultSelfSignedTLSHost                                  = "p2pstream.local"
+	defaultSelfSignedTLSHost                                  = "localhost"
 	defaultWelcomeContentType                                 = "text/html; charset=utf-8"
 	defaultWelcomeCacheControl                                = "no-store"
 	publicResponseBodyModeInline                              = "inline"
@@ -83,6 +83,9 @@ type publicConfigRows struct {
 	Agents                     []db.Agent
 	AgentLabels                []db.PublicAgentLabel
 	Listeners                  []db.PublicListener
+	Sites                      []db.PublicSite
+	SiteHosts                  []db.PublicSiteHost
+	SiteListenerBindings       []db.PublicSiteListenerBinding
 	Routes                     []db.PublicRoute
 	RouteTargets               []db.PublicRouteTarget
 	RouteTargetUpstreamHeaders []db.PublicRouteTargetUpstreamHeader

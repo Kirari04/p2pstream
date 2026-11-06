@@ -3,11 +3,15 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"p2pstream/internal/config"
 	"p2pstream/internal/sysmetrics"
+	"p2pstream/internal/tunnel"
 )
 
 type blockingAdaptiveMemorySampler struct {
@@ -16,6 +20,20 @@ type blockingAdaptiveMemorySampler struct {
 	entered chan struct{}
 	proceed chan struct{}
 	once    sync.Once
+}
+
+func TestServerAdaptiveControllerAcceptsProtocolFloorWindow(t *testing.T) {
+	want := tunnel.ServerStreamBaseResourceModel()
+	controller := newServerAdaptiveMemoryController(&config.Config{
+		TunnelMaxStreamWindowBytes: tunnel.InitialStreamWindowSizeBytes,
+	})
+	if controller == nil {
+		t.Fatal("protocol-floor server resource model disabled adaptive safety")
+	}
+	snapshot := controller.ForceRefresh(64, 0)
+	if snapshot.AdmissionRole != sysmetrics.AdaptiveAdmissionRoleServerStream || snapshot.StreamChargeByte != want.MemoryBytes || snapshot.StreamChargeFD != 0 {
+		t.Fatalf("protocol-floor snapshot dimensions = %+v, want charge %d/0", snapshot, want.MemoryBytes)
+	}
 }
 
 func (s *blockingAdaptiveMemorySampler) SampleMemoryUsage() (sysmetrics.MemoryUsage, error) {
@@ -39,6 +57,10 @@ func newAdaptiveServerCapacityForTest(t testing.TB, total int, usage *sysmetrics
 		t.Fatal(err)
 	}
 	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	model := tunnel.ServerStreamBaseResourceModel()
+	config.AdmissionRole = sysmetrics.AdaptiveAdmissionRoleServerStream
+	config.EstimatedBytesPerAdmission = model.MemoryBytes
+	config.FileDescriptorsPerAdmission = 0
 	config.SampleInterval = time.Hour
 	controller, err := sysmetrics.NewAdaptiveMemoryController(config, sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
 		return *usage, nil
@@ -73,6 +95,82 @@ func TestServerAdaptiveCapacityHealthyPathExceedsLegacyCeiling(t *testing.T) {
 		lease.release()
 	}
 	assertAgentStreamCapacityClean(t, manager)
+}
+
+func TestServerOwnedResourceEnvelopeExceedsFormerCapWithPublicReservations(t *testing.T) {
+	const limit = int64(4 << 30)
+	usage := sysmetrics.MemoryUsage{UsedBytes: 28 * limit / 100, LimitBytes: limit, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 65_536, &usage)
+	release, ok, constrained := manager.tryReserveAdaptiveResource(adaptiveResourceOwnerPublicConnection, 256<<20, 128)
+	if !ok || !constrained {
+		t.Fatalf("public reservation = ok %t constrained %t", ok, constrained)
+	}
+	defer release()
+	snapshot := manager.snapshot()
+	if snapshot.AdaptiveAdmissionRole != sysmetrics.AdaptiveAdmissionRoleServerStream || snapshot.AdaptiveStreamChargeFDs != 0 {
+		t.Fatalf("server dimensions = %+v", snapshot)
+	}
+	if snapshot.AdaptiveAdmissionLimit <= 950 {
+		t.Fatalf("allowance with public reservations = %d, want beyond former 950-stream cap", snapshot.AdaptiveAdmissionLimit)
+	}
+	if snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerPublicConnection] != 256<<20 ||
+		snapshot.AdaptiveExternalFDsByOwner[adaptiveResourceOwnerPublicConnection] != 128 ||
+		snapshot.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerPublicConnection] != 1 {
+		t.Fatalf("public owner ledger = %+v", snapshot)
+	}
+}
+
+func TestAdaptiveResourceOwnerLedgerConservesConcurrentReceiveCredit(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 4 << 30, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 65_536, &usage)
+	const (
+		reservations = 128
+		bytesEach    = int64(64 << 10)
+	)
+	releases := make(chan func(), reservations)
+	errs := make(chan error, reservations)
+	var acquire sync.WaitGroup
+	for range reservations {
+		acquire.Go(func() {
+			release, ok, constrained := manager.tryReserveAdaptiveResource(adaptiveResourceOwnerReceiveWindow, bytesEach, 0)
+			if !ok || !constrained {
+				errs <- fmt.Errorf("receive credit reservation = ok %t constrained %t", ok, constrained)
+				return
+			}
+			releases <- release
+		})
+	}
+	acquire.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatal(err)
+	}
+	snapshot := manager.snapshot()
+	if got, want := snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow], reservations*bytesEach; got != want {
+		t.Fatalf("receive-window bytes = %d, want %d", got, want)
+	}
+	if got := snapshot.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerReceiveWindow]; got != reservations {
+		t.Fatalf("receive-window reservations = %d, want %d", got, reservations)
+	}
+	// Snapshots own their fixed arrays; mutating a prior value cannot corrupt
+	// the manager's ledger or later discrepancy telemetry.
+	snapshot.AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow] = 0
+	if got := manager.snapshot().AdaptiveExternalBytesByOwner[adaptiveResourceOwnerReceiveWindow]; got != reservations*bytesEach {
+		t.Fatalf("snapshot mutation changed live ledger: %d", got)
+	}
+	close(releases)
+	var cleanup sync.WaitGroup
+	for release := range releases {
+		cleanup.Go(release)
+	}
+	cleanup.Wait()
+	clean := manager.snapshot()
+	if clean.AdaptiveExternalBytes != 0 || clean.AdaptiveExternalReservationsByOwner[adaptiveResourceOwnerReceiveWindow] != 0 {
+		t.Fatalf("released owner ledger = %+v", clean)
+	}
+	if err := manager.validateInvariants(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestServerAdaptiveCapacityCanUseResourcesBeyondProtocolV1FixedMaximum(t *testing.T) {
@@ -375,7 +473,7 @@ func TestServerAdaptiveCapacityRejectsOutOfOrderSnapshotPublication(t *testing.T
 	}
 }
 
-func TestServerAdaptiveRefreshSerializesLeaseBaselineWithPublication(t *testing.T) {
+func TestServerAdaptiveRefreshAllowsReleaseWithoutRegrantingSampledBaseline(t *testing.T) {
 	manager, err := newAgentStreamCapacityManager(agentStreamCapacityConfig{
 		Total: 64, Public: 63, Pooled: 63, Control: 1,
 		MaxWaiters: 64, MaxWaitersPerKey: 64, MaxOpeningPerSession: 64,
@@ -405,7 +503,14 @@ func TestServerAdaptiveRefreshSerializesLeaseBaselineWithPublication(t *testing.
 		lease.markLive()
 		leases = append(leases, lease)
 	}
+	releaseExternal, ok, constrained := manager.tryReserveAdaptiveExternal(config.EstimatedBytesPerAdmission, 0)
+	if !ok || !constrained {
+		t.Fatal("initial external reservation rejected")
+	}
 	sampler.mu.Lock()
+	// Only two stream charges remain below the hard watermark. The sample's
+	// old sixteen-stream floor must not become fresh credit after release.
+	sampler.usage.UsedBytes = sampler.usage.LimitBytes*int64(config.HardLimitPercent)/100 - 2*config.EstimatedBytesPerAdmission
 	sampler.entered = make(chan struct{})
 	sampler.proceed = make(chan struct{})
 	sampler.once = sync.Once{}
@@ -427,12 +532,14 @@ func TestServerAdaptiveRefreshSerializesLeaseBaselineWithPublication(t *testing.
 		for _, lease := range leases {
 			lease.release()
 		}
+		releaseExternal()
 		close(released)
 	}()
 	select {
 	case <-released:
-		t.Fatal("leases changed while their in-use baseline was being sampled")
-	case <-time.After(20 * time.Millisecond):
+	case <-time.After(time.Second):
+		close(proceed)
+		t.Fatal("resource sampling blocked lease or external reservation cleanup")
 	}
 	close(proceed)
 	select {
@@ -440,12 +547,245 @@ func TestServerAdaptiveRefreshSerializesLeaseBaselineWithPublication(t *testing.
 	case <-time.After(time.Second):
 		t.Fatal("resource refresh did not publish")
 	}
-	select {
-	case <-released:
-	case <-time.After(time.Second):
-		t.Fatal("lease releases did not resume after publication")
+	snapshot := manager.snapshot()
+	if snapshot.AdaptiveRawAdmissionLimit != 2 || snapshot.AdaptiveExternalBytes != 0 || snapshot.Total.InUse != 0 {
+		t.Fatalf("released sample retained spendable old baseline: %+v", snapshot)
 	}
+	lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "new", "session")
+	if err != nil {
+		t.Fatalf("one public stream plus protected control should fit: %v", err)
+	}
+	if _, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "overdraw", "session"); !errors.Is(err, errAgentStreamCapacityResourcePressure) {
+		t.Fatalf("old sampled baseline became new credit: %v", err)
+	}
+	lease.release()
 	assertAgentStreamCapacityClean(t, manager)
+}
+
+func TestServerAdaptiveRefreshCannotPublishReplacedController(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 32, &usage)
+	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	config.SampleInterval = time.Hour
+	sampler := &blockingAdaptiveMemorySampler{usage: usage}
+	oldController, err := sysmetrics.NewAdaptiveMemoryController(config, sampler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.enableAdaptiveMemory(oldController)
+	sampler.mu.Lock()
+	sampler.entered, sampler.proceed = make(chan struct{}), make(chan struct{})
+	entered, proceed := sampler.entered, sampler.proceed
+	sampler.mu.Unlock()
+	var unblock sync.Once
+	t.Cleanup(func() { unblock.Do(func() { close(proceed) }) })
+	refreshed := make(chan struct{})
+	go func() {
+		manager.refreshAdaptiveCapacity(true)
+		close(refreshed)
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("old controller did not enter sampler")
+	}
+	newController, err := sysmetrics.NewAdaptiveMemoryController(config, sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
+		return sysmetrics.MemoryUsage{UsedBytes: 500 << 20, LimitBytes: 512 << 20, Source: "replacement"}, nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.enableAdaptiveMemory(newController)
+	unblock.Do(func() { close(proceed) })
+	select {
+	case <-refreshed:
+	case <-time.After(time.Second):
+		t.Fatal("old resource sample did not finish")
+	}
+	manager.mu.Lock()
+	got := manager.resourceSnapshot
+	manager.mu.Unlock()
+	if got.Generation != 1 || !got.RejectNew || got.Usage.Source != "replacement" {
+		t.Fatalf("old controller overwrote replacement: %+v", got)
+	}
+}
+
+func TestServerAdaptiveOverlappingSamplesPauseGrantsButNotCancellation(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 3, &usage)
+	manager.registerSessionWithLimit("session", 3)
+	defer manager.unregisterSession("session")
+	firstEntered, secondEntered := make(chan struct{}), make(chan struct{})
+	firstProceed, secondProceed := make(chan struct{}), make(chan struct{})
+	var firstOnce, secondOnce sync.Once
+	unblockFirst := func() { firstOnce.Do(func() { close(firstProceed) }) }
+	unblockSecond := func() { secondOnce.Do(func() { close(secondProceed) }) }
+	t.Cleanup(unblockFirst)
+	t.Cleanup(unblockSecond)
+	var calls atomic.Int32
+	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	config.SampleInterval = time.Hour
+	controller, err := sysmetrics.NewAdaptiveMemoryController(config, sysmetrics.MemoryUsageSamplerFunc(func() (sysmetrics.MemoryUsage, error) {
+		switch calls.Add(1) {
+		case 2:
+			close(firstEntered)
+			<-firstProceed
+		case 3:
+			close(secondEntered)
+			<-secondProceed
+		}
+		return usage, nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.enableAdaptiveMemory(controller)
+	leases := make([]*agentStreamCapacityLease, 0, 2)
+	for range 2 {
+		lease, err := manager.tryAcquire(agentStreamCapacityPublicOneShot, "route", "session")
+		if err != nil {
+			t.Fatal(err)
+		}
+		leases = append(leases, lease)
+		defer lease.release()
+	}
+	canceledContext, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	canceled := acquireAgentStreamAsync(manager, canceledContext, agentStreamCapacityPublicOneShot, "cancel", "session")
+	waiting := acquireAgentStreamAsync(manager, t.Context(), agentStreamCapacityPublicOneShot, "wait", "session")
+	waitForAgentStreamCapacityWaiters(t, manager, 2)
+	firstDone, secondDone := make(chan struct{}), make(chan struct{})
+	go func() { manager.refreshAdaptiveCapacity(true); close(firstDone) }()
+	select {
+	case <-firstEntered:
+	case <-time.After(time.Second):
+		t.Fatal("first sampler did not enter")
+	}
+	go func() { manager.refreshAdaptiveCapacity(true); close(secondDone) }()
+	deadline := time.Now().Add(time.Second)
+	for {
+		manager.mu.Lock()
+		pending := manager.adaptiveSampling
+		manager.mu.Unlock()
+		if pending == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("overlapping refresh was not tracked")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	leases[0].release()
+	cancel()
+	if result := receiveAgentStreamResult(t, canceled); !errors.Is(result.err, context.Canceled) || result.lease != nil {
+		t.Fatalf("queued cancellation while sampling = %+v", result)
+	}
+	unblockFirst()
+	select {
+	case <-secondEntered:
+	case <-time.After(time.Second):
+		t.Fatal("second sampler did not enter")
+	}
+	select {
+	case <-firstDone:
+	case <-time.After(time.Second):
+		t.Fatal("first publication did not complete")
+	}
+	// Emulate a newer completed sample winning publication before the final
+	// older sampler can reacquire the ledger. Its stale completion must still
+	// resume the queue when it clears the last in-flight guard.
+	manager.mu.Lock()
+	newer := manager.resourceSnapshot
+	newer.Generation += 100
+	manager.mu.Unlock()
+	manager.publishAdaptiveCapacity(newer)
+	select {
+	case result := <-waiting:
+		if result.lease != nil {
+			result.lease.release()
+		}
+		t.Fatalf("first completion granted against an in-flight second sample: %+v", result)
+	default:
+	}
+	leases[1].release()
+	unblockSecond()
+	select {
+	case <-secondDone:
+	case <-time.After(time.Second):
+		t.Fatal("second publication did not complete")
+	}
+	receiveAgentStreamLease(t, waiting).release()
+	assertAgentStreamCapacityClean(t, manager)
+}
+
+func TestServerAdaptiveAdmissionRechecksSampleStartedAfterRefresh(t *testing.T) {
+	usage := sysmetrics.MemoryUsage{UsedBytes: 64 << 20, LimitBytes: 512 << 20, Source: "test"}
+	manager := newAdaptiveServerCapacityForTest(t, 32, &usage)
+	manager.registerSessionWithLimit("session", 32)
+	defer manager.unregisterSession("session")
+	config := sysmetrics.DefaultAdaptiveMemoryConfig()
+	config.SampleInterval = time.Hour
+	sampler := &blockingAdaptiveMemorySampler{usage: usage}
+	controller, err := sysmetrics.NewAdaptiveMemoryController(config, sampler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager.enableAdaptiveMemory(controller)
+	// This is the first half of each direct admission path. A background
+	// refresh starts before that path locks the ledger to spend its credit.
+	manager.refreshAdaptiveCapacity(false)
+	sampler.mu.Lock()
+	sampler.usage.UsedBytes = 500 << 20
+	sampler.entered, sampler.proceed = make(chan struct{}), make(chan struct{})
+	entered, proceed := sampler.entered, sampler.proceed
+	sampler.mu.Unlock()
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(proceed) }) }
+	t.Cleanup(unblock)
+	refreshed := make(chan struct{})
+	go func() { manager.refreshAdaptiveCapacity(true); close(refreshed) }()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("background sampler did not start")
+	}
+	spentOldSample := make(chan bool, 1)
+	go func() {
+		_ = manager.lockAdaptiveAdmission(context.Background())
+		spentOldSample <- manager.canGrantLocked(agentStreamCapacityPublicOneShot, "session")
+		manager.mu.Unlock()
+	}()
+	select {
+	case <-spentOldSample:
+		t.Fatal("direct admission did not wait for the intervening sample")
+	case <-time.After(20 * time.Millisecond):
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	canceled := make(chan error, 1)
+	go func() {
+		err := manager.lockAdaptiveAdmission(ctx)
+		manager.mu.Unlock()
+		canceled <- err
+	}()
+	cancel()
+	select {
+	case err := <-canceled:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("canceled admission wait = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("sampling blocked admission cancellation")
+	}
+	unblock()
+	select {
+	case granted := <-spentOldSample:
+		if granted {
+			t.Fatal("direct admission spent old healthy credit after critical sample")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("direct admission did not resume after sample")
+	}
+	<-refreshed
 }
 
 func TestSessionFairnessBorrowsIdleCapacityAndYieldsUnderContention(t *testing.T) {

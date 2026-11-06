@@ -5,10 +5,12 @@ const Diagnostics = () => import('./views/Diagnostics.vue');
 const Traffic = () => import('./views/Traffic.vue');
 const Monitor = () => import('./views/Monitor.vue');
 const AgentHealth = () => import('./views/AgentHealth.vue');
+const AgentUpdates = () => import('./views/AgentUpdates.vue');
 const Settings = () => import('./views/Settings.vue');
 const SettingsApiTokens = () => import('./views/SettingsApiTokens.vue');
 const SettingsEnvironments = () => import('./views/SettingsEnvironments.vue');
 const SettingsManagementTls = () => import('./views/SettingsManagementTls.vue');
+const SettingsManagementTlsRotation = () => import('./views/SettingsManagementTlsRotation.vue');
 const ProxyConfig = () => import('./views/ProxyConfig.vue');
 const TrafficPolicies = () => import('./views/TrafficPolicies.vue');
 const ResponseTemplates = () => import('./views/ResponseTemplates.vue');
@@ -33,6 +35,7 @@ const routes = [
       { path: ':pathMatch(.*)*', redirect: '/monitor/traffic' },
     ],
   },
+  { path: '/agent/updates', name: 'agent-updates', component: AgentUpdates },
   { path: '/agent/:section(fleet|activity)?', name: 'agent', component: AgentHealth },
   {
     path: '/settings',
@@ -42,18 +45,23 @@ const routes = [
       { path: 'environments', name: 'settings-environments', component: SettingsEnvironments },
       { path: 'api-tokens', name: 'settings-api-tokens', component: SettingsApiTokens },
       { path: 'management-tls', name: 'settings-management-tls', component: SettingsManagementTls },
+      { path: 'management-tls/rotation', name: 'settings-management-tls-rotation', component: SettingsManagementTlsRotation },
     ],
   },
-  { path: '/environments', redirect: '/settings/environments' },
-  { path: '/proxy', redirect: '/proxy/routes' },
-  { path: '/proxy/:section(routes|listeners)', name: 'proxy', component: ProxyConfig },
-  { path: '/proxy/:pathMatch(.*)*', redirect: '/proxy/routes' },
+  { path: '/proxy', redirect: '/proxy/sites' },
+  { path: '/proxy/routes', redirect: '/proxy/sites' },
+  { path: '/proxy/:section(sites|listeners)', name: 'proxy', component: ProxyConfig },
+  { path: '/proxy/:pathMatch(.*)*', redirect: '/proxy/sites' },
   { path: '/policies', redirect: '/policies/rate-limits' },
-  { path: '/policies/:section(rate-limits|waf|access|cache|retries|traffic-shaper)', name: 'policies', component: TrafficPolicies },
+  // WAF has route-backed sub-pages: /policies/waf (rules) and /policies/waf/captcha-providers.
+  {
+    path: '/policies/:section(rate-limits|waf|waf/captcha-providers|access|cache|retries|traffic-shaper|visitor-identity)',
+    name: 'policies',
+    component: TrafficPolicies,
+  },
   { path: '/policies/:pathMatch(.*)*', redirect: '/policies/rate-limits' },
   { path: '/templates', name: 'templates', component: ResponseTemplates },
   { path: '/tls', name: 'tls', component: TlsConfig },
-  { path: '/management', redirect: '/proxy/routes' },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFound },
 ];
 

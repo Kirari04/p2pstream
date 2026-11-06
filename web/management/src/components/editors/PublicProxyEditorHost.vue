@@ -6,36 +6,58 @@ import PublicCacheRuleEditorModal from "@/components/editors/PublicCacheRuleEdit
 import PublicRateLimitRuleEditorModal from "@/components/editors/PublicRateLimitRuleEditorModal.vue";
 import PublicRetryRuleEditorModal from "@/components/editors/PublicRetryRuleEditorModal.vue";
 import PublicRouteEditorModal from "@/components/editors/PublicRouteEditorModal.vue";
+import PublicSiteEditorModal from "@/components/editors/PublicSiteEditorModal.vue";
 import PublicTrafficShaperRuleEditorModal from "@/components/editors/PublicTrafficShaperRuleEditorModal.vue";
 import PublicWafCaptchaProviderEditorModal from "@/components/editors/PublicWafCaptchaProviderEditorModal.vue";
 import PublicWafRuleEditorModal from "@/components/editors/PublicWafRuleEditorModal.vue";
 import type { TrafficFlowEditTarget } from "@/types/trafficFlowEdit";
-import type { Agent, GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { GetPublicProxyConfigResponse } from "@/gen/proto/p2pstream/v1/management_pb";
+import type { CreatedAgentSetup } from "@/types/agentSetup";
 
-defineProps<{
+const props = defineProps<{
   config: GetPublicProxyConfigResponse | null;
   allowAgentCreate?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (event: "created-agent", payload: { agent: Agent | null; token: string }): void;
+  (event: "created-agent", payload: CreatedAgentSetup): void;
   (event: "saved"): void;
 }>();
 
-const listenerEditor = ref<InstanceType<typeof PublicListenerEditorModal> | null>(null);
-const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(null);
+const listenerEditor = ref<InstanceType<
+  typeof PublicListenerEditorModal
+> | null>(null);
+const routeEditor = ref<InstanceType<typeof PublicRouteEditorModal> | null>(
+  null,
+);
+const siteEditor = ref<InstanceType<typeof PublicSiteEditorModal> | null>(null);
 const agentEditor = ref<InstanceType<typeof AgentEditorModal> | null>(null);
-const rateLimitEditor = ref<InstanceType<typeof PublicRateLimitRuleEditorModal> | null>(null);
-const retryRuleEditor = ref<InstanceType<typeof PublicRetryRuleEditorModal> | null>(null);
-const cacheRuleEditor = ref<InstanceType<typeof PublicCacheRuleEditorModal> | null>(null);
-const trafficShaperEditor = ref<InstanceType<typeof PublicTrafficShaperRuleEditorModal> | null>(null);
-const wafRuleEditor = ref<InstanceType<typeof PublicWafRuleEditorModal> | null>(null);
-const wafCaptchaProviderEditor = ref<InstanceType<typeof PublicWafCaptchaProviderEditorModal> | null>(null);
+const rateLimitEditor = ref<InstanceType<
+  typeof PublicRateLimitRuleEditorModal
+> | null>(null);
+const retryRuleEditor = ref<InstanceType<
+  typeof PublicRetryRuleEditorModal
+> | null>(null);
+const cacheRuleEditor = ref<InstanceType<
+  typeof PublicCacheRuleEditorModal
+> | null>(null);
+const trafficShaperEditor = ref<InstanceType<
+  typeof PublicTrafficShaperRuleEditorModal
+> | null>(null);
+const wafRuleEditor = ref<InstanceType<typeof PublicWafRuleEditorModal> | null>(
+  null,
+);
+const wafCaptchaProviderEditor = ref<InstanceType<
+  typeof PublicWafCaptchaProviderEditorModal
+> | null>(null);
 
 function openTarget(target: TrafficFlowEditTarget) {
   switch (target.kind) {
     case "listener":
       openListener(target.id);
+      break;
+    case "site":
+      openSite(target.id);
       break;
     case "route":
       openRoute(target.id);
@@ -66,19 +88,36 @@ function openListener(listenerId: bigint | string) {
 }
 
 function openRoute(routeId: bigint | string) {
-  routeEditor.value?.openEdit(routeId);
+  const route = props.config?.routes.find(
+    (item) => item.id.toString() === routeId.toString(),
+  );
+  if (route?.siteId && route.siteId > 0n)
+    siteEditor.value?.openEdit(route.siteId);
+  else routeEditor.value?.openEdit(routeId);
+}
+
+function openSite(siteId: bigint | string) {
+  siteEditor.value?.openEdit(siteId);
 }
 
 function openCloneRoute(routeId: bigint | string) {
-  routeEditor.value?.openClone(routeId);
+  const route = props.config?.routes.find(
+    (item) => item.id.toString() === routeId.toString(),
+  );
+  if (route?.siteId && route.siteId > 0n)
+    siteEditor.value?.openEdit(route.siteId);
+  else routeEditor.value?.openClone(routeId);
 }
 
 function openRouteTarget(targetId: bigint | string) {
-  void targetId;
+  const target = props.config?.routeTargets.find(
+    (item) => item.id.toString() === targetId.toString(),
+  );
+  if (target) openRoute(target.routeId);
 }
 
 function openCloneRouteTarget(targetId: bigint | string) {
-  void targetId;
+  openRouteTarget(targetId);
 }
 
 function openAgent(agentId: bigint | string) {
@@ -113,11 +152,8 @@ function openCreateListener() {
   listenerEditor.value?.openCreate();
 }
 
-function openCreateRoute() {
-  routeEditor.value?.openCreate();
-}
-
-function openCreateRouteTarget() {
+function openCreateSite() {
+  siteEditor.value?.openCreate();
 }
 
 function openCreateAgent() {
@@ -152,6 +188,7 @@ defineExpose({
   openTarget,
   openListener,
   openRoute,
+  openSite,
   openCloneRoute,
   openRouteTarget,
   openCloneRouteTarget,
@@ -163,8 +200,7 @@ defineExpose({
   openCacheRule,
   openWafCaptchaProvider,
   openCreateListener,
-  openCreateRoute,
-  openCreateRouteTarget,
+  openCreateSite,
   openCreateAgent,
   openCreateRateLimitRule,
   openCreateTrafficShaperRule,
@@ -176,14 +212,51 @@ defineExpose({
 </script>
 
 <template>
-  <PublicListenerEditorModal ref="listenerEditor" :config="config" @saved="emit('saved')" />
-  <PublicRouteEditorModal ref="routeEditor" :config="config" @saved="emit('saved')" />
-  <PublicRateLimitRuleEditorModal ref="rateLimitEditor" :config="config" @saved="emit('saved')" />
-  <PublicTrafficShaperRuleEditorModal ref="trafficShaperEditor" :config="config" @saved="emit('saved')" />
-  <PublicRetryRuleEditorModal ref="retryRuleEditor" :config="config" @saved="emit('saved')" />
-  <PublicCacheRuleEditorModal ref="cacheRuleEditor" :config="config" @saved="emit('saved')" />
-  <PublicWafRuleEditorModal ref="wafRuleEditor" :config="config" @saved="emit('saved')" />
-  <PublicWafCaptchaProviderEditorModal ref="wafCaptchaProviderEditor" :config="config" @saved="emit('saved')" />
+  <PublicListenerEditorModal
+    ref="listenerEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicRouteEditorModal
+    ref="routeEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicSiteEditorModal
+    ref="siteEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicRateLimitRuleEditorModal
+    ref="rateLimitEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicTrafficShaperRuleEditorModal
+    ref="trafficShaperEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicRetryRuleEditorModal
+    ref="retryRuleEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicCacheRuleEditorModal
+    ref="cacheRuleEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicWafRuleEditorModal
+    ref="wafRuleEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
+  <PublicWafCaptchaProviderEditorModal
+    ref="wafCaptchaProviderEditor"
+    :config="config"
+    @saved="emit('saved')"
+  />
   <AgentEditorModal
     ref="agentEditor"
     :config="config"

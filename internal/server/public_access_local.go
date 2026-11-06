@@ -572,6 +572,12 @@ func publicAccessFormBrowserSource(request *http.Request, listener publicListene
 }
 
 func handlePublicLocalLogout(ctx *publicProxyContext, policy publicAccessPolicyConfig, provider publicAccessProviderConfig) (publicProxyStageResult, error) {
+	if ctx.Request.Method != http.MethodPost {
+		return rejectPublicAccessDenied(ctx, policy, provider, http.StatusMethodNotAllowed, "access_logout_method"), nil
+	}
+	if publicAccessFormBrowserSource(ctx.Request, ctx.RouteMatch.Listener) != publicAccessFormSourceTrusted {
+		return rejectPublicAccessDenied(ctx, policy, provider, http.StatusBadRequest, "access_logout_origin"), nil
+	}
 	cookies := ctx.Request.CookiesNamed(publicAccessSessionCookieNameForProvider(provider))
 	if len(cookies) == 1 && len(cookies[0].Value) >= 32 && len(cookies[0].Value) <= 128 {
 		if err := ctx.App.DB.RevokePublicAccessSessionByTokenHash(ctx.Request.Context(), db.RevokePublicAccessSessionByTokenHashParams{

@@ -30,6 +30,7 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"GetStatus":                         {},
 	"GetDashboard":                      {},
 	"GetAgentAvailability":              {},
+	"ListAgentAvailability":             {},
 	"GetDashboardDiagnostics":           {},
 	"GetTrafficTraceSettings":           {},
 	"SetTrafficTraceSettings":           {},
@@ -58,6 +59,12 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"CreatePublicRoute":                 {},
 	"UpdatePublicRoute":                 {},
 	"DeletePublicRoute":                 {},
+	"CreatePublicSite":                  {},
+	"UpdatePublicSite":                  {},
+	"DeletePublicSite":                  {},
+	"PublishPublicSite":                 {},
+	"PreviewPublicSiteMigration":        {},
+	"ApplyPublicSiteMigration":          {},
 	"CreatePublicAccessProvider":        {},
 	"UpdatePublicAccessProvider":        {},
 	"DeletePublicAccessProvider":        {},
@@ -100,6 +107,19 @@ var allowedEnvironmentProxyMethods = map[string]struct{}{
 	"DeletePublicCacheRule":             {},
 	"UpdatePublicCacheSettings":         {},
 	"PurgePublicCache":                  {},
+
+	// Operator actions use the selected server's admin token and update authority.
+	// Host enrollment, polling, and reports retain their dedicated authentication
+	// and are deliberately not exposed through this environment proxy.
+	"GenerateAgentUpdaterEnrollmentToken": {},
+	"GetAgentUpdateOverview":              {},
+	"PreviewAgentUpdateCampaign":          {},
+	"CreateAgentUpdateCampaign":           {},
+	"ListAgentUpdateCampaigns":            {},
+	"PauseAgentUpdateCampaign":            {},
+	"ResumeAgentUpdateCampaign":           {},
+	"CancelAgentUpdateCampaign":           {},
+	"RetryAgentUpdateAssignments":         {},
 }
 
 type environmentAuthRoundTripper struct {
@@ -301,12 +321,15 @@ func (rt environmentAgentRoundTripper) RoundTrip(req *http.Request) (*http.Respo
 		return nil, err
 	}
 	req = req.Clone(withAgentDialRequestID(req.Context(), requestID.String()))
-	if rt.app.AgentTransports == nil {
-		transport := newAgentTransportPool().environmentTransport(rt.app, agent, rt.env, tlsConfig)
-		return transport.RoundTrip(req)
+	pool := rt.app.AgentTransports
+	if pool == nil {
+		pool = newAgentTransportPool()
 	}
-	transport := rt.app.AgentTransports.environmentTransport(rt.app, agent, rt.env, tlsConfig)
-	return transport.RoundTrip(req)
+	transport := pool.environmentTransport(rt.app, agent, rt.env, tlsConfig)
+	return roundTripEnvironmentAgent(req, rt.app, agent, transport, func() http.RoundTripper {
+		return newAgentHTTPTransport(rt.app, agent, tlsConfig, environmentResponseHeaderTimeout(rt.env),
+			fmt.Sprintf("environment:%d", rt.env.ID), agentStreamCapacityPublicOneShot, true)
+	})
 }
 
 func (a *App) discoverEnvironmentCertificateViaAgent(ctx context.Context, row db.Environment, timeout time.Duration) (*x509.Certificate, string, error) {

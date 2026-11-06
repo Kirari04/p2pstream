@@ -12,13 +12,11 @@ import (
 
 type Querier interface {
 	AssignDefaultLocalAccessLoginTemplate(ctx context.Context, localAuthLoginTemplateID sql.NullInt64) (int64, error)
-	BackfillAgentStatRollupMinutesRange(ctx context.Context, arg BackfillAgentStatRollupMinutesRangeParams) error
-	BackfillProxyRequestRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestRollupMinutesRangeParams) error
-	BackfillProxyRequestStatusRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestStatusRollupMinutesRangeParams) error
-	BackfillProxyRequestTupleRollupMinutesRange(ctx context.Context, arg BackfillProxyRequestTupleRollupMinutesRangeParams) error
 	ClearEnvironmentTrust(ctx context.Context, id int64) (Environment, error)
 	CloseOpenConnectionsAt(ctx context.Context, disconnectedAt sql.NullTime) error
+	CountAgentUpdateCampaignsFiltered(ctx context.Context, arg CountAgentUpdateCampaignsFilteredParams) (int64, error)
 	CountPublicListeners(ctx context.Context) (int64, error)
+	CountPublicRoutesBySite(ctx context.Context, siteID sql.NullInt64) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
 	CreateAgent(ctx context.Context, arg CreateAgentParams) (Agent, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
@@ -36,6 +34,9 @@ type Querier interface {
 	CreatePublicRouteTarget(ctx context.Context, arg CreatePublicRouteTargetParams) (PublicRouteTarget, error)
 	CreatePublicRouteTargetResponseHeader(ctx context.Context, arg CreatePublicRouteTargetResponseHeaderParams) (PublicRouteTargetResponseHeader, error)
 	CreatePublicRouteTargetUpstreamHeader(ctx context.Context, arg CreatePublicRouteTargetUpstreamHeaderParams) (PublicRouteTargetUpstreamHeader, error)
+	CreatePublicSite(ctx context.Context, arg CreatePublicSiteParams) (PublicSite, error)
+	CreatePublicSiteHost(ctx context.Context, arg CreatePublicSiteHostParams) (PublicSiteHost, error)
+	CreatePublicSiteListenerBinding(ctx context.Context, arg CreatePublicSiteListenerBindingParams) (PublicSiteListenerBinding, error)
 	CreatePublicTlsCertificate(ctx context.Context, arg CreatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	CreatePublicTlsDnsCredential(ctx context.Context, arg CreatePublicTlsDnsCredentialParams) (PublicTlsDnsCredential, error)
 	CreatePublicTrafficShaperRule(ctx context.Context, arg CreatePublicTrafficShaperRuleParams) (PublicTrafficShaperRule, error)
@@ -75,6 +76,9 @@ type Querier interface {
 	DeletePublicRouteTargetResponseHeaders(ctx context.Context, targetID int64) error
 	DeletePublicRouteTargetUpstreamHeaders(ctx context.Context, targetID int64) error
 	DeletePublicRouteTargets(ctx context.Context, routeID int64) error
+	DeletePublicSite(ctx context.Context, id int64) error
+	DeletePublicSiteHosts(ctx context.Context, siteID int64) error
+	DeletePublicSiteListenerBindings(ctx context.Context, siteID int64) error
 	DeletePublicTlsCertificate(ctx context.Context, id int64) error
 	DeletePublicTlsDnsCredential(ctx context.Context, id int64) error
 	DeletePublicTrafficShaperRule(ctx context.Context, id int64) error
@@ -83,6 +87,10 @@ type Querier interface {
 	DeletePublicWafRule(ctx context.Context, id int64) error
 	DeleteStalePublicAccessSessions(ctx context.Context) (int64, error)
 	DeleteUserAgentLabelsByAgent(ctx context.Context, agentID int64) error
+	DetachAgentConnectionHistory(ctx context.Context, agentID sql.NullInt64) error
+	DetachAgentRequestHistory(ctx context.Context, agentID sql.NullInt64) error
+	DetachAgentRetryHistory(ctx context.Context, retryFailedAgentID sql.NullInt64) error
+	DetachAgentStatsHistory(ctx context.Context, agentID sql.NullInt64) error
 	GetActiveConnection(ctx context.Context) (GetActiveConnectionRow, error)
 	GetActiveManagementAccessTokenByHash(ctx context.Context, tokenHash string) (ManagementAccessToken, error)
 	GetActivePublicAccessSession(ctx context.Context, arg GetActivePublicAccessSessionParams) (GetActivePublicAccessSessionRow, error)
@@ -90,17 +98,12 @@ type Querier interface {
 	GetAgent(ctx context.Context, id int64) (Agent, error)
 	GetAgentByPublicID(ctx context.Context, publicID string) (Agent, error)
 	GetAgentStatsRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetAgentStatsRollupSummarySinceRow, error)
-	GetAgentStatsSummarySince(ctx context.Context, reportedAt time.Time) (GetAgentStatsSummarySinceRow, error)
 	GetConnectionSummarySince(ctx context.Context, connectedAt time.Time) (GetConnectionSummarySinceRow, error)
 	GetEnabledPublicAccessUserByProviderAndUsername(ctx context.Context, arg GetEnabledPublicAccessUserByProviderAndUsernameParams) (PublicAccessUser, error)
 	GetEnvironment(ctx context.Context, id int64) (Environment, error)
 	GetLatestAgentStat(ctx context.Context) (AgentStat, error)
 	GetLatestAgentStatByAgent(ctx context.Context, agentID sql.NullInt64) (AgentStat, error)
-	GetNextAgentRollupBackfillThroughID(ctx context.Context, arg GetNextAgentRollupBackfillThroughIDParams) (int64, error)
-	GetNextProxyRollupBackfillThroughID(ctx context.Context, arg GetNextProxyRollupBackfillThroughIDParams) (int64, error)
-	GetObservabilityRollupState(ctx context.Context) (ObservabilityRollupState, error)
 	GetProxyRequestRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRequestRollupSummarySinceRow, error)
-	GetProxyRequestSummarySince(ctx context.Context, occurredAt time.Time) (GetProxyRequestSummarySinceRow, error)
 	GetProxyRetryRollupSummarySince(ctx context.Context, bucketUnixMillis int64) (GetProxyRetryRollupSummarySinceRow, error)
 	GetPublicAccessPolicy(ctx context.Context, id int64) (PublicAccessPolicy, error)
 	GetPublicAccessProvider(ctx context.Context, id int64) (PublicAccessProvider, error)
@@ -116,6 +119,7 @@ type Querier interface {
 	GetPublicRetryRule(ctx context.Context, id int64) (PublicRetryRule, error)
 	GetPublicRoute(ctx context.Context, id int64) (PublicRoute, error)
 	GetPublicRouteTarget(ctx context.Context, id int64) (PublicRouteTarget, error)
+	GetPublicSite(ctx context.Context, id int64) (PublicSite, error)
 	GetPublicTlsCertificate(ctx context.Context, id int64) (PublicTlsCertificate, error)
 	GetPublicTlsDnsCredential(ctx context.Context, id int64) (PublicTlsDnsCredential, error)
 	GetPublicTrafficShaperRule(ctx context.Context, id int64) (PublicTrafficShaperRule, error)
@@ -129,12 +133,22 @@ type Querier interface {
 	InsertAgentStatAt(ctx context.Context, arg InsertAgentStatAtParams) (int64, error)
 	InsertConnection(ctx context.Context, agentID sql.NullInt64) (int64, error)
 	InsertProxyRequestEvent(ctx context.Context, arg InsertProxyRequestEventParams) error
-	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) (int64, error)
+	InsertProxyRequestEventAt(ctx context.Context, arg InsertProxyRequestEventAtParams) error
+	IsPublicListenerSiteMigrated(ctx context.Context, listenerID int64) (int64, error)
 	ListAgentConnectionsSince(ctx context.Context, arg ListAgentConnectionsSinceParams) ([]ListAgentConnectionsSinceRow, error)
 	ListAgentLabels(ctx context.Context) ([]PublicAgentLabel, error)
 	ListAgentLabelsByAgent(ctx context.Context, agentID int64) ([]PublicAgentLabel, error)
 	ListAgentStatRollupMinutesSince(ctx context.Context, bucketUnixMillis int64) ([]ListAgentStatRollupMinutesSinceRow, error)
+	// Campaigns needing operator attention (running/paused, or still owning an
+	// unfinished, cordoned, or rollback-failed assignment) sort first so recovery
+	// controls stay reachable; everything else is newest first. states_csv is a
+	// comma-separated list of validated state names. query is matched as a literal,
+	// ASCII case-insensitive substring; an empty query disables the text filter.
+	ListAgentUpdateCampaignsFiltered(ctx context.Context, arg ListAgentUpdateCampaignsFilteredParams) ([]AgentUpdateCampaign, error)
 	ListAgents(ctx context.Context) ([]Agent, error)
+	// Fleet variant of ListAgentConnectionsSince: one scan for every agent,
+	// grouped by agent so callers can split rows without re-sorting.
+	ListAllAgentConnectionsSince(ctx context.Context, since time.Time) ([]ListAllAgentConnectionsSinceRow, error)
 	ListConnectionsSince(ctx context.Context, arg ListConnectionsSinceParams) ([]ListConnectionsSinceRow, error)
 	ListEnvironments(ctx context.Context) ([]Environment, error)
 	ListManagementAccessTokens(ctx context.Context) ([]ManagementAccessToken, error)
@@ -150,10 +164,8 @@ type Querier interface {
 	ListProxyRetryRuleRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyRetryRuleRollupsSinceRow, error)
 	ListProxyRetryTrendRollupsSince(ctx context.Context, arg ListProxyRetryTrendRollupsSinceParams) ([]ListProxyRetryTrendRollupsSinceRow, error)
 	ListProxyStatusClassesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusClassesRollupsSinceRow, error)
-	ListProxyStatusClassesSince(ctx context.Context, occurredAt time.Time) ([]ListProxyStatusClassesSinceRow, error)
 	ListProxyStatusCodeRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListProxyStatusCodeRollupsSinceRow, error)
 	ListProxyTrafficBucketRollupsSince(ctx context.Context, arg ListProxyTrafficBucketRollupsSinceParams) ([]ListProxyTrafficBucketRollupsSinceRow, error)
-	ListProxyTrafficBucketsSince(ctx context.Context, arg ListProxyTrafficBucketsSinceParams) ([]ListProxyTrafficBucketsSinceRow, error)
 	ListPublicAccessPolicies(ctx context.Context) ([]PublicAccessPolicy, error)
 	ListPublicAccessProviders(ctx context.Context) ([]PublicAccessProvider, error)
 	ListPublicAccessUsers(ctx context.Context) ([]PublicAccessUser, error)
@@ -171,6 +183,11 @@ type Querier interface {
 	ListPublicRouteTargets(ctx context.Context) ([]PublicRouteTarget, error)
 	ListPublicRouteTargetsByRoute(ctx context.Context, routeID int64) ([]PublicRouteTarget, error)
 	ListPublicRoutes(ctx context.Context) ([]PublicRoute, error)
+	ListPublicSiteHosts(ctx context.Context) ([]PublicSiteHost, error)
+	ListPublicSiteHostsBySite(ctx context.Context, siteID int64) ([]PublicSiteHost, error)
+	ListPublicSiteListenerBindings(ctx context.Context) ([]PublicSiteListenerBinding, error)
+	ListPublicSiteListenerBindingsBySite(ctx context.Context, siteID int64) ([]PublicSiteListenerBinding, error)
+	ListPublicSites(ctx context.Context) ([]PublicSite, error)
 	ListPublicTlsCertificates(ctx context.Context) ([]PublicTlsCertificate, error)
 	ListPublicTlsDnsCredentials(ctx context.Context) ([]PublicTlsDnsCredential, error)
 	ListPublicTrafficShaperRules(ctx context.Context) ([]PublicTrafficShaperRule, error)
@@ -180,20 +197,14 @@ type Querier interface {
 	ListRecentConnections(ctx context.Context, limit int64) ([]ListRecentConnectionsRow, error)
 	ListRecentProxyProblemSamplesSince(ctx context.Context, arg ListRecentProxyProblemSamplesSinceParams) ([]ListRecentProxyProblemSamplesSinceRow, error)
 	ListTopProxyAgentsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyAgentsRollupsSinceRow, error)
-	ListTopProxyAgentsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyAgentsSinceRow, error)
 	ListTopProxyErrorKindsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyErrorKindsRollupsSinceRow, error)
-	ListTopProxyErrorKindsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyErrorKindsSinceRow, error)
 	ListTopProxyListenersRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyListenersRollupsSinceRow, error)
-	ListTopProxyListenersSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyListenersSinceRow, error)
 	ListTopProxyRouteTargetsRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRouteTargetsRollupsSinceRow, error)
-	ListTopProxyRouteTargetsSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRouteTargetsSinceRow, error)
 	ListTopProxyRoutesRollupsSince(ctx context.Context, bucketUnixMillis int64) ([]ListTopProxyRoutesRollupsSinceRow, error)
-	ListTopProxyRoutesSince(ctx context.Context, occurredAt time.Time) ([]ListTopProxyRoutesSinceRow, error)
 	MarkAgentConnected(ctx context.Context, id int64) error
 	MarkAgentDisconnected(ctx context.Context, id int64) error
-	MarkAgentRollupBackfilledThrough(ctx context.Context, agentBackfilledThroughID int64) error
 	MarkAgentsWithOpenConnectionsDisconnectedAt(ctx context.Context, arg MarkAgentsWithOpenConnectionsDisconnectedAtParams) error
-	MarkProxyRollupBackfilledThrough(ctx context.Context, proxyBackfilledThroughID int64) error
+	MarkPublicListenerSiteMigrated(ctx context.Context, listenerID int64) error
 	PurgeAllPublicCacheEntries(ctx context.Context) ([]PurgeAllPublicCacheEntriesRow, error)
 	PurgePublicCacheEntriesByHostPath(ctx context.Context, arg PurgePublicCacheEntriesByHostPathParams) ([]PurgePublicCacheEntriesByHostPathRow, error)
 	PurgePublicCacheEntriesByRule(ctx context.Context, ruleID int64) ([]PurgePublicCacheEntriesByRuleRow, error)
@@ -206,6 +217,7 @@ type Querier interface {
 	SetPublicGeoIpUpdateError(ctx context.Context, arg SetPublicGeoIpUpdateErrorParams) (PublicGeoIpSetting, error)
 	SetPublicGeoIpUpdateSuccess(ctx context.Context, arg SetPublicGeoIpUpdateSuccessParams) (PublicGeoIpSetting, error)
 	SetPublicListenerEnabled(ctx context.Context, arg SetPublicListenerEnabledParams) (PublicListener, error)
+	SetPublicSitePublished(ctx context.Context, arg SetPublicSitePublishedParams) (PublicSite, error)
 	SetPublicTrustedProxySourceEnabled(ctx context.Context, arg SetPublicTrustedProxySourceEnabledParams) (PublicTrustedProxySource, error)
 	SetPublicTrustedProxySourceRefreshAttempt(ctx context.Context, arg SetPublicTrustedProxySourceRefreshAttemptParams) (PublicTrustedProxySource, error)
 	SetPublicTrustedProxySourceRefreshError(ctx context.Context, arg SetPublicTrustedProxySourceRefreshErrorParams) (PublicTrustedProxySource, error)
@@ -234,7 +246,9 @@ type Querier interface {
 	UpdatePublicResponseTemplate(ctx context.Context, arg UpdatePublicResponseTemplateParams) (PublicResponseTemplate, error)
 	UpdatePublicRetryRule(ctx context.Context, arg UpdatePublicRetryRuleParams) (PublicRetryRule, error)
 	UpdatePublicRoute(ctx context.Context, arg UpdatePublicRouteParams) (PublicRoute, error)
+	UpdatePublicRouteHostPatternBySite(ctx context.Context, arg UpdatePublicRouteHostPatternBySiteParams) error
 	UpdatePublicRouteTarget(ctx context.Context, arg UpdatePublicRouteTargetParams) (PublicRouteTarget, error)
+	UpdatePublicSite(ctx context.Context, arg UpdatePublicSiteParams) (PublicSite, error)
 	UpdatePublicTlsCertificate(ctx context.Context, arg UpdatePublicTlsCertificateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateIssueState(ctx context.Context, arg UpdatePublicTlsCertificateIssueStateParams) (PublicTlsCertificate, error)
 	UpdatePublicTlsCertificateRenewalStatus(ctx context.Context, arg UpdatePublicTlsCertificateRenewalStatusParams) (PublicTlsCertificate, error)

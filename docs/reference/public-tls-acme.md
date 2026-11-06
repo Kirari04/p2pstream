@@ -2,7 +2,7 @@
 
 Public TLS is configured per HTTPS listener with certificate mappings.
 
-In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add Certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
+In the management UI, choose **TLS** under **Configure**. Create an HTTPS listener under **Proxy -> Listeners** first, then choose **Add certificate**. The TLS page separates certificate mappings from reusable DNS credentials and shows summary counts for HTTPS listeners, mappings, certificate errors, and DNS credentials.
 
 ## Exact Fields And Defaults
 
@@ -37,7 +37,7 @@ Statuses:
 ## Validation Rules
 
 - ACME hostnames must be public fully-qualified DNS names.
-- ACME does not accept `localhost`, `p2pstream.local`, IP addresses, or internal-only names.
+- ACME does not accept `localhost`, `.local` names (including the legacy `p2pstream.local` default), IP addresses, or internal-only names.
 - Wildcard ACME certificates require DNS-01.
 - DNS-01 currently requires an enabled Cloudflare DNS credential.
 - Uploaded manual certificates require both PEM certificate and key.
@@ -45,11 +45,15 @@ Statuses:
 
 ## Runtime Effects
 
-Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or within 30 days of expiry. Failed renewals are retried after 1 hour.
+Uploaded and generated public certificate material is written under `${CONFIG_DIR}/certs/public-listener-<listener-id>/`. ACME certificates renew when missing, expired, or when one third of their lifetime remains, capped at 30 days before expiry (a 90-day certificate renews 30 days before expiry, a 45-day certificate 15 days before, a 6-day certificate 2 days before). Failed renewals are retried after 1 hour.
+
+Fresh installations seed a manual self-signed mapping for `localhost`. Newly generated default and fallback certificates use only `localhost` as their subject/issuer CN and DNS SAN, plus `127.0.0.1` and `::1` IP SANs; they include no product organization or other product identity fields. Certificates generated for an explicit hostname or IP keep that requested SAN. Generic names remove explicit product identification from these certificates, but do not prevent TLS fingerprinting.
+
+Upgrades preserve stored certificate mappings and files, including the legacy `p2pstream.local` default, uploaded certificates, and certificates referenced by server paths. Restarting replaces the in-memory fallback with a newly generated generic certificate, but does not replace a persisted default. To replace a legacy default, edit its mapping under **TLS**, change the hostname to `localhost`, select **Manual -> Generate self-signed**, choose the validity, and save. This generates new key/certificate material and applies it to new TLS handshakes. Keeping the old hostname while regenerating retains that hostname in the new CN/SAN. Alternatively, replace the mapping with a certificate for your intended public hostname. Manual certificates have no automatic renewal and cannot use the ACME **Renew** action. Management certificates and trust roots are separate and are unaffected.
 
 For ready ACME certificates, `next_renewal_at` is the next planned renewal time. For failed ACME certificates, `next_renewal_at` is the next automatic retry time. While a renewal is running, the next schedule is cleared until the attempt succeeds or fails.
 
-The certificate table uses **Mapping**, **Certificate**, **Status**, and **Lifecycle** columns. It shows validity when metadata is stored or the certificate file can be parsed. For ACME certificates it also shows the last attempt time, the next renewal or retry time, the DNS credential when applicable, and the last error. Row actions renew ACME certificates, edit mappings, or delete mappings. The separate DNS Credentials table shows provider, zone ID, enabled/disabled state, and whether the secret is saved.
+The certificate table uses **Hostname**, **Status**, **Expires**, and **Renewal** columns. Expand a row to see the served certificate's issuer, every DNS name and IP address, SHA-256 fingerprint, serial number, and validity; these are read from the certificate file and show a short reason when the file is missing, unreadable, or invalid. ACME certificates are flagged for attention when the last renewal failed, when a renewal is more than 24 hours overdue, or when less than one sixth of the lifetime (at most 14 days) remains. Manual certificates show an expiry warning when less than one third of the lifetime (at most 30 days) remains. Row actions renew ACME certificates, edit mappings, or delete mappings from the **More** menu. The separate DNS credentials table shows provider, zone ID, enabled/disabled state, and whether the secret is saved.
 
 Server logs for ACME use `component=public_acme`. Renewal entries include fields such as `cert_id`, `listener_id`, `hostname`, `challenge_type`, `ca`, `trigger`, `stage`, `attempt_at`, `duration`, `expires_at`, `next_renewal_at`, and `retry_at`. Challenge tokens, DNS TXT values, DNS API tokens, and private key material are not logged.
 

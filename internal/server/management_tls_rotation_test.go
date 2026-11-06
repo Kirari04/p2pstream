@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	p2pstreamv1 "p2pstream/gen/proto/p2pstream/v1"
@@ -363,6 +364,79 @@ func TestManagementTLSRuntimeRejectsInconsistentPersistedState(t *testing.T) {
 	}
 }
 
+func TestManagementTLSRuntimeRejectsLegacyPersistedStateReconstruction(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		mutate      func(managementTLSRotationDiskState) managementTLSRotationDiskState
+		removeField string
+		want        string
+	}{
+		{
+			name: "missing staged generation",
+			mutate: func(state managementTLSRotationDiskState) managementTLSRotationDiskState {
+				state.Phase = "distributing"
+				state.StagedGeneration = 0
+				return state
+			},
+			want: "no staged generation",
+		},
+		{
+			name: "missing managed trust metadata",
+			mutate: func(state managementTLSRotationDiskState) managementTLSRotationDiskState {
+				state.Phase = "idle"
+				state.ActiveGeneration = 2
+				state.TrustManaged = false
+				return state
+			},
+			removeField: "trust_managed",
+			want:        "lacks managed trust metadata",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := managementTLSTestConfig(t)
+			database, err := db.Open(filepath.Join(t.TempDir(), "legacy-state.db"))
+			if err != nil {
+				t.Fatalf("open database: %v", err)
+			}
+			t.Cleanup(func() { _ = database.Close() })
+			tlsConfig, enabled, err := NewManagementTLSConfig(cfg)
+			if err != nil {
+				t.Fatalf("create management TLS config: %v", err)
+			}
+			runtime, err := NewManagementTLSRuntime(cfg, database, tlsConfig, enabled)
+			if err != nil {
+				t.Fatalf("create management TLS runtime: %v", err)
+			}
+			state := test.mutate(runtime.state)
+			raw, err := json.Marshal(state)
+			if err != nil {
+				t.Fatalf("marshal state: %v", err)
+			}
+			if test.removeField != "" {
+				var fields map[string]json.RawMessage
+				if err := json.Unmarshal(raw, &fields); err != nil {
+					t.Fatalf("decode state fields: %v", err)
+				}
+				delete(fields, test.removeField)
+				raw, err = json.Marshal(fields)
+				if err != nil {
+					t.Fatalf("remarshal state fields: %v", err)
+				}
+			}
+			if err := os.WriteFile(runtime.stateFile, raw, 0600); err != nil {
+				t.Fatalf("write state: %v", err)
+			}
+			restartedConfig, restartedEnabled, err := NewManagementTLSConfig(cfg)
+			if err != nil {
+				t.Fatalf("create restarted management TLS config: %v", err)
+			}
+			if _, err := NewManagementTLSRuntime(cfg, database, restartedConfig, restartedEnabled); err == nil || !strings.Contains(err.Error(), "unsupported management TLS rotation state") || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("legacy state error = %v", err)
+			}
+		})
+	}
+}
+
 func TestManagementTLSRuntimeForcedCleanupRetainsIdleAttentionUntilReconciled(t *testing.T) {
 	ctx := context.Background()
 	cfg := managementTLSTestConfig(t)
@@ -489,5 +563,12 @@ func TestManagementTLSRuntimeLeafReplacementUnderSameCADoesNotBlockOnAgents(t *t
 	}
 	if snapshot.Phase != p2pstreamv1.ManagementTlsRotationPhase_MANAGEMENT_TLS_ROTATION_PHASE_IDLE {
 		t.Fatalf("finished leaf phase = %s, want idle", snapshot.Phase)
+	}
+	restartedConfig, restartedEnabled, err := NewManagementTLSConfig(cfg)
+	if err != nil {
+		t.Fatalf("create restarted same-CA management TLS config: %v", err)
+	}
+	if _, err := NewManagementTLSRuntime(cfg, database, restartedConfig, restartedEnabled); err != nil {
+		t.Fatalf("restart rejected current same-CA idle state: %v", err)
 	}
 }

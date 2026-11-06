@@ -45,7 +45,17 @@ Conceptual table groups:
 | Controls | `public_access_providers`, `public_access_policies`, `public_rate_limit_rules`, `public_waf_captcha_providers`, `public_waf_rules`, `public_waf_settings`, `public_geo_ip_settings`, `public_trusted_proxy_sources`, `public_traffic_shaper_rules`, `public_cache_settings`, `public_cache_rules`, `public_cache_entries` |
 | Observability | `proxy_request_events` |
 
-Upgrades migrate old public backend configuration into route targets and then drop the old backend config tables. `public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. GeoIP settings store the redacted-at-API MaxMind download credentials and database refresh state; trusted-proxy rows store explicit provider/custom trust plus the last valid managed CIDR snapshot. `public_retry_rules` stores opt-in method, failure-boundary, replay, route/target filter, and match configuration. `proxy_request_events` includes WAF, cache, retry, route, route target, agent, byte, status, and duration fields. The route-target-only migration resets proxy request events and proxy rollups instead of retaining legacy backend IDs. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation, and agent stats history is not reset by that proxy observability migration.
+Existing databases must have valid Goose migration history. Fresh databases are
+initialized automatically. Startup requires supported configuration and completed
+observability backfills; it does not convert unsupported persisted layouts.
+Keep a full backup and its matching image before changing versions; see
+[Upgrades](../operations/upgrades).
+
+The database is stored under `CONFIG_DIR` unless `DATABASE_URL` names an explicit
+location. A working-directory database is not copied automatically. Stop the
+server before moving it together with its SQLite sidecar files.
+
+`public_waf_settings` stores the cookie signing secret used for WAF pass, admission, and queue cookies. GeoIP settings store the redacted-at-API MaxMind download credentials and database refresh state; trusted-proxy rows store explicit provider/custom trust plus the last valid managed CIDR snapshot. `public_retry_rules` stores opt-in method, failure-boundary, replay, route/target filter, and match configuration. `proxy_request_events` includes WAF, cache, retry, route, route target, agent, byte, status, and duration fields. `agent_stats` includes reported agent CPU percentage for dashboard summaries and automatic WAF activation.
 
 ## Examples
 

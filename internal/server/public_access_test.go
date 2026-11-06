@@ -160,18 +160,12 @@ func TestPublicAccessLocalUserManagementHashesSecretsAndRevokesSessions(t *testi
 		LocalAuthLoginTemplateId: provider.LocalAuthLoginTemplateId,
 	})
 	legacyUpdateReq.Header().Set("Cookie", header.Get("Cookie"))
-	legacyUpdateResp, err := app.UpdatePublicAccessProvider(ctx, legacyUpdateReq)
-	if err != nil {
-		t.Fatalf("legacy-schema local provider update: %v", err)
+	if _, err := app.UpdatePublicAccessProvider(ctx, legacyUpdateReq); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("incomplete local provider update: %v", err)
 	}
-	provider = legacyUpdateResp.Msg.Provider
-	if got := strings.Join(provider.LocalAuthAllowedHosts, ","); got != "*.apps.example.test,login.example.test" ||
-		provider.LocalAuthCookieSameSite != p2pstreamv1.PublicAccessCookieSameSite_PUBLIC_ACCESS_COOKIE_SAME_SITE_STRICT ||
-		provider.LocalAuthCookieDomain != "example.test" || !provider.LocalAuthCookieSecure || provider.LocalAuthCookieName != "family_access" ||
-		provider.LocalAuthLoginUsernameMaxFailures != 3 || provider.LocalAuthLoginClientMaxFailures != 12 ||
-		provider.LocalAuthLoginWindowMillis != int64((2*time.Minute)/time.Millisecond) ||
-		provider.LocalAuthLoginBlockMillis != int64((10*time.Minute)/time.Millisecond) {
-		t.Fatalf("legacy-schema update replaced local security settings: %+v", provider)
+	storedProvider, err := app.DB.GetPublicAccessProvider(ctx, provider.Id)
+	if err != nil || storedProvider.Name != "family" || storedProvider.LocalAuthCookieName != "family_access" || storedProvider.LocalAuthLoginUsernameMaxFailures != 3 {
+		t.Fatalf("rejected update changed provider: %+v, %v", storedProvider, err)
 	}
 
 	userReq := connect.NewRequest(&p2pstreamv1.CreatePublicAccessUserRequest{
@@ -312,7 +306,7 @@ func TestPublicAccessForwardAuthInjectsTrustedIdentity(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "http://app.example/private/report?format=json", nil)
 	req.RemoteAddr = "192.0.2.44:41000"
 	req.Header.Set("Authorization", "Bearer browser-token")
-	req.Header.Set("Cookie", "auth_session=old")
+	req.Header.Set("Cookie", "auth_session=old; "+sessionCookieName+"=management-secret; auth_session=duplicate")
 	req.Header.Set("X-Auth-Request-User", "mallory")
 	req.Header.Set("X-Auth-Request-Email", "mallory@example.test")
 	recorder := httptest.NewRecorder()
@@ -342,12 +336,90 @@ func TestPublicAccessForwardAuthInjectsTrustedIdentity(t *testing.T) {
 		t.Fatalf("forward-auth request = %s %s, want GET /verify", checked.Method, checked.URL.Path)
 	}
 	assertForwardedHeader(t, checked.Header, "Authorization", "Bearer browser-token")
-	assertForwardedHeader(t, checked.Header, "Cookie", "auth_session=old")
+	if cookies := checked.CookiesNamed(sessionCookieName); len(cookies) != 0 {
+		t.Fatalf("forward-auth request received management cookies: %#v", cookies)
+	}
+	if cookies := checked.CookiesNamed("auth_session"); len(cookies) != 2 || cookies[0].Value != "old" || cookies[1].Value != "duplicate" {
+		t.Fatalf("forward-auth application cookies = %#v, want old and duplicate", cookies)
+	}
 	assertForwardedHeader(t, checked.Header, "X-Forwarded-Method", http.MethodGet)
 	assertForwardedHeader(t, checked.Header, "X-Forwarded-Uri", "/private/report?format=json")
 	assertForwardedHeader(t, checked.Header, "X-Forwarded-Host", "app.example")
 	assertForwardedHeader(t, checked.Header, "X-Forwarded-For", "192.0.2.44")
 	assertForwardedHeader(t, checked.Header, "X-Original-Url", "http://app.example/private/report?format=json")
+}
+
+func TestPublicAccessLocalLogoutRequiresTrustedSameOriginPost(t *testing.T) {
+	tests := []struct {
+		name        string
+		method      string
+		origins     []string
+		referers    []string
+		wantStatus  int
+		wantRevoked bool
+	}{
+		{name: "cross-site get", method: http.MethodGet, referers: []string{"http://attacker.example/"}, wantStatus: http.StatusMethodNotAllowed},
+		{name: "cross-origin post", method: http.MethodPost, origins: []string{"http://attacker.example"}, wantStatus: http.StatusBadRequest},
+		{name: "source-less post", method: http.MethodPost, wantStatus: http.StatusBadRequest},
+		{name: "opaque-origin post", method: http.MethodPost, origins: []string{"null"}, wantStatus: http.StatusBadRequest},
+		{name: "duplicate-origin post", method: http.MethodPost, origins: []string{"http://app.example", "http://app.example"}, wantStatus: http.StatusBadRequest},
+		{name: "same-origin post", method: http.MethodPost, origins: []string{"http://app.example"}, wantStatus: http.StatusSeeOther, wantRevoked: true},
+		{name: "same-origin referer post", method: http.MethodPost, referers: []string{"http://app.example/private"}, wantStatus: http.StatusSeeOther, wantRevoked: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			database := newServerTestDB(t)
+			providerRow, userRow := createTestPublicLocalAccessIdentity(t, database, publicAccessLocalAuthModeForm)
+			handler := newTestPublicLocalAccessProxy(t, database, "http://127.0.0.1:1", providerRow, userRow)
+			token := strings.Repeat("s", 43)
+			tokenHash := hashSessionToken(token)
+			if _, err := database.CreatePublicAccessSession(context.Background(), db.CreatePublicAccessSessionParams{
+				ProviderID: providerRow.ID,
+				UserID:     userRow.ID,
+				TokenHash:  tokenHash,
+				ExpiresAt:  time.Now().Add(time.Hour),
+			}); err != nil {
+				t.Fatalf("create local access session: %v", err)
+			}
+
+			req := httptest.NewRequest(test.method, "http://app.example/private?next=1&"+publicAccessLogoutQueryKey+"=1", nil)
+			req.AddCookie(&http.Cookie{Name: publicAccessSessionCookieNameForProvider(publicAccessProviderConfig{ID: providerRow.ID}), Value: token})
+			for _, origin := range test.origins {
+				req.Header.Add("Origin", origin)
+			}
+			for _, referer := range test.referers {
+				req.Header.Add("Referer", referer)
+			}
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			if recorder.Code != test.wantStatus {
+				t.Fatalf("logout status = %d body %q, want %d", recorder.Code, recorder.Body.String(), test.wantStatus)
+			}
+			_, err := database.GetActivePublicAccessSession(context.Background(), db.GetActivePublicAccessSessionParams{
+				ProviderID: providerRow.ID,
+				TokenHash:  tokenHash,
+			})
+			if test.wantRevoked {
+				if !errors.Is(err, sql.ErrNoRows) {
+					t.Fatalf("same-origin logout left session active: %v", err)
+				}
+				if recorder.Header().Get("Location") != "?next=1" {
+					t.Fatalf("logout Location = %q, want ?next=1", recorder.Header().Get("Location"))
+				}
+				if cookies := recorder.Result().Cookies(); len(cookies) != 2 {
+					t.Fatalf("same-origin logout clearing cookies = %#v, want 2", cookies)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("rejected logout changed active session: %v", err)
+				}
+				if cookies := recorder.Result().Cookies(); len(cookies) != 0 {
+					t.Fatalf("rejected logout changed browser cookies: %#v", cookies)
+				}
+			}
+		})
+	}
 }
 
 func TestPublicAccessLocalFormLoginCreatesRevocableSession(t *testing.T) {

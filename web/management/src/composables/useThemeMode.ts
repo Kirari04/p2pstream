@@ -24,14 +24,8 @@ export function observeSystemDarkMode(
 
   onChange(mediaQuery.matches);
 
-  if (typeof mediaQuery.addEventListener === "function") {
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }
-
-  // Older WebKit versions only expose the deprecated listener API.
-  mediaQuery.addListener(handleChange);
-  return () => mediaQuery.removeListener(handleChange);
+  mediaQuery.addEventListener("change", handleChange);
+  return () => mediaQuery.removeEventListener("change", handleChange);
 }
 
 function loadInitialThemeMode(): ThemeMode {
