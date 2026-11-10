@@ -26,7 +26,7 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
     "@lezer/highlight": "^1.2.3",
-    "@lucide/vue": "^1.21.0",
+    "@lucide/vue": "^1.70.0",
     "@vue-flow/core": "^1.48.2",
     "codemirror": "^6.0.2",
     "naive-ui": "^2.44.1",
