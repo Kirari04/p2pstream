@@ -16,7 +16,7 @@
         "@fontsource/ibm-plex-mono": "^5.2.7",
         "@fontsource/ibm-plex-sans": "^5.2.8",
         "@lezer/highlight": "^1.2.3",
-        "@lucide/vue": "^1.21.0",
+        "@lucide/vue": "^1.70.0",
         "@vue-flow/core": "^1.48.2",
         "codemirror": "^6.0.2",
         "naive-ui": "^2.44.1",
@@ -126,7 +126,7 @@
 
     "@lezer/lr": ["@lezer/lr@1.4.10", "", { "dependencies": { "@lezer/common": "^1.0.0" } }, "sha512-rnCpTIBafOx4mRp43xOxDJbFipJm/c0cia/V5TiGlhmMa+wsSdoGmUN3w5Bqrks/09Q/D4tNAmWaT8p6NRi77A=="],
 
-    "@lucide/vue": ["@lucide/vue@1.21.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-eoFn3tppjKAc12ZqdnRSMFdtwQ1ZMRQFb6SV1Eub6Y8kU28ccnqKeSFdnur9hMg8gIbosU2Y3WFJr/J/xS/IlQ=="],
+    "@lucide/vue": ["@lucide/vue@1.70.0", "", { "peerDependencies": { "vue": ">=3.0.1" } }, "sha512-kutUu3oEtfQnyaP6hh76ShG2dxa8PiL6uY3rk3DqclQe0Vd2FtPlnclezR0XMQtlFMPiEaCOXDSuhehFHW5ErQ=="],
 
     "@marijn/find-cluster-break": ["@marijn/find-cluster-break@1.0.2", "", {}, "sha512-l0h88YhZFyKdXIFNfSWpyjStDjGHwZ/U7iobcK1cQQD8sejsONdQtTVU+1wVN1PBw40PiiHB1vA5S7VTfQiP9g=="],
 
